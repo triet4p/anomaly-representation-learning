@@ -43,11 +43,13 @@ def compute_all_patch_stats(batch: PatchBatch) -> npt.NDArray[np.float64]:
     Returns float64 [N].
     """
     N = batch.N
-    scores = np.zeros(N, dtype=np.float64)
-    for i in range(N):
-        s = _patch_stats(batch.patches[i])
-        scores[i] = (s["std"] + 1e-8) * (s["range"] + 1e-8) * (1.0 + s["derivative_energy"])
-    return scores
+    if N == 0:
+        return np.zeros(0, dtype=np.float64)
+    flat = batch.patches.reshape(N, -1).astype(np.float64)
+    std = np.std(flat, axis=1)
+    rng = np.ptp(flat, axis=1)
+    deriv = np.mean(np.abs(np.diff(flat, axis=1)), axis=1)
+    return (std + 1e-8) * (rng + 1e-8) * (1.0 + deriv)
 
 
 def _stratify_patches(
