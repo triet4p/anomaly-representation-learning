@@ -86,11 +86,23 @@ class RepresentationInference:
         self.reference_bank = reference_bank
         self.patchifier = patchifier
         self.masking_config = masking_config
+    def _move_batch(self, batch: RepresentationBatch) -> RepresentationBatch:
+        param = next(self.model.parameters(), None)
+        if param is None:
+            return batch
+        target_device = param.device
+        moved: dict[str, object] = dict(batch)
+        for name, value in batch.items():
+            if isinstance(value, torch.Tensor) and value.device != target_device:
+                moved[name] = value.to(target_device)
+        return moved  # type: ignore[return-value]
+
 
     @torch.no_grad()
     def score_batch(self, batch: RepresentationBatch) -> dict[str, object]:
         """Score a padded batch and return independent patch/timestep localization."""
         self.model.eval()
+        batch = self._move_batch(batch)
         output = self.model(batch)
         predicted = output["predicted_latents"]
         target = output["target_latents"]
