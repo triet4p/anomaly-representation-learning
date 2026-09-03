@@ -1,0 +1,18 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Python version
+.python-version
+
+# Generated experiment artifacts (plots, metrics, large datasets)
+experiments/artifacts/
+data/generated/
+*.npz
