@@ -4,7 +4,14 @@ import json
 from pathlib import Path
 
 
-NOTEBOOKS = (Path("notebooks/train_v1_representation.ipynb"), Path("notebooks/infer_v1_representation.ipynb"))
+NOTEBOOKS = (
+    Path("notebooks/train_v1_representation.ipynb"),
+    Path("notebooks/infer_v1_representation.ipynb"),
+    Path("notebooks/local/train_v1_representation.ipynb"),
+    Path("notebooks/local/infer_v1_representation.ipynb"),
+    Path("notebooks/kaggle/train_v1_representation.ipynb"),
+    Path("notebooks/kaggle/infer_v1_representation.ipynb"),
+)
 
 
 def test_v1_notebooks_are_valid_current_package_workflows() -> None:

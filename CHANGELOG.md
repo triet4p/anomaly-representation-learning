@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Added `in_memory` caching option to `StreamingBatchDataset` and parameter dataclasses, enabling fast in-memory loading and global per-epoch random shuffling for datasets $\le 25\text{K}$ samples.
 - Added integrated `tqdm` progress tracking across RAM preloading, batch training steps, validation passes, reference bank fitting, and test inference scoring.
 - Added `tqdm>=4.70.0` project dependency.
+- Split representation notebooks into `notebooks/local/` (using local server source and storage paths) and `notebooks/kaggle/` (using `/kaggle/input/datasets/trietp1253201581/anomaly-representation-20260903-01` paths).
 
 ### Changed
 - Vectorized `compute_all_patch_stats` in `synth.masking` to compute patch variance, peak-to-peak range, and derivative energy in a single 2D NumPy operation, accelerating information-aware patch stratification by over $13\times$.
