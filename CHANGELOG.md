@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Added automatic CUDA device detection and memory diagnostic reporting across both representation notebooks.
 - Added comprehensive anomaly detection evaluation metrics (MAD thresholds, precision, recall, F1, AUROC, per-family breakdown) to the production inference notebook.
 - Added transparent batch device placement helper `_move_batch` to `RepresentationInference`.
+- Added `in_memory` caching option to `StreamingBatchDataset` and parameter dataclasses, enabling fast in-memory loading and global per-epoch random shuffling for datasets $\le 25\text{K}$ samples.
+- Added integrated `tqdm` progress tracking across RAM preloading, batch training steps, validation passes, reference bank fitting, and test inference scoring.
+- Added `tqdm>=4.70.0` project dependency.
 
 ### Changed
 
