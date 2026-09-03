@@ -1,0 +1,14 @@
+{
+  "id": "trietp1253201581/anomaly-representation-training-gpu",
+  "title": "Anomaly Representation Training GPU",
+  "code_file": "train_v1_representation.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_gpu": true,
+  "enable_gpu": true,
+  "enable_internet": true,
+  "dataset_sources": [
+    "trietp1253201581/anomaly-representation-20260903-01"
+  ],
+  "kernel_sources": []
+}
