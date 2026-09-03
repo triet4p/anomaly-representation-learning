@@ -18,6 +18,7 @@ dependencies = [
     "scikit-learn>=1.9.0",
     "scipy>=1.0",
     "torch>=2.11.0",
+    "tqdm>=4.70.0",
 ]
 [project.scripts]
 synth-generate = "synth.cli:main"
