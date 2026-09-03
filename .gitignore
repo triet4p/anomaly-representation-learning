@@ -16,3 +16,5 @@ wheels/
 experiments/artifacts/
 data/generated/
 *.npz
+checkpoints/
+*.pt
