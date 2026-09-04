@@ -7,10 +7,6 @@ from pathlib import Path
 NOTEBOOKS = (
     Path("notebooks/train_v1_representation.ipynb"),
     Path("notebooks/infer_v1_representation.ipynb"),
-    Path("notebooks/local/train_v1_representation.ipynb"),
-    Path("notebooks/local/infer_v1_representation.ipynb"),
-    Path("notebooks/kaggle/train_v1_representation.ipynb"),
-    Path("notebooks/kaggle/infer_v1_representation.ipynb"),
 )
 
 
