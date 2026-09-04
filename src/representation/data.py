@@ -120,6 +120,12 @@ def collate_variable_files(
         "valid_len": valid_len,
         "mask": mask,
         "file_ids": [sample.file_id for sample in samples],
+        "robot_idx": torch.tensor(
+            [getattr(sample, "robot_idx", 0) for sample in samples], dtype=torch.long
+        ),
+        "program_idx": torch.tensor(
+            [getattr(sample, "program_idx", 0) for sample in samples], dtype=torch.long
+        ),
     }
     validate_batch(batch)
     batch["file_labels"] = [sample.file_label for sample in samples]

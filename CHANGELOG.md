@@ -18,6 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Added integrated `tqdm` progress tracking across RAM preloading, batch training steps, validation passes, reference bank fitting, and test inference scoring.
 - Added `tqdm>=4.70.0` project dependency.
 - Unified training and inference workflows into single canonical notebooks (`train_v1_representation.ipynb` and `infer_v1_representation.ipynb`) with automatic Kaggle vs. Local environment path detection.
+- Added `ConditionalBatchNorm` layer (`src/representation/layers/normalization.py`) using `dict[str, torch.Tensor]` inputs and outputs with hierarchical fleet fallback `(robot, program) -> robot -> fleet` and variable-length sequence mask-awareness.
+- Extended synthetic data generation (`src/synth/`) with `FleetConfig` to model distinct robot calibration offsets and program physical operating envelopes, saving `robot_idx`, `program_idx`, `robot_code`, and `program_number` on `FileSample` and NPZ shards.
+- Wired `robot_idx` and `program_idx` through `RepresentationBatch`, collation, and `V1RepresentationModel` forward pass.
 
 ### Changed
 - Vectorized `compute_all_patch_stats` in `synth.masking` to compute patch variance, peak-to-peak range, and derivative energy in a single 2D NumPy operation, accelerating information-aware patch stratification by over $13\times$.

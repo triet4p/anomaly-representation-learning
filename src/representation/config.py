@@ -24,6 +24,11 @@ class V1Config(BaseModel):
     sequence_layers: int = Field(default=4, description="Context encoder depth.")
     attention_heads: int = Field(default=4, description="Context attention heads.")
     dropout: float = Field(default=0.1, ge=0.0, lt=1.0)
+    n_robots: int = Field(default=5, ge=1, description="Fleet robot count for conditional norm.")
+    n_programs: int = Field(default=8, ge=1, description="Fleet program count for conditional norm.")
+    use_conditional_norm: bool = Field(default=True, description="Enable conditional sequence batch normalization.")
+    min_bucket_samples: int = Field(default=32, ge=1, description="Min normal samples before bucket activates.")
+
 
     total_mask_ratio: float = Field(default=0.40, ge=0.0, le=1.0)
     random_fraction: float = Field(default=0.34, ge=0.0, le=1.0)

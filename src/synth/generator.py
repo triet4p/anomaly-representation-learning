@@ -126,14 +126,23 @@ class SessionGenerator:
         # anomaly family/severity so normal base is stable.
         normal_seed = int(rng_base.integers(0, 2**31))
         rng_normal = np.random.default_rng(normal_seed)
+        fcfg = self.cfg.fleet
+        robot_idx = int(rng_normal.integers(0, fcfg.n_robots))
+        program_idx = int(rng_normal.integers(0, fcfg.n_programs))
+        robot_code = f"R{robot_idx+1:02d}"
+        program_number = f"P{100 + program_idx * 10}"
 
-        gain = 1.0 + rng_normal.uniform(-pcfg.channel_gain_variation, pcfg.channel_gain_variation, C)
+        robot_rng = np.random.default_rng(100_000 + robot_idx)
+        robot_gain_bias = robot_rng.normal(1.0, fcfg.robot_gain_std, C)
+        robot_temp_offset = float(robot_rng.uniform(fcfg.robot_temp_offset_range[0], fcfg.robot_temp_offset_range[1]))
+
+        gain = (1.0 + rng_normal.uniform(-pcfg.channel_gain_variation, pcfg.channel_gain_variation, C)) * robot_gain_bias
         off_frac = rng_normal.uniform(-pcfg.channel_offset_variation, pcfg.channel_offset_variation, C)
-        robot_temp_offset = float(rng_normal.uniform(-3.0, 8.0))
-
         seq_pairs = sample_regime_sequence(rng_normal, rcfg)
         off_abs = off_frac * channel_offset_scales(C, pcfg)
         feed_envelope, regime_meta = build_feed_envelope(seq_pairs, rcfg, pcfg, rng_normal)
+        speed_scale = fcfg.program_speed_scales[program_idx % len(fcfg.program_speed_scales)]
+        feed_envelope = feed_envelope * speed_scale
 
         causal_rng = np.random.default_rng(int(rng_normal.integers(0, 2**31)))
         causal = CausalSignalGenerator(pcfg, causal_rng, channel_gain=gain, channel_off=off_abs)
@@ -189,6 +198,10 @@ class SessionGenerator:
             anomaly_meta=result.meta if result.accepted else None,
             anomaly_mask=result.mask.astype(bool) if result.accepted else None,
             rejection_meta=rejected_meta,
+            robot_idx=robot_idx,
+            program_idx=program_idx,
+            robot_code=robot_code,
+            program_number=program_number,
         )
         # Attach generation diagnostics to meta.extra
         if result.accepted and sample.anomaly_meta is not None:

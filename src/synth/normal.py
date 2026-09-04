@@ -47,22 +47,31 @@ class NormalGenerator:
         """Generate one normal session."""
         rng = np.random.default_rng(seed)
 
-        # ── Natural per-channel variation ──────────────────────────────
+        # ── Robot & Program fleet assignment ───────────────────────────
+        fcfg = self.cfg.fleet
+        robot_idx = int(rng.integers(0, fcfg.n_robots))
+        program_idx = int(rng.integers(0, fcfg.n_programs))
+        robot_code = f"R{robot_idx+1:02d}"
+        program_number = f"P{100 + program_idx * 10}"
+
+        # ── Natural per-channel variation with robot calibration bias ──
         pcfg = self.cfg.physics
         ncfg = self.cfg.noise
         rcfg = self.cfg.regime
         C = self.cfg.n_channels
 
-        gain = 1.0 + rng.uniform(-pcfg.channel_gain_variation, pcfg.channel_gain_variation, C)
+        robot_rng = np.random.default_rng(100_000 + robot_idx)
+        robot_gain_bias = robot_rng.normal(1.0, fcfg.robot_gain_std, C)
+        robot_temp_offset = float(robot_rng.uniform(fcfg.robot_temp_offset_range[0], fcfg.robot_temp_offset_range[1]))
+
+        gain = (1.0 + rng.uniform(-pcfg.channel_gain_variation, pcfg.channel_gain_variation, C)) * robot_gain_bias
         off_frac = rng.uniform(-pcfg.channel_offset_variation, pcfg.channel_offset_variation, C)
-
-        # Robot temperature offset (natural variation)
-        robot_temp_offset = rng.uniform(-3.0, 8.0)
-
         # ── Regime sequence + feed envelope ────────────────────────────
         seq_pairs = sample_regime_sequence(rng, rcfg)
         T = sum(d for _, d in seq_pairs)
         feed_envelope, regime_meta = build_feed_envelope(seq_pairs, rcfg, pcfg, rng)
+        speed_scale = fcfg.program_speed_scales[program_idx % len(fcfg.program_speed_scales)]
+        feed_envelope = feed_envelope * speed_scale
 
         # Channel offsets in physical units, preserving semantics for C=3/6.
         off_abs = off_frac * channel_offset_scales(C, pcfg)
@@ -87,4 +96,8 @@ class NormalGenerator:
             generator_version=GENERATOR_VERSION,
             config_hash=self._config_hash,
             regime_sequence=regime_meta,
+            robot_idx=robot_idx,
+            program_idx=program_idx,
+            robot_code=robot_code,
+            program_number=program_number,
         )

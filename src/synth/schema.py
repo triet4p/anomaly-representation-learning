@@ -126,6 +126,10 @@ class FileSample:
     anomaly_meta: AnomalyMeta | None = None
     anomaly_mask: npt.NDArray[np.bool_] | None = None  # [C, T]
     rejection_meta: AnomalyMeta | None = None
+    robot_idx: int = 0
+    program_idx: int = 0
+    robot_code: str = "R01"
+    program_number: str = "P100"
 
     @property
     def C(self) -> int:
@@ -144,6 +148,8 @@ class FileSample:
         )
         assert self.T > 0, "session must contain at least one timestep"
         assert np.isfinite(self.x).all(), "x must be finite"
+        assert self.robot_idx >= 0, "robot_idx must be non-negative"
+        assert self.program_idx >= 0, "program_idx must be non-negative"
 
         if self.anomaly_mask is not None:
             assert self.anomaly_mask.shape == self.x.shape, (

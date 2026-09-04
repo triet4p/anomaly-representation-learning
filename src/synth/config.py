@@ -218,6 +218,17 @@ class ContrastiveConfig:
     noise_std: float = 0.005    # additional white noise (fraction of signal std)
     max_shift: int = 2          # max timestep shift (edge-preserving)
 
+@dataclass
+class FleetConfig:
+    """Robot and program fleet configuration for conditional normalization."""
+    n_robots: int = 5
+    n_programs: int = 8
+    robot_gain_std: float = 0.05
+    robot_temp_offset_range: tuple[float, float] = (-3.0, 8.0)
+    program_speed_scales: list[float] = field(default_factory=lambda: [
+        0.7, 0.85, 1.0, 1.15, 1.3, 0.9, 1.2, 1.4
+    ])
+
 
 @dataclass
 class SynthConfig:
@@ -230,6 +241,7 @@ class SynthConfig:
     patch: PatchConfig = field(default_factory=PatchConfig)
     masking: MaskingConfig = field(default_factory=MaskingConfig)
     contrastive: ContrastiveConfig = field(default_factory=ContrastiveConfig)
+    fleet: FleetConfig = field(default_factory=FleetConfig)
 
     # Six channels are the production layout; the legacy three-channel
     # layout remains supported for old experiments and fixtures.
@@ -241,6 +253,10 @@ class SynthConfig:
                 f"n_channels must be one of {SUPPORTED_CHANNEL_COUNTS}, "
                 f"got {self.n_channels}"
             )
+        if self.fleet.n_robots <= 0:
+            raise ValueError("fleet n_robots must be positive")
+        if self.fleet.n_programs <= 0:
+            raise ValueError("fleet n_programs must be positive")
         r = self.regime
         if r.min_total_steps <= 0 or r.max_total_steps < r.min_total_steps:
             raise ValueError("regime total-step bounds are invalid")

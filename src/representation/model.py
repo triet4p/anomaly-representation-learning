@@ -10,7 +10,7 @@ from torch import nn
 
 from representation.config import V1Config
 from representation.contracts import RepresentationBatch, RepresentationOutput, validate_batch, validate_output
-from representation.layers import EMATargetEncoder, LocalPatchEncoder, MaskedLatentPredictor, SequenceContextEncoder
+from representation.layers import ConditionalBatchNorm, EMATargetEncoder, LocalPatchEncoder, MaskedLatentPredictor, SequenceContextEncoder
 from synth.config import ContrastiveConfig, PatchConfig
 from synth.contrastive import make_contrastive_views
 from synth.patchify import Patchifier
@@ -45,6 +45,18 @@ class V1RepresentationModel(nn.Module):
             self.context_encoder, decay=config.ema_decay
         )
         self.predictor = MaskedLatentPredictor(config.d_model, dropout=config.dropout)
+        self.conditional_norm = (
+            ConditionalBatchNorm(
+                num_sensors=config.n_channels,
+                condition_cardinalities={
+                    "robot_idx": config.n_robots,
+                    "program_idx": config.n_programs,
+                },
+                min_bucket_samples=config.min_bucket_samples,
+            )
+            if config.use_conditional_norm
+            else None
+        )
         self._view_rng = np.random.default_rng(config.seed)
 
     def _encode_patches(
@@ -129,8 +141,25 @@ class V1RepresentationModel(nn.Module):
     def forward(self, batch: RepresentationBatch) -> RepresentationOutput:
         """Return context, stop-gradient target, prediction, and file latents."""
         validate_batch(batch)
+        patches = batch["patches"]
+        norm_result = None
+        if self.conditional_norm is not None:
+            norm_inputs: dict[str, torch.Tensor] = {
+                "input": batch["signals"],
+                "valid_mask": batch["file_valid_mask"],
+            }
+            if "robot_idx" in batch and isinstance(batch["robot_idx"], torch.Tensor):
+                norm_inputs["robot_idx"] = batch["robot_idx"]
+            if "program_idx" in batch and isinstance(batch["program_idx"], torch.Tensor):
+                norm_inputs["program_idx"] = batch["program_idx"]
+            norm_result = self.conditional_norm(norm_inputs)
+            means = norm_result["mean"]
+            stds = norm_result["std"]
+            patches = (patches - means.unsqueeze(1).unsqueeze(-1)) / stds.unsqueeze(1).unsqueeze(-1)
+            patches = patches.masked_fill(batch["patch_pad_mask"].unsqueeze(2), 0.0)
+
         context, target, predicted, prediction_mask = self._encode_patches(
-            batch["patches"],
+            patches,
             batch["patch_pad_mask"],
             batch["patch_valid_mask"],
             batch["mask"],
@@ -143,6 +172,8 @@ class V1RepresentationModel(nn.Module):
             "prediction_mask": prediction_mask,
             "file_embedding": file_embedding,
         }
+        if norm_result is not None:
+            output["normalization"] = norm_result
         views = self._view_embeddings(batch)
         if views is not None:
             output["view_embedding_1"], output["view_embedding_2"] = views

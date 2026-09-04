@@ -1,5 +1,6 @@
 """Contracts and configuration for the anomaly representation model."""
 
+from representation.layers.normalization import ConditionalBatchNorm
 from representation.config import V1Config
 from representation.contracts import (
     RepresentationBatch,
@@ -18,6 +19,7 @@ from representation.criterion import (
 from representation.inference import NormalReferenceBank, ReferenceBank, RepresentationInference, mad_threshold
 
 __all__ = [
+    "ConditionalBatchNorm",
     "V1Config",
     "V1RepresentationModel",
     "RepresentationBatch",

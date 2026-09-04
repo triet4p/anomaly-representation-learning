@@ -348,6 +348,10 @@ def _sample_arrays(sample: FileSample) -> dict[str, object]:
         "regime_levels": np.array([r.target_level for r in sample.regime_sequence], dtype=np.float64),
         "regime_frequencies": np.array([np.nan if r.frequency is None else r.frequency for r in sample.regime_sequence]),
         "regime_phases": np.array([np.nan if r.phase is None else r.phase for r in sample.regime_sequence]),
+        "robot_idx": np.int64(sample.robot_idx),
+        "program_idx": np.int64(sample.program_idx),
+        "robot_code": np.bytes_(sample.robot_code),
+        "program_number": np.bytes_(sample.program_number),
     }
     if sample.anomaly_mask is not None:
         arrays["anomaly_mask"] = sample.anomaly_mask.astype(np.uint8)
@@ -398,6 +402,10 @@ def load_sample_bytes(payload: bytes) -> FileSample:
         rejection = (_meta_from_dict(json.loads(scalar(d["rejection_meta_json"])))
                      if "rejection_meta_json" in d else None)
         mask = d["anomaly_mask"].astype(bool) if "anomaly_mask" in d else None
+        robot_idx = int(np.asarray(d["robot_idx"]).item()) if "robot_idx" in d else 0
+        program_idx = int(np.asarray(d["program_idx"]).item()) if "program_idx" in d else 0
+        robot_code = scalar(d["robot_code"]) if "robot_code" in d else "R01"
+        program_number = scalar(d["program_number"]) if "program_number" in d else "P100"
         return FileSample(
             x=d["x"].copy(), file_id=scalar(d["file_id"]),
             file_label=SampleLabel(scalar(d["file_label"])),
@@ -406,4 +414,6 @@ def load_sample_bytes(payload: bytes) -> FileSample:
             config_hash=scalar(d["config_hash"]),
             regime_sequence=regimes, anomaly_meta=anomaly,
             anomaly_mask=mask, rejection_meta=rejection,
+            robot_idx=robot_idx, program_idx=program_idx,
+            robot_code=robot_code, program_number=program_number,
         )

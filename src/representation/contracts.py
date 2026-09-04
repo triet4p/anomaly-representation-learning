@@ -27,6 +27,8 @@ class RepresentationBatch(TypedDict):
     valid_len: torch.Tensor  # int64 [B, N]
     mask: torch.Tensor  # bool [B, N], True for selected prediction targets
     file_ids: Sequence[str]
+    robot_idx: NotRequired[torch.Tensor]  # int64 [B]
+    program_idx: NotRequired[torch.Tensor]  # int64 [B]
     file_labels: NotRequired[Sequence[SampleLabel]]
     anomaly_meta: NotRequired[Sequence[object | None]]
     anomaly_masks: NotRequired[Sequence[object | None]]
@@ -46,6 +48,7 @@ class RepresentationOutput(TypedDict):
     view_embedding_1: NotRequired[torch.Tensor]  # [B, D]
     view_embedding_2: NotRequired[torch.Tensor]  # [B, D]
     patch_prediction_error: NotRequired[torch.Tensor]  # [B, N]
+    normalization: NotRequired[Mapping[str, torch.Tensor]]
 
 
 def _require_tensor(batch: Mapping[str, object], name: str, ndim: int) -> torch.Tensor:
@@ -96,6 +99,14 @@ def validate_batch(batch: Mapping[str, object]) -> None:
     for name, shape in expected.items():
         if actual[name] != shape:
             raise ValueError(f"{name} shape {actual[name]} != expected {shape}")
+    if "robot_idx" in batch:
+        r_idx = batch["robot_idx"]
+        if isinstance(r_idx, torch.Tensor) and (r_idx.shape != (b,) or r_idx.is_floating_point()):
+            raise ValueError(f"robot_idx must be integer tensor [B], got {r_idx.shape}")
+    if "program_idx" in batch:
+        p_idx = batch["program_idx"]
+        if isinstance(p_idx, torch.Tensor) and (p_idx.shape != (b,) or p_idx.is_floating_point()):
+            raise ValueError(f"program_idx must be integer tensor [B], got {p_idx.shape}")
 
     for name, value in (
         ("file_valid_mask", file_mask),
