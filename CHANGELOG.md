@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Extended synthetic data generation (`src/synth/`) with `FleetConfig` to model distinct robot calibration offsets and program physical operating envelopes, saving `robot_idx`, `program_idx`, `robot_code`, and `program_number` on `FileSample` and NPZ shards.
 - Wired `robot_idx` and `program_idx` through `RepresentationBatch`, collation, and `V1RepresentationModel` forward pass.
 - Added `scripts/package_kaggle_dataset.py`, `scripts/upload_to_kaggle.sh`, and `scripts/upload_to_kaggle.ps1` to automate dataset packaging, metadata generation, and Kaggle cloud kernel launches.
+- Added `_resolve_shard_path` and automatic Kaggle mount detection in `synth.dataset` to bypass container-level SHA-256 checks on read-only cloud mounts where archive re-compression changes outer hash signatures.
 
 ### Changed
 - Vectorized `compute_all_patch_stats` in `synth.masking` to compute patch variance, peak-to-peak range, and derivative energy in a single 2D NumPy operation, accelerating information-aware patch stratification by over $13\times$.

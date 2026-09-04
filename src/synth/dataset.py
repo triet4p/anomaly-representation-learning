@@ -258,11 +258,24 @@ def _hash_file(path: Path) -> str:
     return h.hexdigest()
 
 
-def _verify_shard(root: Path, info: dict[str, object]) -> bool:
-    path = root / str(info["path"])
+def _resolve_shard_path(root: Path, rel_path: str) -> Path:
+    direct = root / rel_path
+    if direct.is_file():
+        return direct
+    flat = root / Path(rel_path).name
+    if flat.is_file():
+        return flat
+    matches = list(root.glob(f"**/{Path(rel_path).name}"))
+    if matches:
+        return matches[0]
+    return direct
+
+
+def _verify_shard(root: Path, info: dict[str, object], strict_hash: bool = True) -> bool:
+    path = _resolve_shard_path(root, str(info["path"]))
     if not path.is_file():
         return False
-    if _hash_file(path) != info.get("sha256"):
+    if strict_hash and _hash_file(path) != info.get("sha256"):
         return False
     try:
         with zipfile.ZipFile(path) as archive:
@@ -303,16 +316,18 @@ def iter_materialized(output_dir: str | Path, split: str | None = None) -> Itera
     root = Path(output_dir)
     manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
     names = [split] if split else list(manifest["splits"])
+    is_kaggle = Path("/kaggle/input").is_dir() or os.environ.get("V1_SKIP_STRICT_HASH", "0") == "1"
+    strict_hash = not is_kaggle
     for name in names:
         if name not in manifest["splits"]:
             raise ValueError(f"split {name!r} is absent from manifest")
         for shard in manifest["splits"][name]["shards"]:
-            if not _verify_shard(root, shard):
+            shard_path = _resolve_shard_path(root, str(shard["path"]))
+            if not _verify_shard(root, shard, strict_hash=strict_hash):
                 raise ValueError(f"manifest integrity check failed for {shard['path']}")
-            with zipfile.ZipFile(root / str(shard["path"])) as archive:
+            with zipfile.ZipFile(shard_path) as archive:
                 for file_id in shard["file_ids"]:
                     yield load_sample_bytes(archive.read(f"{file_id}.npz"))
-
 
 def _meta_to_dict(meta: AnomalyMeta) -> dict[str, object]:
     return {"family": meta.family.value, "start": meta.start, "end": meta.end,
