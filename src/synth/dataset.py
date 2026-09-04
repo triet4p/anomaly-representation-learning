@@ -312,7 +312,7 @@ def _rebuild_split_accounting(entry: dict[str, object], shards: list[dict[str, o
 
 
 def iter_materialized(output_dir: str | Path, split: str | None = None) -> Iterator[FileSample]:
-    """Stream samples from ZIP shards after hash and member integrity checks."""
+    """Stream samples from ZIP shards or unzipped directories after integrity checks."""
     root = Path(output_dir)
     manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
     names = [split] if split else list(manifest["splits"])
@@ -322,7 +322,30 @@ def iter_materialized(output_dir: str | Path, split: str | None = None) -> Itera
         if name not in manifest["splits"]:
             raise ValueError(f"split {name!r} is absent from manifest")
         for shard in manifest["splits"][name]["shards"]:
-            shard_path = _resolve_shard_path(root, str(shard["path"]))
+            shard_rel = str(shard["path"])
+
+            # 1. Check if Kaggle automatically unzipped shard into a directory
+            candidates_dir = [
+                root / (shard_rel[:-4] if shard_rel.endswith(".zip") else shard_rel),
+                root / shard_rel,
+                root / name / Path(shard_rel).stem,
+            ]
+            shard_dir = next((d for d in candidates_dir if d.is_dir()), None)
+            if shard_dir is not None:
+                for file_id in shard["file_ids"]:
+                    npz_file = shard_dir / f"{file_id}.npz"
+                    if npz_file.is_file():
+                        yield load_sample(npz_file)
+                    else:
+                        matches = list(shard_dir.glob(f"**/{file_id}.npz"))
+                        if matches:
+                            yield load_sample(matches[0])
+                        else:
+                            raise FileNotFoundError(f"Sample {file_id}.npz not found in {shard_dir}")
+                continue
+
+            # 2. Standard .zip archive layout (local server)
+            shard_path = _resolve_shard_path(root, shard_rel)
             if not _verify_shard(root, shard, strict_hash=strict_hash):
                 raise ValueError(f"manifest integrity check failed for {shard['path']}")
             with zipfile.ZipFile(shard_path) as archive:

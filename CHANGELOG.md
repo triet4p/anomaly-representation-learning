@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Wired `robot_idx` and `program_idx` through `RepresentationBatch`, collation, and `V1RepresentationModel` forward pass.
 - Added `scripts/package_kaggle_dataset.py`, `scripts/upload_to_kaggle.sh`, and `scripts/upload_to_kaggle.ps1` to automate dataset packaging, metadata generation, and Kaggle cloud kernel launches.
 - Added `_resolve_shard_path` and automatic Kaggle mount detection in `synth.dataset` to bypass container-level SHA-256 checks on read-only cloud mounts where archive re-compression changes outer hash signatures.
+- Added support in `synth.dataset.iter_materialized` and notebook Cell 1 for Kaggle's automatic extraction layout, transparently reading `.npz` files directly from unzipped `shard-XXXXX/` directories without zip overhead.
 
 ### Changed
 - Vectorized `compute_all_patch_stats` in `synth.masking` to compute patch variance, peak-to-peak range, and derivative energy in a single 2D NumPy operation, accelerating information-aware patch stratification by over $13\times$.
