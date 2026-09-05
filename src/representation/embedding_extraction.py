@@ -121,15 +121,20 @@ def _manifest(root: Path) -> dict[str, object]:
         value = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         raise GeometryCompatibilityError(f"dataset manifest is unreadable: {path}") from exc
-    if not isinstance(value, dict) or not isinstance(value.get("splits"), dict):
-        raise GeometryCompatibilityError("dataset manifest must contain a splits mapping")
-    if value.get("format") != 2:
-        raise GeometryCompatibilityError("dataset manifest format is incompatible; expected 2")
+    if not isinstance(value, Mapping):
+        raise GeometryCompatibilityError(f"dataset manifest must be a mapping: {path}")
     return value
 
 
-def validate_dataset_compatibility(dataset_manifest: Mapping[str, object], model_config: V1Config) -> None:
-    """Reject a checkpoint whose feature width differs from materialized data."""
+def validate_dataset_compatibility(dataset_manifest: Mapping[str, object], model_config: V1Config) -> str:
+    """Reject a checkpoint whose feature width differs from materialized data.
+
+    Returns a short fleet precheck status for the extraction manifest. Manifests
+    that predate fleet metadata skip the static cardinality comparison: the sample
+    loader defaults absent indices to bucket 0 (always in range for positive
+    cardinalities) while ``ConditionalBatchNorm._bucket_ids`` still rejects any
+    present out-of-range index per batch at runtime.
+    """
     resolved = dataset_manifest.get("resolved_config")
     if not isinstance(resolved, Mapping):
         raise GeometryCompatibilityError("dataset manifest is missing resolved_config metadata")
@@ -144,22 +149,24 @@ def validate_dataset_compatibility(dataset_manifest: Mapping[str, object], model
         raise GeometryCompatibilityError(
             f"dataset n_channels={channels} is incompatible with checkpoint n_channels={model_config.n_channels}"
         )
-    if model_config.use_conditional_norm:
-        fleet = resolved.get("fleet")
-        if not isinstance(fleet, Mapping):
-            raise GeometryCompatibilityError("dataset manifest is missing fleet cardinality metadata")
-        for field, model_limit in (("n_robots", model_config.n_robots), ("n_programs", model_config.n_programs)):
-            raw_value = fleet.get(field)
-            if raw_value is None:
-                raise GeometryCompatibilityError(f"dataset manifest is missing fleet.{field}")
-            try:
-                value = int(raw_value)
-            except (TypeError, ValueError) as exc:
-                raise GeometryCompatibilityError(f"dataset fleet.{field} is invalid") from exc
-            if value > model_limit:
-                raise GeometryCompatibilityError(
-                    f"dataset fleet.{field}={value} exceeds checkpoint limit {model_limit}"
-                )
+    if not model_config.use_conditional_norm:
+        return "not-required: conditional normalization disabled"
+    fleet = resolved.get("fleet")
+    if not isinstance(fleet, Mapping):
+        return "skipped: dataset manifest predates fleet metadata"
+    for field, model_limit in (("n_robots", model_config.n_robots), ("n_programs", model_config.n_programs)):
+        raw_value = fleet.get(field)
+        if raw_value is None:
+            raise GeometryCompatibilityError(f"dataset manifest is missing fleet.{field}")
+        try:
+            value = int(raw_value)
+        except (TypeError, ValueError) as exc:
+            raise GeometryCompatibilityError(f"dataset fleet.{field} is invalid") from exc
+        if value > model_limit:
+            raise GeometryCompatibilityError(
+                f"dataset fleet.{field}={value} exceeds checkpoint limit {model_limit}"
+            )
+    return "manifest"
 
 
 def _checkpoint_model(path: Path) -> tuple[V1RepresentationModel, NormalReferenceBank, dict[str, object]]:
@@ -282,7 +289,7 @@ class BoundedEmbeddingExtractor:
     def extract(self) -> dict[str, object]:
         dataset_root = self.config.dataset_root
         dataset_manifest = _manifest(dataset_root)
-        validate_dataset_compatibility(dataset_manifest, self.model.config)
+        fleet_precheck = validate_dataset_compatibility(dataset_manifest, self.model.config)
         splits = dataset_manifest["splits"]
         assert isinstance(splits, Mapping)
         if self.config.reference_split not in splits:
@@ -376,7 +383,7 @@ class BoundedEmbeddingExtractor:
         manifest = GeometryManifest(
             checkpoint=checkpoint_metadata,
             dataset={"manifest": "manifest.json", "sha256": _sha256(dataset_root / "manifest.json"), "config_hash": dataset_manifest.get("config_hash", ""), "generator_version": dataset_manifest.get("generator_version", "")},
-            extraction={"seed": self.config.seed, "splits": list(self.config.splits), "reference_split": self.config.reference_split, "max_samples": self.config.max_samples, "max_reference_samples": self.config.max_reference_samples, "batch_size": self.config.batch_size, "sampling": self.config.sampling, "device": device},
+            extraction={"seed": self.config.seed, "splits": list(self.config.splits), "reference_split": self.config.reference_split, "max_samples": self.config.max_samples, "max_reference_samples": self.config.max_reference_samples, "batch_size": self.config.batch_size, "sampling": self.config.sampling, "device": device, "fleet_precheck": fleet_precheck},
             feature_dim=int(embedding_array.shape[1]), records_count=len(records), splits=counts, files=files,
         )
         _atomic_bytes(paths.manifest, manifest.to_json().encode("utf-8"))

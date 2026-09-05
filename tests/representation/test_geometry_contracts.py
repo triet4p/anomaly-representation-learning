@@ -86,6 +86,28 @@ def test_dataset_feature_compatibility_is_explicit() -> None:
         validate_dataset_compatibility({"resolved_config": {}}, model_config)
 
 
+def test_fleet_precheck_reports_legacy_disabled_and_manifest_status() -> None:
+    """Fleet validation must report its basis without weakening channel checks."""
+    norm_config = V1Config(n_channels=3, d_model=8, attention_heads=2, sequence_layers=1)
+    assert norm_config.use_conditional_norm is True
+    assert validate_dataset_compatibility(
+        {"resolved_config": {"n_channels": 3, "fleet": {"n_robots": 5, "n_programs": 8}}}, norm_config
+    ) == "manifest"
+    assert validate_dataset_compatibility(
+        {"resolved_config": {"n_channels": 3}}, norm_config
+    ) == "skipped: dataset manifest predates fleet metadata"
+    plain_config = V1Config(
+        n_channels=3, d_model=8, attention_heads=2, sequence_layers=1, use_conditional_norm=False
+    )
+    assert validate_dataset_compatibility(
+        {"resolved_config": {"n_channels": 3}}, plain_config
+    ) == "not-required: conditional normalization disabled"
+    with pytest.raises(ValueError, match="exceeds checkpoint limit"):
+        validate_dataset_compatibility(
+            {"resolved_config": {"n_channels": 3, "fleet": {"n_robots": 9, "n_programs": 8}}}, norm_config
+        )
+
+
 def test_reservoir_sampling_is_seeded_and_bounded() -> None:
     source = list(range(100))
     first = list(_reservoir_indices(source, limit=7, seed=42))
