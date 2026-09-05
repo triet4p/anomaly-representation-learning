@@ -1,0 +1,86 @@
+{
+  "artifact_type": "latent_geometry_cache",
+  "checkpoint": {
+    "config": {
+      "attention_heads": 4,
+      "block_fraction": 0.33,
+      "contrastive_gain_std": 0.05,
+      "contrastive_max_shift": 4,
+      "contrastive_noise_std": 0.015,
+      "contrastive_offset_std": 0.03,
+      "contrastive_ramp_steps": 980,
+      "contrastive_temperature": 0.2,
+      "contrastive_warmup_steps": 980,
+      "contrastive_weight_max": 0.1,
+      "d_model": 128,
+      "dropout": 0.1,
+      "ema_decay": 0.996,
+      "info_fraction": 0.33,
+      "knn_k": 5,
+      "min_bucket_samples": 32,
+      "n_channels": 6,
+      "n_programs": 8,
+      "n_robots": 5,
+      "patch_size": 32,
+      "prediction_weight": 1.0,
+      "random_fraction": 0.34,
+      "seed": 0,
+      "sequence_layers": 4,
+      "stride": 16,
+      "total_mask_ratio": 0.4,
+      "use_conditional_norm": true
+    },
+    "name": "v1_representation_20260904_01.pt",
+    "reference_count": 5000,
+    "reference_k": 5,
+    "sha256": "7156f020b8feaed2990adac8ceba28ad35a08e1eb57bdff17df558ec78ee2809",
+    "step": 7840
+  },
+  "dataset": {
+    "config_hash": "ee1ac4ba7f66",
+    "generator_version": "2.0.0",
+    "manifest": "manifest.json",
+    "sha256": "bfcb86df45f0153267fe122588c6416b694a1f8c3349be936ff31f9a9e1512f1"
+  },
+  "extraction": {
+    "batch_size": 32,
+    "device": "cuda",
+    "fleet_precheck": "skipped: dataset manifest predates fleet metadata",
+    "max_reference_samples": 5000,
+    "max_samples": 5000,
+    "reference_split": "train",
+    "sampling": "head",
+    "seed": 20260904,
+    "splits": [
+      "test"
+    ]
+  },
+  "feature_dim": 128,
+  "files": {
+    "embeddings.npz": {
+      "bytes": 2415218,
+      "path": "embeddings.npz",
+      "sha256": "d20adbf8c64642183437a89fc45f62cd944c7185c70919686153bf10fb346b23"
+    },
+    "metrics.json": {
+      "bytes": 85,
+      "path": "metrics.json",
+      "sha256": "f8d55f81b688e06104425153735a8b482663de0cb188958d3832f79dfe4ab919"
+    },
+    "neighbors.csv": {
+      "bytes": 49,
+      "path": "neighbors.csv",
+      "sha256": "3de8cbd35e784d717d9db785335b9218c9a6701dee70f65c6e004e3867828928"
+    },
+    "records.csv": {
+      "bytes": 734034,
+      "path": "records.csv",
+      "sha256": "c3669bea9d615d50d98c3d8b28df01e11141f88a29a2f9a7367516ffdb06d012"
+    }
+  },
+  "records_count": 5000,
+  "schema_version": 1,
+  "splits": {
+    "test": 5000
+  }
+}
