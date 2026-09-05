@@ -535,14 +535,14 @@
       "count": 0,
       "mean": null
     },
-    "labelled_pair_count": 10000,
+    "labelled_pair_count": 4999,
     "normal_reference_distance": {
       "count": 5000,
-      "mean_distance": 3.5745183471514537
+      "mean_distance": 3.5745183471514523
     },
     "same_class_similarity": {
-      "count": 10000,
-      "mean": 0.4548756730488578
+      "count": 4999,
+      "mean": 0.4162453151864641
     },
     "true_contrastive_view_metrics": {
       "available": false,
