@@ -149,10 +149,14 @@ class ConditionalBatchNorm(nn.Module):
 
         for level, buckets in enumerate(bucket_ids):
             stats = self._get_stats(level)
-            stats.value_sum = torch.index_add(stats.value_sum, 0, buckets, per_sample_sum)
-            stats.value_square_sum = torch.index_add(stats.value_square_sum, 0, buckets, per_sample_square_sum)
-            stats.value_count = torch.index_add(stats.value_count, 0, buckets, per_sample_counts)
-            stats.sample_count = torch.index_add(stats.sample_count, 0, buckets, sample_increments)
+            # Co-locate the small per-batch index/sources with the persistent
+            # accumulators. `.to()` is a no-op when already aligned (no copy).
+            device = stats.value_sum.device
+            level_buckets = buckets.to(device)
+            stats.value_sum = torch.index_add(stats.value_sum, 0, level_buckets, per_sample_sum.to(device))
+            stats.value_square_sum = torch.index_add(stats.value_square_sum, 0, level_buckets, per_sample_square_sum.to(device))
+            stats.value_count = torch.index_add(stats.value_count, 0, level_buckets, per_sample_counts.to(device))
+            stats.sample_count = torch.index_add(stats.sample_count, 0, level_buckets, sample_increments.to(device))
 
     def forward(self, inputs: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
         """Normalize sequence against selected conditional bucket level.
@@ -205,7 +209,8 @@ class ConditionalBatchNorm(nn.Module):
         for level in range(len(self._statistics) - 1, -1, -1):
             stats = self._get_stats(level)
             buckets = bucket_ids[level]
-            sufficient = stats.sample_count[buckets] >= self.min_bucket_samples
+            seen = stats.sample_count[buckets.to(stats.sample_count.device)]
+            sufficient = seen.to(selected_level.device) >= self.min_bucket_samples
             selected_level = torch.where(
                 sufficient,
                 torch.full_like(selected_level, level),
@@ -219,11 +224,12 @@ class ConditionalBatchNorm(nn.Module):
             selected = selected_level == level
             if not selected.any():
                 continue
-            counts = stats.value_count[buckets[selected]].clamp_min(1.0)
-            mean = stats.value_sum[buckets[selected]] / counts
-            variance = stats.value_square_sum[buckets[selected]] / counts - mean.square()
-            means[selected] = mean.to(dtype=x.dtype)
-            variances[selected] = variance.clamp_min(self.eps).to(dtype=x.dtype)
+            level_buckets = buckets[selected].to(stats.value_count.device)
+            counts = stats.value_count[level_buckets].clamp_min(1.0)
+            mean = stats.value_sum[level_buckets] / counts
+            variance = stats.value_square_sum[level_buckets] / counts - mean.square()
+            means[selected] = mean.to(device=means.device, dtype=means.dtype)
+            variances[selected] = variance.clamp_min(self.eps).to(device=variances.device, dtype=variances.dtype)
 
         std = variances.sqrt()
         normalized = (x - means.unsqueeze(-1)) / std.unsqueeze(-1)

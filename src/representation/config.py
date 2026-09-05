@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, model_validator
 
 from synth.config import SUPPORTED_CHANNEL_COUNTS
 
@@ -37,12 +37,26 @@ class V1Config(BaseModel):
 
     ema_decay: float = Field(default=0.996, gt=0.0, lt=1.0)
     prediction_weight: float = Field(default=1.0, ge=0.0)
-    contrastive_weight_max: float = Field(default=1.0, ge=0.0)
+    contrastive_weight_max: float = Field(
+        default=0.1,
+        ge=0.0,
+        validation_alias=AliasChoices("contrastive_weight_max", "lambda_max"),
+        description="Max contrastive weight (lambda_max).",
+    )
     contrastive_warmup_steps: int = Field(default=0, ge=0)
     contrastive_ramp_steps: int = Field(default=1_000, ge=0)
-    contrastive_temperature: float = Field(default=0.1, gt=0.0)
+    contrastive_temperature: float = Field(default=0.2, gt=0.0)
+    contrastive_gain_std: float = Field(default=0.05, ge=0.0)
+    contrastive_offset_std: float = Field(default=0.03, ge=0.0)
+    contrastive_noise_std: float = Field(default=0.015, ge=0.0)
+    contrastive_max_shift: int = Field(default=4, ge=0)
     knn_k: int = Field(default=5, ge=1)
     seed: int = Field(default=0)
+    @property
+    def lambda_max(self) -> float:
+        """Return the maximum contrastive weight."""
+        return self.contrastive_weight_max
+
 
     @model_validator(mode="after")
     def validate_model_contract(self) -> "V1Config":

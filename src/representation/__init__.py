@@ -17,6 +17,22 @@ from representation.criterion import (
     ProgressiveLambda,
 )
 from representation.inference import NormalReferenceBank, ReferenceBank, RepresentationInference, mad_threshold
+from representation.geometry import (
+    BatchConfig,
+    BoundedEmbeddingExtractor,
+    CompatibilityConfig,
+    DiagnosticConfig,
+    DiagnosticResult,
+    EmbeddingExtractor,
+    GeometryCompatibilityError,
+    GeometryManifest,
+    GeometryOutputPaths,
+    GeometryRecord,
+    NeighborConfig,
+    ProjectionConfig,
+    SamplingConfig,
+    extract_embeddings,
+)
 
 __all__ = [
     "ConditionalBatchNorm",
@@ -36,4 +52,18 @@ __all__ = [
     "load_checkpoint",
     "save_checkpoint",
     "validate_output",
+    "BatchConfig",
+    "BoundedEmbeddingExtractor",
+    "CompatibilityConfig",
+    "DiagnosticConfig",
+    "DiagnosticResult",
+    "EmbeddingExtractor",
+    "GeometryCompatibilityError",
+    "GeometryManifest",
+    "GeometryOutputPaths",
+    "GeometryRecord",
+    "NeighborConfig",
+    "ProjectionConfig",
+    "SamplingConfig",
+    "extract_embeddings",
 ]

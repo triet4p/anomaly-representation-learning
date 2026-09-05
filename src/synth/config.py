@@ -213,10 +213,20 @@ class MaskingConfig:
 @dataclass
 class ContrastiveConfig:
     """Same-file contrastive view augmentation."""
-    gain_std: float = 0.02      # per-channel multiplicative gain jitter
-    offset_std: float = 0.01    # per-channel additive offset jitter
-    noise_std: float = 0.005    # additional white noise (fraction of signal std)
-    max_shift: int = 2          # max timestep shift (edge-preserving)
+    gain_std: float = 0.05      # per-channel multiplicative gain jitter
+    offset_std: float = 0.03    # per-channel additive offset jitter
+    noise_std: float = 0.015    # additional white noise (fraction of signal std)
+    max_shift: int = 4          # max timestep shift (edge-preserving)
+
+    def __post_init__(self) -> None:
+        if self.gain_std < 0.0:
+            raise ValueError("gain_std must be non-negative")
+        if self.offset_std < 0.0:
+            raise ValueError("offset_std must be non-negative")
+        if self.noise_std < 0.0:
+            raise ValueError("noise_std must be non-negative")
+        if self.max_shift < 0:
+            raise ValueError("max_shift must be non-negative")
 
 @dataclass
 class FleetConfig:

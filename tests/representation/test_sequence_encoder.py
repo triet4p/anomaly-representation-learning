@@ -43,3 +43,24 @@ def test_sequence_encoder_rejects_invalid_inputs() -> None:
         encoder(torch.randn(2, 8), torch.ones(2, 8, dtype=torch.bool))
     with pytest.raises(ValueError, match="match tokens"):
         encoder(torch.randn(2, 3, 8), torch.ones(2, 2, dtype=torch.bool))
+
+
+def test_sequence_encoder_output_is_normalized_and_bounded() -> None:
+    encoder = SequenceContextEncoder(16, attention_heads=4, layers=2).eval()
+    assert hasattr(encoder, "norm")
+    assert isinstance(encoder.norm, torch.nn.LayerNorm)
+
+    tokens = torch.randn(2, 6, 16) * 50.0 + 100.0
+    valid = torch.tensor([[True, True, True, True, False, False], [True, True, False, False, False, False]])
+    with torch.no_grad():
+        output = encoder(tokens, valid)
+
+    # Valid tokens must have zero mean, unit variance, bounded norm sqrt(D)
+    for b in range(2):
+        for t in range(6):
+            if valid[b, t]:
+                assert output[b, t].mean().abs() < 1e-4
+                assert (output[b, t].std(unbiased=False) - 1.0).abs() < 1e-3
+                assert (output[b, t].norm() - 4.0).abs() < 0.1
+            else:
+                assert torch.equal(output[b, t], torch.zeros(16))

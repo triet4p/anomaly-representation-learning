@@ -108,3 +108,47 @@ def test_augmentation_small_perturbation(gen):
             max_dev = float(np.max(np.abs(view[c].astype(np.float64) - x[c])))
             assert max_dev < ch_range * 0.40, \
                 f"Ch{c} max deviation {max_dev:.4f} > 40% of range {ch_range:.4f}"
+
+
+def test_contrastive_config_boundary_validation() -> None:
+    """Verify non-negative parameter requirements and zero-perturbation identity."""
+    with pytest.raises(ValueError, match="gain_std"):
+        ContrastiveConfig(gain_std=-0.01)
+    with pytest.raises(ValueError, match="offset_std"):
+        ContrastiveConfig(offset_std=-0.01)
+    with pytest.raises(ValueError, match="noise_std"):
+        ContrastiveConfig(noise_std=-0.01)
+    with pytest.raises(ValueError, match="max_shift"):
+        ContrastiveConfig(max_shift=-1)
+
+
+def test_zero_augmentation_preserves_exact_identity(gen) -> None:
+    """Zero perturbation parameters must produce bit-exact copies of original signal."""
+    s = gen.generate_normal(seed=42, split="train")
+    cfg = ContrastiveConfig(gain_std=0.0, offset_std=0.0, noise_std=0.0, max_shift=0)
+    v1, v2 = make_contrastive_views(s, cfg, np.random.default_rng(99))
+    np.testing.assert_array_equal(v1, s.x)
+    np.testing.assert_array_equal(v2, s.x)
+
+
+@pytest.mark.parametrize("length", [5, 10, 64, 512])
+def test_contrastive_views_temporal_shift_bounds_and_valid_lengths(gen, length: int) -> None:
+    """Temporal shift must preserve lengths, finiteness, and never index out of bounds."""
+    s = gen.generate_normal(seed=10, split="train")
+    # Create sample with specific length
+    from synth.schema import FileSample, RegimeMeta, RegimeType
+    sample = FileSample(
+        x=s.x[:, :length].astype(np.float32),
+        file_id=f"len-{length}",
+        file_label=s.file_label,
+        seed=length,
+        generator_version="test",
+        config_hash="test",
+        regime_sequence=[RegimeMeta(RegimeType.ACTIVE, 0, length, 0.5)],
+    )
+    cfg = ContrastiveConfig(max_shift=8)  # max_shift > length for length=5
+    v1, v2 = make_contrastive_views(sample, cfg, np.random.default_rng(7))
+    assert v1.shape == (s.C, length)
+    assert v2.shape == (s.C, length)
+    assert np.isfinite(v1).all()
+    assert np.isfinite(v2).all()

@@ -60,7 +60,7 @@ class LatentPredictionCriterion(nn.Module):
 class FileContrastiveCriterion(nn.Module):
     """Apply symmetric in-batch InfoNCE to two views of each file."""
 
-    def __init__(self, temperature: float = 0.1) -> None:
+    def __init__(self, temperature: float = 0.2) -> None:
         super().__init__()
         if temperature <= 0.0:
             raise ValueError("temperature must be positive")
@@ -79,12 +79,29 @@ class FileContrastiveCriterion(nn.Module):
         batch_size = view_1.shape[0]
         if batch_size == 1:
             loss = (normalized_1 - normalized_2).square().sum() * 0.0
+            similarity = (normalized_1 * normalized_2).sum(dim=-1).mean()
+            negative_similarity = torch.tensor(0.0, device=view_1.device)
+            margin = similarity
         else:
-            logits_12 = (normalized_1 @ normalized_2.transpose(0, 1)) / self.temperature
-            logits_21 = (normalized_2 @ normalized_1.transpose(0, 1)) / self.temperature
+            sim_12 = normalized_1 @ normalized_2.transpose(0, 1)
+            sim_21 = normalized_2 @ normalized_1.transpose(0, 1)
+            logits_12 = sim_12 / self.temperature
+            logits_21 = sim_21 / self.temperature
             labels = torch.arange(batch_size, device=view_1.device)
             loss = 0.5 * (F.cross_entropy(logits_12, labels) + F.cross_entropy(logits_21, labels))
-        return {"loss": loss, "normalized_view_1": normalized_1, "normalized_view_2": normalized_2, "batch_size": torch.tensor(batch_size, device=view_1.device)}
+            similarity = sim_12.diag().mean()
+            neg_mask = ~torch.eye(batch_size, dtype=torch.bool, device=view_1.device)
+            negative_similarity = 0.5 * (sim_12[neg_mask].mean() + sim_21[neg_mask].mean())
+            margin = similarity - negative_similarity
+        return {
+            "loss": loss,
+            "similarity": similarity,
+            "negative_similarity": negative_similarity,
+            "margin": margin,
+            "normalized_view_1": normalized_1,
+            "normalized_view_2": normalized_2,
+            "batch_size": torch.tensor(batch_size, device=view_1.device),
+        }
 
     @staticmethod
     def _embedding(model_output: Mapping[str, object], name: str) -> torch.Tensor:
@@ -124,6 +141,21 @@ class ProgressiveLambda:
         progress = (step - self.warmup_steps) / self.ramp_steps
         return self.lambda_max * min(1.0, progress)
 
+    @property
+    def full_ramp_step(self) -> int:
+        """Return the first non-negative step at which lambda reaches lambda_max."""
+        if self.ramp_steps == 0:
+            return self.warmup_steps + (1 if self.lambda_max > 0.0 else 0)
+        return self.warmup_steps + self.ramp_steps
+
+    def is_full_ramp(self, step: int) -> bool:
+        """Return whether lambda has reached lambda_max at or past the full-ramp boundary."""
+        if step < 0:
+            raise ValueError("step must be non-negative")
+        return step >= self.full_ramp_step and (
+            self.lambda_max == 0.0 or self.lambda_at(step) >= self.lambda_max
+        )
+
 
 class JointRepresentationCriterion(nn.Module):
     """Combine masked prediction and progressive file-level contrastive losses."""
@@ -141,10 +173,73 @@ class JointRepresentationCriterion(nn.Module):
         """Return each objective term, schedule value, and joint loss."""
         prediction_result = self.prediction(model_output)
         prediction_loss = prediction_result["loss"]
+        contrastive_sim = None
+        contrastive_neg_sim = None
+        contrastive_margin = None
         if "view_embedding_1" in model_output and "view_embedding_2" in model_output:
-            contrastive_loss = self.contrastive(model_output)["loss"]
+            contrastive_result = self.contrastive(model_output)
+            contrastive_loss = contrastive_result["loss"]
+            if "similarity" in contrastive_result:
+                contrastive_sim = contrastive_result["similarity"]
+            if "negative_similarity" in contrastive_result:
+                contrastive_neg_sim = contrastive_result["negative_similarity"]
+            if "margin" in contrastive_result:
+                contrastive_margin = contrastive_result["margin"]
         else:
             contrastive_loss = prediction_loss * 0.0
         lambda_value = self.lambda_schedule.lambda_at(step)
-        joint_loss = self.prediction_weight * prediction_loss + lambda_value * contrastive_loss
-        return {"prediction_loss": prediction_loss, "contrastive_loss": contrastive_loss, "joint_loss": joint_loss, "loss": joint_loss, "lambda": lambda_value, "masked_count": prediction_result["masked_count"]}
+        weighted_contrastive_loss = lambda_value * contrastive_loss
+        joint_loss = self.prediction_weight * prediction_loss + weighted_contrastive_loss
+        stationary_lambda = self.lambda_schedule.lambda_max
+        stationary_joint_loss = self.prediction_weight * prediction_loss + stationary_lambda * contrastive_loss
+
+        diagnostics: dict[str, torch.Tensor | float] = {
+            "prediction_loss": prediction_loss,
+            "contrastive_loss": contrastive_loss,
+            "weighted_contrastive_loss": weighted_contrastive_loss,
+            "joint_loss": joint_loss,
+            "stationary_joint_loss": stationary_joint_loss,
+            "loss": joint_loss,
+            "lambda": lambda_value,
+            "effective_lambda": lambda_value,
+            "stationary_lambda": stationary_lambda,
+            "masked_count": prediction_result["masked_count"],
+        }
+        if contrastive_sim is not None:
+            diagnostics["contrastive_sim"] = contrastive_sim
+        if contrastive_neg_sim is not None:
+            diagnostics["contrastive_neg_sim"] = contrastive_neg_sim
+        if contrastive_margin is not None:
+            diagnostics["contrastive_margin"] = contrastive_margin
+        pred_mask = model_output.get("prediction_mask")
+        valid_mask = model_output.get("patch_valid_mask")
+
+        context = model_output.get("context_latents")
+        if isinstance(context, torch.Tensor) and context.ndim == 3:
+            if isinstance(valid_mask, torch.Tensor):
+                valid_float = valid_mask.to(context.dtype)
+                diagnostics["context_norm"] = (context.detach().norm(dim=-1) * valid_float).sum() / valid_float.sum().clamp_min(1.0)
+            else:
+                diagnostics["context_norm"] = context.detach().norm(dim=-1).mean()
+
+        target = model_output.get("target_latents")
+        if isinstance(target, torch.Tensor) and target.ndim == 3:
+            if isinstance(valid_mask, torch.Tensor):
+                valid_float = valid_mask.to(target.dtype)
+                diagnostics["target_norm"] = (target.detach().norm(dim=-1) * valid_float).sum() / valid_float.sum().clamp_min(1.0)
+            else:
+                diagnostics["target_norm"] = target.detach().norm(dim=-1).mean()
+
+        predicted = model_output.get("predicted_latents")
+        if isinstance(predicted, torch.Tensor) and predicted.ndim == 3:
+            if isinstance(pred_mask, torch.Tensor):
+                pred_float = pred_mask.to(predicted.dtype)
+                diagnostics["predicted_norm"] = (predicted.detach().norm(dim=-1) * pred_float).sum() / pred_float.sum().clamp_min(1.0)
+            else:
+                diagnostics["predicted_norm"] = predicted.detach().norm(dim=-1).mean()
+
+        file_emb = model_output.get("file_embedding")
+        if isinstance(file_emb, torch.Tensor) and file_emb.ndim == 2:
+            diagnostics["file_embedding_norm"] = file_emb.detach().norm(dim=-1).mean()
+
+        return diagnostics

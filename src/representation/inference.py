@@ -128,6 +128,7 @@ class RepresentationInference:
             "S_pop": population_scores,
             "context_score": context_scores,
             "population_score": population_scores,
+            "file_embedding": output["file_embedding"],
             "patch_scores": errors,
             "timestep_scores": timestep_scores,
             "prediction_mask": prediction_mask,

@@ -2,14 +2,28 @@
 from __future__ import annotations
 
 import argparse
+from importlib.metadata import version
 from pathlib import Path
 
-from synth.config import SynthConfig
-from synth.dataset import DatasetBuilder
+
+_DISTRIBUTION_NAME = "anomaly-representation-learning"
+
+
+def _load_generation_dependencies():
+    from synth.config import SynthConfig
+    from synth.dataset import DatasetBuilder
+
+    return SynthConfig, DatasetBuilder
 
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="Generate coherent synthetic anomaly data")
+    p.add_argument(
+        "--version",
+        action="version",
+        version=version(_DISTRIBUTION_NAME),
+        help="show the project version and exit",
+    )
     p.add_argument("--output", type=Path, required=True, help="output directory")
     p.add_argument("--seed", type=int, default=None, help="base seed for disjoint splits")
     p.add_argument("--count", type=int, default=None, help="set all split counts")
@@ -26,6 +40,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    SynthConfig, DatasetBuilder = _load_generation_dependencies()
     cfg = SynthConfig(n_channels=args.channels)
     if args.seed is not None:
         cfg.split.train_seed = args.seed

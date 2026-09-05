@@ -65,3 +65,24 @@ def test_predictor_rejects_invalid_inputs() -> None:
             torch.ones(2, 2, dtype=torch.bool),
             torch.ones(2, 3, dtype=torch.bool),
         )
+
+
+def test_predictor_output_latents_are_normalized_and_bounded() -> None:
+    predictor = MaskedLatentPredictor(16, target_dim=16, hidden_dim=32).eval()
+    context = torch.randn(2, 5, 16) * 30.0 - 50.0
+    requested = torch.tensor([[True, False, True, False, False], [False, True, True, False, False]])
+    valid = torch.tensor([[True, True, True, False, False], [True, True, True, True, False]])
+
+    with torch.no_grad():
+        predictions, pred_mask = predictor(context, requested, valid)
+
+    assert tuple(predictions.shape) == (2, 5, 16)
+    # Masked valid positions must have zero mean, unit variance, norm ~ sqrt(16) = 4.0
+    for b in range(2):
+        for t in range(5):
+            if pred_mask[b, t]:
+                assert predictions[b, t].mean().abs() < 1e-4
+                assert (predictions[b, t].std(unbiased=False) - 1.0).abs() < 1e-3
+                assert (predictions[b, t].norm() - 4.0).abs() < 0.1
+            else:
+                assert torch.equal(predictions[b, t], torch.zeros(16))

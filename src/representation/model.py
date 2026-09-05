@@ -31,7 +31,12 @@ class V1RepresentationModel(nn.Module):
         self.patchifier = patchifier or Patchifier(
             PatchConfig(patch_size=config.patch_size, stride=config.stride, pad_end=True)
         )
-        self.contrastive_config = contrastive_config or ContrastiveConfig()
+        self.contrastive_config = contrastive_config or ContrastiveConfig(
+            gain_std=config.contrastive_gain_std,
+            offset_std=config.contrastive_offset_std,
+            noise_std=config.contrastive_noise_std,
+            max_shift=config.contrastive_max_shift,
+        )
         self.patch_encoder = LocalPatchEncoder(
             config.n_channels, config.d_model, dropout=config.dropout
         )
@@ -45,6 +50,12 @@ class V1RepresentationModel(nn.Module):
             self.context_encoder, decay=config.ema_decay
         )
         self.predictor = MaskedLatentPredictor(config.d_model, dropout=config.dropout)
+        self.contrastive_projector = nn.Sequential(
+            nn.Linear(config.d_model, config.d_model),
+            nn.LayerNorm(config.d_model),
+            nn.GELU(),
+            nn.Linear(config.d_model, config.d_model),
+        )
         self.conditional_norm = (
             ConditionalBatchNorm(
                 num_sensors=config.n_channels,
@@ -94,13 +105,35 @@ class V1RepresentationModel(nn.Module):
     def reset_view_rng(self, seed: int | None = None) -> None:
         """Reset view augmentation randomness for a reproducible run."""
         self._view_rng = np.random.default_rng(self.config.seed if seed is None else seed)
+    def project_contrastive(self, embeddings: torch.Tensor) -> torch.Tensor:
+        """Project file-level embeddings into the contrastive optimization space."""
+        if embeddings.ndim != 2 or embeddings.shape[-1] != self.config.d_model:
+            raise ValueError(
+                f"expected embeddings with shape [B, {self.config.d_model}], got {tuple(embeddings.shape)}"
+            )
+        return self.contrastive_projector(embeddings)
 
-    def _view_embeddings(self, batch: RepresentationBatch) -> tuple[torch.Tensor, torch.Tensor] | None:
+
+    def _view_embeddings(
+        self,
+        batch: RepresentationBatch,
+        norm_result: dict[str, torch.Tensor] | None = None,
+    ) -> tuple[torch.Tensor, torch.Tensor] | None:
         samples = batch.get("file_samples")
         if samples is None:
             return None
         device = batch["patches"].device
         dtype = batch["patches"].dtype
+        if norm_result is None and self.conditional_norm is not None and "signals" in batch:
+            norm_inputs: dict[str, torch.Tensor] = {
+                "input": batch["signals"],
+                "valid_mask": batch.get("file_valid_mask"),
+            }
+            if "robot_idx" in batch and isinstance(batch["robot_idx"], torch.Tensor):
+                norm_inputs["robot_idx"] = batch["robot_idx"]
+            if "program_idx" in batch and isinstance(batch["program_idx"], torch.Tensor):
+                norm_inputs["program_idx"] = batch["program_idx"]
+            norm_result = self.conditional_norm(norm_inputs)
         generated: list[tuple[object, object]] = [
             make_contrastive_views(sample, self.contrastive_config, self._view_rng)
             for sample in samples
@@ -133,11 +166,16 @@ class V1RepresentationModel(nn.Module):
                     valid[index, :count] = torch.from_numpy(
                         ~patch_batch.pad_mask.all(axis=1)
                     ).to(device=device)
+            if norm_result is not None:
+                means = norm_result["mean"].to(device=device, dtype=dtype)
+                stds = norm_result["std"].to(device=device, dtype=dtype)
+                patches = (patches - means.unsqueeze(1).unsqueeze(-1)) / stds.unsqueeze(1).unsqueeze(-1)
+                patches = patches.masked_fill(pad_mask.unsqueeze(2), 0.0)
             local = self.patch_encoder(patches, pad_mask)
             contextual = self.context_encoder(local, valid)
-            embeddings[view_index].append(self._pool_file(contextual, valid))
+            pooled = self._pool_file(contextual, valid)
+            embeddings[view_index].append(self.project_contrastive(pooled))
         return torch.cat(embeddings[0], dim=0), torch.cat(embeddings[1], dim=0)
-
     def forward(self, batch: RepresentationBatch) -> RepresentationOutput:
         """Return context, stop-gradient target, prediction, and file latents."""
         validate_batch(batch)
@@ -171,10 +209,12 @@ class V1RepresentationModel(nn.Module):
             "predicted_latents": predicted,
             "prediction_mask": prediction_mask,
             "file_embedding": file_embedding,
+            "projected_file_embedding": self.project_contrastive(file_embedding),
+            "patch_valid_mask": batch["patch_valid_mask"],
         }
         if norm_result is not None:
             output["normalization"] = norm_result
-        views = self._view_embeddings(batch)
+        views = self._view_embeddings(batch, norm_result=norm_result)
         if views is not None:
             output["view_embedding_1"], output["view_embedding_2"] = views
         validate_output(output)

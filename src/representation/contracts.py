@@ -47,6 +47,8 @@ class RepresentationOutput(TypedDict):
     file_embedding: torch.Tensor  # [B, D]
     view_embedding_1: NotRequired[torch.Tensor]  # [B, D]
     view_embedding_2: NotRequired[torch.Tensor]  # [B, D]
+    projected_file_embedding: NotRequired[torch.Tensor]  # [B, D]
+    patch_valid_mask: NotRequired[torch.Tensor]  # bool [B, N]
     patch_prediction_error: NotRequired[torch.Tensor]  # [B, N]
     normalization: NotRequired[Mapping[str, torch.Tensor]]
 

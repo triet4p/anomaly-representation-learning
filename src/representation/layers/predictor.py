@@ -40,6 +40,7 @@ class MaskedLatentPredictor(nn.Module):
             nn.GELU(),
             nn.Dropout(dropout),
             nn.Linear(self.hidden_dim, target_width),
+            nn.LayerNorm(target_width),
         )
 
     def _positions(self, length: int, device: torch.device, dtype: torch.dtype) -> torch.Tensor:

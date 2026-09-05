@@ -41,7 +41,18 @@ class SequenceContextEncoder(nn.Module):
             batch_first=True,
             norm_first=True,
         )
-        self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=layers)
+        norm = nn.LayerNorm(d_model)
+        self.encoder = nn.TransformerEncoder(
+            encoder_layer,
+            num_layers=layers,
+            norm=norm,
+            enable_nested_tensor=False,
+        )
+
+    @property
+    def norm(self) -> nn.LayerNorm:
+        """Return the final LayerNorm module of the transformer encoder."""
+        return self.encoder.norm  # type: ignore[return-value]
 
     def _positions(self, length: int, device: torch.device, dtype: torch.dtype) -> torch.Tensor:
         position = torch.arange(length, device=device, dtype=dtype).unsqueeze(1)

@@ -90,12 +90,16 @@ def load_checkpoint(
     saved_config = payload["config"]
     if not isinstance(saved_config, dict):
         raise ValueError("checkpoint config must be a mapping")
+    try:
+        parsed_saved = V1Config(**saved_config).to_dict()
+    except Exception:
+        parsed_saved = dict(saved_config)
     current_config = model.config.to_dict()
-    if dict(saved_config) != current_config:
+    if dict(saved_config) != current_config and parsed_saved != current_config:
         raise ValueError("checkpoint configuration is incompatible with model")
     if expected_config is not None:
         expected = expected_config.to_dict() if isinstance(expected_config, V1Config) else dict(expected_config)
-        if dict(saved_config) != expected:
+        if dict(saved_config) != expected and parsed_saved != expected:
             raise ValueError("checkpoint configuration does not match expected_config")
     if not isinstance(payload["step"], int) or payload["step"] < 0:
         raise ValueError("checkpoint step must be a non-negative integer")
