@@ -121,8 +121,15 @@ def _manifest(root: Path) -> dict[str, object]:
         value = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         raise GeometryCompatibilityError(f"dataset manifest is unreadable: {path}") from exc
-    if not isinstance(value, Mapping):
+    if not isinstance(value, dict):
         raise GeometryCompatibilityError(f"dataset manifest must be a mapping: {path}")
+    if value.get("format") != 2:
+        raise GeometryCompatibilityError(
+            f"dataset manifest has unsupported format {value.get('format')!r}: {path}"
+        )
+    splits = value.get("splits")
+    if not isinstance(splits, dict) or not splits:
+        raise GeometryCompatibilityError(f"dataset manifest splits must be a non-empty mapping: {path}")
     return value
 
 

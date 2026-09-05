@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -7,7 +8,7 @@ import pytest
 import numpy as np
 
 from representation.config import V1Config
-from representation.embedding_extraction import _atomic_npz, _reservoir_indices, _sample_stream
+from representation.embedding_extraction import _atomic_npz, _manifest, _reservoir_indices, _sample_stream
 from representation.geometry import (
     DiagnosticConfig,
     GeometryManifest,
@@ -106,6 +107,32 @@ def test_fleet_precheck_reports_legacy_disabled_and_manifest_status() -> None:
         validate_dataset_compatibility(
             {"resolved_config": {"n_channels": 3, "fleet": {"n_robots": 9, "n_programs": 8}}}, norm_config
         )
+
+
+def test_manifest_requires_supported_format_and_splits_mapping(tmp_path: Path) -> None:
+    """Malformed manifests fail fast; legacy manifests without fleet still load."""
+    from representation.embedding_extraction import GeometryCompatibilityError
+
+    def write_manifest(payload: object) -> Path:
+        root = tmp_path / f"dataset-{len(list(tmp_path.iterdir()))}"
+        root.mkdir(parents=True, exist_ok=True)
+        (root / "manifest.json").write_text(json.dumps(payload), encoding="utf-8")
+        return root
+
+
+    legacy = {"format": 2, "splits": {"test": {"status": "complete"}}, "resolved_config": {"n_channels": 6}}
+    assert _manifest(write_manifest(legacy))["format"] == 2
+    for bad, match in [
+        ({"format": 1, "splits": {"test": {}}}, "unsupported format"),
+        ({"splits": {"test": {}}}, "unsupported format"),
+        ({"format": 2}, "splits must be a non-empty mapping"),
+        ({"format": 2, "splits": []}, "splits must be a non-empty mapping"),
+        ({"format": 2, "splits": {}}, "splits must be a non-empty mapping"),
+    ]:
+        with pytest.raises(GeometryCompatibilityError, match=match):
+            _manifest(write_manifest(bad))
+    with pytest.raises(GeometryCompatibilityError, match="missing"):
+        _manifest(tmp_path / "absent")
 
 
 def test_reservoir_sampling_is_seeded_and_bounded() -> None:

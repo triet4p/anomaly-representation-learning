@@ -103,6 +103,76 @@ def test_singleton_reference_and_collapsed_metrics_are_json_safe() -> None:
     json.dumps(compute_health_metrics(np.ones((3, 2))), allow_nan=False)
 
 
+def test_separation_samples_both_classes_despite_normal_first_ordering() -> None:
+    """Ordered normal-first labels must still yield both similarities and a margin."""
+    rng = np.random.default_rng(0)
+    embeddings = np.vstack([rng.normal(size=(40, 4)), rng.normal(size=(10, 4)) + 5.0])
+    records = [{"label": "normal"} for _ in range(40)] + [{"label": "abnormal"} for _ in range(10)]
+    first = compute_separation_metrics(embeddings, records)
+    second = compute_separation_metrics(embeddings, records)
+    assert first == second
+    assert first["same_class_similarity"]["count"] > 0
+    assert first["different_class_similarity"]["count"] > 0
+    assert first["class_separation_margin"] is not None
+    assert first["labelled_pair_count"] <= 10_000
+
+
+def test_reference_distances_match_direct_formula_with_self_exclusion() -> None:
+    """Blocked distances must equal the naive formula excluding each query itself."""
+    from representation.geometry_analysis import _reference_distances
+
+    rng = np.random.default_rng(3)
+    values = rng.normal(size=(9, 5))
+    normal = np.asarray([0, 2, 4, 6, 8], dtype=np.int64)
+    result = _reference_distances(values, normal, 2)
+    direct = np.sqrt(np.maximum(((values[:, None, :] - values[normal][None, :, :]) ** 2).sum(axis=2), 0.0))
+    lookup = {row: column for column, row in enumerate(normal.tolist())}
+    for row in range(len(values)):
+        column = lookup.get(row)
+        if column is not None:
+            direct[row, column] = np.inf
+    expected = np.sort(direct, axis=1)[:, :2].sum() / (len(values) * 2)
+    assert result["mean_distance"] == pytest.approx(expected)
+
+
+def test_reference_distances_exclude_self_and_handle_singleton() -> None:
+    """A query must never match itself; a lone reference yields no distance."""
+    from representation.geometry_analysis import _reference_distances
+
+    values = np.asarray([[0.0, 0.0], [10.0, 0.0], [20.0, 0.0]])
+    crowded = _reference_distances(values, np.asarray([0, 1, 2], dtype=np.int64), 1)
+    assert crowded["mean_distance"] == pytest.approx(10.0)
+    lone = _reference_distances(values, np.asarray([1], dtype=np.int64), 3)
+    assert lone["count"] == 1
+    assert lone["mean_distance"] is None
+
+
+def test_reference_distances_are_block_size_invariant() -> None:
+    """Tiny query/reference blocks must reproduce the default-block result."""
+    from representation.geometry_analysis import _reference_distances
+
+    rng = np.random.default_rng(11)
+    values = rng.normal(size=(17, 6))
+    normal = np.arange(0, 17, 2, dtype=np.int64)
+    full = _reference_distances(values, normal, 3)
+    tiled = _reference_distances(values, normal, 3, query_block=2, reference_block=2)
+    assert tiled["count"] == full["count"]
+    assert tiled["mean_distance"] == pytest.approx(full["mean_distance"])
+    rerun = _reference_distances(values, normal, 3, query_block=2, reference_block=2)
+    assert rerun == tiled
+
+
+def test_lex_endpoints_match_brute_force_pairs() -> None:
+    """Triangular ordinal conversion must reproduce lexicographic enumeration."""
+    from representation.geometry_analysis import _lex_endpoints
+
+    for members in (2, 3, 7, 16):
+        expected = [(left, right) for left in range(members) for right in range(left + 1, members)]
+        take = np.arange(len(expected), dtype=np.int64)
+        left, right = _lex_endpoints(members, take)
+        assert list(zip(left.tolist(), right.tolist())) == expected
+
+
 def test_projection_figures_include_continuous_severity_view(tmp_path) -> None:
     records = [
         {"label": "normal", "severity": "", "anomaly_family": "", "fleet": "R01", "regime_summary": "active", "split": "test"},

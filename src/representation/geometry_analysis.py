@@ -259,6 +259,122 @@ def compute_projections(embeddings: np.ndarray, config: ProjectionConfig = Proje
     tsne_xy = tsne.fit_transform(sample)
     return {"row_index": indices, "pca": pca_xy, "pca_explained_variance_ratio": pca_ratio, "tsne": tsne_xy}
 
+
+_QUERY_BLOCK = 256
+_REFERENCE_BLOCK = 1024
+
+
+def _reference_distances(
+    values: np.ndarray,
+    normal: np.ndarray,
+    reference_k: int,
+    *,
+    query_block: int = _QUERY_BLOCK,
+    reference_block: int = _REFERENCE_BLOCK,
+) -> dict[str, object]:
+    """Mean distance to the k nearest normal references without an N-by-M matrix.
+
+    Uses ``||q - r||^2 = ||q||^2 + ||r||^2 - 2 q.r`` over query/reference blocks
+    (bounded working set), clamping small negative roundoff before ``sqrt``.
+    """
+    count = int(len(normal))
+    result: dict[str, object] = {"count": count, "mean_distance": None}
+    nearest = min(int(reference_k), count - 1)
+    if count == 0 or nearest <= 0:
+        return result
+    references = np.asarray(values[normal], dtype=np.float64)
+    reference_norms = (references * references).sum(axis=1)
+    query_norms = (values * values).sum(axis=1)
+    lookup = {int(row): column for column, row in enumerate(normal)}
+    total = 0.0
+    rows = len(values)
+    for query_start in range(0, rows, query_block):
+        queries = values[query_start : query_start + query_block]
+        running = np.full((len(queries), nearest), np.inf)
+        for reference_start in range(0, count, reference_block):
+            stop = min(reference_start + reference_block, count)
+            squared = (
+                query_norms[query_start : query_start + len(queries), None]
+                + reference_norms[None, reference_start:stop]
+                - 2.0 * (queries @ references[reference_start:stop].T)
+            )
+            for row in range(len(queries)):
+                column = lookup.get(query_start + row)
+                if column is not None and reference_start <= column < stop:
+                    squared[row, column - reference_start] = np.inf
+            width = min(nearest, squared.shape[1])
+            block_best = np.partition(squared, width - 1, axis=1)[:, :width]
+            if width < nearest:
+                block_best = np.pad(block_best, ((0, 0), (0, nearest - width)), constant_values=np.inf)
+            merged = np.concatenate([running, block_best], axis=1)
+            running = np.partition(merged, nearest - 1, axis=1)[:, :nearest]
+        total += float(np.sqrt(np.maximum(running, 0.0)).sum())
+    result["mean_distance"] = total / (rows * nearest)
+    return result
+
+
+def _strided_pair_take(pair_count: int, cap: int) -> np.ndarray:
+    """Deterministic strided take of pair ordinals without materializing pairs."""
+    if pair_count <= 0 or cap <= 0:
+        return np.empty(0, dtype=np.int64)
+    step = max(1, -(-pair_count // cap))
+    return np.arange(0, pair_count, step, dtype=np.int64)[:cap]
+
+
+def _lex_endpoints(member_count: int, take: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Convert lexicographic (left < right) pair ordinals to member positions."""
+    span = 2 * member_count - 1
+    discriminant = span * span - 8 * take.astype(np.float64)
+    left = np.floor((span - np.sqrt(np.maximum(discriminant, 0.0))) / 2).astype(np.int64)
+    left = np.clip(left, 0, max(member_count - 2, 0))
+    base = left * member_count - left * (left + 1) // 2
+    return left, take - base + left + 1
+
+
+def _sample_same_class(
+    normalized: np.ndarray, members: dict[str, np.ndarray], cap: int
+) -> list[float]:
+    """Strided same-label similarities with the cap split across eligible groups."""
+    eligible = [(label, rows) for label, rows in sorted(members.items()) if len(rows) >= 2]
+    if not eligible or cap <= 0:
+        return []
+    base, extra = divmod(cap, len(eligible))
+    similarities: list[float] = []
+    for position, (_, rows) in enumerate(eligible):
+        quota = base + (1 if position < extra else 0)
+        total = len(rows) * (len(rows) - 1) // 2
+        take = _strided_pair_take(total, quota)
+        if len(take) == 0:
+            continue
+        left, right = _lex_endpoints(len(rows), take)
+        sims = (normalized[rows[left]] * normalized[rows[right]]).sum(axis=1)
+        similarities.extend(float(value) for value in sims)
+    return similarities
+
+
+def _sample_cross_class(
+    normalized: np.ndarray, members: dict[str, np.ndarray], cap: int
+) -> list[float]:
+    """Strided different-label similarities with the cap split across label pairs."""
+    labels = sorted(members)
+    pairs = [(left, right) for first, left in enumerate(labels) for right in labels[first + 1 :]]
+    if not pairs or cap <= 0:
+        return []
+    base, extra = divmod(cap, len(pairs))
+    similarities: list[float] = []
+    for position, (left, right) in enumerate(pairs):
+        quota = base + (1 if position < extra else 0)
+        rows, columns = members[left], members[right]
+        take = _strided_pair_take(len(rows) * len(columns), quota)
+        if len(take) == 0:
+            continue
+        grid_left = rows[take // len(columns)]
+        grid_right = columns[take % len(columns)]
+        sims = (normalized[grid_left] * normalized[grid_right]).sum(axis=1)
+        similarities.extend(float(value) for value in sims)
+    return similarities
+
+
 def compute_separation_metrics(
     embeddings: np.ndarray,
     records: Sequence[Mapping[str, object]],
@@ -270,34 +386,17 @@ def compute_separation_metrics(
         raise ValueError("records and embeddings row counts differ")
     labels = [str(_value(row, "label")) for row in records]
     normal = np.asarray([index for index, label in enumerate(labels) if label == "normal"], dtype=np.int64)
-    reference_result: dict[str, object] = {"count": int(len(normal)), "mean_distance": None}
-    if len(normal):
-        reference_k = min(config.reference_k, len(normal) - 1)
-        if reference_k > 0:
-            normal_lookup = {int(row): column for column, row in enumerate(normal)}
-            total_distance = 0.0
-            for start in range(0, len(values), 256):
-                chunk = values[start : start + 256]
-                distances = np.sqrt(np.maximum(((chunk[:, None, :] - values[normal][None, :, :]) ** 2).sum(axis=2), 0.0))
-                for row in range(len(chunk)):
-                    normal_column = normal_lookup.get(start + row)
-                    if normal_column is not None:
-                        distances[row, normal_column] = np.inf
-                total_distance += float(np.partition(distances, reference_k - 1, axis=1)[:, :reference_k].sum())
-            reference_result["mean_distance"] = total_distance / (len(values) * reference_k)
+    reference_result = _reference_distances(values, normal, config.reference_k)
     normalized = values / np.maximum(np.linalg.norm(values, axis=1, keepdims=True), np.finfo(np.float64).tiny)
-    positives: list[float] = []
-    negatives: list[float] = []
-    for left in range(len(values)):
-        for right in range(left + 1, len(values)):
-            if len(positives) + len(negatives) >= config.max_pairs:
-                break
-            if labels[left] == MISSING or labels[right] == MISSING:
-                continue
-            similarity = float(np.dot(normalized[left], normalized[right]))
-            (positives if labels[left] == labels[right] else negatives).append(similarity)
-        if len(positives) + len(negatives) >= config.max_pairs:
-            break
+    # Deterministic per-class budgets: ordered normal-first data must not starve
+    # different-class pairs. Quotas split evenly across eligible groups/pairs.
+    positive_cap = (config.max_pairs + 1) // 2
+    negative_cap = config.max_pairs // 2
+    label_array = np.asarray(labels)
+    ordered = sorted(set(labels) - {MISSING})
+    members = {label: np.flatnonzero(label_array == label) for label in ordered}
+    positives = _sample_same_class(normalized, members, positive_cap)
+    negatives = _sample_cross_class(normalized, members, negative_cap)
     positive_mean = float(np.mean(positives)) if positives else None
     negative_mean = float(np.mean(negatives)) if negatives else None
     return {
