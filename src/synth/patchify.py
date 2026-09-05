@@ -169,11 +169,30 @@ class Patchifier:
         """
         Aggregate patch-level scores back to timestep-level by averaging
         all patch scores that cover each timestep.
+
+        Misaligned inputs silently shift localization, so shapes and coverage
+        are validated: equal lengths, non-negative starts/valid lengths, and
+        every covered patch must start inside ``[0, T)`` (padding slots carry
+        ``starts == -1`` with ``valid_len == 0`` and contribute nothing).
         """
-        scores = np.zeros(T, dtype=np.float64)
-        counts = np.zeros(T, dtype=np.int64)
+        patch_scores = np.asarray(patch_scores)
+        starts = np.asarray(starts)
+        valid_len = np.asarray(valid_len)
+        if patch_scores.ndim != 1 or starts.ndim != 1 or valid_len.ndim != 1:
+            raise ValueError("patch scores, starts, and valid_len must be one-dimensional")
+        if not (len(patch_scores) == len(starts) == len(valid_len)):
+            raise ValueError("patch scores, starts, and valid_len must share one length")
+        if int(T) < 0:
+            raise ValueError("timestep count T must be non-negative")
+        if bool((starts < -1).any()) or bool((valid_len < 0).any()):
+            raise ValueError("starts must be >= -1 and valid_len must be non-negative")
+        covered = valid_len > 0
+        if bool((((starts[covered] < 0) | (starts[covered] >= int(T)))).any()):
+            raise ValueError("covered patches must start inside [0, T)")
+        scores = np.zeros(int(T), dtype=np.float64)
+        counts = np.zeros(int(T), dtype=np.int64)
         for i, (s, vl) in enumerate(zip(starts, valid_len)):
-            e = min(int(s) + int(vl), T)
+            e = min(int(s) + int(vl), int(T))
             scores[int(s):e] += patch_scores[i]
             counts[int(s):e] += 1
         nonzero = counts > 0
