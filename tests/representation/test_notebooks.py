@@ -36,7 +36,7 @@ def test_v1_notebooks_are_valid_current_package_workflows() -> None:
         assert "load_split('val'" in source
         if path.name.startswith("infer_"):
             assert "load_split('test'" in source
-            assert ".fit(reference_output['file_embedding'])" in source
+            assert "prepare_reference_bank(bank, reference_output['file_embedding']" in source
             assert "labels=" not in source
         assert "S_pred" in source or "S_{\\mathrm{pred}}" in source
         assert "S_pop" in source or "S_{\\mathrm{pop}}" in source

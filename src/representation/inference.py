@@ -60,6 +60,24 @@ class NormalReferenceBank:
 ReferenceBank = NormalReferenceBank
 
 
+def prepare_reference_bank(
+    bank: NormalReferenceBank,
+    reference_embeddings: torch.Tensor,
+    *,
+    refit: bool = False,
+) -> str:
+    """Keep a restored checkpoint bank by default; refit only on explicit opt-in.
+
+    A bank without embeddings is always fitted. Returns ``"restored"`` when the
+    existing embeddings are kept and ``"refit"`` when they are (re)fitted, so
+    callers can record ``S_pop`` provenance in their outputs.
+    """
+    if bank.embeddings is None or refit:
+        bank.fit(reference_embeddings)
+        return "refit"
+    return "restored"
+
+
 def mad_threshold(scores: torch.Tensor, multiplier: float = 3.0) -> float:
     """Return a robust median-plus-MAD threshold for one independent score."""
     if multiplier < 0.0:

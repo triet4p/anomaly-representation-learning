@@ -16,7 +16,7 @@ from representation.criterion import (
     LatentPredictionCriterion,
     ProgressiveLambda,
 )
-from representation.inference import NormalReferenceBank, ReferenceBank, RepresentationInference, mad_threshold
+from representation.inference import NormalReferenceBank, ReferenceBank, RepresentationInference, mad_threshold, prepare_reference_bank
 from representation.geometry import (
     BatchConfig,
     BoundedEmbeddingExtractor,
@@ -47,6 +47,7 @@ __all__ = [
     "ReferenceBank",
     "RepresentationInference",
     "mad_threshold",
+    "prepare_reference_bank",
     "validate_batch",
     "CheckpointManager",
     "load_checkpoint",

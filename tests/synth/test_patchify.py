@@ -175,3 +175,23 @@ def test_timestep_to_patch_score_aggregation():
     np.testing.assert_allclose(ts_scores[8:16], 1.5, atol=1e-6)
     # t=16..23 covered by patch 1 and 2 → mean of 2.0 and 3.0 = 2.5
     np.testing.assert_allclose(ts_scores[16:24], 2.5, atol=1e-6)
+
+
+def test_timestep_aggregation_rejects_misaligned_coverage() -> None:
+    """Misaligned starts/lengths must fail fast instead of shifting localization."""
+    good_starts = np.asarray([0, 8], dtype=np.int64)
+    good_len = np.asarray([8, 8], dtype=np.int64)
+    scores = np.asarray([1.0, 2.0])
+    with pytest.raises(ValueError, match="one length"):
+        Patchifier.patch_to_timestep_scores(scores[:1], good_starts, good_len, 16)
+    with pytest.raises(ValueError, match="non-negative"):
+        Patchifier.patch_to_timestep_scores(scores, good_starts, np.asarray([8, -1]), 16)
+    with pytest.raises(ValueError, match="inside"):
+        Patchifier.patch_to_timestep_scores(scores, np.asarray([0, 16], dtype=np.int64), good_len, 16)
+    with pytest.raises(ValueError, match="inside"):
+        Patchifier.patch_to_timestep_scores(scores, np.asarray([-1, 8], dtype=np.int64), np.asarray([4, 8]), 16)
+    # Padding slots (starts == -1 with valid_len == 0) contribute nothing.
+    out = Patchifier.patch_to_timestep_scores(
+        np.asarray([1.0, 0.0]), np.asarray([0, -1], dtype=np.int64), np.asarray([8, 0]), 8
+    )
+    np.testing.assert_allclose(out, np.ones(8))

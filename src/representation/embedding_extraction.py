@@ -386,6 +386,7 @@ class BoundedEmbeddingExtractor:
             "config": self.model.config.to_dict(),
             "reference_count": int(self.reference_bank.embeddings.shape[0]),
             "reference_k": int(self.reference_bank.k),
+            "reference_source": "restored-checkpoint",
         }
         manifest = GeometryManifest(
             checkpoint=checkpoint_metadata,
