@@ -1,0 +1,37 @@
+===== eval baseline 2026-09-05T16:59:49Z
+val groups: 2500 normal, 2500 abnormal
+normal: prediction_loss=0.054230 contrastive_loss=0.416882 (n=2500)
+abnormal: prediction_loss=0.062670 contrastive_loss=0.418548 (n=2500)
+config: lambda_max 0.1 tau 0.2 gain 0.05 offset 0.03 noise 0.015 shift 4
+dump baseline exit=0
+===== eval lambda0 2026-09-05T17:01:03Z
+val groups: 2500 normal, 2500 abnormal
+normal: prediction_loss=0.053975 contrastive_loss=1.566770 (n=2500)
+abnormal: prediction_loss=0.061331 contrastive_loss=1.568148 (n=2500)
+config: lambda_max 0.0 tau 0.2 gain 0.05 offset 0.03 noise 0.015 shift 4
+dump lambda0 exit=0
+===== eval lambda05 2026-09-05T17:02:15Z
+val groups: 2500 normal, 2500 abnormal
+normal: prediction_loss=0.055719 contrastive_loss=0.407022 (n=2500)
+abnormal: prediction_loss=0.065889 contrastive_loss=0.408712 (n=2500)
+config: lambda_max 0.5 tau 0.2 gain 0.05 offset 0.03 noise 0.015 shift 4
+dump lambda05 exit=0
+===== eval tau007 2026-09-05T17:03:27Z
+val groups: 2500 normal, 2500 abnormal
+normal: prediction_loss=0.066708 contrastive_loss=0.001015 (n=2500)
+abnormal: prediction_loss=0.075992 contrastive_loss=0.001229 (n=2500)
+config: lambda_max 0.1 tau 0.07 gain 0.05 offset 0.03 noise 0.015 shift 4
+dump tau007 exit=0
+===== eval aug0 2026-09-05T17:04:40Z
+val groups: 2500 normal, 2500 abnormal
+normal: prediction_loss=0.046920 contrastive_loss=0.401313 (n=2500)
+abnormal: prediction_loss=0.053548 contrastive_loss=0.403189 (n=2500)
+config: lambda_max 0.1 tau 0.2 gain 0.0 offset 0.0 noise 0.0 shift 0
+dump aug0 exit=0
+===== eval aug2 2026-09-05T17:05:49Z
+val groups: 2500 normal, 2500 abnormal
+normal: prediction_loss=0.059748 contrastive_loss=0.421961 (n=2500)
+abnormal: prediction_loss=0.068749 contrastive_loss=0.423296 (n=2500)
+config: lambda_max 0.1 tau 0.2 gain 0.1 offset 0.06 noise 0.03 shift 8
+dump aug2 exit=0
+EVAL DONE 2026-09-05T17:07:03Z

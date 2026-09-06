@@ -18,3 +18,13 @@ data/generated/
 *.npz
 checkpoints/
 *.pt
+
+# Sprint 9-10 experiment records (Sprint 10 Task 1 audit)
+# Superseded predecessor partial: reruns at the exact commit live in 03/
+experiments/20260905/02/
+# Long raw result logs (tqdm noise; timings/exit codes recorded in task evidence + master logs)
+experiments/20260905/04/dump_stdout.log
+experiments/20260905/05/train_*.log
+experiments/20260905/05/dump_*.log
+experiments/20260905/05/smoke.log
+experiments/20260905/06/task7.log

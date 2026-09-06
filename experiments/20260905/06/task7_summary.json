@@ -1,0 +1,57 @@
+{
+ "n_normal": 3600,
+ "n_abnormal": 3600,
+ "TP": 528,
+ "FP": 406,
+ "FN": 3072,
+ "TN": 3194,
+ "precision": 0.5653104925053534,
+ "recall": 0.14666666666666667,
+ "f1": 0.23290692545213937,
+ "auroc_pred": 0.5248334104938271,
+ "auroc_pop": 0.49912029320987655,
+ "cohen_d_pred": 0.0916907659833963,
+ "cohen_d_pop": 0.006970406875944439,
+ "families": {
+  "contextual_replacement": {
+   "n": 400,
+   "recall": 0.13
+  },
+  "cross_channel_inconsistency": {
+   "n": 400,
+   "recall": 0.1175
+  },
+  "duration_anomaly": {
+   "n": 400,
+   "recall": 0.2625
+  },
+  "freq_phase_mismatch": {
+   "n": 400,
+   "recall": 0.1125
+  },
+  "missing_event": {
+   "n": 400,
+   "recall": 0.165
+  },
+  "over_regularity": {
+   "n": 400,
+   "recall": 0.13
+  },
+  "realistic_stuck": {
+   "n": 400,
+   "recall": 0.13
+  },
+  "subtle_drift": {
+   "n": 400,
+   "recall": 0.1525
+  },
+  "wrong_transition": {
+   "n": 400,
+   "recall": 0.12
+  }
+ },
+ "argmax_in_mask": 0.19333333333333333,
+ "top10_mass": 0.3318431249619713,
+ "bank_rows": 8192,
+ "bank_source": "restored"
+}
