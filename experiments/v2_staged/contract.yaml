@@ -1,0 +1,32 @@
+# Sprint 11 Task 22 — 2-epoch contract stage (matched control/hybrid).
+#
+# Proves executable contracts only: syntax, device, batching, loss
+# finiteness, covariance stability, coherent checkpoints, and restored
+# references. Uses no test outcome for any decision.
+stage: contract
+epochs: 2
+seed: 0
+d_model: 32
+batch_size: 8
+lr: 0.001
+corruption_rate: 0.1
+severity: 2.0
+# Resolved to the exact git HEAD at runtime (see v2_staged.resolve_commit).
+commit: "{COMMIT}"
+cells:
+  - cell: default
+    variant: control-normal-only
+    coefficients:
+      boundary_alpha_max: 0.0
+      boundary_margin: 1.0
+      background_weight: 1.0
+      variance_weight: 1.0
+      covariance_weight: 1.0
+  - cell: default
+    variant: hybrid-boundary
+    coefficients:
+      boundary_alpha_max: 1.0
+      boundary_margin: 1.0
+      background_weight: 1.0
+      variance_weight: 1.0
+      covariance_weight: 1.0

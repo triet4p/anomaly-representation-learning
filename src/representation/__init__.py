@@ -16,6 +16,56 @@ from representation.criterion import (
     LatentPredictionCriterion,
     ProgressiveLambda,
 )
+from representation.v2_config import FALLBACK_ORDER, V2Config, assert_encoder_inputs_clean
+from representation.v2_contracts import (
+    V2AnomalyConfidence,
+    V2FailureRisk,
+    V2FileState,
+    V2PatchOutput,
+    V2TrajectoryFeatures,
+    validate_confidence,
+    validate_file_state,
+    validate_patch_output,
+    validate_risk,
+    validate_trajectory,
+)
+from representation.v2_patch import ContextConditionedPatchEncoder, PatchDistributionHead
+from representation.v2_geometry import FrozenReference, GroupStats, HierarchicalMahalanobisGeometry
+from representation.v2_objectives import (
+    CounterfactualCriterion,
+    covariance_loss,
+    synthesize_corrupted_patches,
+    variance_loss,
+)
+from representation.v2_aggregation import (
+    DEFAULT_QUANTILE_LEVELS,
+    aggregate_file_state,
+    calibrate_elevated_threshold,
+)
+from representation.v2_trajectory import TrajectoryTracker
+from representation.v2_risk import (
+    CensoredSurvivalRisk,
+    HealthyTailCalibrator,
+    expected_feature_width,
+    trajectory_feature_matrix,
+)
+from representation.v2_checkpoint import load_v2_checkpoint, save_v2_checkpoint
+from representation.v2_trainer import V2Trainer, build_v2_training_stack
+from representation.v2_inference import V2InferencePipeline, patch_regime_ids
+from representation.v2_staged import (
+    CONTROL_VARIANT,
+    HYBRID_VARIANT,
+    STAGE_EPOCHS,
+    StageSpec,
+    balance_matrix,
+    control_coefficients,
+    hybrid_coefficients,
+    load_stage_config,
+    resolve_commit,
+    run_stage_cell,
+    run_staged_config,
+    stage_epochs,
+)
 from representation.inference import NormalReferenceBank, ReferenceBank, RepresentationInference, mad_threshold, prepare_reference_bank
 from representation.geometry import (
     BatchConfig,
@@ -67,4 +117,52 @@ __all__ = [
     "ProjectionConfig",
     "SamplingConfig",
     "extract_embeddings",
+    "FALLBACK_ORDER",
+    "V2Config",
+    "assert_encoder_inputs_clean",
+    "V2AnomalyConfidence",
+    "V2FailureRisk",
+    "V2FileState",
+    "V2PatchOutput",
+    "V2TrajectoryFeatures",
+    "validate_confidence",
+    "validate_file_state",
+    "validate_patch_output",
+    "validate_risk",
+    "validate_trajectory",
+    "ContextConditionedPatchEncoder",
+    "PatchDistributionHead",
+    "FrozenReference",
+    "GroupStats",
+    "HierarchicalMahalanobisGeometry",
+    "CounterfactualCriterion",
+    "covariance_loss",
+    "synthesize_corrupted_patches",
+    "variance_loss",
+    "DEFAULT_QUANTILE_LEVELS",
+    "aggregate_file_state",
+    "calibrate_elevated_threshold",
+    "TrajectoryTracker",
+    "CensoredSurvivalRisk",
+    "HealthyTailCalibrator",
+    "expected_feature_width",
+    "trajectory_feature_matrix",
+    "load_v2_checkpoint",
+    "save_v2_checkpoint",
+    "V2Trainer",
+    "build_v2_training_stack",
+    "V2InferencePipeline",
+    "patch_regime_ids",
+    "CONTROL_VARIANT",
+    "HYBRID_VARIANT",
+    "STAGE_EPOCHS",
+    "StageSpec",
+    "balance_matrix",
+    "control_coefficients",
+    "hybrid_coefficients",
+    "load_stage_config",
+    "resolve_commit",
+    "run_stage_cell",
+    "run_staged_config",
+    "stage_epochs",
 ]

@@ -28,3 +28,5 @@ experiments/20260905/05/train_*.log
 experiments/20260905/05/dump_*.log
 experiments/20260905/05/smoke.log
 experiments/20260905/06/task7.log
+# Sprint task evidence (implement-atomic-task skill; never commit)
+artifacts/

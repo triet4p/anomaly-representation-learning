@@ -15,6 +15,9 @@ import numpy as np
 from synth.config import GENERATOR_VERSION, SynthConfig
 from synth.generator import SessionGenerator
 from synth.schema import AnomalyFamily, AnomalyMeta, FileSample, SampleLabel, RegimeMeta, RegimeType
+from synth.schema import DegradationStage, EpisodeKind, FactoryProvenance, FutureFailureTargets
+from synth.schema import HealthEpisode, ObservableAnomalyLabels, OperatingContext, OperationEvent
+from synth.schema import RobotHealthState, SplitProvenance
 
 
 
@@ -375,6 +378,139 @@ def _meta_from_dict(data: dict[str, object]) -> AnomalyMeta:
     )
 
 
+def _operation_to_dict(op: OperationEvent) -> dict[str, object]:
+    return {"operation_id": op.operation_id, "unit_id": op.unit_id,
+            "product_type": op.product_type, "route_id": op.route_id,
+            "route_position": op.route_position, "robot_id": op.robot_id,
+            "program_id": op.program_id, "arrival_time": op.arrival_time,
+            "start_time": op.start_time, "end_time": op.end_time,
+            "duration": op.duration, "queue_delay": op.queue_delay,
+            "travel_time": op.travel_time, "idle_before": op.idle_before}
+
+
+def _operation_from_dict(data: dict[str, object]) -> OperationEvent:
+    return OperationEvent(
+        operation_id=str(data["operation_id"]), unit_id=str(data["unit_id"]),
+        product_type=str(data["product_type"]), route_id=str(data["route_id"]),
+        route_position=int(data["route_position"]), robot_id=str(data["robot_id"]),
+        program_id=str(data["program_id"]), arrival_time=float(data["arrival_time"]),
+        start_time=float(data["start_time"]), end_time=float(data["end_time"]),
+        duration=float(data["duration"]), queue_delay=float(data["queue_delay"]),
+        travel_time=float(data["travel_time"]), idle_before=float(data["idle_before"]),
+    )
+
+
+def _context_to_dict(ctx: OperatingContext) -> dict[str, object]:
+    return {"shift": ctx.shift, "load": ctx.load,
+            "ambient_temp_c": ctx.ambient_temp_c}
+
+
+def _context_from_dict(data: dict[str, object]) -> OperatingContext:
+    return OperatingContext(shift=str(data.get("shift", "day")),
+                            load=float(data.get("load", 1.0)),
+                            ambient_temp_c=float(data.get("ambient_temp_c", 25.0)))
+
+
+def _health_to_dict(state: RobotHealthState) -> dict[str, object]:
+    return {"health_value": state.health_value,
+            "program_sensitivity": state.program_sensitivity,
+            "manifested_value": state.manifested_value,
+            "degradation_stage": state.degradation_stage.value,
+            "degradation_severity": state.degradation_severity,
+            "degradation_episode_id": state.degradation_episode_id}
+
+
+def _health_from_dict(data: dict[str, object]) -> RobotHealthState:
+    return RobotHealthState(
+        health_value=float(data["health_value"]),
+        program_sensitivity=float(data["program_sensitivity"]),
+        manifested_value=float(data["manifested_value"]),
+        degradation_stage=DegradationStage(str(data["degradation_stage"])),
+        degradation_severity=float(data["degradation_severity"]),
+        degradation_episode_id=None if data.get("degradation_episode_id") is None
+        else str(data["degradation_episode_id"]),
+    )
+
+
+def _episode_to_dict(episode: HealthEpisode) -> dict[str, object]:
+    return {"episode_id": episode.episode_id, "kind": episode.kind.value,
+            "robot_id": episode.robot_id, "start_time": episode.start_time,
+            "end_time": episode.end_time}
+
+
+def _episode_from_dict(data: dict[str, object]) -> HealthEpisode:
+    return HealthEpisode(
+        episode_id=str(data["episode_id"]), kind=EpisodeKind(str(data["kind"])),
+        robot_id=str(data["robot_id"]), start_time=float(data["start_time"]),
+        end_time=None if data.get("end_time") is None else float(data["end_time"]),
+    )
+
+
+def _labels_to_dict(labels: ObservableAnomalyLabels) -> dict[str, object]:
+    return {"is_file_anomalous": labels.is_file_anomalous,
+            "anomaly_family": labels.anomaly_family,
+            "anomaly_severity": labels.anomaly_severity}
+
+
+def _labels_from_dict(data: dict[str, object]) -> ObservableAnomalyLabels:
+    return ObservableAnomalyLabels(
+        is_file_anomalous=bool(data["is_file_anomalous"]),
+        anomaly_family=None if data.get("anomaly_family") is None
+        else str(data["anomaly_family"]),
+        anomaly_severity=None if data.get("anomaly_severity") is None
+        else float(data["anomaly_severity"]),
+    )
+
+
+def _targets_to_dict(targets: FutureFailureTargets) -> dict[str, object]:
+    return {"time_to_next_failure": targets.time_to_next_failure,
+            "failure_within_1d": targets.failure_within_1d,
+            "failure_within_7d": targets.failure_within_7d,
+            "is_censored": targets.is_censored}
+
+
+def _targets_from_dict(data: dict[str, object]) -> FutureFailureTargets:
+    return FutureFailureTargets(
+        time_to_next_failure=None if data.get("time_to_next_failure") is None
+        else float(data["time_to_next_failure"]),
+        failure_within_1d=bool(data["failure_within_1d"]),
+        failure_within_7d=bool(data["failure_within_7d"]),
+        is_censored=bool(data["is_censored"]),
+    )
+
+
+def _split_prov_to_dict(prov: SplitProvenance) -> dict[str, object]:
+    return {"cutoff_time": prov.cutoff_time, "is_quarantined": prov.is_quarantined,
+            "quarantine_reason": prov.quarantine_reason,
+            "member_views": list(prov.member_views)}
+
+
+def _split_prov_from_dict(data: dict[str, object]) -> SplitProvenance:
+    return SplitProvenance(
+        cutoff_time=float(data["cutoff_time"]),
+        is_quarantined=bool(data["is_quarantined"]),
+        quarantine_reason=None if data.get("quarantine_reason") is None
+        else str(data["quarantine_reason"]),
+        member_views=tuple(str(v) for v in data.get("member_views", [])),
+    )
+
+
+def _factory_prov_to_dict(prov: FactoryProvenance) -> dict[str, object]:
+    return {"seed": prov.seed, "stream": prov.stream,
+            "generator_version": prov.generator_version,
+            "config_hash": prov.config_hash}
+
+
+def _factory_prov_from_dict(data: dict[str, object]) -> FactoryProvenance:
+    return FactoryProvenance(seed=int(data["seed"]), stream=str(data["stream"]),
+                             generator_version=str(data["generator_version"]),
+                             config_hash=str(data["config_hash"]))
+
+
+def _json_bytes(value: dict[str, object]) -> bytes:
+    return np.bytes_(json.dumps(value, sort_keys=True))
+
+
 def _sample_arrays(sample: FileSample) -> dict[str, object]:
     arrays: dict[str, object] = {
         "x": sample.x, "seed": np.int64(sample.seed), "file_label": np.bytes_(sample.file_label.value),
@@ -397,6 +533,23 @@ def _sample_arrays(sample: FileSample) -> dict[str, object]:
         arrays["anomaly_meta_json"] = np.bytes_(json.dumps(_meta_to_dict(sample.anomaly_meta), sort_keys=True))
     if sample.rejection_meta is not None:
         arrays["rejection_meta_json"] = np.bytes_(json.dumps(_meta_to_dict(sample.rejection_meta), sort_keys=True))
+    if sample.operation is not None:
+        arrays["operation_json"] = _json_bytes(_operation_to_dict(sample.operation))
+    if sample.operating_context is not None:
+        arrays["operating_context_json"] = _json_bytes(_context_to_dict(sample.operating_context))
+    if sample.health is not None:
+        arrays["health_json"] = _json_bytes(_health_to_dict(sample.health))
+    if sample.episode is not None:
+        arrays["episode_json"] = _json_bytes(_episode_to_dict(sample.episode))
+    if sample.anomaly_labels is not None:
+        arrays["anomaly_labels_json"] = _json_bytes(_labels_to_dict(sample.anomaly_labels))
+    if sample.future_targets is not None:
+        arrays["future_targets_json"] = _json_bytes(_targets_to_dict(sample.future_targets))
+    if sample.split_provenance is not None:
+        arrays["split_provenance_json"] = _json_bytes(_split_prov_to_dict(sample.split_provenance))
+    if sample.factory_provenance is not None:
+        arrays["factory_provenance_json"] = _json_bytes(
+            _factory_prov_to_dict(sample.factory_provenance))
     return arrays
 
 
@@ -444,6 +597,29 @@ def load_sample_bytes(payload: bytes) -> FileSample:
         program_idx = int(np.asarray(d["program_idx"]).item()) if "program_idx" in d else 0
         robot_code = scalar(d["robot_code"]) if "robot_code" in d else "R01"
         program_number = scalar(d["program_number"]) if "program_number" in d else "P100"
+        # Factory contracts are optional: archives written before Sprint 11
+        # Task 1 simply decode to None.
+        operation = (_operation_from_dict(json.loads(scalar(d["operation_json"])))
+                     if "operation_json" in d else None)
+        operating_context = (_context_from_dict(
+            json.loads(scalar(d["operating_context_json"])))
+            if "operating_context_json" in d else None)
+        health = (_health_from_dict(json.loads(scalar(d["health_json"])))
+                  if "health_json" in d else None)
+        episode = (_episode_from_dict(json.loads(scalar(d["episode_json"])))
+                   if "episode_json" in d else None)
+        anomaly_labels = (_labels_from_dict(
+            json.loads(scalar(d["anomaly_labels_json"])))
+            if "anomaly_labels_json" in d else None)
+        future_targets = (_targets_from_dict(
+            json.loads(scalar(d["future_targets_json"])))
+            if "future_targets_json" in d else None)
+        split_provenance = (_split_prov_from_dict(
+            json.loads(scalar(d["split_provenance_json"])))
+            if "split_provenance_json" in d else None)
+        factory_provenance = (_factory_prov_from_dict(
+            json.loads(scalar(d["factory_provenance_json"])))
+            if "factory_provenance_json" in d else None)
         return FileSample(
             x=d["x"].copy(), file_id=scalar(d["file_id"]),
             file_label=SampleLabel(scalar(d["file_label"])),
@@ -454,4 +630,8 @@ def load_sample_bytes(payload: bytes) -> FileSample:
             anomaly_mask=mask, rejection_meta=rejection,
             robot_idx=robot_idx, program_idx=program_idx,
             robot_code=robot_code, program_number=program_number,
+            operation=operation, operating_context=operating_context,
+            health=health, episode=episode, anomaly_labels=anomaly_labels,
+            future_targets=future_targets, split_provenance=split_provenance,
+            factory_provenance=factory_provenance,
         )

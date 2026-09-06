@@ -2,22 +2,28 @@
 
 ## Overview
 
-The project builds a representation-learning anomaly detector for hard, semantically
-meaningful anomalies in variable-length synthetic files. The synthetic data subsystem
-is complete; the active work is the first latent prediction plus file-level contrastive
-model described in [CONCEPT.md](CONCEPT.md).
+The project builds a representation-learning anomaly detector and calibrated early-warning
+system for variable-length multi-channel telemetry. Sprint 11 replaces independently
+timestamped synthetic files with a causal 3–6 month factory simulation and replaces the
+near-chance V1 geometry with robot-program-conditioned patch geometry, longitudinal
+robot-state tracking, and one-day/seven-day failure-risk evaluation.
 
 ## Current Sprint
 
-**Sprint 2 — V1 Anomaly Representation Model** — **Complete (including Tasks 17–22 remediation)**
+- [Sprint 11 — Chronological Factory Geometry and Early-Warning Validation](sprint-plans/sprint-11.md) — **Active; implementation not started**
+## Paused Sprints
 
-See the dependency-ordered execution plan:
-[docs/sprint-plans/sprint-2.md](sprint-plans/sprint-2.md).
+- [Sprint 4 — Joint Training Stabilization and Rerun Export](sprint-plans/sprint-4.md) — **Paused with Tasks 15–22 pending**
 
 ## Completed Sprints
 
+- [Sprint 10 — Results Consolidation](sprint-plans/sprint-10.md) — **Complete (evidence-only gate passed)**
+- [Sprint 9 — V1 Detection Improvement](sprint-plans/sprint-9.md) — **Complete (evidence-only gate passed; all tracks verdict retrain)**
+- [Sprint 8 — V1 Results Summary](sprint-plans/sprint-8.md) — **Complete (evidence-only gate passed)**
+- [Sprint 6 — Server-Native Geometry Execution and Inference Result Review](sprint-plans/sprint-6.md) — **Complete (geometry gates plus Tasks 14–16 evidence-only inference review)**
+- [Sprint 3 — CLI Version Reporting](sprint-plans/sprint-3.md) — **Complete**
+- [Sprint 2 — V1 Anomaly Representation Model](sprint-plans/sprint-2.md) — **Complete (including Tasks 17–22 remediation)**
 - [Sprint 1 — Synthetic Data Generation Subsystem](sprint-plans/sprint-1.md) — **Complete**
-
 ## Milestones
 
 | # | Milestone | Status |
@@ -33,6 +39,12 @@ See the dependency-ordered execution plan:
 | 9 | File-level contrastive objective with progressive λ ramp | ✅ Sprint 2 |
 | 10 | Independent context-mismatch and population-mismatch inference scores | ✅ Sprint 2 |
 | 11 | CPU smoke, notebook execution, and design review gates | ✅ Sprint 2 (including predictor remediation) |
+| 12 | Side-effect-free version reporting from both synthetic-data CLI entry points | ✅ Sprint 3 |
+| 13 | Stable, diagnosable joint training with coherent rerun exports | ⏸ Sprint 4 paused |
+| 14 | Server-native latent-geometry execution with Git-synchronized runs | ✅ Sprint 6 (superseded the Sprint 5 Kaggle gate) |
+| 15 | Deterministic shared-unit factory calendar with robot health, failures, maintenance, quarantine, and chronological splits | 🔄 Sprint 11 |
+| 16 | Conditional hierarchical latent geometry with localized synthetic boundary learning | 🔄 Sprint 11 |
+| 17 | Static anomaly detection plus calibrated one-day/seven-day longitudinal early warning | 🔄 Sprint 11 |
 
 ## High-Level Design Decisions
 
@@ -59,6 +71,29 @@ See the dependency-ordered execution plan:
   and NumPy synthetic-data contracts. New model configuration is validated with
   Pydantic v2; tensor work is internal PyTorch, with `einops` used only where it
   makes shape transformations explicit.
+- **Joint-training stability:** Prediction and contrastive branches share the same
+  input-normalization contract. Predictor-facing contextual latents are insulated
+  from whole-file contrastive projection, latent scale remains bounded, and model
+  selection never compares checkpoints under different effective objectives.
+- **Checkpoint coherence:** Saved model weights, optimizer, scheduler, global step,
+  lambda state, and reference bank must describe one training state. Restoring an
+  early model with late optimizer metadata is invalid.
+- **Chronological factory data:** Files are causal scheduled operation events over a
+  deterministic 3–6 month calendar. Physical units traverse shared robot routes; one
+  robot processes at most one operation at a time while robot timelines remain
+  asynchronous. Robot health is shared across programs and manifests with
+  program-specific sensitivity.
+- **Temporal split:** Training and validation use only verified healthy,
+  non-quarantined files before the cutoff and split chronologically 80/20. Static test
+  contains every post-cutoff normal plus every abnormal file from any time; a separate
+  unshuffled temporal view preserves complete early-warning episodes.
+- **V2 geometry:** Learn `(robot, program, regime)` normal geometry with hierarchical
+  shrinkage, regularized Mahalanobis or mixture-density energy, localized synthetic
+  clean/corrupt boundary learning, distribution-preserving file states, and guarded
+  fixed/short-term baselines.
+- **Confidence and risk:** Empirical/conformal anomaly confidence and censored
+  one-day/seven-day survival risk are separate outputs. Geometry health, anomaly
+  evidence, and future-failure probability must never be conflated.
 
 ## Verification Gates
 
@@ -73,6 +108,17 @@ The notebook gate also requires a persisted dataset root: generation is
 performed by `uv run python -m synth.cli`, notebooks resolve
 `V1_DATA_ROOT` (default `data/generated/production`), and train/validation/test
 split semantics remain explicit in the manifest.
+
+## Sprint 11 Verification Gates
+
+Sprint 11 runs in explicit evidence-reviewed batches defined in its sprint plan.
+Client source and tiny public-entry-point smokes precede a Git-synchronized server
+preflight. Server execution then proceeds through two-epoch contract runs, five-epoch
+coefficient balancing without test access, frozen-config 50-epoch normal-only and
+hybrid training, bounded result extraction, conditional geometry analysis, sealed
+static inference, and chronological early-warning analysis. Every batch requires a
+fresh `evidence-reviewer` PASS with zero actionable findings; sprint completion also
+requires a sprint-wide differential `deep-reviewer` PASS.
 
 ## Out of Scope for V1
 

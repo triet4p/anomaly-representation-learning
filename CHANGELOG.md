@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Stabilized joint prediction and contrastive training: enforced input normalization parity across prediction and contrastive branches via `ConditionalBatchNorm`, bounded contextual and EMA-target latent scales via top-level LayerNorm, and isolated whole-file contrastive optimization via a dedicated 2-layer MLP projection head (`contrastive_projector`).
+- Calibrated contrastive task parameters: increased augmentation jitter/cutout bounds and raised temperature to $\tau=0.2$, eliminating trivial whole-file contrastive saturation.
+- Implemented stationary model selection policy: added `stationary_joint_loss` with fixed target contrastive weighting ($\lambda_{\max}$) and pre-warmup overrides in `JointRepresentationCriterion` and `RepresentationTrainer`, preventing warmup states from outranking joint-trained checkpoints.
+- Implemented coherent checkpoint synchronization: ensured saved model weights, optimizer state, scheduler state, global step counter, and normal reference bank always describe one coherent training state, eliminating Frankenstein checkpoint states.
+- Added rich diagnostic tracking: exposed raw/weighted losses, stationary joint loss, positive-pair similarity, empirical negative-pair similarity, contrastive margin, learning rate, unclipped gradient norm, and context/target/predictor/file latent norms across training and validation history.
+- Exposed user-configurable `lambda_max` with conservative rerun default `0.1` across `V1Config`, training notebooks, schedule ramps, stationary selection, and progress bars.
+- Corrected notebook resume ergonomics: derived `start_epoch = start_step // num_batches_per_epoch`, bounded training loop ranges, and added clean skip guards when configured total epochs are already completed.
+- Produced versioned Kaggle export packages (`kaggle-20260904-01`, `kaggle-20260904-02`, and replacement `kaggle-20260904-03`) with complete file catalogs and SHA-256 checksum manifests.
 
 - Added `TrainingParams` and `InferenceParams` dataclasses to training and inference notebooks for direct in-notebook parameterization in VSCode and JupyterLab.
 - Added `StreamingBatchDataset` for streamingly collating minibatches from sharded dataset archives in constant $\mathcal{O}(1)$ host RAM.

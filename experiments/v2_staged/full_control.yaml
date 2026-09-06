@@ -1,0 +1,25 @@
+# Sprint 11 Task 22 — 50-epoch frozen full stage: normal-only control.
+#
+# Matched V2 normal-geometry control for the Task 30 full training run:
+# same commit, data, seed policy, compute profile, and output contract
+# as the hybrid mate. Boundary learning is disabled
+# (boundary_alpha_max: 0.0); everything else matches full_hybrid.yaml.
+stage: full
+epochs: 50
+seed: 0
+d_model: 32
+batch_size: 8
+lr: 0.001
+corruption_rate: 0.1
+severity: 2.0
+# Resolved to the exact git HEAD at runtime (see v2_staged.resolve_commit).
+commit: "{COMMIT}"
+cells:
+  - cell: default
+    variant: control-normal-only
+    coefficients:
+      boundary_alpha_max: 0.0
+      boundary_margin: 1.0
+      background_weight: 1.0
+      variance_weight: 1.0
+      covariance_weight: 1.0

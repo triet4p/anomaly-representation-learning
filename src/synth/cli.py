@@ -34,12 +34,43 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--resume", action="store_true", help="resume verified completed shards")
     p.add_argument("--overwrite", action="store_true", help="replace an existing manifest")
     p.add_argument("--small", action="store_true", help="small smoke profile (12/8/12 samples)")
+    p.add_argument("--chronological", action="store_true",
+                   help="materialize a chronological factory dataset (Tasks 5-7 pipeline)")
+    p.add_argument("--profile", choices=("client", "server"), default="client",
+                   help="chronological scale profile (default: client)")
     p.add_argument("--channels", type=int, choices=(3, 6), default=6)
     return p
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    if args.chronological:
+        for flag in ("count", "train_count", "val_count", "test_count"):
+            if getattr(args, flag) is not None:
+                build_parser().error(
+                    f"--{flag.replace('_', '-')} cannot be combined with --chronological"
+                )
+        if args.small:
+            build_parser().error("--small cannot be combined with --chronological")
+        from synth.chronicle import (
+            client_config,
+            materialize_chronological,
+            server_config,
+        )
+        seed = 0 if args.seed is None else args.seed
+        cfg = client_config(seed=seed) if args.profile == "client" else server_config(seed=seed)
+        cfg.n_channels = args.channels
+        manifest = materialize_chronological(
+            cfg, args.output, shard_size=args.shard_size,
+            overwrite=args.overwrite,
+        )
+        counts = manifest["counts"]
+        print(f"wrote {args.output / 'manifest.json'}: "
+              f"total={counts['total']} normal={counts['normal']} "
+              f"abnormal={counts['abnormal']} dev_train={counts['dev_train']} "
+              f"dev_val={counts['dev_val']} static={counts['test_static']} "
+              f"temporal={counts['test_temporal']}")
+        return 0
     SynthConfig, DatasetBuilder = _load_generation_dependencies()
     cfg = SynthConfig(n_channels=args.channels)
     if args.seed is not None:

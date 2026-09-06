@@ -1,0 +1,50 @@
+# Sprint 11 Task 22 — 5-epoch coefficient-balance stage.
+#
+# Predeclared coefficient matrix for the normal-density,
+# variance/covariance, background-consistency, and boundary terms.
+# Cell balance-b equals the default hybrid. Test labels stay sealed:
+# selection uses training plus verified-healthy validation diagnostics
+# only (Task 29 owns the frozen selection and its rationale).
+stage: balance
+epochs: 5
+seed: 0
+d_model: 32
+batch_size: 8
+lr: 0.001
+corruption_rate: 0.1
+severity: 2.0
+# Resolved to the exact git HEAD at runtime (see v2_staged.resolve_commit).
+commit: "{COMMIT}"
+cells:
+  - cell: balance-a
+    variant: hybrid-boundary
+    coefficients:
+      boundary_alpha_max: 0.5
+      boundary_margin: 1.0
+      background_weight: 1.0
+      variance_weight: 1.0
+      covariance_weight: 1.0
+  - cell: balance-b
+    variant: hybrid-boundary
+    coefficients:
+      boundary_alpha_max: 1.0
+      boundary_margin: 1.0
+      background_weight: 1.0
+      variance_weight: 1.0
+      covariance_weight: 1.0
+  - cell: balance-c
+    variant: hybrid-boundary
+    coefficients:
+      boundary_alpha_max: 1.0
+      boundary_margin: 1.0
+      background_weight: 0.5
+      variance_weight: 1.0
+      covariance_weight: 1.0
+  - cell: balance-control
+    variant: control-normal-only
+    coefficients:
+      boundary_alpha_max: 0.0
+      boundary_margin: 1.0
+      background_weight: 1.0
+      variance_weight: 1.0
+      covariance_weight: 1.0

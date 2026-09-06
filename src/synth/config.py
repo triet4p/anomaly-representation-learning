@@ -11,6 +11,7 @@ import numpy as np
 import hashlib
 import json
 from dataclasses import dataclass, field, asdict
+from datetime import date
 
 GENERATOR_VERSION = "2.0.0"
 
@@ -241,6 +242,282 @@ class FleetConfig:
 
 
 @dataclass
+class FactoryCalendarConfig:
+    """3–6 month shared-unit factory calendar (methodology §20.1, §20.10).
+
+    ``calendar_origin`` is the ISO YYYY-MM-DD date of t=0; scheduled event
+    timestamps are float seconds after that origin. ``dev_cutoff_days``
+    defaults to two months; ``quarantine_days`` MUST cover the largest
+    warning horizon (at least 7 days). Calendar scheduling itself is a
+    later task; this contract only bounds the calendar structurally.
+    """
+    calendar_origin: str = "2024-01-01"
+    span_days: float = 120.0
+    dev_cutoff_days: float = 60.0
+    quarantine_days: float = 7.0
+    seed: int = 0
+
+    def __post_init__(self) -> None:
+        try:
+            date.fromisoformat(self.calendar_origin)
+        except (TypeError, ValueError):
+            raise ValueError(
+                f"calendar_origin must be an ISO YYYY-MM-DD date, "
+                f"got {self.calendar_origin!r}"
+            ) from None
+        for name in ("span_days", "dev_cutoff_days", "quarantine_days"):
+            value = float(getattr(self, name))
+            if not np.isfinite(value):
+                raise ValueError(f"{name} must be finite, got {getattr(self, name)!r}")
+            setattr(self, name, value)
+        if not 90.0 <= self.span_days <= 183.0:
+            raise ValueError(
+                f"span_days must cover a 3–6 month calendar (≈90–183 days), "
+                f"got {self.span_days}"
+            )
+        if not 0.0 < self.dev_cutoff_days < self.span_days:
+            raise ValueError(
+                f"dev_cutoff_days must lie inside (0, span_days), got "
+                f"{self.dev_cutoff_days} with span_days={self.span_days}"
+            )
+        if not 7.0 <= self.quarantine_days < self.span_days:
+            raise ValueError(
+                f"quarantine_days must cover the 7-day warning horizon and lie "
+                f"inside [7, span_days), got {self.quarantine_days}"
+            )
+        if isinstance(self.seed, bool) or not isinstance(self.seed, int):
+            raise ValueError(f"seed must be an integer, got {self.seed!r}")
+        if self.seed < 0:
+            raise ValueError(f"seed must be non-negative, got {self.seed}")
+
+
+@dataclass
+class RouteStageConfig:
+    """One operation position on a production route (methodology §20.2).
+
+    ``duration_s`` is the fixed operation duration; ``travel_after_s`` is
+    the unit travel time to the next stage. The final stage of a route
+    MUST set ``travel_after_s`` to zero: line-exit travel is not
+    represented in any operation event.
+    """
+    robot_id: str
+    program_id: str
+    duration_s: float
+    travel_after_s: float = 0.0
+
+    def __post_init__(self) -> None:
+        for name in ("robot_id", "program_id"):
+            value = getattr(self, name)
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(f"{name} must be a non-empty string, got {value!r}")
+        for name in ("duration_s", "travel_after_s"):
+            value = float(getattr(self, name))
+            if not np.isfinite(value):
+                raise ValueError(f"{name} must be finite, got {getattr(self, name)!r}")
+            setattr(self, name, value)
+        if self.duration_s <= 0.0:
+            raise ValueError(f"duration_s must be positive, got {self.duration_s}")
+        if self.travel_after_s < 0.0:
+            raise ValueError(
+                f"travel_after_s must be non-negative, got {self.travel_after_s}")
+
+
+@dataclass
+class RouteConfig:
+    """One defined production route traversed by physical units (§20.2)."""
+    route_id: str
+    product_type: str
+    stages: list[RouteStageConfig] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        for name in ("route_id", "product_type"):
+            value = getattr(self, name)
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(f"{name} must be a non-empty string, got {value!r}")
+        if not self.stages:
+            raise ValueError(f"route {self.route_id!r} must define at least one stage")
+        if self.stages[-1].travel_after_s != 0.0:
+            raise ValueError(
+                f"route {self.route_id!r} final stage must have travel_after_s=0, "
+                f"got {self.stages[-1].travel_after_s}")
+
+
+def _default_routes() -> list[RouteConfig]:
+    """Two-stage default line used when no routes are configured."""
+    return [RouteConfig(
+        route_id="route-A",
+        product_type="sedan",
+        stages=[
+            RouteStageConfig(robot_id="robot-01", program_id="program-01",
+                             duration_s=600.0, travel_after_s=60.0),
+            RouteStageConfig(robot_id="robot-02", program_id="program-02",
+                             duration_s=600.0, travel_after_s=0.0),
+        ],
+    )]
+
+
+@dataclass
+class SchedulerConfig:
+    """Causal shared-unit factory scheduler parameters (methodology §20.3).
+
+    Units arrive every ``arrival_interval_s`` seconds starting at t=0 and
+    are assigned a route deterministically from ``seed``. Robots serve one
+    operation at a time; scheduling itself is a later-task-free causal
+    construction — health, signals, and anomalies are NOT modeled here.
+    """
+    n_units: int = 20
+    arrival_interval_s: float = 1800.0
+    routes: list[RouteConfig] = field(default_factory=_default_routes)
+    seed: int = 0
+
+    def __post_init__(self) -> None:
+        if (isinstance(self.n_units, bool) or not isinstance(self.n_units, int)
+                or self.n_units < 1):
+            raise ValueError(f"n_units must be a positive integer, got {self.n_units!r}")
+        self.arrival_interval_s = float(self.arrival_interval_s)
+        if not np.isfinite(self.arrival_interval_s) or self.arrival_interval_s <= 0.0:
+            raise ValueError(
+                f"arrival_interval_s must be positive, got {self.arrival_interval_s}")
+        if not self.routes:
+            raise ValueError("scheduler requires at least one route")
+        route_ids = [route.route_id for route in self.routes]
+        if len(set(route_ids)) != len(route_ids):
+            raise ValueError(f"route_ids must be unique, got {route_ids!r}")
+        if isinstance(self.seed, bool) or not isinstance(self.seed, int):
+            raise ValueError(f"seed must be an integer, got {self.seed!r}")
+        if self.seed < 0:
+            raise ValueError(f"seed must be non-negative, got {self.seed}")
+
+@dataclass
+class HealthConfig:
+    """Robot-wide health, failure, and maintenance parameters (§20.5–20.8).
+
+    One latent trajectory ``H_r(t)`` per robot evolves through calendar
+    aging, operation wear, and small stochastic variation; programs reveal
+    it with deterministic per-pair sensitivity ``γ``. Failures arise from
+    a hazard coupled to health and accumulated usage, never from
+    independent timestamps. The health RNG stream is seeded from ``seed``
+    alone and never shared with scheduling or signal streams, so noise
+    resampling cannot reorder the factory calendar (§20.14). Health
+    simulation itself lives in ``synth.health``; this contract only bounds
+    the process parameters.
+    """
+    seed: int = 0
+    aging_rate: float = 1e-7
+    wear_rate: float = 1e-4
+    noise_scale: float = 1e-3
+    sensitivity_min: float = 0.5
+    sensitivity_max: float = 1.5
+    degradation_onset: float = 0.3
+    severity_scale: float = 2.0
+    base_rate: float = 1e-9
+    abrupt_rate: float = 0.0
+    alpha: float = 2.0
+    beta: float = 0.0
+    maintenance_duration_s: float = 86400.0
+    recommission_mean: float = 0.05
+    recommission_scale: float = 0.02
+
+    def __post_init__(self) -> None:
+        if isinstance(self.seed, bool) or not isinstance(self.seed, int):
+            raise ValueError(f"seed must be an integer, got {self.seed!r}")
+        if self.seed < 0:
+            raise ValueError(f"seed must be non-negative, got {self.seed}")
+        for name in ("aging_rate", "wear_rate", "noise_scale", "base_rate",
+                     "abrupt_rate", "maintenance_duration_s",
+                     "recommission_mean", "recommission_scale"):
+            value = float(getattr(self, name))
+            if not np.isfinite(value) or value < 0.0:
+                raise ValueError(
+                    f"{name} must be a non-negative finite value, "
+                    f"got {getattr(self, name)!r}")
+            setattr(self, name, value)
+        for name in ("sensitivity_min", "sensitivity_max", "alpha", "beta"):
+            value = float(getattr(self, name))
+            if not np.isfinite(value):
+                raise ValueError(
+                    f"{name} must be finite, got {getattr(self, name)!r}")
+            setattr(self, name, value)
+        if self.sensitivity_min < 0.0 or self.sensitivity_max < self.sensitivity_min:
+            raise ValueError(
+                "program sensitivities require 0 <= sensitivity_min <= "
+                f"sensitivity_max, got {self.sensitivity_min}, {self.sensitivity_max}")
+        self.degradation_onset = float(self.degradation_onset)
+        if not np.isfinite(self.degradation_onset) or self.degradation_onset < 0.0:
+            raise ValueError(
+                "degradation_onset must be a non-negative finite value, "
+                f"got {self.degradation_onset!r}")
+        self.severity_scale = float(self.severity_scale)
+        if not np.isfinite(self.severity_scale) or self.severity_scale <= 0.0:
+            raise ValueError(
+                f"severity_scale must be positive, got {self.severity_scale!r}")
+
+@dataclass
+class SignalConfig:
+    """Scheduled-operation signal composition parameters (methodology §20.6).
+
+    Carries the independent ``seed`` for the signal-composition stream:
+    per-event regime/healthy-baseline draws and per-event sensor-noise
+    draws are sibling ``numpy.random.Generator`` instances derived from
+    this seed plus the operation identity, never shared with the
+    scheduler (``SchedulerConfig.seed``) or health (``HealthConfig.seed``)
+    streams, so resampling signal noise cannot reorder the factory
+    calendar or move failure episodes (§20.14). Signal synthesis itself
+    lives in ``synth.scheduled``; this contract only names the stream.
+    """
+    seed: int = 0
+
+    def __post_init__(self) -> None:
+        if isinstance(self.seed, bool) or not isinstance(self.seed, int):
+            raise ValueError(f"seed must be an integer, got {self.seed!r}")
+        if self.seed < 0:
+            raise ValueError(f"seed must be non-negative, got {self.seed}")
+
+@dataclass
+class TemporalAnomalyConfig:
+    """Temporal anomaly and degradation manifestation policy (section 20.7).
+    Decides per scheduled operation whether a localized symptom is injected,
+    using only causal information: manifested health G and health stage.
+    """
+    seed: int = 0
+    isolated_rate: float = 0.02
+    precursor_slope: float = 3.0
+    precursor_intercept: float = -3.0
+    severity_floor: float = 0.15
+    severity_scale: float = 2.0
+    failure_severity: float = 0.9
+    max_attempts: int = 3
+
+    def __post_init__(self) -> None:
+        if isinstance(self.seed, bool) or not isinstance(self.seed, int):
+            raise ValueError(f"seed must be an integer, got {self.seed!r}")
+        if self.seed < 0:
+            raise ValueError(f"seed must be non-negative, got {self.seed}")
+        self.isolated_rate = float(self.isolated_rate)
+        if not np.isfinite(self.isolated_rate) or not 0.0 <= self.isolated_rate <= 1.0:
+            raise ValueError(f"isolated_rate must lie in [0, 1], got {self.isolated_rate!r}")
+        for name in ("precursor_slope", "precursor_intercept"):
+            value = float(getattr(self, name))
+            if not np.isfinite(value):
+                raise ValueError(f"{name} must be finite, got {getattr(self, name)!r}")
+            setattr(self, name, value)
+        if self.precursor_slope < 0.0:
+            raise ValueError(f"precursor_slope must be non-negative, got {self.precursor_slope}")
+        self.severity_floor = float(self.severity_floor)
+        if not np.isfinite(self.severity_floor) or not 0.0 <= self.severity_floor <= 1.0:
+            raise ValueError(f"severity_floor must lie in [0, 1], got {self.severity_floor!r}")
+        self.severity_scale = float(self.severity_scale)
+        if not np.isfinite(self.severity_scale) or self.severity_scale <= 0.0:
+            raise ValueError(f"severity_scale must be positive, got {self.severity_scale!r}")
+        self.failure_severity = float(self.failure_severity)
+        if not np.isfinite(self.failure_severity) or not 0.0 <= self.failure_severity <= 1.0:
+            raise ValueError(f"failure_severity must lie in [0, 1], got {self.failure_severity!r}")
+        if isinstance(self.max_attempts, bool) or not isinstance(self.max_attempts, int):
+            raise ValueError(f"max_attempts must be a positive integer, got {self.max_attempts!r}")
+        if self.max_attempts < 1:
+            raise ValueError(f"max_attempts must be a positive integer, got {self.max_attempts!r}")
+
+@dataclass
 class SynthConfig:
     """Master configuration — single source of truth for all generation."""
     physics: PhysicsConfig = field(default_factory=PhysicsConfig)
@@ -252,6 +529,11 @@ class SynthConfig:
     masking: MaskingConfig = field(default_factory=MaskingConfig)
     contrastive: ContrastiveConfig = field(default_factory=ContrastiveConfig)
     fleet: FleetConfig = field(default_factory=FleetConfig)
+    factory: FactoryCalendarConfig = field(default_factory=FactoryCalendarConfig)
+    scheduler: SchedulerConfig = field(default_factory=SchedulerConfig)
+    health: HealthConfig = field(default_factory=HealthConfig)
+    signal: SignalConfig = field(default_factory=SignalConfig)
+    temporal: TemporalAnomalyConfig = field(default_factory=TemporalAnomalyConfig)
 
     # Six channels are the production layout; the legacy three-channel
     # layout remains supported for old experiments and fixtures.

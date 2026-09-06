@@ -1,0 +1,383 @@
+"""Robot-wide health, failure, and maintenance process (Sprint 11 Task 3).
+
+One latent trajectory ``H_r(t)`` per robot over a fixed Task 2 factory
+calendar (methodology §20.5–20.8). Health evolves causally through
+calendar aging, operation-dependent wear, and small stochastic variation::
+
+    H_next = H + aging_rate * dt_wall + wear_rate * duration + noise
+
+Programs reveal the shared trajectory with deterministic per-pair
+sensitivity ``G = γ * H`` (§20.5); programs never own independent health.
+Failures arise from a hazard coupled to health and accumulated usage::
+
+    λ = abrupt_rate + base_rate * exp(alpha * H + beta * W)
+    P(fail in op) = 1 - exp(-λ * duration)
+
+never from independently randomized timestamps (§20.8). A nonzero
+``abrupt_rate`` supports failures with little or no precursor (§20.7).
+Each failure opens an explicit maintenance episode; the trajectory is
+frozen across the maintenance window and restarts from a recommissioned
+draw afterwards, so pre- and post-maintenance paths are never connected
+(§20.7).
+
+Every emitted state is a Task 1 ``RobotHealthState`` and every boundary a
+Task 1 ``HealthEpisode``; cross-state validation lives in
+``FactoryHealth.validate``. The schedule is read-only: health annotates
+the Task 2 calendar and can never reorder it. One dedicated
+``numpy.random.Generator`` seeded from ``HealthConfig.seed`` drives all
+health randomness in deterministic (robot, time) order, never shared with
+scheduling or signal streams (§20.14). Signal synthesis, anomaly
+injection, labels, splits, and materialization are later tasks and MUST
+NOT live here.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import math
+from dataclasses import dataclass, field
+
+import numpy as np
+
+from synth.config import HealthConfig, SynthConfig
+from synth.scheduler import FactorySchedule
+from synth.schema import (
+    DegradationStage,
+    EpisodeKind,
+    HealthEpisode,
+    OperationEvent,
+    RobotHealthState,
+)
+
+#: Cap on the hazard exponent; beyond it the per-operation failure
+#: probability already saturates at 1.
+_HAZARD_ARG_CAP = 50.0
+
+#: Tolerance (seconds) for health-episode boundary comparisons.
+_TIME_ABS_TOL = 1e-6
+
+#: Severity bands mapping capped severity in [0, 1] onto the causal
+#: progression healthy → drift → intermittent → persistent → obvious.
+_STAGE_BANDS = (
+    (0.15, DegradationStage.HEALTHY),
+    (0.35, DegradationStage.LATENT_DRIFT),
+    (0.55, DegradationStage.INTERMITTENT),
+    (0.75, DegradationStage.PERSISTENT),
+)
+
+
+def program_sensitivity(robot_id: str, program_id: str, health: HealthConfig) -> float:
+    """Return the deterministic program sensitivity γ for one robot-program pair.
+
+    Derived from a stable hash of the identity pair, so sensitivities are
+    structural (identical on every run and seed) and cost no RNG draws.
+    """
+    digest = hashlib.sha256(f"{robot_id}\x00{program_id}".encode()).hexdigest()
+    unit = int(digest[:12], 16) / 16**12
+    return health.sensitivity_min + unit * (health.sensitivity_max - health.sensitivity_min)
+
+
+def _stage_for_severity(severity: float) -> DegradationStage:
+    """Map capped severity in [0, 1] onto the causal stage progression."""
+    for bound, stage in _STAGE_BANDS:
+        if severity < bound:
+            return stage
+    return DegradationStage.OBVIOUS
+
+
+@dataclass
+class FactoryHealth:
+    """Health annotation of one fixed factory calendar.
+
+    ``states`` aligns 1:1 with the schedule's events in schedule order;
+    ``operation_ids`` pins that alignment. ``episodes`` holds every
+    degradation, failure, and maintenance boundary. ``validate`` enforces
+    the Task 3 structural invariants against the schedule the run used.
+    """
+
+    operation_ids: list[str] = field(default_factory=list)
+    states: list[RobotHealthState] = field(default_factory=list)
+    episodes: list[HealthEpisode] = field(default_factory=list)
+    seed: int = 0
+    span_s: float = 0.0
+
+    def by_robot(
+        self, schedule: FactorySchedule
+    ) -> dict[str, list[tuple[OperationEvent, RobotHealthState]]]:
+        """Group (event, state) pairs per robot in causal time order."""
+        by_event = {e.operation_id: e for e in schedule.events}
+        grouped: dict[str, list[tuple[OperationEvent, RobotHealthState]]] = {}
+        for operation_id, state in zip(self.operation_ids, self.states):
+            source = by_event[operation_id]
+            grouped.setdefault(source.robot_id, []).append((source, state))
+        for pairs in grouped.values():
+            pairs.sort(key=lambda pair: (pair[0].start_time, pair[0].end_time))
+        return grouped
+
+    def validate(self, schedule: FactorySchedule, health: HealthConfig | None = None) -> None:
+        """Assert health-over-schedule structural invariants.
+
+        ``health`` optionally supplies the process config so the
+        no-drop-across-operations check tolerates per-step stochastic
+        variation; without it, drops are only allowed across explicit
+        maintenance boundaries.
+        """
+        drop_tol = 1e-9 if health is None else 10.0 * health.noise_scale + 1e-9
+        assert self.states, "health must annotate at least one operation"
+        assert len(self.states) == len(schedule.events) == len(self.operation_ids), (
+            "states must align 1:1 with schedule events"
+        )
+        assert self.operation_ids == [e.operation_id for e in schedule.events], (
+            "health alignment must follow schedule order"
+        )
+        assert self.span_s == schedule.span_s, "health span must match the calendar"
+        episode_ids = [e.episode_id for e in self.episodes]
+        assert len(set(episode_ids)) == len(episode_ids), "episode ids must be unique"
+        known_robots = {e.robot_id for e in schedule.events}
+        degradation_ids: dict[str, HealthEpisode] = {}
+        failures: list[HealthEpisode] = []
+        maintenances: list[HealthEpisode] = []
+        for episode in self.episodes:
+            assert episode.robot_id in known_robots, (
+                f"{episode.episode_id}: unknown robot {episode.robot_id}"
+            )
+            if episode.kind is EpisodeKind.DEGRADATION:
+                degradation_ids[episode.episode_id] = episode
+            elif episode.kind is EpisodeKind.FAILURE:
+                assert episode.end_time == episode.start_time, (
+                    f"{episode.episode_id}: failures are point episodes"
+                )
+                failures.append(episode)
+            else:
+                assert episode.end_time is not None and episode.end_time >= episode.start_time, (
+                    f"{episode.episode_id}: maintenance needs a bounded window"
+                )
+                maintenances.append(episode)
+        by_event = {e.operation_id: e for e in schedule.events}
+        for operation_id, state in zip(self.operation_ids, self.states):
+            event = by_event[operation_id]
+            assert math.isclose(
+                state.manifested_value,
+                state.program_sensitivity * state.health_value,
+                rel_tol=1e-9,
+                abs_tol=1e-9,
+            ), f"{operation_id}: manifested value must equal γ·H"
+            if state.degradation_episode_id is not None:
+                assert state.degradation_episode_id in degradation_ids, (
+                    f"{operation_id}: unknown degradation episode "
+                    f"{state.degradation_episode_id}"
+                )
+                assert degradation_ids[state.degradation_episode_id].robot_id == event.robot_id, (
+                    f"{operation_id}: degradation episode must belong to the same robot"
+                )
+            if state.degradation_stage is DegradationStage.FAILED:
+                assert any(
+                    f.robot_id == event.robot_id
+                    and math.isclose(f.start_time, event.end_time,
+                                     rel_tol=1e-9, abs_tol=_TIME_ABS_TOL)
+                    for f in failures
+                ), f"{operation_id}: FAILED state needs a failure at operation end"
+            if state.degradation_stage is DegradationStage.IN_MAINTENANCE:
+                assert any(
+                    m.robot_id == event.robot_id
+                    and m.start_time <= event.start_time < (m.end_time or math.inf)
+                    for m in maintenances
+                ), f"{operation_id}: maintenance state must sit inside a maintenance window"
+        grouped = self.by_robot(schedule)
+        for robot_id, pairs in grouped.items():
+            windows = sorted(
+                (m.start_time, m.end_time if m.end_time is not None else math.inf)
+                for m in maintenances if m.robot_id == robot_id
+            )
+            previous: tuple[OperationEvent, RobotHealthState] | None = None
+            for event, state in pairs:
+                if previous is not None:
+                    prev_event, prev_state = previous
+                    if state.health_value < prev_state.health_value - drop_tol:
+                        assert any(
+                            prev_event.start_time < end <= event.start_time + _TIME_ABS_TOL
+                            for _, end in windows
+                        ), (
+                            f"robot {robot_id}: health must not drop except "
+                            f"across a maintenance boundary"
+                        )
+                previous = (event, state)
+
+
+class RobotHealthProcess:
+    """Simulates one latent health trajectory per robot over a fixed schedule.
+
+    Usage::
+
+        schedule = FactoryScheduler(config).build()
+        health = RobotHealthProcess(config).run(schedule)
+        health.validate(schedule, config.health)
+
+    The same config and schedule always produce identical trajectories.
+    Changing the health seed never reorders the schedule: the calendar is
+    read-only input built solely from ``SchedulerConfig.seed``.
+    """
+
+    def __init__(self, config: SynthConfig | None = None) -> None:
+        self.cfg = config or SynthConfig()
+
+    @property
+    def health_cfg(self) -> HealthConfig:
+        """Configured health process parameters."""
+        return self.cfg.health
+
+    def run(self, schedule: FactorySchedule) -> FactoryHealth:
+        """Annotate every scheduled operation with robot health state."""
+        hcfg = self.cfg.health
+        rng = np.random.default_rng(hcfg.seed)
+        if not schedule.events:
+            raise ValueError("health requires a schedule with at least one operation")
+        by_robot: dict[str, list[int]] = {}
+        for index, event in enumerate(schedule.events):
+            by_robot.setdefault(event.robot_id, []).append(index)
+        for indices in by_robot.values():
+            indices.sort(key=lambda i: (schedule.events[i].start_time,
+                                        schedule.events[i].end_time))
+        states: list[RobotHealthState | None] = [None] * len(schedule.events)
+        episodes: list[HealthEpisode] = []
+        counters: dict[str, int] = {}
+        for robot_id in sorted(by_robot):
+            trajectory = self._run_robot(
+                robot_id, [schedule.events[i] for i in by_robot[robot_id]],
+                hcfg, rng, episodes, counters,
+            )
+            for index, state in zip(by_robot[robot_id], trajectory):
+                states[index] = state
+        assert all(s is not None for s in states)
+        result = FactoryHealth(
+            operation_ids=[e.operation_id for e in schedule.events],
+            states=[s for s in states if s is not None],
+            episodes=episodes,
+            seed=hcfg.seed,
+            span_s=schedule.span_s,
+        )
+        result.validate(schedule, hcfg)
+        return result
+
+    def _run_robot(
+        self,
+        robot_id: str,
+        ordered: list[OperationEvent],
+        hcfg: HealthConfig,
+        rng: np.random.Generator,
+        episodes: list[HealthEpisode],
+        counters: dict[str, int],
+    ) -> list[RobotHealthState]:
+        """Evolve one robot trajectory in causal time order."""
+        out: list[RobotHealthState] = []
+        health = 0.0
+        usage = 0.0
+        last_end = 0.0
+        maint_until: float | None = None
+        frozen = 0.0
+        open_degradation: HealthEpisode | None = None
+        open_deg_id: str | None = None
+
+        def _next_id(kind: str) -> str:
+            key = f"{robot_id}:{kind}"
+            counters[key] = counters.get(key, 0) + 1
+            return f"{kind}-{robot_id}-{counters[key]:04d}"
+
+        for event in ordered:
+            gamma = program_sensitivity(event.robot_id, event.program_id, hcfg)
+            if maint_until is not None and event.start_time < maint_until:
+                severity = min(1.0, frozen / hcfg.severity_scale)
+                out.append(RobotHealthState(
+                    health_value=frozen,
+                    program_sensitivity=gamma,
+                    manifested_value=gamma * frozen,
+                    degradation_stage=DegradationStage.IN_MAINTENANCE,
+                    degradation_severity=severity,
+                    degradation_episode_id=None,
+                ))
+                last_end = event.end_time
+                continue
+            recommissioned = False
+            if maint_until is not None and event.start_time >= maint_until:
+                drawn = (
+                    rng.normal(hcfg.recommission_mean, hcfg.recommission_scale)
+                    if hcfg.recommission_scale > 0.0 else hcfg.recommission_mean
+                )
+                health = max(0.0, drawn)
+                usage = 0.0
+                maint_until = None
+                recommissioned = True
+            health += hcfg.aging_rate * max(0.0, event.start_time - last_end)
+            health += hcfg.wear_rate * event.duration
+            if hcfg.noise_scale > 0.0:
+                health += rng.normal(0.0, hcfg.noise_scale)
+            health = max(0.0, health)
+            usage += event.duration
+            severity = min(1.0, health / hcfg.severity_scale)
+            if health >= hcfg.degradation_onset and open_degradation is None:
+                open_degradation = HealthEpisode(
+                    episode_id=_next_id("deg"),
+                    kind=EpisodeKind.DEGRADATION,
+                    robot_id=robot_id,
+                    start_time=event.start_time,
+                )
+                episodes.append(open_degradation)
+                open_deg_id = open_degradation.episode_id
+            hazard = hcfg.abrupt_rate + hcfg.base_rate * math.exp(
+                min(_HAZARD_ARG_CAP, hcfg.alpha * health + hcfg.beta * usage)
+            )
+            threshold = 1.0 - math.exp(-hazard * event.duration)
+            if rng.random() < threshold:
+                if open_degradation is not None:
+                    open_degradation.end_time = event.end_time
+                    open_degradation = None
+                failure_id = _next_id("fail")
+                episodes.append(HealthEpisode(
+                    episode_id=failure_id,
+                    kind=EpisodeKind.FAILURE,
+                    robot_id=robot_id,
+                    start_time=event.end_time,
+                    end_time=event.end_time,
+                ))
+                maint_until = event.end_time + hcfg.maintenance_duration_s
+                episodes.append(HealthEpisode(
+                    episode_id=_next_id("maint"),
+                    kind=EpisodeKind.MAINTENANCE,
+                    robot_id=robot_id,
+                    start_time=event.end_time,
+                    end_time=maint_until,
+                ))
+                frozen = health
+                out.append(RobotHealthState(
+                    health_value=health,
+                    program_sensitivity=gamma,
+                    manifested_value=gamma * health,
+                    degradation_stage=DegradationStage.FAILED,
+                    degradation_severity=severity,
+                    degradation_episode_id=open_deg_id,
+                ))
+                open_deg_id = None
+            else:
+                if recommissioned:
+                    stage = DegradationStage.RECOMMISSIONED
+                    if health >= hcfg.degradation_onset and open_degradation is None:
+                        open_degradation = HealthEpisode(
+                            episode_id=_next_id("deg"),
+                            kind=EpisodeKind.DEGRADATION,
+                            robot_id=robot_id,
+                            start_time=event.start_time,
+                        )
+                        episodes.append(open_degradation)
+                        open_deg_id = open_degradation.episode_id
+                else:
+                    stage = _stage_for_severity(severity)
+                out.append(RobotHealthState(
+                    health_value=health,
+                    program_sensitivity=gamma,
+                    manifested_value=gamma * health,
+                    degradation_stage=stage,
+                    degradation_severity=severity,
+                    degradation_episode_id=open_deg_id,
+                ))
+            last_end = event.end_time
+        return out
