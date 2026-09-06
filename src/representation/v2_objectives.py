@@ -38,7 +38,9 @@ def synthesize_corrupted_patches(
     if not math_is_finite_nonneg(severity):
         raise ValueError("severity must be a finite non-negative float")
     gen = generator if generator is not None else torch.Generator().manual_seed(0)
-    direction = torch.randn(patches.shape, generator=gen, dtype=patches.dtype)
+    direction = torch.randn(
+        patches.shape, generator=gen, dtype=patches.dtype, device=patches.device
+    )
     real = (~patch_pad_mask).unsqueeze(2).to(patches.dtype)
     active = (corruption_mask & patch_valid_mask).unsqueeze(-1).unsqueeze(-1).to(patches.dtype)
     perturbation = float(severity) * direction * real * active

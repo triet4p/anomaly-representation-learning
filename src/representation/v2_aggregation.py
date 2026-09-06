@@ -55,7 +55,7 @@ def _row_quantiles(valid: torch.Tensor, levels: Sequence[float]) -> torch.Tensor
         return torch.zeros((len(levels),), dtype=torch.float32)
     q = torch.quantile(
         valid.to(dtype=torch.float64),
-        torch.tensor(list(levels), dtype=torch.float64),
+        torch.tensor(list(levels), dtype=torch.float64, device=valid.device),
     )
     return q.to(dtype=torch.float32)
 

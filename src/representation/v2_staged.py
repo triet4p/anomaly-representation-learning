@@ -477,6 +477,10 @@ def run_stage_cell(
     trainer.restore_best_state()
 
     model.eval()
+    # Commission boundary: training runs on the selected device, while
+    # geometry references are commissioned on CPU (fit() normalizes there
+    # and restored inference scores on CPU). Transfer explicitly here so a
+    # CUDA run never mixes device placement under boolean-mask selection.
     latent_rows, robot_rows, program_rows, regime_rows, train_states = [], [], [], [], []
     with torch.no_grad():
         for start in range(0, len(train_files), spec.batch_size):
@@ -485,14 +489,16 @@ def run_stage_cell(
             )
             inputs = trainer._encoder_inputs(batch)
             encoded = model(**inputs)
+            latents_cpu = encoded["patch_latents"].cpu()
+            energy_cpu = encoded["patch_energy"].cpu()
             valid = batch["patch_valid_mask"]
-            latent_rows.append(encoded["patch_latents"][valid])
+            latent_rows.append(latents_cpu[valid])
             robot_rows.append(batch["robot_idx"].unsqueeze(1).expand_as(valid)[valid])
             program_rows.append(batch["program_idx"].unsqueeze(1).expand_as(valid)[valid])
             regime_rows.append(batch["regime_ids"][valid])
             state = aggregate_file_state(
-                encoded["patch_latents"],
-                encoded["patch_energy"],
+                latents_cpu,
+                energy_cpu,
                 valid,
                 batch["regime_ids"],
                 top_q_fraction=config.top_q_fraction,
@@ -518,8 +524,8 @@ def run_stage_cell(
             inputs = trainer._encoder_inputs(batch)
             encoded = model(**inputs)
             state = aggregate_file_state(
-                encoded["patch_latents"],
-                encoded["patch_energy"],
+                encoded["patch_latents"].cpu(),
+                encoded["patch_energy"].cpu(),
                 batch["patch_valid_mask"],
                 batch["regime_ids"],
                 top_q_fraction=config.top_q_fraction,

@@ -96,3 +96,21 @@ def test_background_boundary_empty_mask_and_held_out_region() -> None:
     early = crit(clean.detach(), corrupt.detach(), clean_e, corrupt_e, valid, mask, step=0)
     assert float(early["alpha"].detach()) == pytest.approx(0.0)
     assert float(early["loss"].detach()) >= 0.0
+
+
+def test_corruption_follows_input_device() -> None:
+    """Synthetic direction must live on the input device (CUDA contract)."""
+    patches, pad, valid = _tensors()
+    mask = torch.tensor([[True, False, False, False], [False, True, False, False]])
+    device = torch.device("meta")
+    corrupted = synthesize_corrupted_patches(
+        patches.to(device),
+        pad.to(device),
+        valid.to(device),
+        mask.to(device),
+        severity=2.0,
+        generator=torch.Generator().manual_seed(1),
+    )
+    assert corrupted.device == device
+    assert tuple(corrupted.shape) == tuple(patches.shape)
+    assert corrupted.dtype == patches.dtype
