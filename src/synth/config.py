@@ -360,13 +360,19 @@ def _default_routes() -> list[RouteConfig]:
 class SchedulerConfig:
     """Causal shared-unit factory scheduler parameters (methodology §20.3).
 
-    Units arrive every ``arrival_interval_s`` seconds starting at t=0 and
-    are assigned a route deterministically from ``seed``. Robots serve one
-    operation at a time; scheduling itself is a later-task-free causal
-    construction — health, signals, and anomalies are NOT modeled here.
+    Units arrive at a mean rate of one per ``arrival_interval_s`` seconds
+    starting at t=0 and are assigned a route deterministically from
+    ``seed``. Robots serve one operation at a time; scheduling itself is a
+    later-task-free causal construction — health, signals, and anomalies
+    are NOT modeled here. ``arrival_jitter_s`` adds a deterministic
+    seed-drawn uniform offset in ``[-arrival_jitter_s, +arrival_jitter_s]``
+    (clamped at zero) so sparse server-scale calendars keep asynchronous
+    cross-robot utilization instead of a perfectly periodic grid;
+    0.0 preserves exact periodicity.
     """
     n_units: int = 20
     arrival_interval_s: float = 1800.0
+    arrival_jitter_s: float = 0.0
     routes: list[RouteConfig] = field(default_factory=_default_routes)
     seed: int = 0
 
@@ -378,6 +384,10 @@ class SchedulerConfig:
         if not np.isfinite(self.arrival_interval_s) or self.arrival_interval_s <= 0.0:
             raise ValueError(
                 f"arrival_interval_s must be positive, got {self.arrival_interval_s}")
+        self.arrival_jitter_s = float(self.arrival_jitter_s)
+        if not np.isfinite(self.arrival_jitter_s) or self.arrival_jitter_s < 0.0:
+            raise ValueError(
+                f"arrival_jitter_s must be non-negative, got {self.arrival_jitter_s}")
         if not self.routes:
             raise ValueError("scheduler requires at least one route")
         route_ids = [route.route_id for route in self.routes]

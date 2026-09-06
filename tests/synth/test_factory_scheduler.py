@@ -312,3 +312,38 @@ def test_accepted_schedule_respects_calendar_bounds():
     for event in schedule.events:
         assert 0.0 <= event.arrival_time <= event.start_time <= event.end_time
         assert event.end_time <= schedule.span_s
+
+
+def test_arrival_jitter_defaults_to_zero_and_rejects_negative():
+    assert _two_route_config().scheduler.arrival_jitter_s == 0.0
+    with pytest.raises(ValueError, match="arrival_jitter_s must be non-negative"):
+        _two_route_config(arrival_jitter_s=-1.0)
+
+
+def test_arrival_jitter_is_deterministic_and_clamped():
+    first = FactoryScheduler(_two_route_config(arrival_jitter_s=3600.0)).build()
+    second = FactoryScheduler(_two_route_config(arrival_jitter_s=3600.0)).build()
+    assert [(e.operation_id, e.arrival_time) for e in first.events] == [
+        (e.operation_id, e.arrival_time) for e in second.events]
+    first.validate()
+    assert all(e.arrival_time >= 0.0 for e in first.events)
+    periodic = FactoryScheduler(_two_route_config()).build()
+    assert [e.arrival_time for e in first.events if e.route_position == 0] != [
+        e.arrival_time for e in periodic.events if e.route_position == 0]
+
+
+def test_arrival_jitter_breaks_periodic_grid_into_async_utilization():
+    config = _two_route_config(
+        n_units=60, arrival_interval_s=21600.0, arrival_jitter_s=21600.0,
+        seed=0)
+    schedule = FactoryScheduler(config).build()
+    schedule.validate()
+    overlaps = [
+        (a.operation_id, b.operation_id)
+        for a in schedule.events
+        for b in schedule.events
+        if a.robot_id < b.robot_id
+        and a.start_time < b.end_time
+        and b.start_time < a.end_time
+    ]
+    assert overlaps, "jittered sparse arrivals must let robots work simultaneously"

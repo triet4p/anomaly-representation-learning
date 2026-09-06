@@ -113,6 +113,7 @@ def server_config(seed: int = 0) -> SynthConfig:
     cfg = client_config(seed=seed)
     cfg.scheduler.n_units = 300
     cfg.scheduler.arrival_interval_s = 21600.0
+    cfg.scheduler.arrival_jitter_s = 21600.0
     return cfg
 
 

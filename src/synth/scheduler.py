@@ -135,10 +135,17 @@ class FactoryScheduler:
         rng = np.random.default_rng(sched.seed)
         availability: dict[str, float] = {}
         events: list[OperationEvent] = []
+        if sched.arrival_jitter_s > 0.0:
+            jitter = rng.uniform(
+                -sched.arrival_jitter_s, sched.arrival_jitter_s,
+                size=sched.n_units)
+        else:
+            jitter = np.zeros(sched.n_units)
         for unit_index in range(sched.n_units):
             unit_id = f"unit-{unit_index:04d}"
             route = sched.routes[int(rng.integers(len(sched.routes)))]
-            factory_arrival = unit_index * sched.arrival_interval_s
+            factory_arrival = max(
+                0.0, unit_index * sched.arrival_interval_s + float(jitter[unit_index]))
             previous_end = 0.0
             previous_travel = 0.0
             for position, stage in enumerate(route.stages):

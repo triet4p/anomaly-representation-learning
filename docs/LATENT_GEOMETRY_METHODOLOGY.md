@@ -713,6 +713,7 @@ s_{u,k}-v_{r_k}^{\text{previous}}
 $$
 
 The idle interval can be zero for consecutive operations or several seconds/minutes when the robot is waiting. Same-robot event intervals must never overlap. Different robots may process different units simultaneously.
+First-stage factory arrivals are periodic by default; profiles may add a deterministic seed-drawn uniform jitter (clamped at zero) so sparse server-scale calendars keep asynchronous cross-robot utilization instead of a perfectly periodic grid in which robots never work simultaneously.
 
 ### 20.4 Identity semantics
 
