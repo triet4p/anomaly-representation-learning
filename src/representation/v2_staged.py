@@ -20,8 +20,11 @@ Variant contract (matched pair):
 
 All other coefficients, data, seeds, device, and epoch budgets match
 within a stage. The 5-epoch balance stage runs the predeclared
-:data:`BALANCE_MATRIX`; the 50-epoch full stage runs one frozen config
-per variant (final hybrid selection itself belongs to Task 29).
+:data:`BALANCE_MATRIX` under the predeclared stage schedule
+:data:`STAGE_BOUNDARY_SCHEDULE` (balance warmup/ramp keeps the boundary
+term active inside the short budget; Task 28); the 50-epoch full stage
+runs one frozen config per variant (final hybrid selection itself belongs
+to Task 29 via :func:`apply_balance_selection`).
 """
 
 from __future__ import annotations
@@ -31,7 +34,7 @@ import json
 import os
 import subprocess
 import time
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -53,6 +56,27 @@ from synth.schema import SampleLabel
 
 #: Stage name to frozen epoch budget. Configs MUST use these budgets.
 STAGE_EPOCHS: dict[str, int] = {"contract": 2, "balance": 5, "full": 50}
+#: Predeclared per-stage boundary schedule as (warmup_steps, ramp_steps).
+#: Contract/full keep the Task 22 default (500, 2_000): the 2-epoch contract
+#: proves executable contracts only (Task 27 coincidence is expected), and
+#: the full stage inherits the default until Task 29 freezes its run config.
+#: Balance uses (5, 10): at ~6 steps/epoch over 5 epochs (~30 steps) alpha
+#: reaches its max at step 15 and is nonzero for 24 of ~30 steps, so every
+#: varied coefficient is active and observable without consulting any test
+#: outcome.
+STAGE_BOUNDARY_SCHEDULE: dict[str, tuple[int, int]] = {
+    "contract": (500, 2_000),
+    "balance": (5, 10),
+    "full": (500, 2_000),
+}
+
+#: Worst covariance condition number a Task 29 selected cell may carry.
+#: Matches the architecture-audit convention asserted in test_v2_staged.
+SELECT_MAX_CONDITION_NUMBER = 1e12
+
+#: Minimum patch-latent effective rank for selection: guards against
+#: single-axis collapse without rewarding any test-measured outcome.
+SELECT_MIN_EFFECTIVE_RANK = 1.0
 
 #: Canonical variant names.
 CONTROL_VARIANT = "control-normal-only"
@@ -132,6 +156,16 @@ class StageSpec:
     cell: str = "default"
     coefficients: Mapping[str, float] = field(default_factory=hybrid_coefficients)
     commit: str = COMMIT_PLACEHOLDER
+    boundary_warmup_steps: int | None = None
+    boundary_ramp_steps: int | None = None
+
+    def __post_init__(self) -> None:
+        """Resolve an absent boundary schedule from the predeclared stage map."""
+        default = STAGE_BOUNDARY_SCHEDULE.get(self.stage)
+        if self.boundary_warmup_steps is None and default is not None:
+            object.__setattr__(self, "boundary_warmup_steps", default[0])
+        if self.boundary_ramp_steps is None and default is not None:
+            object.__setattr__(self, "boundary_ramp_steps", default[1])
 
     def validate(self) -> "StageSpec":
         """Fail fast when the spec breaks the staged contract."""
@@ -161,6 +195,10 @@ class StageSpec:
             raise ValueError("corruption_rate must be in (0, 1)")
         if self.batch_size <= 0 or self.d_model <= 0:
             raise ValueError("batch_size and d_model must be positive")
+        for name in ("boundary_warmup_steps", "boundary_ramp_steps"):
+            value = getattr(self, name)
+            if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+                raise ValueError(f"{name} must be a non-negative int")
         return self
 
 
@@ -241,6 +279,11 @@ def load_stage_config(path: str | Path) -> dict[str, Any]:
             f"staged config {target} has unknown stage {stage!r}; "
             f"expected one of {sorted(STAGE_EPOCHS)}"
         )
+    for key in ("boundary_warmup_steps", "boundary_ramp_steps"):
+        if key in config and (
+            not isinstance(config[key], int) or isinstance(config[key], bool) or config[key] < 0
+        ):
+            raise ValueError(f"staged config {target} has invalid {key!r}: {config[key]!r}")
     cells = config.get("cells")
     if not isinstance(cells, list) or not cells:
         raise ValueError(f"staged config {target} must declare a non-empty 'cells' list")
@@ -257,6 +300,8 @@ def load_stage_config(path: str | Path) -> dict[str, Any]:
             cell=str(entry.get("cell", "default")),
             coefficients=dict(entry.get("coefficients", {})) or {},
             commit=str(config.get("commit", COMMIT_PLACEHOLDER)),
+            boundary_warmup_steps=config.get("boundary_warmup_steps"),
+            boundary_ramp_steps=config.get("boundary_ramp_steps"),
         ).validate()
     return config
 
@@ -278,6 +323,8 @@ def iter_cells(config: Mapping[str, Any]) -> list[StageSpec]:
             cell=str(entry.get("cell", "default")),
             coefficients=dict(entry.get("coefficients", {}) or {}),
             commit=str(config.get("commit", COMMIT_PLACEHOLDER)),
+            boundary_warmup_steps=config.get("boundary_warmup_steps"),
+            boundary_ramp_steps=config.get("boundary_ramp_steps"),
         ).validate()
         for entry in config["cells"]  # type: ignore[union-attr]
     ]
@@ -398,6 +445,8 @@ def run_stage_cell(
         n_regimes=7,
         boundary_alpha_max=float(spec.coefficients["boundary_alpha_max"]),
         boundary_margin=float(spec.coefficients["boundary_margin"]),
+        boundary_warmup_steps=int(spec.boundary_warmup_steps),  # type: ignore[arg-type]
+        boundary_ramp_steps=int(spec.boundary_ramp_steps),  # type: ignore[arg-type]
         background_weight=float(spec.coefficients["background_weight"]),
         variance_weight=float(spec.coefficients["variance_weight"]),
         covariance_weight=float(spec.coefficients["covariance_weight"]),
@@ -585,6 +634,11 @@ def run_stage_cell(
             "calibration": spec.seed + 777,
         },
         "coefficients": dict(spec.coefficients),
+        "boundary_schedule": {
+            "warmup_steps": int(spec.boundary_warmup_steps),  # type: ignore[arg-type]
+            "ramp_steps": int(spec.boundary_ramp_steps),  # type: ignore[arg-type]
+            "alpha_max": float(spec.coefficients["boundary_alpha_max"]),
+        },
         "d_model": spec.d_model,
         "batch_size": spec.batch_size,
         "lr": spec.lr,
@@ -658,16 +712,180 @@ def run_staged_config(
     return results
 
 
+def _selection_number(cell: Mapping[str, Any], key: str) -> float:
+    """Read one numeric selection input, failing fast on a missing key."""
+    if key not in cell:
+        raise ValueError(f"selection input {cell.get('cell', '?')!r} is missing {key!r}")
+    try:
+        value = float(cell[key])  # type: ignore[arg-type]
+    except (TypeError, ValueError) as exc:
+        raise ValueError(
+            f"selection input {cell.get('cell', '?')!r} has non-numeric {key!r}"
+        ) from exc
+    if value != value or value in (float("inf"), float("-inf")):
+        raise ValueError(f"selection input {cell.get('cell', '?')!r} has non-finite {key!r}")
+    return value
+
+
+def apply_balance_selection(cells: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    """Apply the predeclared Task 29 balance-selection gate.
+
+    Each input mapping MUST carry only training, verified-healthy
+    validation, and synthetic clean/corrupt diagnostic values (never test
+    outcomes): ``cell``, ``variant``, ``boundary_alpha_max``,
+    ``final_alpha``, ``finite_all`` (bool), ``best_stationary``,
+    ``val_stationary_final``, ``worst_condition_number``,
+    ``all_finite_condition`` (bool), ``effective_rank``,
+    ``clean_corrupt_gap`` (mean corrupt minus mean clean patch energy on a
+    fixed verified-healthy probe), ``ordering_monotone`` (bool: mean
+    corrupt energies non-decreasing over the severity grid),
+    ``background_mse``, and ``latent_scale`` (mean clean latent second
+    moment per dimension on the same probe).
+
+    Gates (hybrid cells must pass all; the control reference must pass the
+    starred validity/geometry gates for the comparison to mean anything):
+    finite \\u002a, schedule-active (final alpha reached its max), geometry \\u002a
+    (finite conditioning below ``SELECT_MAX_CONDITION_NUMBER``),
+    no-collapse \\u002a (effective rank above ``SELECT_MIN_EFFECTIVE_RANK``),
+    separation (positive clean/corrupt gap), ordering (monotone severity
+    response), localization (background leak below the latent signal scale).
+    Passing hybrids rank by gap descending, then background leak ascending,
+    then final validation stationary ascending, then cell name. A missing
+    winner (or a failed control reference) yields ``winner: None`` with
+    ``insufficient_evidence: True`` rather than an invented selection.
+    """
+    evaluated: list[dict[str, Any]] = []
+    for cell in cells:
+        name = str(cell.get("cell", "?"))
+        variant = str(cell.get("variant", "?"))
+        is_hybrid = variant == HYBRID_VARIANT
+        finite_all = cell.get("finite_all") is True
+        all_finite_condition = cell.get("all_finite_condition") is True
+        ordering_monotone = cell.get("ordering_monotone") is True
+        alpha_max = _selection_number(cell, "boundary_alpha_max")
+        final_alpha = _selection_number(cell, "final_alpha")
+        worst_cond = _selection_number(cell, "worst_condition_number")
+        eff_rank = _selection_number(cell, "effective_rank")
+        gap = _selection_number(cell, "clean_corrupt_gap")
+        background_mse = _selection_number(cell, "background_mse")
+        latent_scale = _selection_number(cell, "latent_scale")
+        val_final = _selection_number(cell, "val_stationary_final")
+        failures: list[str] = []
+        if not finite_all:
+            failures.append("finite: non-finite or missing diagnostics")
+        if is_hybrid and final_alpha < alpha_max - 1e-6:
+            failures.append(
+                f"schedule-active: final alpha {final_alpha:.4f} "
+                f"below max {alpha_max:.4f} (boundary never engaged)"
+            )
+        if not all_finite_condition or not worst_cond < SELECT_MAX_CONDITION_NUMBER:
+            failures.append(
+                f"geometry: conditioning not finite/below {SELECT_MAX_CONDITION_NUMBER:.0e} "
+                f"(worst {worst_cond:.3e})"
+            )
+        if not eff_rank > SELECT_MIN_EFFECTIVE_RANK:
+            failures.append(
+                f"no-collapse: effective rank {eff_rank:.3f} "
+                f"at/below {SELECT_MIN_EFFECTIVE_RANK:.1f}"
+            )
+        if is_hybrid and not gap > 0.0:
+            failures.append(f"separation: clean/corrupt gap {gap:.4f} not positive")
+        if is_hybrid and not ordering_monotone:
+            failures.append("ordering: severity response not monotone")
+        if is_hybrid and not background_mse < latent_scale:
+            failures.append(
+                f"localization: background leak {background_mse:.4f} "
+                f"at/above latent scale {latent_scale:.4f}"
+            )
+        evaluated.append(
+            {
+                "cell": name,
+                "variant": variant,
+                "failures": failures,
+                "passes": not failures,
+                "rank_score": {
+                    "clean_corrupt_gap": gap,
+                    "background_mse": background_mse,
+                    "val_stationary_final": val_final,
+                },
+            }
+        )
+    controls = [row for row in evaluated if row["variant"] == CONTROL_VARIANT]
+    control_ok = bool(controls) and all(row["passes"] for row in controls)
+    candidates = [
+        row for row in evaluated
+        if row["variant"] == HYBRID_VARIANT and row["passes"]
+    ]
+    ranked = sorted(
+        candidates,
+        key=lambda row: (
+            -row["rank_score"]["clean_corrupt_gap"],
+            row["rank_score"]["background_mse"],
+            row["rank_score"]["val_stationary_final"],
+            row["cell"],
+        ),
+    )
+    if not control_ok:
+        return {
+            "winner": None,
+            "insufficient_evidence": True,
+            "reason": (
+                "control reference failed its validity/geometry gates; "
+                "the hybrid comparison is invalid"
+            ),
+            "ranked": [row["cell"] for row in ranked],
+            "evaluated": evaluated,
+        }
+    if not ranked:
+        return {
+            "winner": None,
+            "insufficient_evidence": True,
+            "reason": "no hybrid cell passed every predeclared gate",
+            "ranked": [],
+            "evaluated": evaluated,
+        }
+    winner = ranked[0]["cell"]
+    rejected = []
+    for row in evaluated:
+        if row["cell"] == winner:
+            continue
+        if row["failures"]:
+            reason = "; ".join(row["failures"])
+        elif row["variant"] != HYBRID_VARIANT:
+            reason = "control reference (not eligible for hybrid selection)"
+        else:
+            reason = (
+                "passed all gates but ranked below "
+                f"{winner} on gap/leak/stationary ({row['rank_score']})"
+            )
+        rejected.append({"cell": row["cell"], "reason": reason})
+    return {
+        "winner": winner,
+        "insufficient_evidence": False,
+        "reason": (
+            f"{winner} passed every predeclared gate and ranked first on "
+            "clean/corrupt gap, then background leak, then validation stationary"
+        ),
+        "ranked": [row["cell"] for row in ranked],
+        "rejected": rejected,
+        "evaluated": evaluated,
+    }
+
+
 __all__ = [
     "BALANCE_MATRIX",
     "COMMIT_PLACEHOLDER",
     "CONTROL_VARIANT",
     "HYBRID_VARIANT",
     "PROVENANCE_SCHEMA_VERSION",
+    "SELECT_MAX_CONDITION_NUMBER",
+    "SELECT_MIN_EFFECTIVE_RANK",
     "SEALED_VIEWS",
+    "STAGE_BOUNDARY_SCHEDULE",
     "STAGE_EPOCHS",
     "TRAINING_VIEWS",
     "StageSpec",
+    "apply_balance_selection",
     "assert_no_test_files",
     "balance_matrix",
     "control_coefficients",

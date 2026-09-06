@@ -114,3 +114,36 @@ def test_corruption_follows_input_device() -> None:
     assert corrupted.device == device
     assert tuple(corrupted.shape) == tuple(patches.shape)
     assert corrupted.dtype == patches.dtype
+
+
+def test_forward_reports_raw_weighted_decomposition() -> None:
+    """Task 28: history must separate raw variance/covariance from weights."""
+    torch.manual_seed(3)
+    crit = CounterfactualCriterion(
+        background_weight=0.5,
+        variance_weight=2.0,
+        covariance_weight=0.25,
+        boundary_schedule=ProgressiveLambda(lambda_max=1.0, ramp_steps=0, warmup_steps=0),
+    )
+    clean = torch.randn(2, 3, 4, requires_grad=True)
+    corrupt = (clean.detach() + 0.5).requires_grad_(True)
+    valid = torch.ones(2, 3, dtype=torch.bool)
+    mask = torch.tensor([[True, False, False], [False, True, False]])
+    clean_e = clean.detach().pow(2).sum(dim=-1)
+    corrupt_e = corrupt.detach().pow(2).sum(dim=-1)
+    out = crit(clean, corrupt, clean_e, corrupt_e, valid, mask, step=7)
+    for key in ("loss", "normal_loss", "variance_raw", "covariance_raw",
+                "background_loss", "boundary_loss", "alpha"):
+        assert torch.isfinite(out[key]).all(), f"non-finite {key}"
+    expected = (
+        2.0 * out["variance_raw"]
+        + 0.25 * out["covariance_raw"]
+        + float(out["alpha"].detach()) * out["boundary_loss"]
+        + 0.5 * out["background_loss"]
+    )
+    assert float(out["loss"].detach()) == pytest.approx(float(expected.detach()))
+    assert float(out["normal_loss"].detach()) == pytest.approx(
+        float((2.0 * out["variance_raw"] + 0.25 * out["covariance_raw"]).detach())
+    )
+    out["loss"].backward()
+    assert clean.grad is not None and torch.isfinite(clean.grad).all()

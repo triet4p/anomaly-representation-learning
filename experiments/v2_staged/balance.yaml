@@ -13,6 +13,13 @@ batch_size: 8
 lr: 0.001
 corruption_rate: 0.1
 severity: 2.0
+# Stage-specific boundary schedule (predeclared Task 28 fix): the Task 22
+# default warmup (500 steps) exceeds the ~30-step five-epoch budget, which
+# left alpha at 0 for the whole contract stage (Task 27). Warmup 5 + ramp 10
+# reaches alpha_max at step 15, keeping the boundary term active and
+# observable for 24 of ~30 steps without consulting any test outcome.
+boundary_warmup_steps: 5
+boundary_ramp_steps: 10
 # Resolved to the exact git HEAD at runtime (see v2_staged.resolve_commit).
 commit: "{COMMIT}"
 cells:

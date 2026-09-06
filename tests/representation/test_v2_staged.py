@@ -18,8 +18,10 @@ import torch
 from representation.v2_staged import (
     CONTROL_VARIANT,
     HYBRID_VARIANT,
+    STAGE_BOUNDARY_SCHEDULE,
     STAGE_EPOCHS,
     StageSpec,
+    apply_balance_selection,
     assert_no_test_files,
     balance_matrix,
     control_coefficients,
@@ -31,6 +33,7 @@ from representation.v2_staged import (
     run_stage_cell,
     stage_epochs,
 )
+from representation.criterion import ProgressiveLambda
 from representation.v2_trainer import build_v2_training_stack
 from representation.v2_config import V2Config
 from synth.chronicle import client_config, materialize_chronological
@@ -156,3 +159,163 @@ def test_tiny_contract_control_cell_runs_with_exact_provenance(tmp_path) -> None
     assert (Path(provenance["output_root"]) / "provenance.json").is_file()
     assert provenance["geometry_health"]["all_finite_condition"] is True
     assert provenance["wall_time_s"] > 0.0
+
+
+def test_balance_stage_schedule_is_predeclared_and_stage_specific() -> None:
+    """Task 28: every varied coefficient must be active inside 5 epochs."""
+    assert STAGE_BOUNDARY_SCHEDULE == {
+        "contract": (500, 2_000),
+        "balance": (5, 10),
+        "full": (500, 2_000),
+    }
+    balance = StageSpec(
+        stage="balance", variant=HYBRID_VARIANT, epochs=5,
+        coefficients=hybrid_coefficients(),
+    ).validate()
+    assert (balance.boundary_warmup_steps, balance.boundary_ramp_steps) == (5, 10)
+    contract = StageSpec(
+        stage="contract", variant=CONTROL_VARIANT, epochs=2,
+        coefficients=control_coefficients(),
+    ).validate()
+    assert (contract.boundary_warmup_steps, contract.boundary_ramp_steps) == (500, 2_000)
+    explicit = StageSpec(
+        stage="balance", variant=HYBRID_VARIANT, epochs=5,
+        coefficients=hybrid_coefficients(),
+        boundary_warmup_steps=0, boundary_ramp_steps=2,
+    ).validate()
+    assert (explicit.boundary_warmup_steps, explicit.boundary_ramp_steps) == (0, 2)
+    with pytest.raises(ValueError):
+        StageSpec(
+            stage="balance", variant=HYBRID_VARIANT, epochs=5,
+            coefficients=hybrid_coefficients(), boundary_warmup_steps=-1,
+        ).validate()
+    with pytest.raises(ValueError):
+        StageSpec(
+            stage="balance", variant=HYBRID_VARIANT, epochs=5,
+            coefficients=hybrid_coefficients(), boundary_ramp_steps=True,
+        ).validate()
+
+def test_balance_yaml_predeclares_budget_active_schedule() -> None:
+    """The committed matrix must engage alpha inside the ~30-step budget."""
+    config = load_stage_config(STAGED_DIR / "balance.yaml")
+    cells = iter_cells(config)
+    assert len(cells) == 4
+    for spec in cells:
+        assert (spec.boundary_warmup_steps, spec.boundary_ramp_steps) == (5, 10)
+    # Task 27 measured 12 steps over 2 epochs at batch 8; 5 epochs ~= 30 steps.
+    schedule = ProgressiveLambda(lambda_max=1.0, ramp_steps=10, warmup_steps=5)
+    alphas = [schedule.lambda_at(step) for step in range(30)]
+    assert sum(alpha > 0.0 for alpha in alphas) >= 24
+    assert schedule.lambda_at(15) == pytest.approx(1.0)
+    assert schedule.lambda_at(29) == pytest.approx(1.0)
+    for spec in cells:
+        if spec.variant == HYBRID_VARIANT:
+            assert float(spec.coefficients["boundary_alpha_max"]) > 0.0
+
+
+def test_stage_config_rejects_invalid_schedule_override(tmp_path) -> None:
+    bad = tmp_path / "bad.yaml"
+    bad.write_text(
+        "stage: balance\nepochs: 5\ncommit: '{COMMIT}'\n"
+        "boundary_warmup_steps: -1\n"
+        "cells:\n  - cell: balance-b\n    variant: hybrid-boundary\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="boundary_warmup_steps"):
+        load_stage_config(bad)
+
+
+def test_tiny_balance_hybrid_cell_activates_boundary(tmp_path) -> None:
+    """Explicit fast schedule must drive alpha to its max with raw terms logged."""
+    data_root = tmp_path / "chronicle"
+    materialize_chronological(client_config(seed=0), data_root)
+    spec = StageSpec(
+        stage="balance", variant=HYBRID_VARIANT, epochs=5, seed=0,
+        d_model=8, batch_size=8, coefficients=hybrid_coefficients(),
+        boundary_warmup_steps=0, boundary_ramp_steps=2,
+    )
+    provenance = run_stage_cell(
+        spec, data_root=data_root, output_root=tmp_path / "runs", device="cpu",
+    )
+    assert provenance["boundary_schedule"] == {
+        "warmup_steps": 0, "ramp_steps": 2, "alpha_max": 1.0,
+    }
+    assert len(provenance["history"]) == 5
+    for point in provenance["history"]:
+        for key in ("loss", "normal_loss", "variance_raw", "covariance_raw",
+                    "background_loss", "boundary_loss", "alpha",
+                    "grad_norm_mean", "train_stationary", "val_stationary"):
+            assert point[key] == point[key], f"non-finite history field {key}"
+    assert provenance["history"][0]["alpha"] < 1.0
+    assert provenance["history"][-1]["alpha"] == pytest.approx(1.0)
+    assert provenance["final_step"] >= 2
+
+
+def _selection_cell(cell: str, variant: str, **overrides: object) -> dict[str, object]:
+    base: dict[str, object] = {
+        "cell": cell,
+        "variant": variant,
+        "boundary_alpha_max": 1.0 if variant == HYBRID_VARIANT else 0.0,
+        "final_alpha": 1.0 if variant == HYBRID_VARIANT else 0.0,
+        "finite_all": True,
+        "best_stationary": 100.0,
+        "val_stationary_final": 100.0,
+        "worst_condition_number": 500.0,
+        "all_finite_condition": True,
+        "effective_rank": 8.0,
+        "clean_corrupt_gap": 0.5,
+        "ordering_monotone": True,
+        "background_mse": 0.05,
+        "latent_scale": 1.0,
+    }
+    base.update(overrides)
+    return base
+
+
+def test_apply_balance_selection_ranks_gap_then_leak() -> None:
+    cells = [
+        _selection_cell("balance-control", CONTROL_VARIANT),
+        _selection_cell("balance-a", HYBRID_VARIANT, clean_corrupt_gap=0.3),
+        _selection_cell("balance-b", HYBRID_VARIANT, clean_corrupt_gap=0.7,
+                        background_mse=0.05),
+        _selection_cell("balance-c", HYBRID_VARIANT, clean_corrupt_gap=0.7,
+                        background_mse=0.09),
+    ]
+    record = apply_balance_selection(cells)
+    assert record["winner"] == "balance-b"
+    assert record["insufficient_evidence"] is False
+    assert record["ranked"] == ["balance-b", "balance-c", "balance-a"]
+    rejected = {row["cell"]: row["reason"] for row in record["rejected"]}
+    assert set(rejected) == {"balance-control", "balance-a", "balance-c"}
+    assert rejected["balance-control"] == (
+        "control reference (not eligible for hybrid selection)"
+    )
+    assert "ranked below balance-b" in rejected["balance-a"]
+
+
+def test_apply_balance_selection_fails_honestly_without_passing_hybrid() -> None:
+    cells = [
+        _selection_cell("balance-control", CONTROL_VARIANT),
+        _selection_cell("balance-a", HYBRID_VARIANT, clean_corrupt_gap=-0.1),
+        _selection_cell("balance-b", HYBRID_VARIANT, ordering_monotone=False),
+    ]
+    record = apply_balance_selection(cells)
+    assert record["winner"] is None
+    assert record["insufficient_evidence"] is True
+    assert "no hybrid cell passed" in record["reason"]
+    assert any("separation" in failure for failure in record["evaluated"][1]["failures"])
+    assert any("ordering" in failure for failure in record["evaluated"][2]["failures"])
+
+
+def test_apply_balance_selection_invalid_without_control_reference() -> None:
+    cells = [
+        _selection_cell("balance-control", CONTROL_VARIANT,
+                        all_finite_condition=False),
+        _selection_cell("balance-b", HYBRID_VARIANT),
+    ]
+    record = apply_balance_selection(cells)
+    assert record["winner"] is None
+    assert record["insufficient_evidence"] is True
+    assert "control reference" in record["reason"]
+    with pytest.raises(ValueError, match="missing"):
+        apply_balance_selection([{"cell": "x", "variant": HYBRID_VARIANT}])

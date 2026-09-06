@@ -163,9 +163,9 @@ class CounterfactualCriterion(nn.Module):
             raise ValueError("clean/corrupt latents must share [B, N, D]")
         if clean_energy.shape != corrupt_energy.shape or clean_energy.ndim != 2:
             raise ValueError("clean/corrupt energies must share [B, N]")
-        normal = self.variance_weight * variance_loss(
-            clean_latents, patch_valid_mask
-        ) + self.covariance_weight * covariance_loss(clean_latents, patch_valid_mask)
+        variance_raw = variance_loss(clean_latents, patch_valid_mask)
+        covariance_raw = covariance_loss(clean_latents, patch_valid_mask)
+        normal = self.variance_weight * variance_raw + self.covariance_weight * covariance_raw
         background = self.background(clean_latents, corrupt_latents, patch_valid_mask, corruption_mask)
         boundary = self.boundary(clean_energy, corrupt_energy, patch_valid_mask, corruption_mask)
         alpha = float(self.boundary_schedule.lambda_at(step))
@@ -173,6 +173,8 @@ class CounterfactualCriterion(nn.Module):
         return {
             "loss": loss,
             "normal_loss": normal,
+            "variance_raw": variance_raw,
+            "covariance_raw": covariance_raw,
             "background_loss": background,
             "boundary_loss": boundary,
             "alpha": clean_latents.new_zeros(()).fill_(alpha),
