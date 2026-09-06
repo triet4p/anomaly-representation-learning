@@ -38,6 +38,14 @@ def synthesize_corrupted_patches(
     if not math_is_finite_nonneg(severity):
         raise ValueError("severity must be a finite non-negative float")
     gen = generator if generator is not None else torch.Generator().manual_seed(0)
+    if gen.device != patches.device:
+        seed = gen.initial_seed()
+        try:
+            gen = torch.Generator(device=patches.device).manual_seed(seed)
+        except RuntimeError:
+            # Devices without their own generator (e.g. meta) accept a
+            # CPU-seeded generator; determinism still keys on the same seed.
+            gen = torch.Generator().manual_seed(seed)
     direction = torch.randn(
         patches.shape, generator=gen, dtype=patches.dtype, device=patches.device
     )
