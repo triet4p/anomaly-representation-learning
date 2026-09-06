@@ -169,7 +169,6 @@ def score_temporal(pipeline, tracker_state, temporal_files, patchifier, device):
     return file_rows, n_breaks
 
 
-@torch.no_grad()
 def fit_allowed_risk(pipeline, tracker_state, fit_candidates, patchifier, seed):
     """Fit the survival head on allowed pre-cutoff data only (never test)."""
     by_robot: dict[str, list] = defaultdict(list)
@@ -187,17 +186,18 @@ def fit_allowed_risk(pipeline, tracker_state, fit_candidates, patchifier, seed):
             base = collate_variable_files([sample], patchifier)
             count = base["patches"].shape[1]
             regimes = patch_regime_ids([sample], base["starts"], count)
-            out = pipeline.score_patches(
-                base["patches"],
-                base["patch_pad_mask"],
-                base["patch_valid_mask"],
-                base["robot_idx"],
-                base["program_idx"],
-                regimes,
-                tracker=tracker,
-                suspect_flags=torch.tensor([_is_suspect(sample)]),
-                maintenance_resets=torch.tensor([_is_maintenance_reset(sample)]),
-            )
+            with torch.no_grad():
+                out = pipeline.score_patches(
+                    base["patches"],
+                    base["patch_pad_mask"],
+                    base["patch_valid_mask"],
+                    base["robot_idx"],
+                    base["program_idx"],
+                    regimes,
+                    tracker=tracker,
+                    suspect_flags=torch.tensor([_is_suspect(sample)]),
+                    maintenance_resets=torch.tensor([_is_maintenance_reset(sample)]),
+                )
             row = trajectory_feature_matrix(
                 out["trajectory"],
                 out["file"]["tail_energy"],
