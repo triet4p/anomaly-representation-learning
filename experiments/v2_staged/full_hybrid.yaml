@@ -13,6 +13,14 @@ batch_size: 8
 lr: 0.001
 corruption_rate: 0.1
 severity: 2.0
+# Explicit predeclared full-stage boundary schedule (Task 29 freeze): the
+# inherited default warmup (500 steps) would exceed the ~300-step 50-epoch
+# budget (Task 27 measured 12 steps over 2 epochs at batch 8), leaving alpha
+# at 0 for the whole full run. Warmup 50 + ramp 100 reaches alpha_max at
+# step 150 and is nonzero for 249 of ~300 steps — the same a priori
+# step-budget scaling as the balance fix — without consulting any outcome.
+boundary_warmup_steps: 50
+boundary_ramp_steps: 100
 # Resolved to the exact git HEAD at runtime (see v2_staged.resolve_commit).
 commit: "{COMMIT}"
 cells:

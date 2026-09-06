@@ -57,17 +57,19 @@ from synth.schema import SampleLabel
 #: Stage name to frozen epoch budget. Configs MUST use these budgets.
 STAGE_EPOCHS: dict[str, int] = {"contract": 2, "balance": 5, "full": 50}
 #: Predeclared per-stage boundary schedule as (warmup_steps, ramp_steps).
-#: Contract/full keep the Task 22 default (500, 2_000): the 2-epoch contract
-#: proves executable contracts only (Task 27 coincidence is expected), and
-#: the full stage inherits the default until Task 29 freezes its run config.
+#: The contract stage keeps the Task 22 default (500, 2_000): the 2-epoch
+#: contract proves executable contracts only (Task 27 coincidence expected).
 #: Balance uses (5, 10): at ~6 steps/epoch over 5 epochs (~30 steps) alpha
 #: reaches its max at step 15 and is nonzero for 24 of ~30 steps, so every
 #: varied coefficient is active and observable without consulting any test
-#: outcome.
+#: outcome. Full uses (50, 100), frozen by Task 29 on the same a priori
+#: step-budget scaling: at ~6 steps/epoch over 50 epochs (~300 steps) alpha
+#: reaches its max at step 150 and is nonzero for 249 of ~300 steps, so the
+#: 50-epoch hybrid actually trains its boundary term.
 STAGE_BOUNDARY_SCHEDULE: dict[str, tuple[int, int]] = {
     "contract": (500, 2_000),
     "balance": (5, 10),
-    "full": (500, 2_000),
+    "full": (50, 100),
 }
 
 #: Worst covariance condition number a Task 29 selected cell may carry.

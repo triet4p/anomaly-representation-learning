@@ -166,7 +166,7 @@ def test_balance_stage_schedule_is_predeclared_and_stage_specific() -> None:
     assert STAGE_BOUNDARY_SCHEDULE == {
         "contract": (500, 2_000),
         "balance": (5, 10),
-        "full": (500, 2_000),
+        "full": (50, 100),
     }
     balance = StageSpec(
         stage="balance", variant=HYBRID_VARIANT, epochs=5,
@@ -177,7 +177,6 @@ def test_balance_stage_schedule_is_predeclared_and_stage_specific() -> None:
         stage="contract", variant=CONTROL_VARIANT, epochs=2,
         coefficients=control_coefficients(),
     ).validate()
-    assert (contract.boundary_warmup_steps, contract.boundary_ramp_steps) == (500, 2_000)
     explicit = StageSpec(
         stage="balance", variant=HYBRID_VARIANT, epochs=5,
         coefficients=hybrid_coefficients(),
@@ -319,3 +318,26 @@ def test_apply_balance_selection_invalid_without_control_reference() -> None:
     assert "control reference" in record["reason"]
     with pytest.raises(ValueError, match="missing"):
         apply_balance_selection([{"cell": "x", "variant": HYBRID_VARIANT}])
+
+
+def test_frozen_full_hybrid_schedule_activates_within_step_budget() -> None:
+    """Task 29 freeze: alpha must engage inside the ~300-step 50-epoch run."""
+    config = load_stage_config(STAGED_DIR / "full_hybrid.yaml")
+    cells = iter_cells(config)
+    assert len(cells) == 1
+    spec = cells[0]
+    assert spec.variant == HYBRID_VARIANT
+    assert (spec.boundary_warmup_steps, spec.boundary_ramp_steps) == (50, 100)
+    # Task 27 measured 12 steps over 2 epochs at batch 8 on the same server
+    # data; 50 epochs ~= 300 steps. No training here: validate the exact
+    # alpha trace the frozen schedule produces over that budget.
+    schedule = ProgressiveLambda(
+        lambda_max=float(spec.coefficients["boundary_alpha_max"]),
+        ramp_steps=spec.boundary_ramp_steps,
+        warmup_steps=spec.boundary_warmup_steps,
+    )
+    alphas = [schedule.lambda_at(step) for step in range(300)]
+    assert sum(alpha > 0.0 for alpha in alphas) >= 249
+    assert schedule.lambda_at(150) == pytest.approx(1.0)
+    assert schedule.lambda_at(299) == pytest.approx(1.0)
+    assert schedule.lambda_at(50) == pytest.approx(0.0)
