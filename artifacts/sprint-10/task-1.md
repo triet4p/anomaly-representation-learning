@@ -30,6 +30,20 @@
   `experiments/20260905/05/dump_*.log`, `experiments/20260905/05/smoke.log`,
   `experiments/20260905/06/task7.log` (long raw logs; exit codes/timings live in
   artifacts/sprint-9/task-*.md + committed master logs). `*.npz`/`*.pt` were already ignored.
+## Close-out (commit a1104e5 + server aside-merge)
+
+Server pull needed an aside-merge: server workdir copies
+  blocked fast-forward (untracked-overwrite guard), so server `03/04/05/06` were moved to
+  `/tmp/s9-keep`, pulled fast-forward `d0af9e5..a1104e5`, `diff -r` proved the committed files
+  byte-identical (`TRACKED-IDENTICAL` all four dirs), ignored results (`*.npz`, `*.pt`, scratch logs)
+  copied back, aside removed. No reset/clean/force-push; `02/` and geometry dirs never touched.
+- Exact status outputs:
+  - server `git status --porcelain` → only
+    `?? experiments/20260905/server-geometry-run-1-a326e48/`
+    `?? experiments/20260905/server-geometry-run-1-prev/` (pre-existing unrelated).
+  - local `git status --porcelain` under `experiments/` → only `?? experiments/20260904/` and
+    `?? experiments/20260905/01/{README.md,assets/*,infer-v1-representation.executed.ipynb}`
+    (pre-existing unrelated); nothing under `03/04/05/06` or `artifacts/sprint-9/`.
 
 ## Both-side proof
 
@@ -40,4 +54,4 @@
   `artifacts/task_*_summary.md` deletions, `.agents/`, `artifacts/sprint-{2,4,6,8}/`,
   `experiments/20260904/`, `experiments/20260905/01` additions, `docs/sprint-plans/sprint-{3,4,5,8}.md`,
   server `01/`-geometry extras) — all untouched.
-- Exact status outputs: <paste both `git status --porcelain` outputs at close>.
+- (Status outputs recorded under Close-out above; no placeholders remain.)
