@@ -16,6 +16,6 @@
 
 ## Commit/push/pull
 
-- Committed with this evidence as `<task2-commit>`, pushed; server `git pull --ff-only` to the same
+- Committed with this evidence as `5c3767d`, pushed; server `git pull --ff-only` to the same
   hash; `git status --porcelain` clean on both sides except the pre-existing unrelated entries recorded
   in `task-1.md` (re-verified after pull).

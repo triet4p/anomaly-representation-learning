@@ -47,11 +47,12 @@ Server pull needed an aside-merge: server workdir copies
 
 ## Both-side proof
 
-- Local commit `978370b`→`<task1-commit>` (this evidence + experiment record), pushed; server
+- Local commit `978370b`→`a1104e5` (experiment record + this evidence draft), pushed; server
   `git pull --ff-only` to the same hash. `git status --porcelain` on both sides shows no
   uncommitted/unignored file under `experiments/` or `artifacts/sprint-9/`; remaining entries are
   pre-existing unrelated user files (CHANGELOG.md, docs/PLAN.md, docs/sprint-plans/sprint-6.md,
   `artifacts/task_*_summary.md` deletions, `.agents/`, `artifacts/sprint-{2,4,6,8}/`,
   `experiments/20260904/`, `experiments/20260905/01` additions, `docs/sprint-plans/sprint-{3,4,5,8}.md`,
   server `01/`-geometry extras) — all untouched.
-- (Status outputs recorded under Close-out above; no placeholders remain.)
+- (Close-out recorded at `a1104e5`, evidence text finalized in `1bb1f87`; placeholders resolved —
+  `grep -n '<task' artifacts/sprint-10/task-1.md artifacts/sprint-10/task-2.md` returns nothing.)
