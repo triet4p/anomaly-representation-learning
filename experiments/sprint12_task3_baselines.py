@@ -213,7 +213,7 @@ def main() -> int:
     dev_aux: dict[str, list[torch.Tensor]] = {a: [] for a in arms}  # robot/program/regime rows
     for sample in train_files:
         batch = single_batch(sample, patchifier, args.device)
-        v = batch["patch_valid_mask"][0]
+        v = batch["patch_valid_mask"][0].cpu()
         n = v.shape[0]
         hc = torch.from_numpy(batch_patch_features(
             batch["patches"][0].cpu().numpy(), batch["patch_pad_mask"][0].cpu().numpy()
@@ -221,9 +221,9 @@ def main() -> int:
         assert hc.shape[1] == feature_dim(6), (hc.shape, feature_dim(6))
         lat_c = frozen_latents(pipes["control"], batch)[0]
         lat_h = frozen_latents(pipes["hybrid"], batch)[0]
-        rr = batch["robot_idx"].expand(n)
-        pp = batch["program_idx"].expand(n)
-        gg = batch["regime_ids"][0]
+        rr = batch["robot_idx"].cpu().expand(n)
+        pp = batch["program_idx"].cpu().expand(n)
+        gg = batch["regime_ids"][0].cpu()
         for key, mat in (("handcrafted", hc), ("learned-control", lat_c), ("learned-hybrid", lat_h)):
             dev_feats[key].append(mat[v])
             dev_aux[key].append(torch.stack([rr[v], pp[v], gg[v]], dim=1))
@@ -237,7 +237,7 @@ def main() -> int:
         e_parts, v_parts = [], []
         for sample in val_files:
             batch = single_batch(sample, patchifier, args.device)
-            v = batch["patch_valid_mask"]
+            v = batch["patch_valid_mask"].cpu()
             if arm == "handcrafted":
                 mat = torch.from_numpy(batch_patch_features(
                     batch["patches"][0].cpu().numpy(), batch["patch_pad_mask"][0].cpu().numpy()
@@ -263,7 +263,7 @@ def main() -> int:
     rows_out: list[dict] = []
     for sample in static_files:
         batch = single_batch(sample, patchifier, args.device)
-        v = batch["patch_valid_mask"]
+        v = batch["patch_valid_mask"].cpu()
         regimes = batch["regime_ids"].cpu()
         n = v.shape[1]
         hc = torch.from_numpy(batch_patch_features(
