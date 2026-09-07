@@ -285,13 +285,12 @@ def main() -> int:
     ap.add_argument("--n-abnormal", type=int, default=16)
     ap.add_argument("--batch-size", type=int, default=8)
     ap.add_argument("--corruption-rate", type=float, default=0.25)
-    ap.add_argument("--severities", default="1.0,2.0,4.0")
+    ap.add_argument("--commit", default=None)
     args = ap.parse_args()
 
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
     severities = [float(s) for s in args.severities.split(",") if s.strip()]
-
     data_root = Path(args.data_root)
     manifest = json.loads((data_root / "manifest.json").read_text())
     manifest_sha = sha256_of(data_root / "manifest.json")
@@ -306,16 +305,18 @@ def main() -> int:
         if not path.is_file():
             raise FileNotFoundError(f"{name} checkpoint not found: {path}")
 
-    try:
-        commit = subprocess.run(
-            ["git", "rev-parse", "HEAD"],
-            capture_output=True,
-            text=True,
-            check=True,
-            cwd=str(REPO_ROOT),
-        ).stdout.strip()
-    except Exception:
-        commit = "unknown"
+    commit = args.commit
+    if not commit:
+        try:
+            commit = subprocess.run(
+                ["git", "rev-parse", "HEAD"],
+                capture_output=True,
+                text=True,
+                check=True,
+                cwd=str(REPO_ROOT),
+            ).stdout.strip()
+        except Exception:
+            commit = "unknown"
 
     patchifier = Patchifier(PatchConfig())
     result: dict = {
