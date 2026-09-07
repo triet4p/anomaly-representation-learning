@@ -14,8 +14,8 @@ Status legend: [ ] pending / [~] in progress / [x] done. Implementation completi
 
 ### Batch A — Accepted-checkpoint diagnosis
 
-- [ ] **Task 1 — Verify accepted checkpoint and runtime provenance.** Read-only local/server preflight using the remote-server-execution skill. Resolve the actual existing checkout, locked runtime, dataset, and accepted control/hybrid checkpoints from Sprint 11 evidence. Verify training `e378626`, F1 `e725250`, F2 `3eef3d2`, dataset/checkpoint hashes and restored references; preserve all existing user work and historical artifacts. Record reachable roots, exact commands, and runtime readiness in `artifacts/sprint-12/task-1.md`. Never substitute random weights or a new draw for the accepted checkpoint investigation.
-- [ ] **Task 2 — Measure self-conditioned scorer shortcut evidence.** Execute residual, log-variance/clamp, energy-component, and latent-versus-predicted-mean response diagnostics on both accepted checkpoints across healthy, abnormal, and paired-corruption inputs. Quantify whether the mean tracks corrupted latents and distinguish architectural possibility from observed checkpoint behavior. Keep context and population scores independent; frozen references stay unchanged. Persist bounded summaries, provenance, and a falsifiable diagnosis in `artifacts/sprint-12/task-2.md`; no claim of confirmed causality from coincident medians alone.
+- [x] **Task 1 — Verify accepted checkpoint and runtime provenance.** Read-only local/server preflight using the remote-server-execution skill. Resolve the actual existing checkout, locked runtime, dataset, and accepted control/hybrid checkpoints from Sprint 11 evidence. Verify training `e378626`, F1 `e725250`, F2 `3eef3d2`, dataset/checkpoint hashes and restored references; preserve all existing user work and historical artifacts. Record reachable roots, exact commands, and runtime readiness in `artifacts/sprint-12/task-1.md`. Never substitute random weights or a new draw for the accepted checkpoint investigation. (Implemented at `38e5e6b`; evidence review pending.)
+- [x] **Task 2 — Measure self-conditioned scorer shortcut evidence.** Execute residual, log-variance/clamp, energy-component, and latent-versus-predicted-mean response diagnostics on both accepted checkpoints across healthy, abnormal, and paired-corruption inputs. Quantify whether the mean tracks corrupted latents and distinguish architectural possibility from observed checkpoint behavior. Keep context and population scores independent; frozen references stay unchanged. Persist bounded summaries, provenance, and a falsifiable diagnosis in `artifacts/sprint-12/task-2.md`; no claim of confirmed causality from coincident medians alone. (Implemented at `38e5e6b`; evidence review pending.)
 
 ### Batch B — Signal visibility and simple baselines
 
@@ -73,7 +73,7 @@ Status legend: [ ] pending / [~] in progress / [x] done. Implementation completi
 ## Gate Ledger
 
 - Planning: recommendation preserved verbatim; Sprint 12 opened. No scientific claim yet.
-- Batch A: pending.
+- Batch A: awaiting review (Tasks 1–2 implemented at 38e5e6b; evidence: artifacts/sprint-12/task-1.md, task-2.md; worker does not self-accept).
 - Batch B: pending.
 - Batch C: pending.
 - Batch D: pending.
