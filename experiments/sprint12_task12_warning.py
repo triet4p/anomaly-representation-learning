@@ -230,14 +230,20 @@ def main() -> int:
         scores = {s.file_id: file_score(s.x) for s in h["samples"]}
         feats = {f["file_id"]: f for f in featurize(h, scores, q90)}
         rows = []
+        n_censored = n_maint_excl = n_no_target = 0
         for s in h["samples"]:
             if s.file_id not in test_ids:
                 continue
             ft = s.future_targets
-            if ft is None or bool(ft.is_censored):
+            if ft is None:
+                n_no_target += 1
+                continue
+            if bool(ft.is_censored):
+                n_censored += 1
                 continue
             f = feats[s.file_id]
             if f["in_maint"]:
+                n_maint_excl += 1
                 continue
             xb = np.array(frozen["coef_b"]) @ np.array([f["usage_h"], f["tsm_d"]]) + frozen["intercept_b"]
             xc = np.array(frozen["coef_c"]) @ np.array(
@@ -250,6 +256,9 @@ def main() -> int:
             })
         yy7 = np.array([r["y7"] for r in rows], dtype=float)
         out_h: dict = {"root": root, "n_eval": len(rows),
+                       "n_censored_excluded": n_censored,
+                       "n_maint_excluded": n_maint_excl,
+                       "n_no_target": n_no_target,
                        "n_pos_7d": int(yy7.sum()),
                        "n_pos_1d": int(sum(1 for r in rows if r["y1"]))}
         for arm in ("a", "b", "c"):
