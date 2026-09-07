@@ -285,6 +285,7 @@ def main() -> int:
     ap.add_argument("--n-abnormal", type=int, default=16)
     ap.add_argument("--batch-size", type=int, default=8)
     ap.add_argument("--corruption-rate", type=float, default=0.25)
+    ap.add_argument("--severities", default="1.0,2.0,4.0")
     ap.add_argument("--commit", default=None)
     args = ap.parse_args()
 
