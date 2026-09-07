@@ -1,18 +1,20 @@
 # Sprint 11 Task 22 — 50-epoch full stage: hybrid boundary model.
 #
-# PREDECLARED (not frozen-selected) V2 hybrid configuration for the Task 31
-# full training rerun, matched to full_control.yaml on commit, data, seed
-# policy, compute profile, and output contract. Coefficients equal the a
-# priori DEFAULT hybrid (hybrid_coefficients()); any resemblance to the
-# superseded Task 29 winner is coincidental, not selective —
-# the prior selection was made under the superseded incomplete objective
-# and is SUPERSEDED along with its full-run config/result records. The
-# frozen selection will be re-made by the Task 29 rerun on corrected
-# validation-only diagnostics; until then no coefficient set here is
-# claimed frozen or selected. Complete corrected objective,
-# likelihood-consistent stationary selection, explicit context-energy
-# identity, dev-val-calibrated operating threshold, dev-val-only
-# conformal fit, and distinct provenances throughout (see contract.yaml).
+# FROZEN-selected by the corrected Task 29 rerun (Deep-Review Findings 1–3):
+# winner balance-a from the predeclared five-epoch corrected matrix executed
+# at c859b7f21f05dbe9fcb5f747a21939330688cbe2 (exit 0, test views sealed).
+# The mechanical predeclared gate passed every hybrid cell and ranked
+# balance-a first on clean/corrupt gap (0.00097), then background leak, then
+# validation stationary; balance-b/balance-c passed but ranked below and are
+# documented as rejected in the selection record. Coefficients below equal
+# the winner's recorded coefficients exactly (boundary_alpha_max 0.5,
+# boundary_margin 1.0, background_weight 1.0, variance_weight 1.0,
+# covariance_weight 1.0). The prior superseded Task 29 selection and its
+# full-run config/result records are SUPERSEDED and must not be reused.
+# Complete corrected objective, likelihood-consistent stationary selection,
+# explicit context-energy identity, dev-val-calibrated operating threshold,
+# dev-val-only conformal fit, and distinct provenances throughout
+# (see contract.yaml).
 #
 # Small-sample rule (Deep-Review Finding 3): same explicit structural
 # minimum as the contract stage (see contract.yaml). The locked server dev
@@ -43,7 +45,7 @@ cells:
   - cell: default
     variant: hybrid-boundary
     coefficients:
-      boundary_alpha_max: 1.0
+      boundary_alpha_max: 0.5
       boundary_margin: 1.0
       background_weight: 1.0
       variance_weight: 1.0

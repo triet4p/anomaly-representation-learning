@@ -353,18 +353,21 @@ def test_frozen_full_hybrid_schedule_activates_within_step_budget() -> None:
     spec = cells[0]
     assert spec.variant == HYBRID_VARIANT
     assert (spec.boundary_warmup_steps, spec.boundary_ramp_steps) == (50, 100)
+    alpha_max = float(spec.coefficients["boundary_alpha_max"])
+    assert alpha_max > 0.0
     # Task 27 measured 12 steps over 2 epochs at batch 8 on the same server
     # data; 50 epochs ~= 300 steps. No training here: validate the exact
-    # alpha trace the frozen schedule produces over that budget.
+    # alpha trace the frozen schedule produces over that budget against the
+    # frozen config's own maximum (corrected winner balance-a: 0.5).
     schedule = ProgressiveLambda(
-        lambda_max=float(spec.coefficients["boundary_alpha_max"]),
+        lambda_max=alpha_max,
         ramp_steps=spec.boundary_ramp_steps,
         warmup_steps=spec.boundary_warmup_steps,
     )
     alphas = [schedule.lambda_at(step) for step in range(300)]
     assert sum(alpha > 0.0 for alpha in alphas) >= 249
-    assert schedule.lambda_at(150) == pytest.approx(1.0)
-    assert schedule.lambda_at(299) == pytest.approx(1.0)
+    assert schedule.lambda_at(150) == pytest.approx(alpha_max)
+    assert schedule.lambda_at(299) == pytest.approx(alpha_max)
     assert schedule.lambda_at(50) == pytest.approx(0.0)
 
 
@@ -432,15 +435,24 @@ def test_staged_source_has_no_pooled_or_fixed_fallback() -> None:
         assert forbidden not in src, f"staged runner keeps legacy path {forbidden!r}"
 
 
-def test_full_hybrid_is_predeclared_default_not_reselected() -> None:
-    """The superseded Task 29 winner must not resurface as a frozen config."""
+def test_full_hybrid_is_corrected_frozen_selection() -> None:
+    """The corrected Task 29 rerun freezes exactly the selected winner."""
     config = load_stage_config(STAGED_DIR / "full_hybrid.yaml")
     cells = iter_cells(config)
     assert len(cells) == 1
-    assert cells[0].coefficients == hybrid_coefficients()
+    assert cells[0].variant == HYBRID_VARIANT
+    assert dict(cells[0].coefficients) == {
+        "boundary_alpha_max": 0.5,
+        "boundary_margin": 1.0,
+        "background_weight": 1.0,
+        "variance_weight": 1.0,
+        "covariance_weight": 1.0,
+    }
     text = (STAGED_DIR / "full_hybrid.yaml").read_text(encoding="utf-8")
+    assert "FROZEN-selected" in text
+    assert "balance-a" in text
     assert "SUPERSEDED" in text
-    assert "PREDECLARED" in text
-    assert "balance-b" not in text, (
-        "full_hybrid.yaml must not reference the superseded selected cell"
-    )
+    for forbidden in ("0dafe893", "86812d3"):
+        assert forbidden not in text, (
+            f"full_hybrid.yaml must not reference superseded records ({forbidden})"
+        )
