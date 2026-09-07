@@ -2,7 +2,7 @@
 
 **Goal:** Replace IID timestamped synthetic files and the ineffective V1 geometry with a deterministic 3–6 month shared-unit factory simulation, a robot-program-conditioned latent-geometry model with localized synthetic boundary learning, and server-verified static detection plus one-day/seven-day early-warning evidence.
 
-**Status:** Active — Tasks 1–37 done for review; Batch F3 evidence gate and sprint-wide deep review remain before completion
+**Status:** Active — all Tasks 1–37 implemented/completed for review; all batch evidence gates pass; sprint remains Active pending the sprint-wide deep-review gate
 
 **Methodology:** [`docs/LATENT_GEOMETRY_METHODOLOGY.md`](../LATENT_GEOMETRY_METHODOLOGY.md)
 
