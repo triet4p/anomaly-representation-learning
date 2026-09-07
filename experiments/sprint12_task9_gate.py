@@ -291,6 +291,7 @@ def main() -> int:
         "severity_spearman": spearman(np.array(sev_gap), np.array(sev_level)),
         "masked_gap_median": float(np.median(paired_gaps)),
         "background_median": float(np.median(bg_deltas)),
+        "background_ratio": float(np.median(bg_deltas) / max(1e-12, np.median(paired_gaps))),
         "per_mechanism_ranking": {k: float(np.mean(v)) for k, v in mech_hits.items()},
         "per_mechanism_latent_disp": {k: float(np.median(v)) for k, v in mech_dz.items()},
     }
