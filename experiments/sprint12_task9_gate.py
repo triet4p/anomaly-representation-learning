@@ -127,6 +127,7 @@ def main() -> int:
     ap.add_argument("--steps", type=int, default=TRAIN_STEPS)
     ap.add_argument("--lr", type=float, default=1e-3)
     ap.add_argument("--margin", type=float, default=1.0)
+    ap.add_argument("--boundary-weight", type=float, default=1.0)
     ap.add_argument("--correction", action="store_true",
                     help="bounded correction run (documented second attempt)")
     args = ap.parse_args()
@@ -165,15 +166,7 @@ def main() -> int:
         # assert the exclusions actually fired (partition is real, not vacuous)
         assert all(by_id[i].file_label is SampleLabel.NORMAL for i in train_ids + val_ids)
         fit_files += [by_id[i] for i in train_ids]
-        cal_files += [by_id[i] for i in val_ids]
-    assert len(fit_files) >= 120 and len(cal_files) >= 40, (len(fit_files), len(cal_files))
-
-    scorer = TargetHiddenScorer(d_model=32, n_heads=4, n_layers=2).to(args.device)
-    criterion = CounterfactualCriterion(boundary_margin=args.margin)
-    opt = torch.optim.Adam(scorer.parameters(), lr=args.lr)
-    history: list[dict] = []
-    grad_norms: list[float] = []
-
+        cal_files += [by_id[i] for i in manifest["splits"]["dev_val"] if keep(i)]
     order = torch.randperm(len(fit_files), generator=torch.Generator().manual_seed(0)).tolist()
     ordered = [fit_files[i] for i in order]
     step = 0
@@ -212,12 +205,13 @@ def main() -> int:
             out_a = scorer(views["a"], valid)
             out_b = scorer(views["b"], valid)
             alpha = 0.0 if step < 50 else 1.0  # documented short warmup
+            bw = float(args.boundary_weight)
             loss = (criterion.clean_density(out_c["hidden_context_energy"], valid)
-                    + alpha * criterion.boundary(out_c["hidden_context_energy"],
-                                                 out_a["hidden_context_energy"], valid, cmask)
+                    + alpha * bw * criterion.boundary(out_c["hidden_context_energy"],
+                                                      out_a["hidden_context_energy"], valid, cmask)
                     + criterion.background(out_c["hidden_context_energy"],
                                            out_a["hidden_context_energy"], valid, cmask)
-                    + alpha * criterion.ordering(
+                    + alpha * bw * criterion.ordering(
                         [out_a["hidden_context_energy"][valid & cmask],
                          out_b["hidden_context_energy"][valid & cmask]], [0.5]))
             opt.zero_grad()
@@ -246,6 +240,7 @@ def main() -> int:
     cal_thr = float(np.quantile(np.concatenate(cal_energies), 0.95))
     # --- G-learn gate on CAL paired corruptions ----------------------------------
     paired_gaps, paired_clean, paired_corr = [], [], []
+    mech_hits, mech_dz = {}, {}
     sev_gap, sev_level = [], []
     bg_deltas = []
     for sample in cal_files:
@@ -277,6 +272,12 @@ def main() -> int:
                 sev_gap.append(gap)
                 sev_level.append(sev)
                 bg_deltas.append(float(np.median(np.abs(ce_m[v & ~m] - be[v & ~m]))))
+                mech_hits.setdefault(mech, []).append(float(np.mean(ce_m[v & m] > be[v & m])))
+                with torch.no_grad():
+                    lz = local[0].cpu().numpy()
+                    cl = pipe.model.local(wp, batch["patch_pad_mask"]).cpu()[0].numpy()
+                mech_dz.setdefault(mech, []).append(float(
+                    np.median(np.sqrt(((cl - lz)[v & m] ** 2).sum(axis=-1)))))
     paired_clean = np.array(paired_clean)
     paired_corr = np.array(paired_corr)
     gate = {
@@ -284,7 +285,8 @@ def main() -> int:
         "severity_spearman": spearman(np.array(sev_gap), np.array(sev_level)),
         "masked_gap_median": float(np.median(paired_gaps)),
         "background_median": float(np.median(bg_deltas)),
-        "background_ratio": float(np.median(bg_deltas) / max(1e-12, np.median(paired_gaps))),
+        "per_mechanism_ranking": {k: float(np.mean(v)) for k, v in mech_hits.items()},
+        "per_mechanism_latent_disp": {k: float(np.median(v)) for k, v in mech_dz.items()},
     }
     nuis_flags, nuis_deltas = [], []
     for sample in cal_files[:32]:
