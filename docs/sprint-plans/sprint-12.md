@@ -73,7 +73,7 @@ Status legend: [ ] pending / [~] in progress / [x] done. Implementation completi
 ## Gate Ledger
 
 - Planning: recommendation preserved verbatim; Sprint 12 opened. No scientific claim yet.
-- Batch A: awaiting re-review (corrected rerun at 96f6237 after 5 actionable findings in artifacts/sprint-12/review-A.md; rejected export evidence preserved, not deleted; worker does not self-accept).
+- Batch A: awaiting re-review (corrected rerun at 96f6237 after 5 actionable findings in artifacts/sprint-12/review-A.md, plus interpretation correction with numeric observations unchanged: bound restated as observed low sensitivity with unresolved causality, Wz!=I scoped to global identity, zero-query as dependence not mechanism, target-fixed exclusion criteria; Git relay was LAN transfer-ref + server-relayed origin push, NOT skill pull order — no approval claimed, procedural standing pending; rejected export evidence preserved, not deleted; worker does not self-accept).
 - Batch B: pending.
 - Batch C: pending.
 - Batch D: pending.
