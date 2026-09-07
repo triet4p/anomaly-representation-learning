@@ -143,17 +143,19 @@ def main() -> int:
 
     def featurize(sample, kind: str):
         batch = single_batch(sample, patchifier, args.device)
-        v = batch["patch_valid_mask"]
+        v = batch["patch_valid_mask"].cpu()
         if kind == "handcrafted":
             return (torch.from_numpy(batch_patch_features(
                 batch["patches"][0].cpu().numpy(),
                 batch["patch_pad_mask"][0].cpu().numpy())).float(), v)
         with torch.no_grad():
             lat = pipe.model.local(batch["patches"], batch["patch_pad_mask"])
-        return lat.cpu(), v.cpu()
+        return lat.cpu(), v
 
     # arm (a): standardized handcrafted + fresh FIT geometry
     fit_hc = torch.cat([m[v[0]] for m, v in (featurize(s, "handcrafted") for s in fit_files)])
+    std = Standardizer.fit(fit_hc.numpy())
+    aux_rows = []
     std_rows = []
     for s in fit_files:
         mat, v = featurize(s, "handcrafted")
