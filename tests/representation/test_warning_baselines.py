@@ -65,3 +65,48 @@ def test_features_ignore_future_targets_shuffle():
     assert len(before) == len(after) == 3
     for b, a in zip(before, after):
         assert b == a
+
+def test_operating_points_constant_scores_yield_no_recall():
+    from sprint12_task12_warning import operating_points, recall_at_fpr
+
+    sc = np.array([0.75, 0.75, 0.75, 0.75])
+    lb = np.array([1.0, 1.0, 0.0, 0.0])
+    pts = operating_points(sc, lb)
+    assert pts[0] == (float("inf"), 0.0, 0.0)
+    assert len(pts) == 2  # tied block moves as one unit
+    assert recall_at_fpr(pts, 0.05) == 0.0
+    assert recall_at_fpr(pts, 0.10) == 0.0
+
+
+def test_operating_points_groups_ties_deterministically():
+    from sprint12_task12_warning import operating_points, recall_at_fpr
+
+    sc = np.array([0.9, 0.9, 0.1, 0.1])
+    lb = np.array([1.0, 0.0, 1.0, 0.0])
+    pts = operating_points(sc, lb)
+    # thresholds: inf -> (0,0); 0.9 -> flags first block (1 pos,1 neg): fpr 0.5
+    assert pts[1][1] == 0.5 and pts[1][2] == 0.5
+    assert recall_at_fpr(pts, 0.10) == 0.0
+    assert recall_at_fpr(pts, 0.50) == 0.5
+
+
+def test_threshold_for_fpr_prefers_selective_threshold():
+    from sprint12_task12_warning import operating_points, threshold_for_fpr
+
+    sc = np.array([0.9, 0.5, 0.1, 0.0])
+    lb = np.array([1.0, 0.0, 1.0, 0.0])
+    pts = operating_points(sc, lb)
+    assert threshold_for_fpr(pts, 0.10) == 0.9
+
+
+def test_group_alert_episodes_and_event_recall():
+    from sprint12_task12_warning import event_recall_lead, group_alert_episodes
+
+    eps = group_alert_episodes([1.0, 1.5, 10.0], 5.0)
+    assert group_alert_episodes([], 100.0) == []
+    out = event_recall_lead(
+        {"r": [1.0, 1.5, 10.0]},
+        [("r", 2.0 * 86400.0), ("r", 50.0 * 86400.0)], 7 * 86400.0)
+    assert out["n_events"] == 2 and out["n_recalled"] == 1
+    assert out["recall"] == 0.5
+    assert abs(out["lead_time_d_median"] - (2.0 * 86400.0 - 10.0) / 86400.0) < 1e-9
