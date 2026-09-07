@@ -31,7 +31,8 @@ def allowed_keys(n: int, valid: torch.Tensor) -> torch.Tensor:
         raise ValueError("valid must have shape [B, N]")
     if valid.dtype is not torch.bool:
         raise ValueError("valid must have torch.bool dtype")
-    distance = torch.arange(n).unsqueeze(0) - torch.arange(n).unsqueeze(1)
+    distance = (torch.arange(n, device=valid.device).unsqueeze(0)
+                - torch.arange(n, device=valid.device).unsqueeze(1))
     structural = distance.abs() <= OVERLAP_RADIUS  # [N, N] always blocked
     return valid.unsqueeze(1) & ~structural.unsqueeze(0)  # [B, N, N]
 
