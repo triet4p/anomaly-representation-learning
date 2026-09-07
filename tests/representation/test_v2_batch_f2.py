@@ -9,10 +9,12 @@ from representation.v2_batch_f2 import (
     brier_score,
     censoring_counts,
     concordance_index,
+    constant_brier_reference,
     count_warning_runs,
     describe_or_null,
     equal_width_ece,
     group_recall,
+    held_out_healthy_indices,
     maintenance_proximity,
 )
 
@@ -92,3 +94,28 @@ def test_maintenance_proximity_windows():
     assert maintenance_proximity([1.0], [], 5.0) == [False]
     with pytest.raises(ValueError):
         maintenance_proximity([1.0], [1.0], -1.0)
+
+
+def test_constant_brier_reference():
+    assert constant_brier_reference([False, True, False, True]) == pytest.approx(0.25)
+    assert constant_brier_reference([False, False, False]) == pytest.approx(0.0)
+    assert constant_brier_reference([True]) == pytest.approx(0.0)
+    # p=0.25 -> 0.1875; beats-check keeps prevalence-driven skill honest.
+    assert constant_brier_reference([True, False, False, False]) == pytest.approx(0.1875)
+    with pytest.raises(ValueError):
+        constant_brier_reference([])
+
+
+def test_held_out_healthy_indices():
+    ids = ["f1", "f2", "f3", "f4", "f5"]
+    abnormal = [False, True, False, False, False]
+    quarantined = [False, False, True, False, False]
+    # f2 abnormal, f3 quarantined, f4 in an excluded fit cohort.
+    assert held_out_healthy_indices(ids, abnormal, quarantined, ["f4"]) == [0, 4]
+    assert held_out_healthy_indices(ids, abnormal, quarantined, []) == [0, 3, 4]
+    # Empty cohort is returned (caller records null-with-reason), not fabricated.
+    assert held_out_healthy_indices(ids, abnormal, quarantined, ["f1", "f4", "f5"]) == []
+    with pytest.raises(ValueError):
+        held_out_healthy_indices(ids, abnormal, quarantined[:4], [])
+    with pytest.raises(ValueError):
+        held_out_healthy_indices(["f1", "f1"], [False, False], [False, False], [])

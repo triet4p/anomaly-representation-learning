@@ -15,6 +15,52 @@ from collections.abc import Mapping, Sequence
 import numpy as np
 
 
+def constant_brier_reference(labels: Sequence[bool]) -> float:
+    """Brier score of the constant mean-rate predictor (calibration reference).
+
+    For event rate ``p`` the constant predictor scores ``p`` on every file,
+    giving Brier ``p * (1 - p)``. A fitted risk head must beat this reference
+    to claim calibration skill; reporting it alongside fitted Brier scores
+    keeps prevalence-driven results honest.
+    """
+    truth = [bool(v) for v in labels]
+    if not truth:
+        raise ValueError("constant_brier_reference requires at least one label")
+    rate = sum(1 for v in truth if v) / len(truth)
+    return float(rate * (1.0 - rate))
+
+
+def held_out_healthy_indices(
+    file_ids: Sequence[str],
+    abnormal: Sequence[bool],
+    quarantined: Sequence[bool],
+    excluded_ids: Sequence[str],
+) -> list[int]:
+    """Indices of held-out healthy rows for independent conformal coverage.
+
+    A row qualifies when its file is normal-labeled, non-quarantined, and
+    absent from every calibrator/survival fit cohort listed in
+    ``excluded_ids`` (e.g. the dev-val calibrator-fit rows). Callers must
+    assert the returned cohort is disjoint from the fit rows and record its
+    ``n``; an empty cohort is returned as ``[]`` so the runner records an
+    explicit null-with-reason instead of a vacuous number.
+    """
+    ids = [str(v) for v in file_ids]
+    flags_a = [bool(v) for v in abnormal]
+    flags_q = [bool(v) for v in quarantined]
+    if not (len(ids) == len(flags_a) == len(flags_q)):
+        raise ValueError("file_ids, abnormal, and quarantined must share length")
+    if len(set(ids)) != len(ids):
+        raise ValueError("file_ids must be unique for a disjointness claim")
+    excluded = {str(v) for v in excluded_ids}
+    return [
+        i
+        for i, (fid, abn, quar) in enumerate(zip(ids, flags_a, flags_q))
+        if not abn and not quar and fid not in excluded
+    ]
+
+
+
 def check_finite_list(values: Sequence[float], name: str) -> list[float]:
     """Return finite floats or raise (never silently publish gaps)."""
     out = [float(v) for v in values]

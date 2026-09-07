@@ -1,14 +1,25 @@
-"""Sprint 11 Batch F2 server runner (Tasks 35-36).
+"""Sprint 11 Batch F2 server runner (Tasks 35-36, CORRECTED rerun).
 
 Chronological early-warning/calibration analysis (Task 35) for the frozen
-control/hybrid checkpoints on the untouched temporal view, plus the metric
-payload Task 36 integrates. Mirrors the canonical
+corrected control/hybrid checkpoints on the untouched temporal view, plus the
+metric payload Task 36 integrates. Mirrors the canonical
 ``notebooks/trajectory_v2_early_warning.ipynb`` pipeline exactly (per-robot
 chronological scoring, suspect guard, maintenance resets, allowed pre-cutoff
 survival fit, censored 1d/7d evaluation) and extends it with the full Task 35
 metric set: lead-time distributions, per-robot/per-program slices, concordance,
 per-group calibration, censoring counts, cold-start assessment, and
 maintenance-boundary behavior.
+
+Corrected-rerun contracts (prior ``e669e2a`` Batch F2 results SUPERSEDED):
+canonical ``context_energy`` acute chain with explicit ``energy_source`` at
+every seam plus a separately labeled ``population_energy`` view (population
+elevated fractions stay excluded from detection claims — the restored
+operating threshold is calibrated on ``context_energy``); restored dev-val
+operating threshold and dev-val-only conformal calibrator carried from each
+checkpoint payload with distinct provenance (``confidence_calibrator_fit_cohort``
+vs ``operating_threshold_fit_cohort``); independent conformal healthy coverage
+on a held-out healthy cohort disjoint from the dev-val calibrator-fit rows,
+with any fit-cohort coverage labeled in-sample diagnostic.
 
 Row-level timelines stay in server memory; only bounded aggregates, slices,
 and review-sized figures are written.
@@ -43,10 +54,12 @@ from representation.v2_batch_f2 import (  # noqa: E402
     censoring_counts,
     check_mapping_nonempty,
     concordance_index,
+    constant_brier_reference,
     count_warning_runs,
     describe_or_null,
     equal_width_ece,
     group_recall,
+    held_out_healthy_indices,
     maintenance_proximity,
 )
 from representation.v2_checkpoint import load_v2_checkpoint  # noqa: E402
@@ -65,6 +78,10 @@ from synth.schema import EpisodeKind, SampleLabel  # noqa: E402
 TRAJECTORY_KEYS = ("displacement", "velocity", "trend", "persistence", "disagreement")
 SUSPECT_RULE = "file_label is ABNORMAL or quarantined"
 MAINT_WINDOW_S = 3.0 * 86400.0
+CONTEXT_ENERGY_FIELD = "context_energy"
+POPULATION_ENERGY_FIELD = "population_energy"
+CONFIDENCE_CALIBRATOR_FIT_COHORT = "dev-val"
+RISK_OPERATING_FIT_COHORT = "allowed-pre-cutoff-nontest"
 
 
 def _sha256(path: Path) -> str:
@@ -135,6 +152,10 @@ def score_temporal(pipeline, tracker_state, temporal_files, patchifier, device):
                 suspect_flags=torch.tensor([suspect]),
                 maintenance_resets=torch.tensor([reset]),
             )
+            if out["file"].get("energy_source") != CONTEXT_ENERGY_FIELD:
+                raise RuntimeError("Context file chain lost its energy_source label.")
+            if out["file_population"].get("energy_source") != POPULATION_ENERGY_FIELD:
+                raise RuntimeError("Population file view lost its energy_source label.")
             if not out["trajectory"]:
                 raise RuntimeError("trajectory scoring requires the commissioned baseline")
             traj = {k: float(out["trajectory"][k][0]) for k in TRAJECTORY_KEYS}
@@ -160,8 +181,16 @@ def score_temporal(pipeline, tracker_state, temporal_files, patchifier, device):
                     "health_value": float(getattr(health, "health_value", float("nan")))
                     if health is not None
                     else float("nan"),
-                    "tail_energy": float(out["file"]["tail_energy"][0]),
-                    "elevated_fraction": float(out["file"]["elevated_fraction"][0]),
+                    "energy_source": CONTEXT_ENERGY_FIELD,
+                    "context_tail_energy": float(out["file"]["tail_energy"][0]),
+                    "context_elevated_fraction": float(out["file"]["elevated_fraction"][0]),
+                    "context_mean_energy": float(out["file"]["mean_energy"][0]),
+                    "population_energy_source": POPULATION_ENERGY_FIELD,
+                    "population_tail_energy": float(out["file_population"]["tail_energy"][0]),
+                    "population_mean_energy": float(out["file_population"]["mean_energy"][0]),
+                    "population_elevated_fraction": float(
+                        out["file_population"]["elevated_fraction"][0]
+                    ),
                     "confidence": float(out["confidence"]["confidence"][0]),
                     **traj,
                 }
@@ -245,6 +274,10 @@ def build_variant_temporal(
     fit_days,
     fit_events,
     risk_fit_error: str | None,
+    restored_operating: dict | None,
+    restored_calibrator: dict | None,
+    dev_val_ids: set,
+    fit_file_ids: list,
 ) -> dict[str, object]:
     """Full Task 35 metric set for one variant (bounded aggregates only)."""
     n_files = len(file_rows)
@@ -281,10 +314,13 @@ def build_variant_temporal(
     traj_batch = {
         k: torch.tensor([float(r[k]) for r in file_rows]) for k in TRAJECTORY_KEYS
     }
+    # Canonical acute chain: the risk features ride the context signal (the
+    # same chain feeding trajectory/confidence/risk); the population view is
+    # reported separately and never enters detection claims.
     risk_features = trajectory_feature_matrix(
         traj_batch,
-        torch.tensor([float(r["tail_energy"]) for r in file_rows]),
-        torch.tensor([float(r["elevated_fraction"]) for r in file_rows]),
+        torch.tensor([float(r["context_tail_energy"]) for r in file_rows]),
+        torch.tensor([float(r["context_elevated_fraction"]) for r in file_rows]),
     )
 
     out: dict[str, object] = {
@@ -295,6 +331,14 @@ def build_variant_temporal(
         "programs": programs,
         "censoring": censor,
         "suspect_rule": SUSPECT_RULE,
+        "energy_sources": {
+            "context": CONTEXT_ENERGY_FIELD,
+            "population": POPULATION_ENERGY_FIELD,
+        },
+        "restored_operating_threshold": restored_operating,
+        "restored_confidence_cohort": restored_calibrator,
+        "confidence_calibrator_fit_cohort": CONFIDENCE_CALIBRATOR_FIT_COHORT,
+        "operating_threshold_fit_cohort": RISK_OPERATING_FIT_COHORT,
     }
 
     horizons_cfg = tuple(pipeline.config.risk_horizons_days)
@@ -316,6 +360,7 @@ def build_variant_temporal(
         out.update(
             {
                 "operating_threshold": None,
+                "operating_point_source": None,
                 "horizons": {},
                 "concordance_7d": {"c": None, "reason": risk_fit_error},
                 "ece_1d": None,
@@ -334,7 +379,9 @@ def build_variant_temporal(
                 "by_program": {},
                 "calibration_by_robot_7d": {},
                 "maintenance_boundary": {},
-                "conformal_healthy_coverage": None,
+                "population_view": {},
+                "conformal_healthy_coverage_independent": None,
+                "conformal_healthy_coverage_fit_insample": None,
             }
         )
         return out
@@ -351,7 +398,13 @@ def build_variant_temporal(
         raise RuntimeError("allowed fit cohort carries no 7d negatives for the operating point")
     operating_threshold = float(torch.quantile(fit_negatives, 0.95))
     out["operating_threshold"] = operating_threshold
-    out["operating_point_source"] = "95th percentile of allowed-fit 7d negatives"
+    out["operating_threshold_n_negatives"] = int(fit_negatives.numel())
+    out["operating_point_source"] = (
+        "95th percentile of allowed-fit 7d negatives "
+        f"(fit cohort {RISK_OPERATING_FIT_COHORT}; temporal risk operating point, "
+        "distinct from the restored dev-val static operating threshold on "
+        "context_energy)"
+    )
 
     risk_1d = proba["risk_1d"].tolist()
     risk_7d = proba["risk_7d"].tolist()
@@ -371,9 +424,13 @@ def build_variant_temporal(
             "horizon_days": float(horizon),
             "n_usable": int(included.sum().item()),
             "n_events": int(labels[included].sum().item()),
+            "prevalence": float(labels[included].sum().item() / max(1, int(included.sum().item()))),
             "auroc": auroc,
             "auprc": auprc,
             "brier": float(brier[key]),
+            "brier_reference_const": constant_brier_reference(
+                [bool(v) for v in labels[included].tolist()]
+            ),
         }
     out["horizons"] = horizons
 
@@ -477,6 +534,10 @@ def build_variant_temporal(
             "false_warning_runs": runs,
             "false_runs_per_robot_day": (runs / span) if span > 0 else None,
             "false_runs_per_30d": (runs / (span / 30.0)) if span > 0 else None,
+            "population_tail_median": float(
+                np.median([float(r["population_tail_energy"]) for r in rows])
+            ),
+            "population_energy_source": POPULATION_ENERGY_FIELD,
         }
     out["by_robot"] = by_robot
     out["false_warning_runs"] = false_runs
@@ -500,9 +561,11 @@ def build_variant_temporal(
         if len(sel) and any(truth) and not all(truth):
             by_robot[robot]["brier_7d"] = brier_score(scores, truth)
             by_robot[robot]["ece_7d"] = equal_width_ece(scores, truth)["ece"]
+            by_robot[robot]["brier_reference_const_7d"] = constant_brier_reference(truth)
         else:
             by_robot[robot]["brier_7d"] = float("nan")
             by_robot[robot]["ece_7d"] = float("nan")
+            by_robot[robot]["brier_reference_const_7d"] = float("nan")
     out["calibration_by_robot_7d"] = {
         r: {"brier_7d": by_robot[r]["brier_7d"], "ece_7d": by_robot[r]["ece_7d"]}
         for r in robots
@@ -568,18 +631,102 @@ def build_variant_temporal(
         "maintenance_breaks_scored": sum(1 for r in file_rows if bool(r["maintenance_reset"])),
     }
 
-    # Conformal healthy coverage from the restored calibrator on allowed-fit negatives.
+    # Conformal healthy coverage with exact provenance. The restored calibrator
+    # was fit on dev-val rows only, so the independent measurement uses a
+    # held-out healthy temporal cohort (normal, non-quarantined, disjoint from
+    # every fit row by assertion). Coverage on the allowed-fit 7d negatives is
+    # kept as a separately labeled in-sample diagnostic (those rows fit the
+    # survival head and may overlap dev-val; the overlap count is reported,
+    # never pooled into the independent claim).
+    temporal_ids = [str(r["file_id"]) for r in file_rows]
+    fit_id_list = [str(v) for v in fit_file_ids]
+    n_fit_overlaps_devval = sum(1 for v in fit_id_list if v in dev_val_ids)
+    if set(temporal_ids) & set(dev_val_ids):
+        raise RuntimeError("temporal view overlaps the dev-val calibrator-fit rows")
+    if set(temporal_ids) & set(fit_id_list):
+        raise RuntimeError("temporal view overlaps the allowed survival-fit rows")
+    held_idx = held_out_healthy_indices(
+        temporal_ids,
+        [bool(r["abnormal"]) for r in file_rows],
+        [bool(r["quarantined"]) for r in file_rows],
+        list(dev_val_ids) + fit_id_list,
+    )
+    if not held_idx:
+        out["conformal_healthy_coverage_independent"] = {
+            "coverage": None,
+            "reason": "no held-out healthy temporal files",
+            "n": 0,
+        }
+    else:
+        held_disp = torch.tensor(
+            [float(file_rows[i]["displacement"]) for i in held_idx],
+            dtype=torch.float32,
+        )
+        out["conformal_healthy_coverage_independent"] = {
+            "coverage": float(pipeline.calibrator.coverage(held_disp, level=0.95)),
+            "level": 0.95,
+            "n": len(held_idx),
+            "cohort": "held-out healthy temporal (normal, non-quarantined)",
+            "confidence_calibrator_fit_cohort": CONFIDENCE_CALIBRATOR_FIT_COHORT,
+            "disjoint_from_dev_val": True,
+            "disjoint_from_survival_fit": True,
+        }
     _, eval_label_7d = CensoredSurvivalRisk.horizon_cohort(
         fit_days, fit_events, horizons_cfg[1]
     )
     fit_neg_mask = ~eval_label_7d
     if int(fit_neg_mask.sum().item()) == 0:
-        out["conformal_healthy_coverage"] = None
+        out["conformal_healthy_coverage_fit_insample"] = {
+            "coverage": None,
+            "reason": "allowed fit cohort carries no 7d negatives",
+            "n": 0,
+        }
     else:
-        out["conformal_healthy_coverage"] = pipeline.calibrator.coverage(
-            fit_features[:, 0][fit_neg_mask], level=0.95
-        )
+        out["conformal_healthy_coverage_fit_insample"] = {
+            "coverage": float(
+                pipeline.calibrator.coverage(
+                    fit_features[:, 0][fit_neg_mask], level=0.95
+                )
+            ),
+            "level": 0.95,
+            "n": int(fit_neg_mask.sum().item()),
+            "cohort": "allowed-fit 7d negatives",
+            "note": (
+                "IN-SAMPLE DIAGNOSTIC: these rows fit the survival head; "
+                "not independent coverage"
+            ),
+            "n_fit_overlaps_dev_val_calibrator_rows": n_fit_overlaps_devval,
+        }
+    # Separately labeled population trajectory evidence (independent view;
+    # elevated fractions excluded from detection claims — the restored
+    # operating threshold is calibrated on context_energy, uncalibrated
+    # cross-signal).
+    pop_tail = [float(r["population_tail_energy"]) for r in file_rows]
+    pop_tail_abn = [
+        float(r["population_tail_energy"]) for r in file_rows if bool(r["abnormal"])
+    ]
+    pop_tail_norm = [
+        float(r["population_tail_energy"])
+        for r in file_rows
+        if not bool(r["abnormal"])
+    ]
+    out["population_view"] = {
+        "energy_source": POPULATION_ENERGY_FIELD,
+        "tail_median_overall": float(np.median(pop_tail)),
+        "tail_p95_overall": float(np.quantile(pop_tail, 0.95)),
+        "tail_median_abnormal": float(np.median(pop_tail_abn)) if pop_tail_abn else None,
+        "tail_median_normal": float(np.median(pop_tail_norm)) if pop_tail_norm else None,
+        "mean_median_overall": float(
+            np.median([float(r["population_mean_energy"]) for r in file_rows])
+        ),
+        "elevated_fraction_excluded": (
+            "EXCLUDED from detection claims — the restored operating threshold "
+            "is calibrated on context_energy; applied to population-scale "
+            "energies it is uncalibrated cross-signal"
+        ),
+    }
     out["trajectory_summary"] = {
+        "energy_source": CONTEXT_ENERGY_FIELD,
         "displacement_median": float(np.median(disp_all)),
         "displacement_p95": float(np.quantile(disp_all, 0.95)),
         "displacement_max": float(np.max(disp_all)),
@@ -697,6 +844,8 @@ def main() -> int:
     )
 
     results: dict[str, dict[str, object]] = {}
+    dev_val_ids = set(manifest["splits"]["dev_val"])
+    fit_file_ids = [s.file_id for s in fit_candidates]
     for name, ckpt in (("control", control_ckpt), ("hybrid", hybrid_ckpt)):
         pipeline = V2InferencePipeline.load(ckpt, device=args.device)
         payload = load_v2_checkpoint(ckpt, pipeline.model, expected_config=pipeline.config)
@@ -705,6 +854,14 @@ def main() -> int:
             raise RuntimeError(f"Checkpoint {ckpt} carries no trajectory baseline.")
         if pipeline.calibrator is None:
             raise RuntimeError(f"Checkpoint {ckpt} carries no confidence calibrator.")
+        operating_record = payload.get("operating_threshold")
+        calibrator_record = payload.get("confidence_calibrator_fit_cohort")
+        restored_operating = (
+            dict(operating_record) if isinstance(operating_record, dict) else None
+        )
+        restored_calibrator = (
+            dict(calibrator_record) if isinstance(calibrator_record, dict) else None
+        )
         file_rows, n_breaks = score_temporal(
             pipeline, tracker_state, temporal_files, patchifier, args.device
         )
@@ -715,6 +872,7 @@ def main() -> int:
             name, pipeline, file_rows, by_id, manifest,
             None if fit_error else risk,
             fit_features, fit_days, fit_events, fit_error,
+            restored_operating, restored_calibrator, dev_val_ids, fit_file_ids,
         )
         variant["maintenance_breaks_scored"] = n_breaks
         variant["n_fit_files"] = int(fit_features.shape[0])
@@ -743,6 +901,25 @@ def main() -> int:
             "seed": args.seed,
             "n_temporal": len(temporal_files),
             "n_fit": len(fit_candidates),
+            "confidence_calibrator_fit_cohort": CONFIDENCE_CALIBRATOR_FIT_COHORT,
+            "operating_threshold_fit_cohort": RISK_OPERATING_FIT_COHORT,
+            "control_restored_operating_threshold": results["control"].get(
+                "restored_operating_threshold"
+            ),
+            "hybrid_restored_operating_threshold": results["hybrid"].get(
+                "restored_operating_threshold"
+            ),
+            "control_restored_confidence_cohort": results["control"].get(
+                "restored_confidence_cohort"
+            ),
+            "hybrid_restored_confidence_cohort": results["hybrid"].get(
+                "restored_confidence_cohort"
+            ),
+            "prior_f2_superseded": (
+                "e669e2a (legacy tail/elevated names without energy_source, "
+                "ambiguous calibration provenance, pooled fit-cohort coverage)"
+            ),
+            "corrected_f1_evidence": "e725250 (canonical context/population signals)",
         },
         "cold_start": cold_start,
         "control": results["control"],
@@ -762,9 +939,10 @@ def main() -> int:
             [
                 "variant", "group_kind", "group",
                 "n_files", "recall_1d", "recall_7d",
-                "auroc_7d", "auprc_7d", "brier_7d", "ece_7d",
+                "auroc_7d", "auprc_7d", "brier_7d", "brier_reference_const_7d", "ece_7d",
                 "false_runs", "false_runs_per_30d",
                 "warned_rate_in_7d_window", "lead_7d_median_days", "lead_7d_n",
+                "population_tail_median",
             ]
         )
         for variant in ("control", "hybrid"):
@@ -778,9 +956,11 @@ def main() -> int:
                         variant, "robot", robot, row.get("n_files"),
                         row.get("recall_1d"), row.get("recall_7d"),
                         row.get("auroc_7d"), row.get("auprc_7d"),
-                        row.get("brier_7d"), row.get("ece_7d"),
+                        row.get("brier_7d"), row.get("brier_reference_const_7d"),
+                        row.get("ece_7d"),
                         row.get("false_warning_runs"), row.get("false_runs_per_30d"),
                         "", lead.get("median"), lead.get("n"),
+                        row.get("population_tail_median"),
                     ]
                 )
             by_program = res.get("by_program", {})
@@ -790,9 +970,9 @@ def main() -> int:
                     [
                         variant, "program", program, row.get("n_files"),
                         "", "",
-                        row.get("auroc_7d"), row.get("auprc_7d"), "", "",
+                        row.get("auroc_7d"), row.get("auprc_7d"), "", "", "",
                         "", "",
-                        row.get("warned_rate_in_7d_window"), "", "",
+                        row.get("warned_rate_in_7d_window"), "", "", "",
                     ]
                 )
     print("[Slices] wrote task35_slices.csv", flush=True)
@@ -853,9 +1033,14 @@ def main() -> int:
         "torch": torch.__version__,
         "seed": args.seed,
         "scoring": "per-file chronological per-robot (tracker state, suspect guard)",
+        "signals": "context_energy acute chain + separately labeled population_energy view",
+        "confidence_calibrator_fit_cohort": CONFIDENCE_CALIBRATOR_FIT_COHORT,
+        "operating_threshold_fit_cohort": RISK_OPERATING_FIT_COHORT,
         "n_temporal": len(temporal_files),
         "n_fit": len(fit_candidates),
         "n_fit_quarantined": n_fit_quarantined,
+        "prior_f2_superseded": "e669e2a",
+        "corrected_f1_evidence": "e725250",
         "static_view_accessed": False,
         "temporal_view_accessed": True,
     }
