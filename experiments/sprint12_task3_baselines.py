@@ -169,6 +169,7 @@ def main() -> int:
     ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     args = ap.parse_args()
 
+    commit = repo_commit()  # live provenance; raises outside a clean checkout
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
 
