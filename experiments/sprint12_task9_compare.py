@@ -160,7 +160,7 @@ def main() -> int:
     for s in fit_files:
         mat, v = featurize(s, "handcrafted")
         vv = v[0]
-        std_rows.append(torch.from_numpy(std.apply(mat[0].numpy())).float()[vv])
+        std_rows.append(torch.from_numpy(std.apply(mat.numpy())).float()[vv])
         n = int(vv.sum())
         batch = single_batch(s, patchifier, args.device)
         aux_rows.append(torch.stack([
@@ -202,7 +202,7 @@ def main() -> int:
             return e, v
         mat, _ = featurize(sample, "handcrafted" if arm == "handcrafted" else "learned")
         if arm == "handcrafted":
-            mat = torch.from_numpy(std.apply(mat[0].numpy())).float().unsqueeze(0)
+            mat = torch.from_numpy(std.apply(mat.numpy())).float().unsqueeze(0)
         geo = geo_a if arm == "handcrafted" else geo_b
         e = geo.population_energy(mat, v, batch["robot_idx"].cpu(),
                                   batch["program_idx"].cpu(),
