@@ -14,14 +14,17 @@ Two causal file-score probes (file end_time ≤ window end, strictly causal):
 - geometry_tail: accepted standardized handcrafted features + frozen
   hierarchical conditional geometry fitted on H-DEV healthy FIT only,
   file score = mean of top-10% valid patch population energies.
-Clean causal baseline per failure: same-robot files ending in
-[fail−60d, fail−7d) that are NOT quarantined, do NOT overlap maintenance,
-do NOT overlap any degradation episode, and do NOT intersect any other
-failure's [other_start − 28d, other_start] window. The 60d lookback (vs the
-7d probe gap) trades baseline staleness for coverage at ~12d MTBF; all
-exclusions still apply. Exclusions are counted by reason
-(coverage/missing baselines quantified — a failure with zero kept baseline
-files is excluded from gap stats and counted explicitly).
+Clean causal baseline per failure: same-robot files ending before the 7d
+probe gap (fend < fail−7d, disjoint from every probe window) that are NOT
+quarantined, do NOT overlap maintenance, do NOT overlap any degradation
+episode, and do NOT intersect any other failure's [other_start − 28d,
+other_start] window. No lower lookback bound: at ~12d MTBF a bounded window
+leaves most failures without any baseline (measured: 73/85 empty at 60d);
+the full prior clean pool keeps identical exclusion rules while giving every
+windowed failure a baseline. Staleness (old-regime files) widens gap IQRs
+honestly rather than selecting quiet periods. Exclusions are counted by
+reason (coverage/missing baselines quantified — a failure with zero kept
+baseline files is excluded from gap stats and counted explicitly).
 
 Labels/health/episodes enter ONLY post-hoc stratification — never any input.
 Weak/abrupt categories are UNAVAILABLE under v2 abrupt_rate=0: conclusions
@@ -56,9 +59,7 @@ from synth.schema import SampleLabel  # noqa: E402
 DAY = 86400.0
 LOOKBACK_S = 14 * DAY
 PROG_MIN_DUR_S = 3 * DAY
-WINDOWS = {"w1d": 1 * DAY, "w7d": 7 * DAY}
 BASE_SPAN_D = 28
-BASE_LOOKBACK_D = 60
 BASE_GAP_D = 7
 TOP_Q = 0.1
 RESERVED_FAMILIES = {"wrong_transition", "cross_channel_inconsistency"}
@@ -331,7 +332,7 @@ def main() -> int:
             bg_amp, bg_tail = [], []
             for s in by_robot.get(robot, []):
                 fend = float(files[s.file_id]["end_time"])
-                if not (fstart - BASE_LOOKBACK_D * DAY <= fend < fstart - BASE_GAP_D * DAY):
+                if not (fend < fstart - BASE_GAP_D * DAY):
                     continue
                 bg_considered += 1
                 ok, reason = baseline_eligible(
@@ -377,11 +378,9 @@ def main() -> int:
             "commit": commit,
             "commit_source": "git rev-parse HEAD in execution checkout (dirty source tree refused)",
             "dev_roots": list(args.dev_roots),
-            "control_ckpt_sha256": CONTROL_CKPT_SHA256,
-            "geometry_hyperparams": geo_kwargs,
-            "top_q": TOP_Q,
-            "baseline_rule": "same-robot files ending in [fail-60d, fail-7d) excluding "
-                             "quarantined / maintenance-overlapping / degradation-overlapping / "
+            "baseline_rule": "same-robot files ending before fail-7d (full prior pool, "
+                             "disjoint from probe windows) excluding quarantined / "
+                             "maintenance-overlapping / degradation-overlapping / "
                              "other-failure-window files; exclusions counted by reason",
             "score_rule": "causal only (file end_time <= window end); amplitude zero-fit; "
                           "geometry_tail = top-10% mean of frozen FIT-conditional population energies",
