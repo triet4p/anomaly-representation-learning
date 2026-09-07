@@ -3,13 +3,19 @@
 One atomic payload carries model, optimizer, scheduler, global step,
 V2 configuration, hierarchical geometry references, anomaly-confidence
 calibration, censored survival risk, and the longitudinal tracker fixed
-baseline. Loading validates schema and configuration compatibility and
+baseline. Calibration provenance is persisted in two distinct fields:
+``operating_threshold`` (the dev-val-calibrated elevated-patch cutoff
+with value, quantile/method, sample count, and exact cohort) and
+``confidence_calibrator_fit_cohort`` (the dev-val-only conformal
+calibrator fit cohort with sample counts and small-sample status).
+Loading validates schema and configuration compatibility and
 fails fast — there is no missing-checkpoint fallback and no silent
 partial restore.
 """
 
 from __future__ import annotations
 
+import math
 import os
 import tempfile
 from collections.abc import Mapping
@@ -28,6 +34,24 @@ def _require_nonneg_step(step: int) -> None:
         raise ValueError("step must be non-negative")
 
 
+def _validate_operating_threshold(operating_threshold: object) -> dict[str, object]:
+    """Validate the operating-threshold provenance record for persistence."""
+    if not isinstance(operating_threshold, Mapping):
+        raise ValueError("operating_threshold must be a provenance mapping")
+    record = dict(operating_threshold)
+    value = record.get("value")
+    if not isinstance(value, (int, float)) or not math.isfinite(float(value)):
+        raise ValueError("operating_threshold record must carry a finite 'value'")
+    cohort = record.get("fit_cohort")
+    if not isinstance(cohort, str) or not cohort.strip():
+        raise ValueError("operating_threshold record must carry a non-empty 'fit_cohort'")
+    n_samples = record.get("n_samples")
+    if isinstance(n_samples, bool) or not isinstance(n_samples, int) or n_samples < 1:
+        raise ValueError("operating_threshold record must carry a positive 'n_samples'")
+    if not isinstance(record.get("method"), str) or not record.get("method"):
+        raise ValueError("operating_threshold record must carry a 'method'")
+    return record
+
 def save_v2_checkpoint(
     path: str | Path,
     model: torch.nn.Module,
@@ -40,6 +64,8 @@ def save_v2_checkpoint(
     calibrator: object | None = None,
     risk: object | None = None,
     tracker: object | None = None,
+    operating_threshold: Mapping[str, object] | None = None,
+    confidence_calibrator_cohort: Mapping[str, object] | None = None,
 ) -> None:
     """Atomically save coherent V2 training/monitoring state."""
     _require_nonneg_step(step)
@@ -62,6 +88,18 @@ def save_v2_checkpoint(
         payload["risk"] = risk.state_dict()  # type: ignore[attr-defined]
     if tracker is not None:
         payload["tracker"] = tracker.state_dict()  # type: ignore[attr-defined]
+    if operating_threshold is not None:
+        payload["operating_threshold"] = _validate_operating_threshold(operating_threshold)
+    cohort_record: dict[str, object] | None = None
+    if confidence_calibrator_cohort is not None:
+        if not isinstance(confidence_calibrator_cohort, Mapping):
+            raise ValueError("confidence_calibrator_cohort must be a provenance mapping")
+        cohort_record = dict(confidence_calibrator_cohort)
+    elif calibrator is not None and hasattr(calibrator, "fit_cohort_info"):
+        info = calibrator.fit_cohort_info()  # type: ignore[attr-defined]
+        cohort_record = dict(info) if isinstance(info, Mapping) else None
+    if cohort_record is not None:
+        payload["confidence_calibrator_fit_cohort"] = cohort_record
     target = Path(path)
     target.parent.mkdir(parents=True, exist_ok=True)
     temporary: str | None = None
@@ -91,9 +129,11 @@ def load_v2_checkpoint(
 ) -> dict[str, Any]:
     """Validate and restore a V2 checkpoint into live objects.
 
-    Returns the stored ``config`` dict, ``step``, and any reference
-    payloads (``geometry``/``calibrator``/``risk``/``tracker`` snapshots)
-    for the caller to restore into monitoring objects. Structural
+    Returns the stored ``config`` dict, ``step``, any reference
+    payloads (``geometry``/``calibrator``/``risk``/``tracker`` snapshots),
+    and the two distinct calibration provenances (``operating_threshold``/
+    ``confidence_calibrator_fit_cohort``, each ``None`` when the checkpoint
+    predates calibration persistence). Structural
     config mismatches raise; incompatible optimizer/scheduler state
     raises rather than partially restoring.
     """
@@ -144,4 +184,6 @@ def load_v2_checkpoint(
         "calibrator": payload.get("calibrator"),
         "risk": payload.get("risk"),
         "tracker": payload.get("tracker"),
+        "operating_threshold": payload.get("operating_threshold"),
+        "confidence_calibrator_fit_cohort": payload.get("confidence_calibrator_fit_cohort"),
     }

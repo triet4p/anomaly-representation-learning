@@ -112,3 +112,39 @@ def test_trajectory_notebook_never_duplicates_product_logic() -> None:
             "V2InferencePipeline",
         }
         assert not leaked, f"{cell.get('id')} duplicates product logic {sorted(leaked)}"
+
+
+def test_trajectory_notebook_uses_explicit_energy_identities() -> None:
+    """Deep-Review Finding 1: context acute chain plus independent population view."""
+    code = _code()
+    assert 'out["file"]["energy_source"] == "context_energy"' in code
+    assert 'out["file_population"]["energy_source"] == "population_energy"' in code
+    assert 'out["file"]["tail_energy"]' in code
+    assert 'out["file"]["elevated_fraction"]' in code
+    assert 'out["file_population"]["tail_energy"]' in code
+    for forbidden in ("patch_energy", "clean_energy", "corrupt_energy",
+                      "validate_patch_output", "V2PatchOutput", "LEGACY_PATCH"):
+        assert forbidden not in code, f"trajectory notebook keeps ambiguous energy name {forbidden!r}"
+    assert 'out["patch"]["population_energy"]' not in code, \
+        "population energy lives under out['population']/out['file_population'], never out['patch']"
+
+def test_trajectory_notebook_separates_calibration_provenances() -> None:
+    """Deep-Review Findings 2-3: distinct threshold/calibrator cohorts, honest small-sample."""
+    code = _code()
+    for required in ("operating_record", "confidence_cohort_record",
+                     "operating_cohort_label", "confidence_fit_label",
+                     "small_sample", "n_samples"):
+        assert required in code, f"trajectory notebook missing cohort separation {required!r}"
+    assert code.count("calibration_source") == 0, \
+        "a single shared calibration_source conflates the two provenances"
+    assert "calibrate_elevated_threshold" not in code, \
+        "trajectory analysis restores calibration; it never refits the threshold"
+    assert "torch.load" not in code, "must load only through V2InferencePipeline"
+
+
+def test_trajectory_notebook_reports_honest_coverage_status() -> None:
+    """Deep-Review Finding 3: coverage is an in-sample diagnostic, never independent."""
+    code = _code()
+    for required in ("in-sample diagnostic", "conformal_coverage_status",
+                     "conformal_coverage_cohort", "not independent coverage"):
+        assert required in code, f"trajectory notebook missing honest coverage label {required!r}"

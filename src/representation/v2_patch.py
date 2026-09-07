@@ -4,6 +4,14 @@ Models a conditional normal distribution (Gaussian head) plus regime
 prototype assignment per patch. Exposes stable per-patch latents with
 variable-length masks and localization; there is no waveform/signal
 reconstruction path. Masks, labels, and severities never enter this module.
+
+Energy identity (Deep-Review Finding 1, Batch B1): ``context_energy`` is the
+encoder conditional NLL (signed, higher-is-more-anomalous) and the ONLY
+energy field this module exposes. It is the exact score optimized by the
+localized boundary loss and the monitoring score Batch B2 must expose
+unchanged at inference. Hierarchical Mahalanobis/mixture energy lives under
+the distinct ``population_energy`` field in Task 11 and MUST NOT silently
+replace this score: cross-field presence is rejected by contract.
 """
 
 from __future__ import annotations
@@ -13,7 +21,7 @@ from torch import nn
 
 from representation.layers.patch_encoder import LocalPatchEncoder
 from representation.layers.sequence_encoder import SequenceContextEncoder
-from representation.v2_contracts import validate_patch_output
+from representation.v2_contracts import validate_context_patch_output
 
 
 class PatchDistributionHead(nn.Module):
@@ -108,7 +116,11 @@ class ContextConditionedPatchEncoder(nn.Module):
         program_idx: torch.Tensor,
         regime_ids: torch.Tensor,
     ) -> dict[str, torch.Tensor]:
-        """Return patch latents, distribution params, and conditional energy."""
+        """Return patch latents, distribution params, and conditional energy.
+
+        Sole energy field: ``context_energy`` (signed conditional NLL, zero
+        on invalid patches).
+        """
         if patches.ndim != 4:
             raise ValueError(f"patches must be [B, N, C, W], got {patches.shape}")
         b, n = patch_valid_mask.shape
@@ -131,7 +143,7 @@ class ContextConditionedPatchEncoder(nn.Module):
 
         output = {
             "patch_latents": latents,
-            "patch_energy": energy,
+            "context_energy": energy,
             "patch_valid_mask": patch_valid_mask,
             "cond_mean": params["cond_mean"].masked_fill(~patch_valid_mask.unsqueeze(-1), 0.0),
             "cond_logvar": params["cond_logvar"].masked_fill(~patch_valid_mask.unsqueeze(-1), 0.0),
@@ -139,5 +151,5 @@ class ContextConditionedPatchEncoder(nn.Module):
                 ~patch_valid_mask.unsqueeze(-1), 0.0
             ),
         }
-        validate_patch_output(output)
+        validate_context_patch_output(output)
         return output

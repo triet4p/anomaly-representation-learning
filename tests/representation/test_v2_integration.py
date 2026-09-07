@@ -3,9 +3,12 @@
 Uses real chronological files from the public ``build_chronological``
 entry point (client profile, seed 0): dev-train normals for training,
 geometry commissioning, and the tracker baseline; dev-val for the
-healthy-tail calibrator. No test view is touched anywhere. The dev
-cohort carries no failure positives, so the survival-risk head is
-correctly absent here — risk fitting is proved in ``test_v2_risk.py``.
+operating elevated threshold and the healthy-tail calibrator. No test
+view is touched anywhere. The dev cohort carries no failure positives,
+so the survival-risk head is correctly absent here — risk fitting is
+proved in ``test_v2_risk.py``. The monitoring chain consumes encoder
+``context_energy``; hierarchical ``population_energy`` is asserted as a
+separately named signal.
 """
 
 from __future__ import annotations
@@ -14,13 +17,17 @@ import pytest
 import torch
 
 from representation.data import collate_variable_files
-from representation.v2_aggregation import aggregate_file_state, calibrate_elevated_threshold
+from representation.v2_aggregation import (
+    aggregate_file_state,
+    calibrate_elevated_threshold_with_provenance,
+)
 from representation.v2_checkpoint import load_v2_checkpoint
 from representation.v2_config import V2Config, V2_ENCODER_FORBIDDEN_FIELDS
 from representation.v2_contracts import (
     validate_confidence,
+    validate_context_patch_output,
     validate_file_state,
-    validate_patch_output,
+    validate_population_patch_output,
     validate_trajectory,
 )
 from representation.v2_inference import V2InferencePipeline, patch_regime_ids
@@ -51,7 +58,7 @@ def _config() -> V2Config:
         boundary_alpha_max=1.0,
         boundary_warmup_steps=0,
         boundary_ramp_steps=10,
-        calibration_min_samples=8,
+        calibration_min_samples=4,
         seed=0,
     )
 
@@ -127,16 +134,17 @@ def test_v2_train_save_load_infer_contract(tmp_path) -> None:
         torch.ones(rows.shape[0], dtype=torch.bool),
     )
 
-    # File states + tracker commissioning on train; calibrator on dev-val.
+    # Monitoring chain on the boundary-trained context energy; the operating
+    # elevated threshold and the confidence calibrator fit on dev-val only.
     file_state = aggregate_file_state(
-        latents, geometry.mixture_energy(
-            latents, valid, v2_batch["robot_idx"], v2_batch["program_idx"],
-            v2_batch["regime_ids"])["patch_energy"],
+        latents, encoded["context_energy"],
         valid, v2_batch["regime_ids"],
+        energy_source="context_energy",
         top_q_fraction=config.top_q_fraction,
         elevated_threshold=config.elevated_threshold,
         n_regimes=config.n_regimes,
     )
+    assert file_state["energy_source"] == "context_energy"
     tracker = TrajectoryTracker(config.d_model)
     tracker.fit_commissioning(
         file_state["file_state"], torch.ones(len(train_files), dtype=torch.bool)
@@ -148,31 +156,38 @@ def test_v2_train_save_load_infer_contract(tmp_path) -> None:
             val_batch["robot_idx"], val_batch["program_idx"], val_batch["regime_ids"],
         )
     val_file = aggregate_file_state(
-        val_encoded["patch_latents"],
-        geometry.mixture_energy(
-            val_encoded["patch_latents"], val_batch["patch_valid_mask"],
-            val_batch["robot_idx"], val_batch["program_idx"], val_batch["regime_ids"]
-        )["patch_energy"],
+        val_encoded["patch_latents"], val_encoded["context_energy"],
         val_batch["patch_valid_mask"], val_batch["regime_ids"],
+        energy_source="context_energy",
         top_q_fraction=config.top_q_fraction,
         elevated_threshold=config.elevated_threshold,
         n_regimes=config.n_regimes,
     )
+    # Dev-val-calibrated operating threshold from valid context energies.
+    operating_value, operating_provenance = calibrate_elevated_threshold_with_provenance(
+        val_encoded["context_energy"], val_batch["patch_valid_mask"], cohort="dev-val"
+    )
+    assert operating_provenance["fit_cohort"] == "dev-val"
     probe = TrajectoryTracker(config.d_model)
     probe.fit_commissioning(
         file_state["file_state"], torch.ones(len(train_files), dtype=torch.bool)
     )
-    # dev_val alone holds 7 files (below the calibration floor of 8), so the
-    # smoke calibrates on the combined dev stream; the floor itself is
-    # exercised in test_v2_risk.py.
-    both = torch.cat([file_state["file_state"], val_file["file_state"]])
-    all_disps = torch.cat([probe.update(both[i])["displacement"] for i in range(both.shape[0])])
+    # Dev-val-only conformal calibration: the 7-file dev-val cohort clears
+    # the small test floor of 4 and is flagged below the reference floor.
+    val_disps = torch.cat(
+        [probe.update(val_file["file_state"][i])["displacement"]
+         for i in range(val_file["file_state"].shape[0])]
+    )
     calibrator = HealthyTailCalibrator(
         min_samples=config.calibration_min_samples
-    ).fit(all_disps)
+    ).fit(val_disps, cohort="dev-val")
+    assert calibrator.fit_cohort_info()["cohort"] == "dev-val"
 
     checkpoint = tmp_path / "v2_contract.pt"
-    trainer.save(checkpoint, geometry=geometry, calibrator=calibrator, tracker=tracker)
+    trainer.save(
+        checkpoint, geometry=geometry, calibrator=calibrator, tracker=tracker,
+        operating_threshold=dict(operating_provenance),
+    )
     assert checkpoint.is_file()
 
     # Restored-reference-by-default inference: identical energies post-load.
@@ -182,9 +197,15 @@ def test_v2_train_save_load_infer_contract(tmp_path) -> None:
             v2_batch["robot_idx"], v2_batch["program_idx"], v2_batch["regime_ids"],
         )
     pipeline = V2InferencePipeline.load(checkpoint, device="cpu")
+    # The calibrated non-default cutoff restores by default (never 3.0 here).
+    assert pipeline.elevated_threshold == pytest.approx(operating_value)
+    assert pipeline.elevated_threshold != pytest.approx(3.0)
+    assert "dev-val" in pipeline.elevated_threshold_source
     restored_tracker = TrajectoryTracker(config.d_model)
     checkpoint_payload = load_v2_checkpoint(checkpoint, pipeline.model, expected_config=config)
     assert isinstance(checkpoint_payload["tracker"], dict)
+    assert checkpoint_payload["operating_threshold"]["value"] == pytest.approx(operating_value)
+    assert checkpoint_payload["confidence_calibrator_fit_cohort"]["cohort"] == "dev-val"
     restored_tracker.load_state_dict(checkpoint_payload["tracker"])
     assert checkpoint_payload["step"] == trainer.step
     out = pipeline.score_patches(
@@ -192,16 +213,33 @@ def test_v2_train_save_load_infer_contract(tmp_path) -> None:
         v2_batch["robot_idx"], v2_batch["program_idx"], v2_batch["regime_ids"],
         tracker=restored_tracker,
     )
-    validate_patch_output(out["patch"])
+    validate_context_patch_output(out["patch"])
+    validate_population_patch_output(out["population"])
     validate_file_state(out["file"])
+    validate_file_state(out["file_population"])
     validate_trajectory(out["trajectory"])
     validate_confidence(out["confidence"])
     assert out["risk"] == {}  # no survival head fitted on all-negative dev data
+    assert out["file"]["energy_source"] == "context_energy"
+    assert out["file_population"]["energy_source"] == "population_energy"
+    # Monitoring score is the exact encoder output; population is the
+    # hierarchical energy — identical post-load restoration.
+    torch.testing.assert_close(out["patch"]["context_energy"], before["context_energy"])
     torch.testing.assert_close(
-        out["patch"]["patch_energy"],
+        out["population"]["population_energy"],
         geometry.mixture_energy(
             before["patch_latents"], valid, v2_batch["robot_idx"],
-            v2_batch["program_idx"], v2_batch["regime_ids"])["patch_energy"],
+            v2_batch["program_idx"], v2_batch["regime_ids"])["population_energy"],
+    )
+    # File outputs use the restored calibrated cutoff end to end.
+    torch.testing.assert_close(
+        out["file"]["elevated_fraction"],
+        aggregate_file_state(
+            before["patch_latents"], before["context_energy"], valid,
+            v2_batch["regime_ids"], energy_source="context_energy",
+            top_q_fraction=config.top_q_fraction,
+            elevated_threshold=operating_value, n_regimes=config.n_regimes,
+        )["elevated_fraction"],
     )
 
     # Fail-fast behavior: missing checkpoints and config mismatches raise.

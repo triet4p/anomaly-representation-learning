@@ -2,11 +2,19 @@
 
 Deterministic in-memory clean/corrupt pairing preserves unit, robot,
 program, regime, and nuisance context: the corrupted view differs only
-inside the synthetic mask. Losses combine normal density control
-(variance/covariance), unaffected-background consistency, relative
-localized boundary energy, progressive severity ordering, and a ramped
-boundary coefficient. Synthetic masks shape the loss only and never enter
-any encoder.
+inside the synthetic mask. Losses combine the declared clean
+conditional-density term (mean signed NLL over valid clean patches) plus
+weighted variance/covariance control, unaffected-background consistency,
+relative localized boundary energy on the exact context-energy field,
+progressive severity ordering, and a ramped boundary coefficient.
+Synthetic masks shape the loss only and never enter any encoder.
+
+Energy identity (Deep-Review Finding 1, Batch B1): the boundary loss
+consumes ``clean_context_energy``/``corrupt_context_energy`` — the encoder
+conditional NLL monitoring score (higher-is-more-anomalous). Hierarchical
+population energy (``population_energy``) is a distinct signal and MUST NOT
+be passed here. Batch B2 owns trainer selection/inference wiring and must
+thread the context-energy field through unchanged.
 """
 
 from __future__ import annotations
@@ -128,16 +136,22 @@ class CounterfactualCriterion(nn.Module):
 
     def boundary(
         self,
-        clean_energy: torch.Tensor,
-        corrupt_energy: torch.Tensor,
+        clean_context_energy: torch.Tensor,
+        corrupt_context_energy: torch.Tensor,
         valid: torch.Tensor,
         corruption_mask: torch.Tensor,
     ) -> torch.Tensor:
-        """Relative margin: corrupted energy must exceed paired clean energy."""
+        """Relative margin on the exact context-energy field.
+
+        Requires corrupted context energy to exceed paired clean context
+        energy: ``max(0, δ + E_clean − E_corrupt)``. Population energy MUST
+        NOT be passed here; field identity is enforced by the caller
+        contract and covered by conflation tests.
+        """
         region = valid & corruption_mask
         if not bool(region.any()):
-            return self._zero_like(clean_energy)
-        margin = self.boundary_margin + clean_energy[region] - corrupt_energy[region]
+            return self._zero_like(clean_context_energy)
+        margin = self.boundary_margin + clean_context_energy[region] - corrupt_context_energy[region]
         return torch.relu(margin).mean()
 
     @staticmethod
@@ -148,31 +162,66 @@ class CounterfactualCriterion(nn.Module):
         terms = [torch.relu(float(d) + a.mean() - b.mean()) for a, b, d in zip(energies, energies[1:], deltas)]
         return torch.stack(terms).mean()
 
+    @staticmethod
+    def clean_density(context_energy: torch.Tensor, valid: torch.Tensor) -> torch.Tensor:
+        """Mean signed conditional NLL over valid clean patches.
+
+        Preserves sign (tight densities score negative), excludes invalid
+        patches, and returns a differentiable zero when no patch is valid.
+        This is the ``L_conditional-density`` term Batch B2 must also use
+        for likelihood-consistent stationary selection (never squared).
+        """
+        if context_energy.ndim != 2 or valid.ndim != 2:
+            raise ValueError("context_energy and valid must be [B, N]")
+        if tuple(context_energy.shape) != tuple(valid.shape):
+            raise ValueError("context_energy and valid must share [B, N]")
+        if valid.dtype is not torch.bool:
+            raise ValueError("valid must have torch.bool dtype")
+        if not bool(valid.any()):
+            return CounterfactualCriterion._zero_like(context_energy)
+        selected = context_energy[valid]
+        if not torch.isfinite(selected).all():
+            raise ValueError("clean context energy must be finite on valid patches")
+        return selected.mean()
+
     def forward(
         self,
         clean_latents: torch.Tensor,
         corrupt_latents: torch.Tensor,
-        clean_energy: torch.Tensor,
-        corrupt_energy: torch.Tensor,
+        clean_context_energy: torch.Tensor,
+        corrupt_context_energy: torch.Tensor,
         patch_valid_mask: torch.Tensor,
         corruption_mask: torch.Tensor,
         step: int = 0,
     ) -> dict[str, torch.Tensor]:
-        """Combine normal, background, and ramped boundary terms."""
+        """Combine normal, background, and ramped boundary terms.
+
+        Energy args are the encoder conditional-NLL context energies; no
+        alternative naming is accepted. Population energy MUST NOT be passed
+        here.
+        ``L_normal = L_conditional-density + λv·L_variance + λc·L_covariance``.
+        """
         if clean_latents.shape != corrupt_latents.shape or clean_latents.ndim != 3:
             raise ValueError("clean/corrupt latents must share [B, N, D]")
-        if clean_energy.shape != corrupt_energy.shape or clean_energy.ndim != 2:
-            raise ValueError("clean/corrupt energies must share [B, N]")
+        if (
+            clean_context_energy.shape != corrupt_context_energy.shape
+            or clean_context_energy.ndim != 2
+        ):
+            raise ValueError("clean/corrupt context energies must share [B, N]")
+        density_raw = self.clean_density(clean_context_energy, patch_valid_mask)
         variance_raw = variance_loss(clean_latents, patch_valid_mask)
         covariance_raw = covariance_loss(clean_latents, patch_valid_mask)
-        normal = self.variance_weight * variance_raw + self.covariance_weight * covariance_raw
+        density_weighted = density_raw
+        normal = density_weighted + self.variance_weight * variance_raw + self.covariance_weight * covariance_raw
         background = self.background(clean_latents, corrupt_latents, patch_valid_mask, corruption_mask)
-        boundary = self.boundary(clean_energy, corrupt_energy, patch_valid_mask, corruption_mask)
+        boundary = self.boundary(clean_context_energy, corrupt_context_energy, patch_valid_mask, corruption_mask)
         alpha = float(self.boundary_schedule.lambda_at(step))
         loss = normal + alpha * boundary + self.background_weight * background
         return {
             "loss": loss,
             "normal_loss": normal,
+            "density_raw": density_raw,
+            "density_weighted": density_weighted,
             "variance_raw": variance_raw,
             "covariance_raw": covariance_raw,
             "background_loss": background,

@@ -163,10 +163,10 @@ def score_variant(
                 tracker=tracker,
             )
             lat = out["patch"]["patch_latents"].cpu()
-            energy = out["patch"]["patch_energy"].cpu()
+            energy = out["patch"]["population_energy"].cpu()
             valid = out["patch"]["patch_valid_mask"].cpu()
             starts = base["starts"].cpu()
-            resp = pipeline.geometry.patch_energy(
+            resp = pipeline.geometry.population_energy(
                 lat,
                 valid,
                 base["robot_idx"].cpu(),
@@ -299,7 +299,7 @@ def corrupt_probe_for_variant(
         clean_lat = clean["patch_latents"]
         clean_e = pipeline.geometry.mixture_energy(
             clean_lat, valid, robot, program, reg
-        )["patch_energy"]
+        )["population_energy"]
         mask_gen = torch.Generator().manual_seed(seed + start)
         mask = (
             torch.rand(valid.shape, generator=mask_gen) < rate
@@ -312,7 +312,7 @@ def corrupt_probe_for_variant(
         corrupt_lat = corrupt["patch_latents"]
         corrupt_e = pipeline.geometry.mixture_energy(
             corrupt_lat, valid, robot, program, reg
-        )["patch_energy"]
+        )["population_energy"]
         region = (mask & valid).cpu()
         gap = (corrupt_e - clean_e).cpu()
         gaps.extend(gap[region].tolist())

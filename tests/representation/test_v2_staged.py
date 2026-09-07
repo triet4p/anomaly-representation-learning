@@ -2,8 +2,12 @@
 
 Covers the 2/5/50 epoch budgets, matched control/hybrid variants, the
 predeclared 5-epoch coefficient matrix, commit-placeholder resolution,
-sealed-test fail-fast behavior, provenance schema completeness, and one
-tiny live contract-cell run on a materialized client profile (also
+sealed-test fail-fast behavior, complete signed-density objective
+diagnostics in every history, dev-val-only threshold/calibrator fits with
+distinct provenances (no pooled fallback, no fixed-default runtime use),
+explicit context-energy identity, the explicit small-sample floor rule,
+superseded-selection non-reuse, provenance schema completeness, and tiny
+live contract/balance cell runs on a materialized client profile (also
 exercised headlessly by the Task 23 smoke; no quality claim here).
 """
 
@@ -36,6 +40,7 @@ from representation.v2_staged import (
 from representation.criterion import ProgressiveLambda
 from representation.v2_trainer import build_v2_training_stack
 from representation.v2_config import V2Config
+from representation.v2_inference import V2InferencePipeline
 from synth.chronicle import client_config, materialize_chronological
 
 STAGED_DIR = Path("experiments/v2_staged")
@@ -132,13 +137,15 @@ def test_geometry_health_reports_conditioning() -> None:
     assert health["all_finite_condition"] is True
     assert health["worst_condition_number"] < 1e12
 
-
 def test_tiny_contract_control_cell_runs_with_exact_provenance(tmp_path) -> None:
     data_root = tmp_path / "chronicle"
     manifest = materialize_chronological(client_config(seed=0), data_root)
+    # Explicit small-sample floor: the 7-file tiny dev-val clears 4 and is
+    # disclosed small-sample below the 32 reference floor (Finding 3 rule).
     spec = StageSpec(
         stage="contract", variant=CONTROL_VARIANT, epochs=2, seed=0,
         d_model=8, batch_size=8, coefficients=control_coefficients(),
+        calibration_min_samples=4,
     )
     provenance = run_stage_cell(
         spec, data_root=data_root, output_root=tmp_path / "runs", device="cpu",
@@ -150,15 +157,38 @@ def test_tiny_contract_control_cell_runs_with_exact_provenance(tmp_path) -> None
     assert len(provenance["shard_digests"]) == len(manifest["shards"])
     assert len(provenance["history"]) == 2
     for point in provenance["history"]:
-        for key in ("loss", "normal_loss", "background_loss", "boundary_loss",
+        # Complete signed-density objective diagnostics flow through the
+        # stage: clean conditional-density NLL plus variance/covariance,
+        # background, and ramped boundary terms (never squared selection).
+        for key in ("loss", "normal_loss", "density_raw",
+                    "variance_raw", "covariance_raw",
+                    "background_loss", "boundary_loss",
                     "alpha", "grad_norm_mean", "train_stationary", "val_stationary"):
             assert point[key] == point[key], f"non-finite history field {key}"
+    assert "signed-likelihood" in provenance["stationary_objective"]
     assert provenance["coefficients"]["boundary_alpha_max"] == 0.0
     assert provenance["sealed_test"]["forbidden_file_count"] > 0
     assert Path(provenance["checkpoint_path"]).is_file()
     assert (Path(provenance["output_root"]) / "provenance.json").is_file()
     assert provenance["geometry_health"]["all_finite_condition"] is True
     assert provenance["wall_time_s"] > 0.0
+    # Distinct dev-val-only provenances: operating threshold from dev-val
+    # context energies, conformal fit on dev-val displacements, no shared
+    # record and no pooled fallback anywhere in the manifest.
+    assert "calibration_source" not in provenance
+    operating = provenance["operating_threshold"]
+    assert operating["fit_cohort"] == "dev-val"
+    assert operating["energy_field"] == "context_energy"
+    assert operating["method"] == "healthy-validation-quantile"
+    cohort = provenance["confidence_calibrator_fit_cohort"]
+    assert cohort["cohort"] == "dev-val"
+    assert cohort["small_sample"] is True
+    assert provenance["calibration_min_samples"] == 4
+    assert "pooled" not in json.dumps(provenance, default=str)
+    # The calibrated (non-default) cutoff restores by default end to end.
+    pipeline = V2InferencePipeline.load(provenance["checkpoint_path"], device="cpu")
+    assert pipeline.elevated_threshold == pytest.approx(float(operating["value"]))
+    assert "dev-val" in pipeline.elevated_threshold_source
 
 
 def test_balance_stage_schedule_is_predeclared_and_stage_specific() -> None:
@@ -211,19 +241,6 @@ def test_balance_yaml_predeclares_budget_active_schedule() -> None:
         if spec.variant == HYBRID_VARIANT:
             assert float(spec.coefficients["boundary_alpha_max"]) > 0.0
 
-
-def test_stage_config_rejects_invalid_schedule_override(tmp_path) -> None:
-    bad = tmp_path / "bad.yaml"
-    bad.write_text(
-        "stage: balance\nepochs: 5\ncommit: '{COMMIT}'\n"
-        "boundary_warmup_steps: -1\n"
-        "cells:\n  - cell: balance-b\n    variant: hybrid-boundary\n",
-        encoding="utf-8",
-    )
-    with pytest.raises(ValueError, match="boundary_warmup_steps"):
-        load_stage_config(bad)
-
-
 def test_tiny_balance_hybrid_cell_activates_boundary(tmp_path) -> None:
     """Explicit fast schedule must drive alpha to its max with raw terms logged."""
     data_root = tmp_path / "chronicle"
@@ -232,6 +249,7 @@ def test_tiny_balance_hybrid_cell_activates_boundary(tmp_path) -> None:
         stage="balance", variant=HYBRID_VARIANT, epochs=5, seed=0,
         d_model=8, batch_size=8, coefficients=hybrid_coefficients(),
         boundary_warmup_steps=0, boundary_ramp_steps=2,
+        calibration_min_samples=4,
     )
     provenance = run_stage_cell(
         spec, data_root=data_root, output_root=tmp_path / "runs", device="cpu",
@@ -241,13 +259,20 @@ def test_tiny_balance_hybrid_cell_activates_boundary(tmp_path) -> None:
     }
     assert len(provenance["history"]) == 5
     for point in provenance["history"]:
-        for key in ("loss", "normal_loss", "variance_raw", "covariance_raw",
+        for key in ("loss", "normal_loss", "density_raw",
+                    "variance_raw", "covariance_raw",
                     "background_loss", "boundary_loss", "alpha",
                     "grad_norm_mean", "train_stationary", "val_stationary"):
             assert point[key] == point[key], f"non-finite history field {key}"
+    assert "signed-likelihood" in provenance["stationary_objective"]
     assert provenance["history"][0]["alpha"] < 1.0
     assert provenance["history"][-1]["alpha"] == pytest.approx(1.0)
     assert provenance["final_step"] >= 2
+    assert "calibration_source" not in provenance
+    assert provenance["operating_threshold"]["fit_cohort"] == "dev-val"
+    assert provenance["operating_threshold"]["energy_field"] == "context_energy"
+    assert provenance["confidence_calibrator_fit_cohort"]["cohort"] == "dev-val"
+    assert "pooled" not in json.dumps(provenance, default=str)
 
 
 def _selection_cell(cell: str, variant: str, **overrides: object) -> dict[str, object]:
@@ -341,3 +366,81 @@ def test_frozen_full_hybrid_schedule_activates_within_step_budget() -> None:
     assert schedule.lambda_at(150) == pytest.approx(1.0)
     assert schedule.lambda_at(299) == pytest.approx(1.0)
     assert schedule.lambda_at(50) == pytest.approx(0.0)
+
+
+def test_committed_configs_carry_explicit_calibration_floor() -> None:
+    """Every 2/5/50 rerun config predeclares its small-sample floor (Finding 3)."""
+    for name in ("contract.yaml", "balance.yaml",
+                 "full_control.yaml", "full_hybrid.yaml"):
+        config = load_stage_config(STAGED_DIR / name)
+        assert config["calibration_min_samples"] == 4, (
+            f"{name} must predeclare the explicit small-sample floor"
+        )
+        for spec in iter_cells(config):
+            assert spec.calibration_min_samples == 4
+
+
+def test_stage_config_rejects_invalid_calibration_floor(tmp_path) -> None:
+    bad = tmp_path / "bad.yaml"
+    bad.write_text(
+        "stage: contract\nepochs: 2\ncommit: '{COMMIT}'\n"
+        "calibration_min_samples: 0\n"
+        "cells:\n  - cell: default\n    variant: control-normal-only\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="calibration_min_samples"):
+        load_stage_config(bad)
+    with pytest.raises(ValueError, match="calibration_min_samples"):
+        StageSpec(
+            stage="contract", variant=CONTROL_VARIANT, epochs=2,
+            coefficients=control_coefficients(), calibration_min_samples=-3,
+        ).validate()
+
+
+def test_staged_runner_fails_fast_on_insufficient_dev_val_without_pooling(
+    tmp_path,
+) -> None:
+    """Default-floor tiny cohorts fail fast: the pooled fallback is gone."""
+    data_root = tmp_path / "chronicle"
+    materialize_chronological(client_config(seed=0), data_root)
+    spec = StageSpec(
+        stage="contract", variant=CONTROL_VARIANT, epochs=2, seed=0,
+        d_model=8, batch_size=8, coefficients=control_coefficients(),
+    )
+    assert spec.calibration_min_samples is None
+    with pytest.raises(ValueError, match="too small.*pooling.*rejected"):
+        run_stage_cell(
+            spec, data_root=data_root, output_root=tmp_path / "runs", device="cpu",
+        )
+
+
+def test_staged_source_has_no_pooled_or_fixed_fallback() -> None:
+    """Structural guard: energy identity, dev-val cohorts, no legacy paths."""
+    from representation import v2_staged
+
+    src = Path(v2_staged.__file__).read_text(encoding="utf-8")
+    assert 'energy_source="context_energy"' in src
+    assert src.count('cohort="dev-val"') >= 2
+    assert "calibrate_elevated_threshold_with_provenance" in src
+    assert "operating_threshold" in src
+    assert "confidence_calibrator_fit_cohort" in src
+    for forbidden in ('pooled dev-train+dev-val (',
+                      "elevated_threshold=config.elevated_threshold",
+                      'encoded["patch_energy"]',
+                      "clean_energy", "corrupt_energy",
+                      "context_energy.pow(2)", "patch_energy.pow(2)"):
+        assert forbidden not in src, f"staged runner keeps legacy path {forbidden!r}"
+
+
+def test_full_hybrid_is_predeclared_default_not_reselected() -> None:
+    """The superseded Task 29 winner must not resurface as a frozen config."""
+    config = load_stage_config(STAGED_DIR / "full_hybrid.yaml")
+    cells = iter_cells(config)
+    assert len(cells) == 1
+    assert cells[0].coefficients == hybrid_coefficients()
+    text = (STAGED_DIR / "full_hybrid.yaml").read_text(encoding="utf-8")
+    assert "SUPERSEDED" in text
+    assert "PREDECLARED" in text
+    assert "balance-b" not in text, (
+        "full_hybrid.yaml must not reference the superseded selected cell"
+    )

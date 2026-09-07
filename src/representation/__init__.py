@@ -18,14 +18,19 @@ from representation.criterion import (
 )
 from representation.v2_config import FALLBACK_ORDER, V2Config, assert_encoder_inputs_clean
 from representation.v2_contracts import (
+    CONTEXT_ENERGY_FIELD,
+    MONITORING_ENERGY_FIELD,
+    POPULATION_ENERGY_FIELD,
     V2AnomalyConfidence,
+    V2ContextPatchOutput,
     V2FailureRisk,
     V2FileState,
-    V2PatchOutput,
+    V2PopulationPatchOutput,
     V2TrajectoryFeatures,
     validate_confidence,
+    validate_context_patch_output,
     validate_file_state,
-    validate_patch_output,
+    validate_population_patch_output,
     validate_risk,
     validate_trajectory,
 )
@@ -39,8 +44,10 @@ from representation.v2_objectives import (
 )
 from representation.v2_aggregation import (
     DEFAULT_QUANTILE_LEVELS,
+    DEV_VAL_COHORT_PREFIX,
     aggregate_file_state,
     calibrate_elevated_threshold,
+    calibrate_elevated_threshold_with_provenance,
 )
 from representation.v2_trajectory import TrajectoryTracker
 from representation.v2_risk import (
@@ -121,13 +128,18 @@ __all__ = [
     "V2Config",
     "assert_encoder_inputs_clean",
     "V2AnomalyConfidence",
+    "V2ContextPatchOutput",
     "V2FailureRisk",
     "V2FileState",
-    "V2PatchOutput",
+    "V2PopulationPatchOutput",
     "V2TrajectoryFeatures",
+    "CONTEXT_ENERGY_FIELD",
+    "MONITORING_ENERGY_FIELD",
+    "POPULATION_ENERGY_FIELD",
     "validate_confidence",
+    "validate_context_patch_output",
     "validate_file_state",
-    "validate_patch_output",
+    "validate_population_patch_output",
     "validate_risk",
     "validate_trajectory",
     "ContextConditionedPatchEncoder",
@@ -140,8 +152,10 @@ __all__ = [
     "synthesize_corrupted_patches",
     "variance_loss",
     "DEFAULT_QUANTILE_LEVELS",
+    "DEV_VAL_COHORT_PREFIX",
     "aggregate_file_state",
     "calibrate_elevated_threshold",
+    "calibrate_elevated_threshold_with_provenance",
     "TrajectoryTracker",
     "CensoredSurvivalRisk",
     "HealthyTailCalibrator",

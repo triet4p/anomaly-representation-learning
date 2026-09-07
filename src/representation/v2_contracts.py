@@ -11,12 +11,36 @@ from collections.abc import Mapping
 from typing import NotRequired, TypedDict
 import torch
 
+#: Canonical patch-energy field identities (Deep-Review Finding 1, Batch B1).
+#: ``context_energy`` is the encoder conditional NLL (signed Gaussian NLL,
+#: higher-is-more-anomalous): the exact score optimized by the localized
+#: boundary loss and the monitoring score Batch B2 must expose unchanged at
+#: inference. ``population_energy`` is the separately fitted hierarchical
+#: Mahalanobis/mixture energy over stored references: a distinct
+#: population-energy signal that MUST NOT silently replace the context
+#: energy. No shared legacy field exists: producers expose exactly one
+#: canonical field each, and cross-field presence is rejected.
+CONTEXT_ENERGY_FIELD: str = "context_energy"
+POPULATION_ENERGY_FIELD: str = "population_energy"
+#: Alias naming the training-to-monitoring contract: the boundary-trained
+#: context energy is the monitoring energy Batch B2 exposes unchanged.
+MONITORING_ENERGY_FIELD: str = CONTEXT_ENERGY_FIELD
 
-class V2PatchOutput(TypedDict):
-    """Per-patch conditional geometry for one batch."""
+
+class V2ContextPatchOutput(TypedDict):
+    """Per-patch encoder conditional geometry (boundary-trained score)."""
 
     patch_latents: torch.Tensor  # [B, N, D], zero on invalid patches
-    patch_energy: torch.Tensor  # [B, N] finite signed NLL, zero on invalid
+    context_energy: torch.Tensor  # [B, N] finite signed NLL, zero on invalid
+    patch_valid_mask: torch.Tensor  # bool [B, N]
+    group_confidence: NotRequired[torch.Tensor]  # float [B, N] in [0, 1]
+    fallback_level: NotRequired[object]  # per-patch resolved hierarchy level
+
+
+class V2PopulationPatchOutput(TypedDict):
+    """Per-patch hierarchical population energy (distinct signal)."""
+
+    population_energy: torch.Tensor  # [B, N] finite signed NLL, zero on invalid
     patch_valid_mask: torch.Tensor  # bool [B, N]
     group_confidence: NotRequired[torch.Tensor]  # float [B, N] in [0, 1]
     fallback_level: NotRequired[object]  # per-patch resolved hierarchy level
@@ -69,29 +93,51 @@ def _bool(value: torch.Tensor, name: str) -> None:
         raise ValueError(f"{name} must have torch.bool dtype")
 
 
-def validate_patch_output(output: Mapping[str, object]) -> None:
-    """Validate shapes, masks, and finiteness of a patch-energy output."""
-    latents = _tensor(output, "patch_latents", 3)
-    energy = _tensor(output, "patch_energy", 2)
+def _check_energy_field(
+    output: Mapping[str, object],
+    energy_name: str,
+    forbidden_name: str,
+    *,
+    require_latents: bool,
+) -> None:
+    """Shared signed-NLL checks for one canonical energy identity."""
+    if forbidden_name in output:
+        raise ValueError(
+            f"{energy_name} output must not carry {forbidden_name}: "
+            "context and population energies are distinct signals"
+        )
+    energy = _tensor(output, energy_name, 2)
     valid = _tensor(output, "patch_valid_mask", 2)
     _bool(valid, "patch_valid_mask")
-    b, n, _ = latents.shape
-    if tuple(energy.shape) != (b, n) or tuple(valid.shape) != (b, n):
-        raise ValueError("patch_energy/patch_valid_mask must match [B, N] of patch_latents")
-    if not torch.isfinite(latents).all() or not torch.isfinite(energy).all():
-        raise ValueError("patch outputs must be finite")
-    # Energy is a signed continuous NLL: tight normal densities score below
-    # zero, so only finiteness and invalid-patch silence are required here.
+    b, n = energy.shape
+    if tuple(valid.shape) != (b, n):
+        raise ValueError(f"{energy_name}/patch_valid_mask must share [B, N]")
+    if not torch.isfinite(energy).all():
+        raise ValueError(f"{energy_name} must be finite")
     if bool((energy[~valid] != 0).any()):
-        raise ValueError("patch_energy must be zero on invalid patches")
-    if bool((latents[~valid].abs().sum() != 0)):
-        raise ValueError("patch_latents must be zero on invalid patches")
-    if "group_confidence" in output and output["group_confidence"] is not None:
-        conf = _tensor(output, "group_confidence", 2)
-        if tuple(conf.shape) != (b, n):
-            raise ValueError("group_confidence must have shape [B, N]")
-        if bool(((conf < 0) | (conf > 1)).any()) or not torch.isfinite(conf).all():
-            raise ValueError("group_confidence must be finite values in [0, 1]")
+        raise ValueError(f"{energy_name} must be zero on invalid patches")
+    if require_latents:
+        latents = _tensor(output, "patch_latents", 3)
+        if tuple(latents.shape[:2]) != (b, n):
+            raise ValueError(f"{energy_name}/patch_latents must share [B, N]")
+        if not torch.isfinite(latents).all():
+            raise ValueError("patch outputs must be finite")
+        if bool((latents[~valid].abs().sum() != 0)):
+            raise ValueError("patch_latents must be zero on invalid patches")
+
+
+def validate_context_patch_output(output: Mapping[str, object]) -> None:
+    """Validate the encoder context-energy output (boundary-trained score)."""
+    _check_energy_field(
+        output, CONTEXT_ENERGY_FIELD, POPULATION_ENERGY_FIELD, require_latents=True
+    )
+
+
+def validate_population_patch_output(output: Mapping[str, object]) -> None:
+    """Validate a hierarchical population-energy output (distinct signal)."""
+    _check_energy_field(
+        output, POPULATION_ENERGY_FIELD, CONTEXT_ENERGY_FIELD, require_latents=False
+    )
 
 
 def validate_file_state(state: Mapping[str, object]) -> None:

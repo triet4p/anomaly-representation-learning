@@ -4,10 +4,12 @@ Proves the integrated public V2 path on real chronological data (client
 profile, seed 0): no input leakage, finite gradients/energies, covariance
 stability, localization on scored (never fitted) abnormal files,
 checkpoint restoration, deterministic trajectories, confidence/risk
-separation, and complete outputs. All references stay dev-fitted; the
-risk head here is fitted on seeded synthetic trajectory features purely
-to exercise the separation contract — real risk calibration belongs to
-the staged experiments, not this smoke.
+separation, and complete outputs. The monitoring chain consumes encoder
+``context_energy`` with population energy asserted separately; the
+confidence calibrator fits dev-val only. All references stay dev-fitted;
+the risk head here is fitted on seeded synthetic trajectory features
+purely to exercise the separation contract — real risk calibration
+belongs to the staged experiments, not this smoke.
 """
 
 from __future__ import annotations
@@ -19,8 +21,9 @@ from representation.v2_aggregation import aggregate_file_state
 from representation.v2_config import V2Config, assert_encoder_inputs_clean
 from representation.v2_contracts import (
     validate_confidence,
+    validate_context_patch_output,
     validate_file_state,
-    validate_patch_output,
+    validate_population_patch_output,
     validate_risk,
     validate_trajectory,
 )
@@ -44,7 +47,7 @@ def _config() -> V2Config:
         n_prototypes=1, sequence_layers=1, attention_heads=2, dropout=0.0,
         min_group_samples=2, diag_min_samples=4, top_q_fraction=0.25,
         elevated_threshold=3.0, boundary_warmup_steps=0, boundary_ramp_steps=10,
-        calibration_min_samples=8, seed=0,
+        calibration_min_samples=4, seed=0,
     )
 
 
@@ -103,22 +106,46 @@ def test_v2_chronological_end_to_end_smoke(tmp_path) -> None:
         assert cond == cond and cond < 1e12, f"unstable covariance at {stats.level}"
 
     file_state = aggregate_file_state(
-        latents, geometry.mixture_energy(
-            latents, valid, train_inputs["robot_idx"],
-            train_inputs["program_idx"], train_inputs["regime_ids"])["patch_energy"],
+        latents, encoded["context_energy"],
         valid, train_inputs["regime_ids"],
+        energy_source="context_energy",
         top_q_fraction=config.top_q_fraction,
         elevated_threshold=config.elevated_threshold, n_regimes=config.n_regimes,
     )
     validate_file_state(file_state)
     assert torch.isfinite(file_state["file_state"]).all()
+    assert file_state["energy_source"] == "context_energy"
 
     tracker = TrajectoryTracker(config.d_model)
     tracker.fit_commissioning(file_state["file_state"],
                               torch.ones(len(dev[:8]), dtype=torch.bool))
     disps = torch.cat([tracker.update(file_state["file_state"][i])["displacement"]
                        for i in range(len(dev[:8]))])
-    calibrator = HealthyTailCalibrator(min_samples=8).fit(disps)
+    # Dev-val-only conformal calibration (7 val files clear the small
+    # test floor of 4); commissioning above stays on verified-healthy dev.
+    val_files = [by_id[i] for i in splits.dev_val]
+    val_batch = collate_variable_files(val_files, patchifier)
+    val_inputs = {
+        "patches": val_batch["patches"], "patch_pad_mask": val_batch["patch_pad_mask"],
+        "patch_valid_mask": val_batch["patch_valid_mask"], "robot_idx": val_batch["robot_idx"],
+        "program_idx": val_batch["program_idx"],
+        "regime_ids": patch_regime_ids(
+            val_files, val_batch["starts"], val_batch["patches"].shape[1]),
+    }
+    with torch.no_grad():
+        val_encoded = model(**val_inputs)
+    val_latents, val_valid = val_encoded["patch_latents"], val_inputs["patch_valid_mask"]
+    val_state = aggregate_file_state(
+        val_latents, val_encoded["context_energy"],
+        val_valid, val_inputs["regime_ids"],
+        energy_source="context_energy",
+        top_q_fraction=config.top_q_fraction,
+        elevated_threshold=config.elevated_threshold, n_regimes=config.n_regimes,
+    )
+    val_disps = torch.cat([tracker.update(val_state["file_state"][i])["displacement"]
+                           for i in range(len(val_files))])
+    calibrator = HealthyTailCalibrator(min_samples=4).fit(val_disps, cohort="dev-val")
+    assert calibrator.fit_cohort_info()["cohort"] == "dev-val"
 
     # Synthetic-feature risk head: contract exercise only (see docstring).
     torch.manual_seed(11)
@@ -158,7 +185,8 @@ def test_v2_chronological_end_to_end_smoke(tmp_path) -> None:
             patch_regime_ids([sample], one["starts"], n),
             tracker=trackers[sample.robot_idx],
         )
-        validate_patch_output(out["patch"])
+        validate_context_patch_output(out["patch"])
+        validate_population_patch_output(out["population"])
         validate_file_state(out["file"])
         validate_trajectory(out["trajectory"])
         validate_confidence(out["confidence"])
@@ -180,7 +208,7 @@ def test_v2_chronological_end_to_end_smoke(tmp_path) -> None:
         patch_mask = Patchifier.timestep_mask_to_patch_mask(
             sample.anomaly_mask, pb.starts, pb.valid_len, sample.C, sample.T,
         )
-        energies = out["patch"]["patch_energy"][0]
+        energies = out["population"]["population_energy"][0]
         masked = torch.tensor(patch_mask, dtype=torch.bool)
         assert masked.any() and (~masked).any()
         assert float(energies.std()) > 0.0

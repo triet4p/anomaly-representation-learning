@@ -6,6 +6,13 @@ fleet. Covariance uses shrinkage toward the parent plus an epsilon floor,
 diagonal fallback for sparse groups, and mixture-density energy over regime
 components. References are frozen for monitoring; suspect files never update
 them. There is no program-only cross-robot sharing.
+
+Energy identity (Deep-Review Finding 1, Batch B1): both scorers return the
+population energy under the canonical ``population_energy`` field ONLY
+(signed NLL, higher-is-more-anomalous, zero on invalid patches). Population
+energy is a DISTINCT signal from the encoder ``context_energy`` (Task 10):
+it MUST NOT silently replace the boundary-trained monitoring score. Stored
+references stay frozen/detached; query latents retain autograd.
 """
 
 from __future__ import annotations
@@ -205,7 +212,7 @@ class HierarchicalMahalanobisGeometry:
         out = (diff * solved).sum(dim=-1)
         return torch.where(torch.isfinite(out), out, torch.full_like(out, 1e6))
 
-    def patch_energy(
+    def population_energy(
         self,
         latents: torch.Tensor,
         patch_valid_mask: torch.Tensor,
@@ -213,7 +220,12 @@ class HierarchicalMahalanobisGeometry:
         program_idx: torch.Tensor,
         regime_ids: torch.Tensor,
     ) -> dict[str, torch.Tensor]:
-        """Return per-patch Mahalanobis energy with fallback provenance."""
+        """Return per-patch Mahalanobis population energy with provenance.
+
+        Sole energy field: ``population_energy`` (signed, zero on invalid).
+        Never substitute this field for the encoder ``context_energy``
+        monitoring score.
+        """
         if latents.ndim != 3 or latents.shape[2] != self.d_model:
             raise ValueError(f"latents must be [B, N, {self.d_model}]")
         b, n, _ = latents.shape
@@ -238,7 +250,7 @@ class HierarchicalMahalanobisGeometry:
                 confidence[i, j] = 0.25 if stats.low_confidence else 1.0
                 levels[i][j] = stats.level
         energy = torch.stack(values).reshape(b, n).masked_fill(~patch_valid_mask, 0.0)
-        return {"patch_energy": energy, "group_confidence": confidence, "fallback_level": levels}
+        return {"population_energy": energy, "group_confidence": confidence, "fallback_level": levels}
     def mixture_energy(
         self,
         latents: torch.Tensor,
@@ -247,7 +259,12 @@ class HierarchicalMahalanobisGeometry:
         program_idx: torch.Tensor,
         regime_ids: torch.Tensor,
     ) -> dict[str, torch.Tensor]:
-        """Mixture-density energy over regime components of each (robot, program)."""
+        """Mixture-density population energy over regime components.
+
+        Sole energy field: ``population_energy`` (signed, zero on invalid).
+        Never substitute this field for the encoder ``context_energy``
+        monitoring score.
+        """
         if latents.ndim != 3 or latents.shape[2] != self.d_model:
             raise ValueError(f"latents must be [B, N, {self.d_model}]")
         b, n, d = latents.shape
@@ -285,7 +302,7 @@ class HierarchicalMahalanobisGeometry:
                 value = -(torch.logsumexp(stacked, dim=0))
                 values.append(value.reshape(()) if torch.isfinite(value).all() else big)
         out = torch.stack(values).reshape(b, n).masked_fill(~patch_valid_mask, 0.0)
-        return {"patch_energy": out}
+        return {"population_energy": out}
 
     # -- freezing --------------------------------------------------------
     def frozen(self) -> "FrozenReference":
@@ -384,9 +401,9 @@ class FrozenReference:
             stats.mu.requires_grad_(False)
             stats.cov.requires_grad_(False)
 
-    def patch_energy(self, *args: object, **kwargs: object) -> dict[str, torch.Tensor]:
-        """Score patches against the frozen references."""
-        return self._geometry.patch_energy(*args, **kwargs)  # type: ignore[arg-type]
+    def population_energy(self, *args: object, **kwargs: object) -> dict[str, torch.Tensor]:
+        """Score patches against the frozen references (population energy)."""
+        return self._geometry.population_energy(*args, **kwargs)  # type: ignore[arg-type]
 
     def mixture_energy(self, *args: object, **kwargs: object) -> dict[str, torch.Tensor]:
         """Score patches with the frozen mixture-density energy."""

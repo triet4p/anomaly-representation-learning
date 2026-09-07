@@ -1,10 +1,28 @@
 # Sprint 11 Task 22 — 5-epoch coefficient-balance stage.
 #
-# Predeclared coefficient matrix for the normal-density,
-# variance/covariance, background-consistency, and boundary terms.
-# Cell balance-b equals the default hybrid. Test labels stay sealed:
-# selection uses training plus verified-healthy validation diagnostics
-# only (Task 29 owns the frozen selection and its rationale).
+# Predeclared coefficient matrix for the COMPLETE corrected objective:
+# clean conditional-density NLL (weight 1.0 by methodology, never ablated)
+# plus variance/covariance, background-consistency, and ramped boundary
+# terms. Cell balance-b equals the a priori default hybrid. Stationary
+# selection minimizes the complete signed-likelihood validation objective
+# at the final boundary coefficient; aggregation consumes the
+# boundary-trained context energy with explicit energy_source identity;
+# the operating threshold is dev-val-calibrated and drives commissioning;
+# the conformal fit is dev-val-only with distinct provenances. Test labels
+# stay sealed: selection uses training plus verified-healthy validation
+# diagnostics only (Task 29 owns the frozen selection and its rationale).
+#
+# Prior Task 29 winner/full-freeze records (balance-b under the superseded
+# incomplete objective) are SUPERSEDED and must not be reused: this matrix
+# is predeclared and outcome-independent, and the frozen full hybrid
+# reverts to the predeclared default until Task 29 re-selects on corrected
+# validation-only diagnostics from a rerun of this matrix.
+#
+# Small-sample rule (Deep-Review Finding 3): same explicit structural
+# minimum as the contract stage (see contract.yaml). The locked server dev
+# cohort carries 11 verified-healthy dev-val files: the fit stays
+# dev-val-only, provenance flags small_sample=true, and coverage is an
+# in-sample diagnostic. No pooled dev-train fallback.
 stage: balance
 epochs: 5
 seed: 0
@@ -20,6 +38,8 @@ severity: 2.0
 # observable for 24 of ~30 steps without consulting any test outcome.
 boundary_warmup_steps: 5
 boundary_ramp_steps: 10
+# Explicit small-sample floor for the dev-val-only conformal fit (see above).
+calibration_min_samples: 4
 # Resolved to the exact git HEAD at runtime (see v2_staged.resolve_commit).
 commit: "{COMMIT}"
 cells:

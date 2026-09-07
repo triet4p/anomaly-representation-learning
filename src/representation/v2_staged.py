@@ -25,6 +25,25 @@ within a stage. The 5-epoch balance stage runs the predeclared
 term active inside the short budget; Task 28); the 50-epoch full stage
 runs one frozen config per variant (final hybrid selection itself belongs
 to Task 29 via :func:`apply_balance_selection`).
+
+Corrected Findings 1–3 contracts (Batch C2 re-gate):
+
+- The optimized normal objective is complete: clean conditional-density
+  NLL plus configured variance/covariance, background, and ramped
+  boundary terms. Stationary selection minimizes that complete
+  signed-likelihood validation objective at the final boundary
+  coefficient — never squared distance to zero.
+- Aggregation consumes the boundary-trained encoder ``context_energy``
+  with an explicit ``energy_source="context_energy"`` identity; the
+  hierarchical ``population_energy`` is a distinct signal scored
+  separately at inference, never a training substitute.
+- The operating elevated threshold is calibrated FIRST from
+  verified-healthy dev-val context energies, then drives every
+  commissioned file state; the conformal calibrator fits dev-val
+  displacements only. Both provenances persist distinctly
+  (``operating_threshold`` vs ``confidence_calibrator_fit_cohort``).
+  There is no pooled dev-train fallback and no fixed-default runtime use:
+  insufficient dev-val cohorts fail fast.
 """
 
 from __future__ import annotations
@@ -43,7 +62,10 @@ import torch
 import yaml
 
 from representation.data import collate_variable_files
-from representation.v2_aggregation import aggregate_file_state
+from representation.v2_aggregation import (
+    aggregate_file_state,
+    calibrate_elevated_threshold_with_provenance,
+)
 from representation.v2_config import V2Config
 from representation.v2_inference import patch_regime_ids
 from representation.v2_risk import HealthyTailCalibrator
@@ -87,8 +109,11 @@ HYBRID_VARIANT = "hybrid-boundary"
 #: Commit placeholder recorded in configs and resolved at runtime.
 COMMIT_PLACEHOLDER = "{COMMIT}"
 
-#: Provenance manifest schema version.
-PROVENANCE_SCHEMA_VERSION = 1
+#: Provenance manifest schema version. Version 2 records the corrected
+#: Findings 1–3 contracts: explicit context-energy identity, dev-val-only
+#: operating threshold plus conformal fit with distinct provenances, and the
+#: complete stationary objective (no pooled/fixed fallbacks).
+PROVENANCE_SCHEMA_VERSION = 2
 
 #: Sealed views the runner MUST NEVER train on, calibrate on, or select with.
 SEALED_VIEWS: tuple[str, ...] = ("test_static", "test_temporal")
@@ -122,10 +147,16 @@ def hybrid_coefficients() -> dict[str, float]:
 def balance_matrix() -> list[dict[str, object]]:
     """Return the predeclared 5-epoch coefficient-balance matrix.
 
-    Cell ``balance-b`` equals the default hybrid; the full-stage frozen
-    hybrid reuses it unless Task 29 selects otherwise on validation-only
-    diagnostics. Never edited per-run: rejected cells and rationale
-    belong to the Task 29 selection record.
+    The matrix varies only the configured weights of the complete corrected
+    objective (clean conditional-density NLL at weight 1.0 by methodology,
+    plus ``variance_weight``/``covariance_weight``/``background_weight`` and
+    the ramped boundary coefficient); the density term itself is not
+    ablated. Cell ``balance-b`` equals the a priori default hybrid. Prior
+    Task 29 winner/full-freeze records made under the superseded objective
+    are not reused: the frozen full hybrid is the predeclared default until
+    Task 29 re-selects on corrected validation-only diagnostics. Never
+    edited per-run: rejected cells and rationale belong to the Task 29
+    selection record.
     """
     base = hybrid_coefficients()
     return [
@@ -144,7 +175,16 @@ BALANCE_MATRIX: tuple[dict[str, object], ...] = tuple(balance_matrix())
 
 @dataclass(frozen=True)
 class StageSpec:
-    """One executable staged experiment cell."""
+    """One executable staged experiment cell.
+
+    ``calibration_min_samples`` is an explicit small-sample floor override
+    for the dev-val-only conformal fit (Deep-Review Finding 3): ``None``
+    keeps the ``V2Config`` production default (32), while a committed config
+    may record a smaller floor with its own justification (structural stages
+    on tiny/bounded cohorts). The effective floor is always recorded in
+    provenance; cohorts below ``REFERENCE_FLOOR`` stay flagged small-sample
+    and their coverage is an in-sample diagnostic, never pooling silently.
+    """
 
     stage: str
     variant: str
@@ -160,6 +200,7 @@ class StageSpec:
     commit: str = COMMIT_PLACEHOLDER
     boundary_warmup_steps: int | None = None
     boundary_ramp_steps: int | None = None
+    calibration_min_samples: int | None = None
 
     def __post_init__(self) -> None:
         """Resolve an absent boundary schedule from the predeclared stage map."""
@@ -201,6 +242,11 @@ class StageSpec:
             value = getattr(self, name)
             if not isinstance(value, int) or isinstance(value, bool) or value < 0:
                 raise ValueError(f"{name} must be a non-negative int")
+        floor = self.calibration_min_samples
+        if floor is not None and (
+            not isinstance(floor, int) or isinstance(floor, bool) or floor < 1
+        ):
+            raise ValueError("calibration_min_samples must be a positive int or None")
         return self
 
 
@@ -286,6 +332,14 @@ def load_stage_config(path: str | Path) -> dict[str, Any]:
             not isinstance(config[key], int) or isinstance(config[key], bool) or config[key] < 0
         ):
             raise ValueError(f"staged config {target} has invalid {key!r}: {config[key]!r}")
+    floor = config.get("calibration_min_samples")
+    if floor is not None and (
+        not isinstance(floor, int) or isinstance(floor, bool) or floor < 1
+    ):
+        raise ValueError(
+            f"staged config {target} has invalid 'calibration_min_samples': {floor!r} "
+            "(expected a positive int or an absent key for the V2Config default)"
+        )
     cells = config.get("cells")
     if not isinstance(cells, list) or not cells:
         raise ValueError(f"staged config {target} must declare a non-empty 'cells' list")
@@ -304,6 +358,7 @@ def load_stage_config(path: str | Path) -> dict[str, Any]:
             commit=str(config.get("commit", COMMIT_PLACEHOLDER)),
             boundary_warmup_steps=config.get("boundary_warmup_steps"),
             boundary_ramp_steps=config.get("boundary_ramp_steps"),
+            calibration_min_samples=config.get("calibration_min_samples"),
         ).validate()
     return config
 
@@ -327,6 +382,7 @@ def iter_cells(config: Mapping[str, Any]) -> list[StageSpec]:
             commit=str(config.get("commit", COMMIT_PLACEHOLDER)),
             boundary_warmup_steps=config.get("boundary_warmup_steps"),
             boundary_ramp_steps=config.get("boundary_ramp_steps"),
+            calibration_min_samples=config.get("calibration_min_samples"),
         ).validate()
         for entry in config["cells"]  # type: ignore[union-attr]
     ]
@@ -404,6 +460,21 @@ def run_stage_cell(
     ``dev_train``/``dev_val`` verified-healthy files. The sealed
     ``test_static``/``test_temporal`` views are loaded solely as id sets
     for the leakage assertion and recorded as untouched.
+
+    Corrected Findings 1–3 flow (2/5/50 stages share this path):
+
+    - Stationary selection minimizes the complete signed-likelihood
+      validation objective at the final boundary coefficient
+      (:meth:`V2Trainer.stationary_loss`) — never squared distance to zero.
+    - The operating elevated threshold is calibrated FIRST from
+      verified-healthy dev-val ``context_energy`` patches
+      (:func:`calibrate_elevated_threshold_with_provenance`), then drives
+      every commissioned file state; the fixed config default never runs.
+    - The conformal calibrator fits dev-val trajectory displacements only
+      (``cohort="dev-val"``); cohorts below the effective floor fail fast —
+      pooling dev-train data is rejected.
+    - Provenance carries the two calibration records distinctly
+      (``operating_threshold`` vs ``confidence_calibrator_fit_cohort``).
     """
     spec.validate()
     started_wall = time.time()
@@ -436,6 +507,19 @@ def run_stage_cell(
                 f"quarantined file {sample.file_id} must never train staged geometry"
             )
 
+    default_floor = int(V2Config.model_fields["calibration_min_samples"].default)
+    effective_floor = (
+        int(spec.calibration_min_samples)
+        if spec.calibration_min_samples is not None
+        else default_floor
+    )
+    if len(val_files) < effective_floor:
+        raise ValueError(
+            f"dev-val cohort too small for the conformal fit "
+            f"({len(val_files)} files < floor {effective_floor}); pooling "
+            "dev-train data is rejected — record an explicit small-sample "
+            "calibration_min_samples in the staged config instead"
+        )
     torch.manual_seed(spec.seed)
     n_robots = max(s.robot_idx for s in samples) + 1
     n_programs = max(s.program_idx for s in samples) + 1
@@ -452,6 +536,7 @@ def run_stage_cell(
         background_weight=float(spec.coefficients["background_weight"]),
         variance_weight=float(spec.coefficients["variance_weight"]),
         covariance_weight=float(spec.coefficients["covariance_weight"]),
+        calibration_min_samples=effective_floor,
         seed=spec.seed,
     )
     patchifier = Patchifier(PatchConfig(patch_size=config.patch_size, stride=config.stride))
@@ -528,6 +613,52 @@ def run_stage_cell(
     trainer.restore_best_state()
 
     model.eval()
+    # Operating threshold FIRST (Finding 2): calibrate from verified-healthy
+    # dev-val context energies only, then drive every commissioned file state
+    # with the calibrated cutoff. The fixed config default never aggregates;
+    # an empty dev-val energy pool fails fast instead of falling back.
+    dev_val_energy_parts, dev_val_valid_parts = [], []
+    with torch.no_grad():
+        for start in range(0, len(val_files), spec.batch_size):
+            batch = make_batch(
+                val_files[start : start + spec.batch_size], spec.seed + 778
+            )
+            inputs = trainer._encoder_inputs(batch)
+            encoded = model(**inputs)
+            dev_val_energy_parts.append(encoded["context_energy"].cpu())
+            dev_val_valid_parts.append(batch["patch_valid_mask"].cpu())
+    energy_width = max(part.shape[1] for part in dev_val_energy_parts)
+    padded_energies = torch.cat(
+        [
+            torch.cat(
+                [part, torch.zeros((part.shape[0], energy_width - part.shape[1]))],
+                dim=1,
+            )
+            for part in dev_val_energy_parts
+        ],
+        dim=0,
+    )
+    padded_valid = torch.cat(
+        [
+            torch.cat(
+                [
+                    part,
+                    torch.zeros(
+                        (part.shape[0], energy_width - part.shape[1]),
+                        dtype=torch.bool,
+                    ),
+                ],
+                dim=1,
+            )
+            for part in dev_val_valid_parts
+        ],
+        dim=0,
+    )
+    operating_threshold, operating_provenance = (
+        calibrate_elevated_threshold_with_provenance(
+            padded_energies, padded_valid, tail_probability=0.05, cohort="dev-val"
+        )
+    )
     # Commission boundary: training runs on the selected device, while
     # geometry references are commissioned on CPU (fit() normalizes there
     # and restored inference scores on CPU). Transfer explicitly here so a
@@ -541,7 +672,7 @@ def run_stage_cell(
             inputs = trainer._encoder_inputs(batch)
             encoded = model(**inputs)
             latents_cpu = encoded["patch_latents"].cpu()
-            energy_cpu = encoded["patch_energy"].cpu()
+            energy_cpu = encoded["context_energy"].cpu()
             valid = batch["patch_valid_mask"]
             latent_rows.append(latents_cpu[valid])
             robot_rows.append(batch["robot_idx"].unsqueeze(1).expand_as(valid)[valid])
@@ -552,11 +683,13 @@ def run_stage_cell(
                 energy_cpu,
                 valid,
                 batch["regime_ids"],
+                energy_source="context_energy",
                 top_q_fraction=config.top_q_fraction,
-                elevated_threshold=config.elevated_threshold,
+                elevated_threshold=operating_threshold,
                 n_regimes=config.n_regimes,
             )
-            train_states.append(state["file_state"])
+            assert state["energy_source"] == "context_energy"
+            train_states.append(state["file_state"])  # type: ignore[arg-type]
     geometry = trainer.fit_geometry(
         torch.cat(latent_rows),
         torch.cat(robot_rows),
@@ -576,33 +709,38 @@ def run_stage_cell(
             encoded = model(**inputs)
             state = aggregate_file_state(
                 encoded["patch_latents"].cpu(),
-                encoded["patch_energy"].cpu(),
+                encoded["context_energy"].cpu(),
                 batch["patch_valid_mask"],
                 batch["regime_ids"],
+                energy_source="context_energy",
                 top_q_fraction=config.top_q_fraction,
-                elevated_threshold=config.elevated_threshold,
+                elevated_threshold=operating_threshold,
                 n_regimes=config.n_regimes,
             )
+            assert state["energy_source"] == "context_energy"
             val_states.append(state["file_state"])
     val_states = torch.cat(val_states)
-    if val_states.shape[0] >= config.calibration_min_samples:
-        calibration_states, calibration_source = val_states, "dev-val only"
-    else:
-        calibration_states = torch.cat([train_states, val_states])
-        calibration_source = (
-            f"pooled dev-train+dev-val ({val_states.shape[0]} < floor "
-            f"{config.calibration_min_samples}; server runs use dev-val only)"
-        )
+    # Dev-val-only conformal fit (Finding 3): the probe baseline is
+    # commissioned on train file states, but only dev-val rows are scored and
+    # fitted. Cohorts below the effective floor already failed fast above;
+    # pooling dev-train rows here is rejected.
     probe_tracker = TrajectoryTracker(config.d_model)
     probe_tracker.fit_commissioning(train_states, torch.ones(train_states.shape[0], dtype=torch.bool))
-    displacements = torch.cat(
-        [probe_tracker.update(row)["displacement"] for row in calibration_states]
+    val_displacements = torch.cat(
+        [probe_tracker.update(row)["displacement"] for row in val_states]
     )
     calibrator = HealthyTailCalibrator(min_samples=config.calibration_min_samples).fit(
-        displacements
+        val_displacements, cohort="dev-val"
     )
+    confidence_cohort = calibrator.fit_cohort_info()
 
-    trainer.save(checkpoint_path, geometry=geometry, calibrator=calibrator, tracker=tracker)
+    trainer.save(
+        checkpoint_path,
+        geometry=geometry,
+        calibrator=calibrator,
+        tracker=tracker,
+        operating_threshold=dict(operating_provenance),
+    )
     health = geometry_health(geometry)
     commit_info = resolve_commit(spec.commit)
     wall_s = time.perf_counter() - started_perf
@@ -627,13 +765,22 @@ def run_stage_cell(
         "checkpoint_path": str(checkpoint_path),
         "checkpoint_sha256": sha256_file(checkpoint_path),
         "reference_source": "dev-train commissioning (frozen hierarchical references)",
-        "calibration_source": calibration_source,
+        "operating_threshold": dict(operating_provenance),
+        "confidence_calibrator_fit_cohort": dict(confidence_cohort),
+        "calibration_min_samples": int(config.calibration_min_samples),
+        "stationary_objective": (
+            "complete signed-likelihood validation objective at the final "
+            "boundary coefficient (clean conditional-density NLL + variance + "
+            "covariance + background + ramped boundary); never squared "
+            "distance to zero and never test outcomes"
+        ),
         "device": device,
         "torch_cuda_available": torch.cuda.is_available(),
         "seeds": {
             "training": spec.seed,
             "corruption": f"seed+epoch*1000+offset (base {spec.seed})",
-            "calibration": spec.seed + 777,
+            "commissioning": spec.seed + 777,
+            "threshold_calibration": spec.seed + 778,
         },
         "coefficients": dict(spec.coefficients),
         "boundary_schedule": {

@@ -53,14 +53,15 @@ def test_singular_and_sparse_groups_stay_finite() -> None:
     geo.fit(rows, ids, ids, ids, torch.ones(6, dtype=torch.bool))
     stats = geo.resolve(0, 0, 0)
     assert torch.isfinite(stats.cov).all()
-    out = geo.patch_energy(
+    out = geo.population_energy(
         torch.ones(1, 2, 4),
         torch.ones(1, 2, dtype=torch.bool),
         torch.tensor([0]),
         torch.tensor([0]),
         torch.tensor([[0, 0]]),
     )
-    assert torch.isfinite(out["patch_energy"]).all()
+    assert torch.isfinite(out["population_energy"]).all()
+    assert set(out) == {"population_energy", "group_confidence", "fallback_level"}
     # Sparse single-sample group still resolves through a parent, never NaN.
     geo2 = HierarchicalMahalanobisGeometry(d_model=4, diag_min_samples=64, min_group_samples=4)
     latents, robot, program, regime, healthy = _fit_data(per_group=2)
@@ -80,11 +81,11 @@ def test_references_reject_abnormal_and_freeze_for_monitoring() -> None:
     geo.fit(latents, robot, program, regime, healthy)
     frozen = geo.frozen()
     latents_q = torch.randn(1, 2, 4)
-    out = frozen.patch_energy(
+    out = frozen.population_energy(
         latents_q, torch.ones(1, 2, dtype=torch.bool),
         torch.tensor([0]), torch.tensor([0]), torch.tensor([[0, 1]]),
     )
-    assert torch.isfinite(out["patch_energy"]).all()
+    assert torch.isfinite(out["population_energy"]).all()
     with pytest.raises(ValueError, match="frozen"):
         geo.fit(latents, robot, program, regime, healthy)
 
@@ -95,16 +96,17 @@ def test_mixture_energy_covers_modes_and_unknown_group_is_low_confidence() -> No
     valid = torch.ones(1, 1, dtype=torch.bool)
     near = geo.mixture_energy(query, valid, torch.tensor([1]), torch.tensor([0]), torch.tensor([[0]]))
     far = geo.mixture_energy(-query, valid, torch.tensor([1]), torch.tensor([0]), torch.tensor([[0]]))
-    assert torch.isfinite(near["patch_energy"]).all()
-    assert bool((far["patch_energy"] > near["patch_energy"]).all())
-    unknown = geo.patch_energy(query, valid, torch.tensor([9]), torch.tensor([9]), torch.tensor([[9]]))
-    assert torch.isfinite(unknown["patch_energy"]).all()
+    assert torch.isfinite(near["population_energy"]).all()
+    assert set(near) == {"population_energy"}
+    assert bool((far["population_energy"] > near["population_energy"]).all())
+    unknown = geo.population_energy(query, valid, torch.tensor([9]), torch.tensor([9]), torch.tensor([[9]]))
+    assert torch.isfinite(unknown["population_energy"]).all()
     assert float(unknown["group_confidence"][0, 0]) == pytest.approx(0.25)
 
 
 def test_scoring_preserves_query_gradients_but_not_reference_params() -> None:
     geo = _geometry()
-    for scoring in (geo.patch_energy, geo.mixture_energy):
+    for scoring in (geo.population_energy, geo.mixture_energy):
         query = torch.randn(2, 3, 4, requires_grad=True)
         valid = torch.ones(2, 3, dtype=torch.bool)
         valid[0, 2] = False
@@ -112,8 +114,9 @@ def test_scoring_preserves_query_gradients_but_not_reference_params() -> None:
             query, valid, torch.tensor([0, 1]), torch.tensor([0, 0]),
             torch.tensor([[0, 1, 0], [0, 1, 0]]),
         )
-        assert torch.isfinite(out["patch_energy"]).all()
-        out["patch_energy"].sum().backward()
+        assert torch.isfinite(out["population_energy"]).all()
+        assert set(out) <= {"population_energy", "group_confidence", "fallback_level"}
+        out["population_energy"].sum().backward()
         assert query.grad is not None
         assert torch.isfinite(query.grad).all()
         assert bool((query.grad[valid] != 0).any())
@@ -127,7 +130,7 @@ def test_scoring_preserves_query_gradients_but_not_reference_params() -> None:
 
 
 def test_tight_mixture_density_scores_negative_and_validates() -> None:
-    from representation.v2_contracts import validate_patch_output
+    from representation.v2_contracts import validate_population_patch_output
 
     geo = HierarchicalMahalanobisGeometry(
         d_model=2, shrinkage=0.0, covariance_eps=1e-6,
@@ -142,12 +145,12 @@ def test_tight_mixture_density_scores_negative_and_validates() -> None:
     out = geo.mixture_energy(
         query, valid, torch.tensor([0]), torch.tensor([0]), torch.tensor([[0, 0]])
     )
-    assert torch.isfinite(out["patch_energy"]).all()
-    assert float(out["patch_energy"][0, 0]) < 0.0
-    validate_patch_output(
+    assert torch.isfinite(out["population_energy"]).all()
+    assert float(out["population_energy"][0, 0]) < 0.0
+    assert set(out) == {"population_energy"}
+    validate_population_patch_output(
         {
-            "patch_latents": query.masked_fill(~valid.unsqueeze(-1), 0.0),
-            "patch_energy": out["patch_energy"],
+            "population_energy": out["population_energy"],
             "patch_valid_mask": valid,
         }
     )

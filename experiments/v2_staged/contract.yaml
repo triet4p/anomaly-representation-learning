@@ -1,8 +1,22 @@
 # Sprint 11 Task 22 — 2-epoch contract stage (matched control/hybrid).
 #
-# Proves executable contracts only: syntax, device, batching, loss
-# finiteness, covariance stability, coherent checkpoints, and restored
-# references. Uses no test outcome for any decision.
+# Proves executable contracts only: syntax, device, batching, complete
+# signed-density objective diagnostics (clean conditional-density NLL +
+# variance/covariance + background + ramped boundary), likelihood-consistent
+# stationary selection at the final boundary coefficient, explicit
+# context-energy identity, dev-val-calibrated operating threshold driving
+# every commissioned file state, dev-val-only conformal fit with distinct
+# provenances, and coherent checkpoints with restored references. Uses no
+# test outcome for any decision.
+#
+# Small-sample rule (Deep-Review Finding 3): the contract stage runs on
+# tiny/bounded cohorts whose verified-healthy dev-val views carry fewer
+# than the 32-sample production floor (tiny client: 7 files; bounded
+# server preflight likewise). calibration_min_samples: 4 is the explicit
+# structural minimum already established in test_v2_integration: the fit
+# stays dev-val-only, provenance flags small_sample=true below
+# REFERENCE_FLOOR, and coverage from such fits is an in-sample diagnostic,
+# never independent coverage. There is no pooled dev-train fallback.
 stage: contract
 epochs: 2
 seed: 0
@@ -11,6 +25,8 @@ batch_size: 8
 lr: 0.001
 corruption_rate: 0.1
 severity: 2.0
+# Explicit small-sample floor for the dev-val-only conformal fit (see above).
+calibration_min_samples: 4
 # Resolved to the exact git HEAD at runtime (see v2_staged.resolve_commit).
 commit: "{COMMIT}"
 cells:

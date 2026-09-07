@@ -30,7 +30,7 @@ from representation.v2_contracts import validate_confidence, validate_risk
 class HealthyTailCalibrator:
     """Empirical healthy-tail anomaly confidence (conformal-style).
 
-    Fit exclusively on verified-healthy validation scores. For a query
+    Fit exclusively on verified-healthy dev-validation scores. For a query
     score ``s``::
 
         p_normal = (1 + #{healthy_j >= s}) / (V + 1)
@@ -38,16 +38,50 @@ class HealthyTailCalibrator:
 
     High scores (far tail) yield confidence near one; typical healthy
     scores yield confidence near zero.
+
+    The fit cohort is recorded in the state (cohort label, sample count,
+    small-sample status) and persisted separately from the operating
+    decision threshold cohort: pooling train data or mislabeling the
+    cohort raises instead of silently fitting.
     """
+
+    #: Reference floor for the small-sample disclosure flag. Fits at or
+    #: above ``min_samples`` are valid, but cohorts below this conventional
+    #: size (e.g. an 11-file dev-val) are flagged so downstream readers do
+    #: not mistake the fit for a large-sample calibration.
+    REFERENCE_FLOOR: int = 32
 
     def __init__(self, min_samples: int = 32) -> None:
         if min_samples < 1:
             raise ValueError("min_samples must be positive")
         self.min_samples = int(min_samples)
         self._scores: torch.Tensor | None = None
+        self._fit_cohort: str | None = None
 
-    def fit(self, healthy_scores: torch.Tensor) -> "HealthyTailCalibrator":
-        """Store sorted verified-healthy validation scores for tail lookup."""
+    @staticmethod
+    def _require_dev_val_cohort(cohort: str) -> str:
+        """Return the cohort label after enforcing dev-val-only fitting."""
+        label = str(cohort)
+        normalized = label.strip().lower()
+        if not normalized.startswith("dev-val"):
+            raise ValueError(
+                "confidence-calibrator fitting requires a verified-healthy "
+                f"dev-val cohort (got {cohort!r}); pooled train data is rejected"
+            )
+        if "train" in normalized or "pool" in normalized:
+            raise ValueError(
+                f"confidence-calibrator fitting must not use train or pooled "
+                f"data (got {cohort!r}); dev-val only"
+            )
+        return label
+
+    def fit(self, healthy_scores: torch.Tensor, *, cohort: str) -> "HealthyTailCalibrator":
+        """Store sorted verified-healthy dev-validation scores for tail lookup.
+
+        ``cohort`` names the exact fit cohort and MUST denote verified-healthy
+        dev-validation data (e.g. ``"dev-val"``); train/pooled labels raise.
+        """
+        label = self._require_dev_val_cohort(cohort)
         flat = healthy_scores.detach().to(dtype=torch.float32).reshape(-1)
         if flat.numel() < self.min_samples:
             raise ValueError(
@@ -57,6 +91,7 @@ class HealthyTailCalibrator:
         if not torch.isfinite(flat).all():
             raise ValueError("healthy calibration scores must be finite")
         self._scores = torch.sort(flat).values
+        self._fit_cohort = label
         return self
 
     def confidence(self, scores: torch.Tensor) -> dict[str, torch.Tensor]:
@@ -90,10 +125,28 @@ class HealthyTailCalibrator:
         out = self.confidence(healthy_scores)
         return float((out["p_normal"] >= (1.0 - level)).float().mean().item())
 
+    def fit_cohort_info(self) -> dict[str, object]:
+        """Return the persisted fit-cohort provenance record."""
+        if self._scores is None:
+            raise ValueError("calibrator is not fitted")
+        n_samples = int(self._scores.numel())
+        return {
+            "cohort": self._fit_cohort,
+            "n_samples": n_samples,
+            "min_samples": int(self.min_samples),
+            "small_sample": bool(n_samples < self.REFERENCE_FLOOR),
+        }
+
     def state_dict(self) -> dict[str, object]:
         if self._scores is None:
             raise ValueError("calibrator is not fitted")
-        return {"min_samples": self.min_samples, "scores": self._scores.clone()}
+        return {
+            "min_samples": self.min_samples,
+            "scores": self._scores.clone(),
+            "fit_cohort": self._fit_cohort,
+            "n_samples": int(self._scores.numel()),
+            "small_sample": bool(int(self._scores.numel()) < self.REFERENCE_FLOOR),
+        }
 
     def load_state_dict(self, state: dict[str, object]) -> None:
         scores = state.get("scores")
@@ -101,6 +154,8 @@ class HealthyTailCalibrator:
             raise ValueError("calibrator state must carry 1-D scores")
         self.min_samples = int(state.get("min_samples", self.min_samples))
         self._scores = scores.detach().to(dtype=torch.float32).clone()
+        cohort = state.get("fit_cohort")
+        self._fit_cohort = None if cohort is None else str(cohort)
 
 
 class _HorizonLogit(nn.Module):

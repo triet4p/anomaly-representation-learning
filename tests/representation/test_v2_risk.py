@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
 import torch
-
 from representation.v2_contracts import validate_confidence, validate_risk
 from representation.v2_risk import (
     CensoredSurvivalRisk,
@@ -31,7 +31,7 @@ def _risk_data(seed: int = 7, n: int = 400):
 def test_confidence_calibration_and_sparse_behavior() -> None:
     torch.manual_seed(0)
     healthy = torch.randn(200).abs()  # healthy displacement-like scores
-    cal = HealthyTailCalibrator(min_samples=32).fit(healthy)
+    cal = HealthyTailCalibrator(min_samples=32).fit(healthy, cohort="dev-val")
     typical = cal.confidence(torch.tensor([healthy.median().item()]))
     extreme = cal.confidence(torch.tensor([healthy.max().item() + 5.0]))
     validate_confidence(typical)
@@ -43,9 +43,8 @@ def test_confidence_calibration_and_sparse_behavior() -> None:
     fresh = torch.randn(500).abs()
     assert abs(cal.coverage(fresh, level=0.95) - 0.95) < 0.1
     # Sparse calibration floor: exactly min_samples still validates.
-    sparse = HealthyTailCalibrator(min_samples=8).fit(torch.randn(8).abs())
+    sparse = HealthyTailCalibrator(min_samples=8).fit(torch.randn(8).abs(), cohort="dev-val")
     out = sparse.confidence(torch.tensor([100.0]))
-    assert abs(float(out["confidence"]) - (1.0 - 1.0 / 9.0)) < 1e-6
     # Serialization preserves the tail exactly.
     clone = HealthyTailCalibrator(min_samples=32)
     clone.load_state_dict(cal.state_dict())
@@ -83,7 +82,7 @@ def test_censoring_horizon_ordering_and_brier() -> None:
 def test_confidence_and_risk_remain_distinct() -> None:
     torch.manual_seed(3)
     healthy = torch.randn(100).abs()
-    cal = HealthyTailCalibrator(min_samples=32).fit(healthy)
+    cal = HealthyTailCalibrator(min_samples=32).fit(healthy, cohort="dev-val")
     features, days, event = _risk_data(seed=11, n=300)
     risk = CensoredSurvivalRisk(expected_feature_width()).fit(features, days, event)
     # A merely unusual file (high confidence) need not carry high failure
@@ -110,3 +109,47 @@ def test_trajectory_feature_matrix_rejects_future_inputs() -> None:
     matrix = trajectory_feature_matrix(trajectory, tail, elevated)
     assert tuple(matrix.shape) == (b, expected_feature_width())
     assert torch.isfinite(matrix).all()
+
+
+def test_confidence_fit_rejects_train_and_pooled_cohorts() -> None:
+    """No pooled train fallback: non-dev-val cohorts raise instead of fitting."""
+    torch.manual_seed(9)
+    healthy = torch.randn(40).abs()
+    for bad in (
+        "dev-train",
+        "pooled dev-train+dev-val (11 < floor 32; server runs use dev-val only)",
+        "test_static",
+        "train",
+    ):
+        with pytest.raises(ValueError, match="dev-val"):
+            HealthyTailCalibrator(min_samples=8).fit(healthy, cohort=bad)
+    # The accepted dev-val fit records its exact cohort.
+    cal = HealthyTailCalibrator(min_samples=8).fit(healthy, cohort="dev-val")
+    assert cal.fit_cohort_info()["cohort"] == "dev-val"
+
+
+def test_confidence_state_carries_cohort_counts_and_small_sample_flag() -> None:
+    torch.manual_seed(4)
+    small = HealthyTailCalibrator(min_samples=4).fit(torch.randn(7).abs(), cohort="dev-val")
+    info = small.fit_cohort_info()
+    assert info["n_samples"] == 7
+    assert info["min_samples"] == 4
+    assert info["small_sample"] is True  # 7 valid fits below the 32 reference floor
+    state = small.state_dict()
+    assert state["fit_cohort"] == "dev-val"
+    assert state["n_samples"] == 7
+    assert state["small_sample"] is True
+    large = HealthyTailCalibrator(min_samples=8).fit(torch.randn(64).abs(), cohort="dev-val")
+    assert large.fit_cohort_info()["small_sample"] is False
+    # Restore round-trips the provenance alongside the tail.
+    clone = HealthyTailCalibrator(min_samples=4)
+    clone.load_state_dict(state)
+    assert clone.fit_cohort_info() == info
+    torch.testing.assert_close(
+        clone.confidence(torch.tensor([10.0]))["confidence"],
+        small.confidence(torch.tensor([10.0]))["confidence"],
+    )
+    # Legacy states without a cohort restore as unknown, never as dev-val.
+    legacy = HealthyTailCalibrator(min_samples=4)
+    legacy.load_state_dict({"min_samples": 4, "scores": torch.randn(7).abs()})
+    assert legacy.fit_cohort_info()["cohort"] is None

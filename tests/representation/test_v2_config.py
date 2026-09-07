@@ -12,8 +12,9 @@ from representation.v2_config import (
 )
 from representation.v2_contracts import (
     validate_confidence,
+    validate_context_patch_output,
     validate_file_state,
-    validate_patch_output,
+    validate_population_patch_output,
     validate_risk,
     validate_trajectory,
 )
@@ -60,20 +61,32 @@ def test_patch_output_contract_accepts_valid_rejects_leak_shapes() -> None:
     latents = torch.zeros(2, 3, 4)
     energy = torch.tensor([[0.5, 0.0, 1.0], [0.2, 0.3, 0.0]])
     valid = torch.tensor([[True, False, True], [True, True, False]])
-    validate_patch_output(
-        {"patch_latents": latents, "patch_energy": energy, "patch_valid_mask": valid}
+    validate_context_patch_output(
+        {"patch_latents": latents, "context_energy": energy, "patch_valid_mask": valid}
     )
     # Continuous Gaussian/mixture NLL is signed: tight normal densities score
     # below zero on valid patches without changing invalid-patch semantics.
     negative = torch.tensor([[-2.5, 0.0, -0.25], [-1.0, -3.75, 0.0]])
-    validate_patch_output(
-        {"patch_latents": latents, "patch_energy": negative, "patch_valid_mask": valid}
+    validate_context_patch_output(
+        {"patch_latents": latents, "context_energy": negative, "patch_valid_mask": valid}
     )
     bad_energy = energy.clone()
     bad_energy[0, 1] = 2.0
     with pytest.raises(ValueError, match="invalid patches"):
-        validate_patch_output(
-            {"patch_latents": latents, "patch_energy": bad_energy, "patch_valid_mask": valid}
+        validate_context_patch_output(
+            {"patch_latents": latents, "context_energy": bad_energy, "patch_valid_mask": valid}
+        )
+    # Cross-field presence is rejected: a context output carrying population
+    # energy (and vice versa) fails validation.
+    with pytest.raises(ValueError, match="distinct signals"):
+        validate_context_patch_output(
+            {"patch_latents": latents, "context_energy": energy,
+             "population_energy": energy, "patch_valid_mask": valid}
+        )
+    with pytest.raises(ValueError, match="distinct signals"):
+        validate_population_patch_output(
+            {"population_energy": energy, "context_energy": energy,
+             "patch_valid_mask": valid}
         )
 
 

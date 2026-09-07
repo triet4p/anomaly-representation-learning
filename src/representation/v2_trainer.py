@@ -6,9 +6,12 @@ are built from an explicit allowlist
 (:data:`V2_ENCODER_CONTEXT_FIELDS`); corruption masks and severities
 shape the loss only and never enter the encoder.
 
-Model selection uses the stationary validation objective (clean normal
-density) only — never test outcomes and never the synthetic boundary
-margin, so selection cannot reward generator recognition.
+Model selection minimizes the full declared signed-likelihood objective
+(clean conditional-density NLL plus configured variance/covariance,
+background, and final-coefficient boundary terms) on validation batches —
+never squared distance to zero and never test outcomes. Severity enters
+through the configured corrupted view; cross-severity ordering stays a
+diagnostic, not a selection term.
 """
 
 from __future__ import annotations
@@ -72,6 +75,7 @@ class V2Trainer:
         self.history: list[dict[str, float]] = []
         self.best_stationary: float | None = None
         self.best_state: dict[str, object] | None = None
+        self.seed = int(seed)
         self.model.to(self.device)
         gen = torch.Generator().manual_seed(int(seed))
         self._generator = gen
@@ -120,8 +124,8 @@ class V2Trainer:
         terms = self.criterion(
             clean["patch_latents"],
             corrupt["patch_latents"],
-            clean["patch_energy"],
-            corrupt["patch_energy"],
+            clean["context_energy"],
+            corrupt["context_energy"],
             inputs["patch_valid_mask"],
             corruption_mask,
             step=self.step,
@@ -143,19 +147,75 @@ class V2Trainer:
     def stationary_loss(
         self, batches: Iterable[Mapping[str, torch.Tensor]]
     ) -> float:
-        """Evaluate the clean normal-density objective without mutation."""
+        """Evaluate the full declared signed-likelihood objective sans mutation.
+
+        Each validation batch is scored exactly as trained: the clean
+        encoder view plus a deterministically re-synthesized corrupted view
+        at the batch's configured severity, combined through
+        :meth:`CounterfactualCriterion.forward` with the boundary
+        coefficient pinned to its final (fully ramped) value. The returned
+        mean preserves the signed NLL: a more-negative valid likelihood
+        scores lower (better) than a near-zero one. Corruption synthesis
+        uses a per-batch deterministic generator derived from the trainer
+        seed, so repeated evaluations compare model states rather than
+        noise draws, and the training generator is never consumed here.
+        """
         was_training = self.model.training
         self.model.eval()
+        eval_step = int(self.criterion.boundary_schedule.full_ramp_step)
         total, count = 0.0, 0
-        for batch in batches:
+        for index, batch in enumerate(batches):
             inputs = self._encoder_inputs(batch)
-            out = self.model(**inputs)
-            latents = out["patch_latents"]
+            if "corruption_mask" not in batch or "severity" not in batch:
+                raise ValueError(
+                    "stationary evaluation needs 'corruption_mask'/'severity' "
+                    "alongside the encoder batch"
+                )
+            corruption_mask = batch["corruption_mask"].to(self.device)
+            if corruption_mask.dtype is not torch.bool:
+                raise ValueError("corruption_mask must have torch.bool dtype")
+            severity = batch["severity"]
+            severity_value = (
+                float(severity.item())
+                if isinstance(severity, torch.Tensor)
+                else float(severity)
+            )
+            clean = self.model(**inputs)
+            probe_generator = torch.Generator().manual_seed(
+                (self.seed + 0x9E3779B9 * (index + 1)) % 2**32
+            )
+            corrupted_patches = synthesize_corrupted_patches(
+                inputs["patches"],
+                inputs["patch_pad_mask"],
+                inputs["patch_valid_mask"],
+                corruption_mask,
+                severity_value,
+                generator=probe_generator,
+            )
+            corrupt = self.model(
+                patches=corrupted_patches,
+                patch_pad_mask=inputs["patch_pad_mask"],
+                patch_valid_mask=inputs["patch_valid_mask"],
+                robot_idx=inputs["robot_idx"],
+                program_idx=inputs["program_idx"],
+                regime_ids=inputs["regime_ids"],
+            )
             valid = inputs["patch_valid_mask"]
-            sel = latents[valid]
-            if sel.numel() == 0:
+            if not bool(valid.any()):
                 continue
-            total += float(out["patch_energy"][valid].pow(2).mean().item())
+            terms = self.criterion(
+                clean["patch_latents"],
+                corrupt["patch_latents"],
+                clean["context_energy"],
+                corrupt["context_energy"],
+                valid,
+                corruption_mask,
+                step=eval_step,
+            )
+            value = float(terms["loss"].detach().cpu().item())
+            if value != value or abs(value) == float("inf"):
+                raise ValueError("stationary evaluation produced a non-finite objective")
+            total += value
             count += 1
         if was_training:
             self.model.train()
@@ -220,8 +280,15 @@ class V2Trainer:
         calibrator: object | None = None,
         risk: object | None = None,
         tracker: object | None = None,
+        operating_threshold: Mapping[str, object] | None = None,
+        confidence_calibrator_cohort: Mapping[str, object] | None = None,
     ) -> None:
-        """Save coherent training plus monitoring state (fail fast on path)."""
+        """Save coherent training plus monitoring state (fail fast on path).
+
+        ``operating_threshold`` carries the dev-val-calibrated elevated-patch
+        provenance record; ``confidence_calibrator_cohort`` optionally
+        overrides the cohort record otherwise derived from the calibrator.
+        """
         live = geometry
         if isinstance(geometry, FrozenReference):
             live = geometry._geometry  # noqa: SLF001 - snapshot needs live refs
@@ -229,6 +296,8 @@ class V2Trainer:
             path, self.model, config=self.config, step=self.step,
             optimizer=self.optimizer, scheduler=self.scheduler,
             geometry=live, calibrator=calibrator, risk=risk, tracker=tracker,
+            operating_threshold=operating_threshold,
+            confidence_calibrator_cohort=confidence_calibrator_cohort,
         )
 
     def load(

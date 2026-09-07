@@ -1,9 +1,19 @@
 # Sprint 11 Task 22 — 50-epoch frozen full stage: normal-only control.
 #
-# Matched V2 normal-geometry control for the Task 30 full training run:
+# Matched V2 normal-geometry control for the Task 30 full training rerun:
 # same commit, data, seed policy, compute profile, and output contract
 # as the hybrid mate. Boundary learning is disabled
 # (boundary_alpha_max: 0.0); everything else matches full_hybrid.yaml.
+# Complete corrected objective, likelihood-consistent stationary
+# selection, explicit context-energy identity, dev-val-calibrated
+# operating threshold, dev-val-only conformal fit, and distinct
+# provenances throughout (see contract.yaml).
+#
+# Small-sample rule (Deep-Review Finding 3): same explicit structural
+# minimum as the contract stage (see contract.yaml). The locked server dev
+# cohort carries 11 verified-healthy dev-val files: the fit stays
+# dev-val-only, provenance flags small_sample=true, and coverage is an
+# in-sample diagnostic. No pooled dev-train fallback.
 stage: full
 epochs: 50
 seed: 0
@@ -12,6 +22,8 @@ batch_size: 8
 lr: 0.001
 corruption_rate: 0.1
 severity: 2.0
+# Explicit small-sample floor for the dev-val-only conformal fit (see above).
+calibration_min_samples: 4
 # Resolved to the exact git HEAD at runtime (see v2_staged.resolve_commit).
 commit: "{COMMIT}"
 cells:

@@ -5,7 +5,7 @@ from __future__ import annotations
 import torch
 
 from representation.v2_patch import ContextConditionedPatchEncoder
-from representation.v2_contracts import validate_patch_output
+from representation.v2_contracts import validate_context_patch_output
 
 
 def _encoder() -> ContextConditionedPatchEncoder:
@@ -47,7 +47,9 @@ def test_variable_length_shapes_and_localization() -> None:
     assert torch.isfinite(out["patch_latents"]).all()
     # Invalid patches carry no signal; valid patches are localized per position.
     assert (out["patch_latents"][~valid] == 0).all()
-    assert (out["patch_energy"][~valid] == 0).all()
+    assert (out["context_energy"][~valid] == 0).all()
+    assert "population_energy" not in out
+    validate_context_patch_output(out)
 
 
 def test_padding_values_cannot_leak_into_valid_embeddings() -> None:
@@ -60,7 +62,7 @@ def test_padding_values_cannot_leak_into_valid_embeddings() -> None:
     with torch.no_grad():
         actual = enc(poisoned, pad, valid, robot, program, regimes)
     torch.testing.assert_close(actual["patch_latents"], baseline["patch_latents"])
-    torch.testing.assert_close(actual["patch_energy"], baseline["patch_energy"])
+    torch.testing.assert_close(actual["context_energy"], baseline["context_energy"])
 
 
 def test_low_variance_conditional_nll_is_negative_and_valid() -> None:
@@ -73,10 +75,10 @@ def test_low_variance_conditional_nll_is_negative_and_valid() -> None:
     assert bool((energy < 0).all())
     assert torch.isfinite(energy).all()
     valid = torch.tensor([[True, False]])
-    validate_patch_output(
+    validate_context_patch_output(
         {
             "patch_latents": latents.masked_fill(~valid.unsqueeze(-1), 0.0),
-            "patch_energy": energy.masked_fill(~valid, 0.0),
+            "context_energy": energy.masked_fill(~valid, 0.0),
             "patch_valid_mask": valid,
         }
     )
@@ -90,8 +92,8 @@ def test_context_conditioning_changes_energy_and_gradients_flow() -> None:
     alt_program = torch.tensor([0, 1])
     with torch.no_grad():
         alt = enc(patches, pad, valid, robot, alt_program, regimes)
-    assert not torch.equal(out["patch_energy"], alt["patch_energy"])
-    loss = out["patch_energy"][valid].mean() + out["prototype_logits"][valid].pow(2).mean()
+    assert not torch.equal(out["context_energy"], alt["context_energy"])
+    loss = out["context_energy"][valid].mean() + out["prototype_logits"][valid].pow(2).mean()
     loss.backward()
     grads = [p.grad for p in enc.parameters() if p.requires_grad]
     assert any(g is not None and torch.isfinite(g).all() and bool((g != 0).any()) for g in grads)

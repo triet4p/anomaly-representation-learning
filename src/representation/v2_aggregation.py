@@ -17,7 +17,32 @@ from collections.abc import Sequence
 
 import torch
 
-from representation.v2_contracts import validate_file_state
+from representation.v2_contracts import (
+    CONTEXT_ENERGY_FIELD,
+    POPULATION_ENERGY_FIELD,
+    validate_file_state,
+)
+
+#: Cohort namespace the operating elevated threshold may be calibrated from.
+#: Verified-healthy development validation only — never train, pooled, or test.
+DEV_VAL_COHORT_PREFIX: str = "dev-val"
+
+
+def _require_dev_val_cohort(cohort: str, *, what: str) -> str:
+    """Return the cohort label after enforcing validation-only calibration."""
+    label = str(cohort)
+    normalized = label.strip().lower()
+    if not normalized.startswith(DEV_VAL_COHORT_PREFIX):
+        raise ValueError(
+            f"{what} must be calibrated on a verified-healthy dev-val cohort "
+            f"(got {cohort!r})"
+        )
+    if "train" in normalized or "pool" in normalized:
+        raise ValueError(
+            f"{what} must not use train or pooled data (got {cohort!r}); "
+            "dev-val only"
+        )
+    return label
 
 #: Default quantile levels: median, upper quartile, and calibrated tail.
 DEFAULT_QUANTILE_LEVELS: tuple[float, ...] = (0.5, 0.75, 0.9, 0.95, 1.0)
@@ -29,12 +54,12 @@ def calibrate_elevated_threshold(
     *,
     tail_probability: float = 0.05,
 ) -> float:
-    """Return the healthy-validation energy threshold for elevation.
+    """Return the healthy energy threshold for elevation.
 
-    Only verified-healthy validation energies enter this calibration;
-    test anomalies must never calibrate aggregation choices. The
-    threshold is the ``(1 - tail_probability)`` quantile of the pooled
-    valid healthy energies.
+    Cohort-agnostic quantile primitive over valid patches only: callers
+    seeking the operating threshold MUST use
+    :func:`calibrate_elevated_threshold_with_provenance`, which enforces
+    verified-healthy dev-validation provenance.
     """
     if healthy_energies.ndim != 2 or healthy_valid_mask.shape != healthy_energies.shape:
         raise ValueError("healthy_energies and healthy_valid_mask must share [B, N] shape")
@@ -50,6 +75,38 @@ def calibrate_elevated_threshold(
     return float(torch.quantile(pooled, 1.0 - tail_probability).item())
 
 
+def calibrate_elevated_threshold_with_provenance(
+    healthy_energies: torch.Tensor,
+    healthy_valid_mask: torch.Tensor,
+    *,
+    tail_probability: float = 0.05,
+    cohort: str,
+) -> tuple[float, dict[str, object]]:
+    """Calibrate the operating elevated threshold on dev-val context energies.
+
+    Returns ``(threshold, provenance)`` where provenance records the
+    effective value, quantile method, valid sample count, energy identity
+    (encoder ``context_energy``), and exact cohort. Only verified-healthy
+    dev-validation cohorts are accepted: train/pooled/test labels raise.
+    Invalid patches never enter the pool.
+    """
+    label = _require_dev_val_cohort(cohort, what="elevated-threshold calibration")
+    threshold = calibrate_elevated_threshold(
+        healthy_energies, healthy_valid_mask, tail_probability=tail_probability
+    )
+    n_samples = int(healthy_valid_mask.sum().item())
+    provenance: dict[str, object] = {
+        "value": float(threshold),
+        "method": "healthy-validation-quantile",
+        "tail_probability": float(tail_probability),
+        "quantile": float(1.0 - tail_probability),
+        "n_samples": n_samples,
+        "fit_cohort": label,
+        "energy_field": CONTEXT_ENERGY_FIELD,
+    }
+    return float(threshold), provenance
+
+
 def _row_quantiles(valid: torch.Tensor, levels: Sequence[float]) -> torch.Tensor:
     if valid.numel() == 0:
         return torch.zeros((len(levels),), dtype=torch.float32)
@@ -62,23 +119,32 @@ def _row_quantiles(valid: torch.Tensor, levels: Sequence[float]) -> torch.Tensor
 
 def aggregate_file_state(
     patch_latents: torch.Tensor,
-    patch_energy: torch.Tensor,
+    energy: torch.Tensor,
     patch_valid_mask: torch.Tensor,
     regime_ids: torch.Tensor,
     *,
+    energy_source: str,
     top_q_fraction: float = 0.1,
     elevated_threshold: float = 3.0,
     quantile_levels: Sequence[float] = DEFAULT_QUANTILE_LEVELS,
     n_regimes: int = 7,
     channel_energy: torch.Tensor | None = None,
-) -> dict[str, torch.Tensor]:
+) -> dict[str, object]:
     """Aggregate per-patch geometry into a distributional file state.
 
     Args:
         patch_latents: ``[B, N, D]`` patch latents, zero on invalid patches.
-        patch_energy: ``[B, N]`` signed finite conditional energies.
+        energy: ``[B, N]`` signed finite per-patch energy for exactly the
+            canonical field named by ``energy_source``.
         patch_valid_mask: ``[B, N]`` bool validity (variable-length) mask.
         regime_ids: ``[B, N]`` long operating-regime ids per patch.
+        energy_source: REQUIRED identity of the consumed signal —
+            ``"context_energy"`` (encoder conditional NLL, the
+            boundary-trained monitoring score) or ``"population_energy"``
+            (hierarchical mixture energy, a distinct signal). There is no
+            default: callers must name the signal so the two scores can
+            never be silently conflated. The label is echoed in the
+            returned ``"energy_source"`` field.
         top_q_fraction: fraction of valid patches forming the upper tail.
         elevated_threshold: validation-calibrated energy elevation cutoff.
         quantile_levels: non-decreasing quantile levels in ``[0, 1]``.
@@ -87,11 +153,17 @@ def aggregate_file_state(
             cross-channel consistency; when absent a latent-dispersion
             proxy is reported instead (see notes).
     """
+    if energy_source not in (CONTEXT_ENERGY_FIELD, POPULATION_ENERGY_FIELD):
+        raise ValueError(
+            "energy_source must name the consumed signal explicitly: "
+            f"{CONTEXT_ENERGY_FIELD!r} or {POPULATION_ENERGY_FIELD!r} "
+            f"(got {energy_source!r})"
+        )
     if patch_latents.ndim != 3:
         raise ValueError(f"patch_latents must be [B, N, D], got {tuple(patch_latents.shape)}")
     b, n, d = patch_latents.shape
-    if tuple(patch_energy.shape) != (b, n) or tuple(patch_valid_mask.shape) != (b, n):
-        raise ValueError("patch_energy/patch_valid_mask must match [B, N] of patch_latents")
+    if tuple(energy.shape) != (b, n) or tuple(patch_valid_mask.shape) != (b, n):
+        raise ValueError("energy/patch_valid_mask must match [B, N] of patch_latents")
     if tuple(regime_ids.shape) != (b, n):
         raise ValueError("regime_ids must have shape [B, N]")
     if patch_valid_mask.dtype is not torch.bool:
@@ -105,13 +177,12 @@ def aggregate_file_state(
         raise ValueError("quantile_levels must be non-decreasing")
     if channel_energy is not None and tuple(channel_energy.shape[:2]) != (b, n):
         raise ValueError("channel_energy must have shape [B, N, C]")
-
     latents = patch_latents.detach().to(dtype=torch.float32)
-    energies = patch_energy.detach().to(dtype=torch.float32)
+    energies = energy.detach().to(dtype=torch.float32)
     if not torch.isfinite(latents).all():
         raise ValueError("patch_latents must be finite")
     if not torch.isfinite(energies).all():
-        raise ValueError("patch_energy must be finite")
+        raise ValueError("energy must be finite")
 
     device = latents.device
     q_count = len(levels)
@@ -186,7 +257,7 @@ def aggregate_file_state(
             best = max(best, cur)
         max_run_fraction[i] = float(best) / count
 
-    state: dict[str, torch.Tensor] = {
+    state: dict[str, object] = {
         "file_state": file_state,
         "energy_quantiles": quantiles,
         "tail_energy": tail_energy,
@@ -203,6 +274,8 @@ def aggregate_file_state(
         "max_run_fraction": max_run_fraction,
         "n_elevated": n_elevated,
         "n_valid": n_valid,
+        # Explicit signal identity: which canonical energy was consumed.
+        "energy_source": energy_source,
     }
     validate_file_state(state)
     return state

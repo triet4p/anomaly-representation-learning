@@ -117,7 +117,7 @@ def test_corruption_follows_input_device() -> None:
 
 
 def test_forward_reports_raw_weighted_decomposition() -> None:
-    """Task 28: history must separate raw variance/covariance from weights."""
+    """Task 28 + Finding 1: L_normal includes clean conditional density."""
     torch.manual_seed(3)
     crit = CounterfactualCriterion(
         background_weight=0.5,
@@ -132,17 +132,27 @@ def test_forward_reports_raw_weighted_decomposition() -> None:
     clean_e = clean.detach().pow(2).sum(dim=-1)
     corrupt_e = corrupt.detach().pow(2).sum(dim=-1)
     out = crit(clean, corrupt, clean_e, corrupt_e, valid, mask, step=7)
-    for key in ("loss", "normal_loss", "variance_raw", "covariance_raw",
+    for key in ("loss", "normal_loss", "density_raw", "density_weighted",
+                "variance_raw", "covariance_raw",
                 "background_loss", "boundary_loss", "alpha"):
         assert torch.isfinite(out[key]).all(), f"non-finite {key}"
+    # Methodology §4.1: L_normal = L_conditional-density + λv·L_var + λc·L_cov.
+    assert float(out["density_raw"].detach()) == pytest.approx(float(clean_e.mean().detach()))
+    assert float(out["density_weighted"].detach()) == pytest.approx(float(out["density_raw"].detach()))
     expected = (
-        2.0 * out["variance_raw"]
+        out["density_weighted"]
+        + 2.0 * out["variance_raw"]
         + 0.25 * out["covariance_raw"]
         + float(out["alpha"].detach()) * out["boundary_loss"]
         + 0.5 * out["background_loss"]
     )
     assert float(out["loss"].detach()) == pytest.approx(float(expected.detach()))
     assert float(out["normal_loss"].detach()) == pytest.approx(
+        float((out["density_weighted"] + 2.0 * out["variance_raw"] + 0.25 * out["covariance_raw"]).detach())
+    )
+    # Omitting the density term would understate the normal loss whenever the
+    # clean conditional NLL is nonzero.
+    assert float(out["normal_loss"].detach()) != pytest.approx(
         float((2.0 * out["variance_raw"] + 0.25 * out["covariance_raw"]).detach())
     )
     out["loss"].backward()

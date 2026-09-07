@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
+import pytest
 import torch
 
-from representation.v2_aggregation import aggregate_file_state, calibrate_elevated_threshold
+from representation.v2_aggregation import (
+    aggregate_file_state,
+    calibrate_elevated_threshold,
+    calibrate_elevated_threshold_with_provenance,
+)
 from representation.v2_contracts import validate_file_state
 
 
@@ -26,6 +31,7 @@ def test_sparse_local_anomaly_survives_aggregation() -> None:
     energy[0, 5] = 12.0
     state = aggregate_file_state(
         latents, energy, valid, regimes,
+        energy_source="context_energy",
         top_q_fraction=0.1, elevated_threshold=3.0, n_regimes=3,
     )
     validate_file_state(state)
@@ -37,6 +43,7 @@ def test_sparse_local_anomaly_survives_aggregation() -> None:
     energy[1, :10] = 8.0
     sustained = aggregate_file_state(
         latents, energy, valid, regimes,
+        energy_source="context_energy",
         top_q_fraction=0.1, elevated_threshold=3.0, n_regimes=3,
     )
     assert float(sustained["max_run_fraction"][1]) > float(state["max_run_fraction"][0])
@@ -50,6 +57,7 @@ def test_variable_length_and_empty_rows_stay_finite() -> None:
     energy = energy.masked_fill(~valid, 0.0)
     state = aggregate_file_state(
         latents, energy, valid, regimes,
+        energy_source="context_energy",
         top_q_fraction=0.1, elevated_threshold=3.0, n_regimes=3,
     )
     validate_file_state(state)
@@ -62,6 +70,7 @@ def test_variable_length_and_empty_rows_stay_finite() -> None:
     single = aggregate_file_state(
         torch.randn(1, 8, 4), torch.randn(1, 8), valid2,
         torch.zeros(1, 8, dtype=torch.long),
+        energy_source="population_energy",
         top_q_fraction=0.25, elevated_threshold=3.0, n_regimes=2,
     )
     validate_file_state(single)
@@ -90,6 +99,7 @@ def test_regime_transition_and_channel_detail() -> None:
     channel[0, 14:28, 0] += 5.0  # single-channel elevation
     state = aggregate_file_state(
         latents, energy, valid, regimes,
+        energy_source="context_energy",
         top_q_fraction=0.1, elevated_threshold=0.0, n_regimes=3,
         channel_energy=channel,
     )
@@ -101,3 +111,59 @@ def test_regime_transition_and_channel_detail() -> None:
     assert float(state["cross_channel_spread"][0]) > 0.0
     # Mean alone cannot explain the file: tail exceeds mean by a margin.
     assert float(state["tail_energy"][0]) > float(state["mean_energy"][0]) + 1.0
+
+def test_energy_source_must_be_named_explicitly() -> None:
+    latents, energy, valid, regimes = _inputs()
+    with pytest.raises(TypeError, match="energy_source"):
+        aggregate_file_state(latents, energy, valid, regimes)  # type: ignore[call-arg]
+    with pytest.raises(ValueError, match="energy_source"):
+        aggregate_file_state(
+            latents, energy, valid, regimes, energy_source="patch_energy",
+            top_q_fraction=0.1, elevated_threshold=3.0, n_regimes=3,
+        )
+    for source in ("context_energy", "population_energy"):
+        state = aggregate_file_state(
+            latents, energy, valid, regimes, energy_source=source,
+            top_q_fraction=0.1, elevated_threshold=3.0, n_regimes=3,
+        )
+        validate_file_state(state)
+        assert state["energy_source"] == source
+
+
+def test_provenance_calibration_records_cohort_and_rejects_pooling() -> None:
+    torch.manual_seed(1)
+    healthy = torch.randn(16, 24)
+    mask = torch.ones_like(healthy, dtype=torch.bool)
+    mask[:, 20:] = False  # invalid patches never enter the pool
+    threshold, provenance = calibrate_elevated_threshold_with_provenance(
+        healthy, mask, tail_probability=0.05, cohort="dev-val"
+    )
+    assert threshold == calibrate_elevated_threshold(healthy, mask, tail_probability=0.05)
+    assert provenance["value"] == threshold
+    assert provenance["method"] == "healthy-validation-quantile"
+    assert provenance["quantile"] == pytest.approx(0.95)
+    assert provenance["n_samples"] == int(mask.sum().item())
+    assert provenance["fit_cohort"] == "dev-val"
+    assert provenance["energy_field"] == "context_energy"
+    for bad in ("dev-train", "pooled dev-train+dev-val (7 < floor 32)", "test_static", ""):
+        with pytest.raises(ValueError, match="dev-val"):
+            calibrate_elevated_threshold_with_provenance(healthy, mask, cohort=bad)
+
+
+def test_calibrated_threshold_changes_elevated_fraction_and_persistence() -> None:
+    latents, energy, valid, regimes = _inputs()
+    energy[:, :] = 0.0
+    energy[0, 5] = 4.0  # single isolated elevation
+    energy[1, :10] = 4.0  # sustained elevation block
+    loose = aggregate_file_state(
+        latents, energy, valid, regimes, energy_source="context_energy",
+        top_q_fraction=0.1, elevated_threshold=3.0, n_regimes=3,
+    )
+    strict = aggregate_file_state(
+        latents, energy, valid, regimes, energy_source="context_energy",
+        top_q_fraction=0.1, elevated_threshold=5.0, n_regimes=3,
+    )
+    assert float(loose["elevated_fraction"][0]) > 0.0
+    assert float(strict["elevated_fraction"][0]) == 0.0
+    assert float(strict["elevated_fraction"][1]) == 0.0
+    assert float(loose["max_run_fraction"][1]) > float(loose["max_run_fraction"][0])
