@@ -333,8 +333,8 @@ def main() -> int:
         pv = batch["patches"][0].cpu().numpy()
         pad = batch["patch_pad_mask"][0].cpu().numpy()
         med = np.median(x, axis=1, keepdims=True)
-        centered_patches = np.abs(pv - med[:, None, :])
-        centered_patches[pad[:, None, :].repeat(6, axis=1)] = np.nan
+        centered_patches = np.abs(pv - med[None, :, :])
+        centered_patches[np.broadcast_to(pad[:, None, :], centered_patches.shape)] = np.nan
         with np.errstate(all="ignore"):
             patch_amp = np.nanmean(centered_patches, axis=(1, 2))
         vv = batch["patch_valid_mask"][0].cpu().numpy()
@@ -374,8 +374,8 @@ def main() -> int:
         for tag, spec in NUISANCE:
             x1 = apply_nuisance(x0, spec["kind"], spec["value"], seed=fid_seed)
             b1 = single_batch(sample, patchifier, args.device, signal=x1)
-            d1 = np.abs(np.abs(b1["patches"][0].cpu().numpy() - med0[:, None, :]).mean(axis=(1, 2))
-                       - np.abs(base["patches"][0].cpu().numpy() - med0[:, None, :]).mean(axis=(1, 2)))
+            d1 = np.abs(np.abs(b1["patches"][0].cpu().numpy() - med0[None, :, :]).mean(axis=(1, 2))
+                       - np.abs(base["patches"][0].cpu().numpy() - med0[None, :, :]).mean(axis=(1, 2)))
             nuisance_resp.setdefault(f"S1_{tag}", []).append(float(np.median(d1[vv])))
             for name, pipe in pipes.items():
                 st0 = stage_latents(pipe, base)
