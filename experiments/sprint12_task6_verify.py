@@ -193,11 +193,9 @@ def main() -> int:
         check("reserved_families_present_in_sealed",
               RESERVED_FAMILIES <= static_fams,
               {"static_families": sorted(static_fams)}, out)
-        p3_ab = [i for i in abnormals if prog_of(i) == HELD_OUT_PROGRAM]
+        p3_ab = [i for i in abnormals if str(files[i]["program_id"]) == HELD_OUT_PROGRAM]
         check("cold_start_program_present_in_sealed", len(p3_ab) >= 10,
               {"program-03_abnormal": len(p3_ab)}, out)
-    else:
-        check("sealed_only_checks_skipped_for_dev", True, {"role": "dev"}, out)
 
     # --- maintenance saturation + contrast --------------------------------------
     span = float(manifest["calendar"]["span_s"])
@@ -244,7 +242,8 @@ def main() -> int:
     }
     out["verdict"] = "PASS" if not out["failures"] else "FAIL"
     (out_dir / "verify.json").write_text(json.dumps(out, indent=2))
-    if args.role == "sealed":
+    # Seal ONLY a passing history: a seal.json must never mark FAILED output.
+    if args.role == "sealed" and not out["failures"]:
         seal = {
             "protocol": "sprint12-protocol-v1",
             "role": "sealed",
