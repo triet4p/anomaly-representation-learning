@@ -388,7 +388,8 @@ def repo_commit() -> str:
         cwd=str(REPO_ROOT),
     ).stdout.strip()
     dirty = subprocess.run(
-        ["git", "status", "--porcelain", "--", "experiments", "src", "tests"],
+        ["git", "status", "--porcelain", "--untracked-files=no",
+         "--", "experiments", "src", "tests"],
         capture_output=True,
         text=True,
         check=True,
@@ -396,7 +397,8 @@ def repo_commit() -> str:
     ).stdout.strip()
     if dirty:
         raise RuntimeError(
-            f"refusing to run on a dirty source tree re experiments/src/tests:\n{dirty}"
+            "refusing to run with tracked modifications under "
+            f"experiments/src/tests:\n{dirty}"
         )
     return out
 
@@ -419,7 +421,6 @@ def main() -> int:
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
     severities = [float(s) for s in args.severities.split(",") if s.strip()]
-
     data_root = Path(args.data_root)
     manifest = json.loads((data_root / "manifest.json").read_text())
     manifest_sha = sha256_of(data_root / "manifest.json")
@@ -428,6 +429,7 @@ def main() -> int:
     healthy, abnormal = select_files(
         by_id, manifest["splits"], args.n_healthy, args.n_abnormal
     )
+
 
     ckpts = {"control": Path(args.control_ckpt), "hybrid": Path(args.hybrid_ckpt)}
     for name, path in ckpts.items():
