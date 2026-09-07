@@ -21,10 +21,10 @@ Selection: at most ONE configuration frozen with hashes (only on G-learn PASS).
 Scientific failure is acceptable and blocks Task 10 without sealed tuning.
 """
 
-from __future__ import annotations
-
 import argparse
 import csv
+import hashlib
+
 from scipy.stats import spearmanr
 import json
 import subprocess
