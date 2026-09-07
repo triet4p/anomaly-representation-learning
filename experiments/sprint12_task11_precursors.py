@@ -59,6 +59,7 @@ from synth.schema import SampleLabel  # noqa: E402
 DAY = 86400.0
 LOOKBACK_S = 14 * DAY
 PROG_MIN_DUR_S = 3 * DAY
+WINDOWS = {"w1d": 1 * DAY, "w7d": 7 * DAY}
 BASE_SPAN_D = 28
 BASE_GAP_D = 7
 TOP_Q = 0.1
