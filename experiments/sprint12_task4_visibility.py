@@ -186,10 +186,6 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--data-root", required=True)
     ap.add_argument("--control-ckpt", required=True)
-    ap.add_argument("--hybrid-ckpt", required=True)
-    ap.add_argument("--out", required=True)
-    ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
-    ap.add_argument("--n-nuisance", type=int, default=32)
     args = ap.parse_args()
 
     commit = repo_commit()
@@ -242,7 +238,7 @@ def main() -> int:
         mask_any = sample.anomaly_mask.any(axis=0)
         s0 = raw_contrast(x, mask_any)
         affected = Patchifier.timestep_mask_to_patch_mask(
-            mask_any, batch["starts"], batch["valid_len"], x.shape[0], x.shape[1]
+            sample.anomaly_mask, batch["starts"], batch["valid_len"], x.shape[0], x.shape[1]
         )
         patch_amp = np.abs(batch["patches"][0].cpu().numpy()).mean(axis=(1, 2))
         vv = batch["patch_valid_mask"][0].cpu().numpy()
@@ -282,7 +278,7 @@ def main() -> int:
         vv = base["patch_valid_mask"][0].cpu().numpy()
         amp0 = np.abs(base["patches"][0].cpu().numpy()).mean(axis=(1, 2))[vv]
         for tag, spec in NUISANCE:
-            x1 = apply_nuisance(x0, spec["kind"], spec["value"], seed=hash(sample.file_id) % (2**31))
+            x1 = apply_nuisance(x0, spec["kind"], spec["value"], seed=int(hashlib.sha256(sample.file_id.encode()).hexdigest()[:8], 16))
             b1 = single_batch(sample, patchifier, args.device, signal=x1)
             amp1 = np.abs(b1["patches"][0].cpu().numpy()).mean(axis=(1, 2))[vv]
             nuisance_resp.setdefault(f"S1_{tag}", []).append(float(np.median(np.abs(amp1 - amp0))))

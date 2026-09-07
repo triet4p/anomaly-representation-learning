@@ -304,9 +304,8 @@ def main() -> int:
             rec[f"shipped_population_{name}"] = float(scored["file_population"]["tail_energy"][0])
         # localization: top-1 energy patch vs anomaly mask (post-hoc)
         if sample.anomaly_mask is not None:
-            ts_any = sample.anomaly_mask.any(axis=0)
             affected = Patchifier.timestep_mask_to_patch_mask(
-                ts_any, batch["starts"][0].numpy(), batch["valid_len"][0].numpy(),
+                sample.anomaly_mask, batch["starts"][0].numpy(), batch["valid_len"][0].numpy(),
                 sample.x.shape[0], sample.x.shape[1],
             )
             for arm in arms:
