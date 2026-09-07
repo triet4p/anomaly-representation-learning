@@ -93,7 +93,7 @@ def file_score(x: np.ndarray) -> float:
     """Zero-fit causal observable: max centered patch amplitude (W=32/S=16)."""
     med = np.median(x, axis=1, keepdims=True)
     dev = np.abs(x - med)
-    c, t = dev.shape
+    _, t = dev.shape
     w, s = 32, 16
     best = 0.0
     for start in range(0, max(1, t - w + 1), s):
@@ -164,10 +164,12 @@ def main() -> int:
                                         float(files[s.file_id]["end_time"]))]
                 rec[wname + "_n"] = len(win)
                 rec[wname] = [file_score(s.x) for s in win]
+            # Local pre-window baseline: same robot, ending in the 21 days
+            # before the 7d probe window (non-maintenance). Comparable recent
+            # operating context, not a ±14d exclusion that empties at this
+            # failure density.
             bg = [s for s in by_robot.get(robot, [])
-                  if not any(abs(float(files[s.file_id]["end_time"]) - ff) <= LOOKBACK_S
-                             for ff in [float(e["start_time"]) for e in failures
-                                        if str(e["robot_id"]) == robot])
+                  if fstart - 28 * DAY <= float(files[s.file_id]["end_time"]) < fstart - 7 * DAY
                   and not in_maint(robot, float(files[s.file_id]["start_time"]),
                                    float(files[s.file_id]["end_time"]))]
             bg_scores = np.array([file_score(s.x) for s in bg])
