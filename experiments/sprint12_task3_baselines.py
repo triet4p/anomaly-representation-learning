@@ -36,7 +36,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from representation.data import collate_variable_files  # noqa: E402
-from representation.handcrafted import batch_patch_features, feature_dim  # noqa: E402
+from representation.handcrafted import Standardizer, batch_patch_features, feature_dim, feature_names  # noqa: E402
 from representation.v2_aggregation import (  # noqa: E402
     aggregate_file_state,
     calibrate_elevated_threshold_with_provenance,
@@ -137,16 +137,19 @@ def file_tail(
     return float(state["tail_energy"][0])
 
 
-def auroc(scores: np.ndarray, labels: np.ndarray) -> float:
-    order = np.argsort(scores, kind="stable")
-    ranked = labels[order]
-    n_pos = int(ranked.sum())
-    n_neg = ranked.size - n_pos
-    if n_pos == 0 or n_neg == 0:
-        return float("nan")
-    cum = np.cumsum(ranked)
-    return float((cum[ranked == 0].sum()) / (n_pos * n_neg))
+def roc_auc_or_nan(scores: np.ndarray, labels: np.ndarray) -> float:
+    """Standard ROC AUROC (repo convention: sklearn), nan on single-class input."""
+    from sklearn.metrics import roc_auc_score
 
+    scores = np.asarray(scores, dtype=np.float64).ravel()
+    labels = np.asarray(labels, dtype=np.float64).ravel()
+    if scores.shape != labels.shape or scores.size == 0:
+        raise ValueError("scores and labels must share a non-empty shape")
+    if not np.isfinite(scores).all():
+        raise ValueError("scores must be finite")
+    if labels.min() == labels.max():
+        return float("nan")  # single-class input: ranking undefined
+    return float(roc_auc_score(labels, scores))
 
 def auprc(scores: np.ndarray, labels: np.ndarray) -> float:
     order = np.argsort(-scores, kind="stable")
@@ -229,6 +232,12 @@ def main() -> int:
             dev_feats[key].append(mat[v])
             dev_aux[key].append(torch.stack([rr[v], pp[v], gg[v]], dim=1))
 
+    # Standardize handcrafted rows with a DEV-TRAIN-ONLY frozen transform so the
+    # matched hierarchy sees comparable scales (learned latents are ~unit
+    # variance); val/static rows use apply() only (no leakage). Raw audit trail
+    # (names + center/scale) persists in provenance.
+    std = Standardizer.fit(torch.cat(dev_feats["handcrafted"]).numpy())
+    dev_feats["handcrafted"] = [torch.from_numpy(std.apply(m.numpy())).float() for m in dev_feats["handcrafted"]]
     geos, thresholds, threshold_prov = {}, {}, {}
     for arm in arms:
         rows = torch.cat(dev_feats[arm])
@@ -240,9 +249,9 @@ def main() -> int:
             batch = single_batch(sample, patchifier, args.device)
             v = batch["patch_valid_mask"].cpu()
             if arm == "handcrafted":
-                mat = torch.from_numpy(batch_patch_features(
+                mat = torch.from_numpy(std.apply(batch_patch_features(
                     batch["patches"][0].cpu().numpy(), batch["patch_pad_mask"][0].cpu().numpy()
-                )).float().unsqueeze(0)
+                ))).float().unsqueeze(0)
             else:
                 pipe = pipes["control"] if arm == "learned-control" else pipes["hybrid"]
                 mat = frozen_latents(pipe, batch)
@@ -267,9 +276,9 @@ def main() -> int:
         v = batch["patch_valid_mask"].cpu()
         regimes = batch["regime_ids"].cpu()
         n = v.shape[1]
-        hc = torch.from_numpy(batch_patch_features(
+        hc = torch.from_numpy(std.apply(batch_patch_features(
             batch["patches"][0].cpu().numpy(), batch["patch_pad_mask"][0].cpu().numpy()
-        )).float()
+        ))).float()
         lat_c = frozen_latents(pipes["control"], batch)
         lat_h = frozen_latents(pipes["hybrid"], batch)
         mats = {
@@ -331,7 +340,7 @@ def main() -> int:
     for col in score_cols:
         s = np.array([r[col] for r in rows_out])
         metrics[col] = {
-            "auroc": auroc(s, labels),
+            "auroc": roc_auc_or_nan(s, labels),
             "auprc": auprc(s, labels),
             "median_normal": float(np.median(s[labels == 0])),
             "median_abnormal": float(np.median(s[labels == 1])),
@@ -355,7 +364,7 @@ def main() -> int:
         lab = labels[idx]
         slices["robot"][str(rb)] = {
             "n": len(idx), "n_abnormal": int(lab.sum()),
-            **{c: auroc(np.array([rows_out[i][c] for i in idx]), lab) for c in score_cols[:3]},
+            **{c: roc_auc_or_nan(np.array([rows_out[i][c] for i in idx]), lab) for c in score_cols[:3]},
         }
     for fm in fams:
         idx = [i for i, r in enumerate(rows_out) if r["family"] == fm]
@@ -381,6 +390,8 @@ def main() -> int:
             "tail_probability": TAIL_PROBABILITY,
             "primary_energy": "population_energy (per-group conditional Mahalanobis + fallback)",
             "primary_file_score": "tail_energy (fixed upper-tail rule)",
+            "handcrafted_standardizer": std.to_dict(),
+            "handcrafted_feature_names": feature_names(6),
             "threshold_provenance": threshold_prov,
             "n_train": len(train_files),
             "n_val": len(val_files),

@@ -1,20 +1,35 @@
-"""Sprint 12 Task 4 — observable-signal visibility through production stages.
+"""Sprint 12 Task 4 — observable-signal visibility through production stages (corrected).
 
-Paired per-file contrast trace across the actual production chain on real
-historical abnormal files (diagnostic benchmark, not a sealed test):
+Paired per-file contrast trace on real historical abnormal files (diagnostic
+benchmark, not a sealed test). The production chain is stated truthfully:
 
-- S0 raw telemetry: amplitude deviation vs file median + cross-channel
-  correlation distance, masked span vs background (post-hoc masks only);
-- S1 patches: patch amplitude of affected vs unaffected patches;
-- S2 local latents: distance to the healthy centroid, affected vs unaffected;
-- S3 context latents: same on the context-encoded latents;
+- slicing/padding: Patchifier windows raw telemetry into overlapping patches
+  with zero-padding. It applies NO filtering, detrending, or normalization —
+  S0→S1 differences reflect windowing plus the metric, never a transform stage.
+- V2 inference applies NO normalization to patches (verified: score_patches
+  passes raw patches; only LayerNorm inside LocalPatchEncoder).
+- feature extraction: LocalPatchEncoder (conv + masked pooling + LayerNorm);
+- contextual encoding: SequenceContextEncoder mixing across patches;
+- scoring: Gaussian head (context) + frozen hierarchical geometry (population).
+
+Stages (same CENTERED amplitude statistic at S0/S1: |x − file channel median|):
+
+- S0 raw spans: centered amplitude gap (masked span vs same-file background),
+  reported per family with absolute/two-sided effects;
+- S0 cross-channel: corr-matrix distance of the masked span vs background, PLUS
+  a matched within-normal null (deterministic same-length background segments)
+  with effect, rank, and spread — no claim without it;
+- S1 windowed patches: same centered amplitude on patches, affected vs unaffected;
+- S2/S3 latents: CONDITIONAL healthy hierarchy (dev-train-only fits on local and
+  context latents per checkpoint) scoring affected vs unaffected patches —
+  controls operating context instead of a global centroid;
 - S4 scoring: context + population energy gaps, affected vs unaffected.
 
-Plus benign nuisance controls on healthy files (gain/offset/noise within
-normal variation): stage-wise response vs true-anomaly contrast.
+Benign nuisance controls on healthy files use the COMPARABLE statistics
+(S1 amplitude delta; S2/S3 conditional-energy deltas; S4 deltas).
 
-Bounded outputs: task4_diag.json. No training, no refit, no redesign.
-Provenance from live `git rev-parse HEAD` in this checkout.
+No stage is declared the exact loss site unless the contrasts identify it;
+causal uncertainty from accepted A3 is preserved.
 """
 
 from __future__ import annotations
@@ -34,6 +49,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from representation.data import collate_variable_files  # noqa: E402
+from representation.v2_geometry import HierarchicalMahalanobisGeometry  # noqa: E402
 from representation.v2_inference import V2InferencePipeline, patch_regime_ids  # noqa: E402
 from synth.chronicle import load_chronological  # noqa: E402
 from synth.config import PatchConfig  # noqa: E402
@@ -45,6 +61,7 @@ NUISANCE = (
     ("offset_0.1sigma", {"kind": "offset", "value": 0.1}),
     ("noise_0.1sigma", {"kind": "noise", "value": 0.1}),
 )
+N_NULL_SEGMENTS = 8
 
 
 def sha256_of(path: Path) -> str:
@@ -74,6 +91,11 @@ def repo_commit() -> str:
     return out
 
 
+def seed_from(*parts: str) -> int:
+    """Stable 63-bit seed from string parts (deterministic null placement)."""
+    return int(hashlib.sha256("|".join(parts).encode()).hexdigest()[:16], 16) % (2**63)
+
+
 def describe(values: np.ndarray) -> dict:
     vals = np.asarray(values, dtype=np.float64).ravel()
     vals = vals[np.isfinite(vals)]
@@ -93,7 +115,9 @@ def describe(values: np.ndarray) -> dict:
 
 def single_batch(sample, patchifier, device: str, signal: np.ndarray | None = None) -> dict:
     if signal is not None:
-        sample = _with_signal(sample, signal)
+        import dataclasses
+
+        sample = dataclasses.replace(sample, x=np.asarray(signal, dtype=np.float32))
     base = collate_variable_files([sample], patchifier)
     count = base["patches"].shape[1]
     regimes = patch_regime_ids([sample], base["starts"], count)
@@ -105,15 +129,9 @@ def single_batch(sample, patchifier, device: str, signal: np.ndarray | None = No
         "robot_idx": base["robot_idx"].to(device),
         "program_idx": base["program_idx"].to(device),
         "regime_ids": regimes.to(device),
-        "starts": base["starts"][0].numpy(),
-        "valid_len": base["valid_len"][0].numpy(),
+        "starts": base["starts"][0].cpu().numpy(),
+        "valid_len": base["valid_len"][0].cpu().numpy(),
     }
-
-
-def _with_signal(sample, signal: np.ndarray):
-    import dataclasses
-
-    return dataclasses.replace(sample, x=np.asarray(signal, dtype=np.float32))
 
 
 @torch.no_grad()
@@ -139,34 +157,59 @@ def stage_latents(pipe: V2InferencePipeline, batch: dict) -> dict:
         "valid": valid.cpu(),
     }
 
-
-def raw_contrast(x: np.ndarray, mask_any: np.ndarray) -> dict:
-    """S0: amplitude deviation vs file median + cross-channel corr distance."""
-    c, t = x.shape
+def centered_dev(x: np.ndarray) -> np.ndarray:
+    """Same centered amplitude statistic everywhere: |x − file channel median|."""
     med = np.median(x, axis=1, keepdims=True)
-    dev = np.abs(x - med)
-    in_m = mask_any & np.ones(t, dtype=bool)
-    out = {
-        "amp_in": float(np.median(dev[:, in_m])) if in_m.any() else float("nan"),
-        "amp_out": float(np.median(dev[:, ~in_m])) if (~in_m).any() else float("nan"),
-        "mask_fraction": float(in_m.mean()),
-    }
-    span = np.flatnonzero(in_m)
-    if span.size >= 8:
-        seg = x[:, span[0]:span[-1] + 1]
-        ref = x[:, ~in_m][:, : seg.shape[1]]
-        if ref.shape[1] >= 8:
-            ci = np.corrcoef(seg)
-            co = np.corrcoef(ref)
-            if np.isfinite(ci).all() and np.isfinite(co).all():
-                out["corr_dist"] = float(np.linalg.norm(ci - co))
-            else:
-                out["corr_dist"] = float("nan")
-        else:
-            out["corr_dist"] = float("nan")
-    else:
-        out["corr_dist"] = float("nan")
-    return out
+    return np.abs(x - med)
+
+
+def corr_matrix(block: np.ndarray) -> np.ndarray | None:
+    """Sample cross-channel correlation, or None when degenerate."""
+    if block.shape[1] < 8:
+        return None
+    c = np.corrcoef(block)
+    return c if np.isfinite(c).all() else None
+
+
+def corr_dist(a: np.ndarray, b: np.ndarray) -> float:
+    ca, cb = corr_matrix(a), corr_matrix(b)
+    if ca is None or cb is None:
+        return float("nan")
+    return float(np.linalg.norm(ca - cb))
+
+
+def matched_null_dists(
+    x: np.ndarray, span_start: int, span_len: int, file_id: str
+) -> dict:
+    """Matched within-normal null: deterministic same-length background segments.
+
+    Draws N_NULL_SEGMENTS non-overlapping-with-span background segments of the
+    same length, each scored against the remaining background. Returns the null
+    distribution plus effect (observed − null median) and rank
+    ((1 + #{null ≥ obs}) / (K + 1)). Unavailable when the background is short.
+    """
+    t = x.shape[1]
+    span_end = min(t, span_start + span_len)
+    bg = np.ones(t, dtype=bool)
+    bg[span_start:span_end] = False
+    bg_idx = np.flatnonzero(bg)
+    if span_len < 8 or bg_idx.size < 2 * span_len:
+        return {"null": [], "available": False}
+    gen = torch.Generator().manual_seed(seed_from(file_id, "null-segments"))
+    nulls: list[float] = []
+    tries = 0
+    while len(nulls) < N_NULL_SEGMENTS and tries < 4 * N_NULL_SEGMENTS:
+        tries += 1
+        s = int(torch.randint(0, max(1, bg_idx.size - span_len + 1), (1,), generator=gen))
+        seg_idx = bg_idx[s:s + span_len]
+        if seg_idx.size < 8:
+            continue
+        rest = np.ones(t, dtype=bool)
+        rest[seg_idx] = False
+        d = corr_dist(x[:, seg_idx], x[:, rest])
+        if np.isfinite(d):
+            nulls.append(d)
+    return {"null": nulls, "available": len(nulls) >= 3}
 
 
 def apply_nuisance(x: np.ndarray, kind: str, value: float, seed: int) -> np.ndarray:
@@ -180,6 +223,39 @@ def apply_nuisance(x: np.ndarray, kind: str, value: float, seed: int) -> np.ndar
         noise = torch.randn(x.shape, generator=gen).numpy().astype(np.float64)
         return (x + float(value) * sig * noise).astype(np.float32)
     raise ValueError(f"unknown nuisance {kind}")
+
+
+def fit_conditional(
+    train_files, pipes: dict, patchifier, device: str, stage: str
+) -> dict:
+    """Healthy conditional hierarchy per checkpoint on local/context latents."""
+    out = {}
+    for name, pipe in pipes.items():
+        rows, aux = [], []
+        for sample in train_files:
+            batch = single_batch(sample, patchifier, device)
+            st = stage_latents(pipe, batch)
+            v = st["valid"][0]
+            n = int(v.sum())
+            rows.append(st[stage][0][v])
+            cnt = int(v.shape[0])
+            aux.append(torch.stack([
+                batch["robot_idx"].cpu().expand(cnt)[v],
+                batch["program_idx"].cpu().expand(cnt)[v],
+                batch["regime_ids"][0].cpu()[v],
+            ], dim=1))
+        cfg = pipe.config
+        geo = HierarchicalMahalanobisGeometry(
+            32, shrinkage=float(cfg.shrinkage), covariance_eps=float(cfg.covariance_eps),
+            min_group_samples=int(cfg.min_group_samples),
+            diag_min_samples=int(cfg.diag_min_samples),
+        )
+        all_rows = torch.cat(rows)
+        all_aux = torch.cat(aux)
+        geo.fit(all_rows, all_aux[:, 0], all_aux[:, 1], all_aux[:, 2],
+                torch.ones((all_rows.shape[0],), dtype=torch.bool))
+        out[name] = geo.frozen()
+    return out
 
 
 def main() -> int:
@@ -218,84 +294,116 @@ def main() -> int:
     base_cfg = pipes["control"].config
     patchifier = Patchifier(PatchConfig(patch_size=int(base_cfg.patch_size), stride=int(base_cfg.stride)))
 
-    # healthy centroids per checkpoint (dev_train, unconditional — coarse trace)
-    centroids: dict[str, dict[str, torch.Tensor]] = {}
-    for name, pipe in pipes.items():
-        locs, ctxs = [], []
-        for sample in train_files:
-            batch = single_batch(sample, patchifier, args.device)
-            st = stage_latents(pipe, batch)
-            v = st["valid"][0]
-            locs.append(st["local"][0][v])
-            ctxs.append(st["context"][0][v])
-        centroids[name] = {
-            "local": torch.cat(locs).mean(dim=0),
-            "context": torch.cat(ctxs).mean(dim=0),
-        }
+    cond_local = fit_conditional(train_files, pipes, patchifier, args.device, "local")
+    cond_context = fit_conditional(train_files, pipes, patchifier, args.device, "context")
 
-    per_stage: dict[str, dict[str, list[float]]] = {}
-    fam_contrast: dict[str, list[float]] = {}
-    file_count = 0
+    per_stage: dict[str, list[float]] = {}
+    fam_s0: dict[str, list[float]] = {}
+    corr_obs, corr_null_med, corr_effect, corr_rank = [], [], [], []
+    null_unavailable = 0
     for sample in abnormal:
         batch = single_batch(sample, patchifier, args.device)
         x = sample.x
+        dev = centered_dev(x)
         mask_any = sample.anomaly_mask.any(axis=0)
-        s0 = raw_contrast(x, mask_any)
+        gap_s0 = float(np.median(dev[:, mask_any]) - np.median(dev[:, ~mask_any])) \
+            if mask_any.any() and (~mask_any).any() else float("nan")
+        fam = sample.anomaly_meta.family.value if sample.anomaly_meta else "unknown"
+        fam_s0.setdefault(fam, []).append(gap_s0)
+        per_stage.setdefault("S0_amp_gap", []).append(gap_s0)
+        per_stage.setdefault("S0_amp_abs", []).append(abs(gap_s0))
+        # cross-channel observed + matched null
+        span = np.flatnonzero(mask_any)
+        s_len = int(span.size)
+        s_start = int(span[0]) if s_len else 0
+        bg = np.ones(x.shape[1], dtype=bool)
+        bg[mask_any] = False
+        obs = corr_dist(x[:, mask_any], x[:, bg]) if s_len >= 8 and bg.sum() >= 8 else float("nan")
+        per_stage.setdefault("S0_corr_obs", []).append(obs)
+        null = matched_null_dists(x, s_start, s_len, sample.file_id)
+        if null["available"]:
+            nulls = np.array(null["null"])
+            corr_obs.append(obs)
+            corr_null_med.append(float(np.median(nulls)))
+            corr_effect.append(float(obs - np.median(nulls)))
+            corr_rank.append(float((1 + int((nulls >= obs).sum())) / (len(nulls) + 1)))
+        else:
+            null_unavailable += 1
+        # S1: same centered statistic on windowed patches
+        pv = batch["patches"][0].cpu().numpy()
+        pad = batch["patch_pad_mask"][0].cpu().numpy()
+        med = np.median(x, axis=1, keepdims=True)
+        centered_patches = np.abs(pv - med[:, None, :])
+        centered_patches[pad[:, None, :].repeat(6, axis=1)] = np.nan
+        with np.errstate(all="ignore"):
+            patch_amp = np.nanmean(centered_patches, axis=(1, 2))
+        vv = batch["patch_valid_mask"][0].cpu().numpy()
         affected = Patchifier.timestep_mask_to_patch_mask(
             sample.anomaly_mask, batch["starts"], batch["valid_len"], x.shape[0], x.shape[1]
         )
-        patch_amp = np.abs(batch["patches"][0].cpu().numpy()).mean(axis=(1, 2))
-        vv = batch["patch_valid_mask"][0].cpu().numpy()
-        gaps: dict[str, float] = {
-            "S0_amp": s0["amp_in"] - s0["amp_out"],
-            "S1_patch_amp": float(np.median(patch_amp[vv & affected]) - np.median(patch_amp[vv & ~affected]))
-            if affected.any() and (vv & ~affected).any() else float("nan"),
-        }
-        if np.isfinite(s0.get("corr_dist", float("nan"))):
-            gaps["S0_corr_dist"] = float(s0["corr_dist"])
+        if affected.any() and (vv & ~affected).any():
+            per_stage.setdefault("S1_patch_amp_gap", []).append(float(
+                np.nanmedian(patch_amp[vv & affected]) - np.nanmedian(patch_amp[vv & ~affected])))
+            per_stage.setdefault("S1_patch_amp_abs", []).append(float(abs(
+                np.nanmedian(patch_amp[vv & affected]) - np.nanmedian(patch_amp[vv & ~affected]))))
+        # S2/S3 conditional hierarchy gaps + S4 energy gaps
         for name, pipe in pipes.items():
             st = stage_latents(pipe, batch)
-            for stage, key in (("S2_local", "local"), ("S3_context", "context")):
-                d = ((st[key][0] - centroids[name][key]) ** 2).sum(dim=-1).sqrt().numpy()
-                gaps[f"{stage}_{name}"] = float(
-                    np.median(d[vv & affected]) - np.median(d[vv & ~affected])
-                ) if affected.any() and (vv & ~affected).any() else float("nan")
+            mats = {"S2_local": st["local"], "S3_context": st["context"]}
+            geos = {"S2_local": cond_local[name], "S3_context": cond_context[name]}
+            for stage, mat in mats.items():
+                e = geos[stage].population_energy(
+                    mat, st["valid"], batch["robot_idx"].cpu(),
+                    batch["program_idx"].cpu(), batch["regime_ids"].cpu(),
+                )["population_energy"][0].numpy()
+                per_stage.setdefault(f"{stage}_{name}", []).append(float(
+                    np.median(e[vv & affected]) - np.median(e[vv & ~affected])))
             for sig in ("context_energy", "population_energy"):
                 e = st[sig][0].numpy()
-                gaps[f"S4_{sig}_{name}"] = float(
-                    np.median(e[vv & affected]) - np.median(e[vv & ~affected])
-                ) if affected.any() and (vv & ~affected).any() else float("nan")
-        gaps["mask_fraction"] = float(s0["mask_fraction"])
-        fam = sample.anomaly_meta.family.value if sample.anomaly_meta else "unknown"
-        fam_contrast.setdefault(fam, []).append(gaps.get("S1_patch_amp", float("nan")))
-        for k, val in gaps.items():
-            if k == "mask_fraction":
-                continue
-            per_stage.setdefault(k, {}).setdefault("values", []).append(val)
-        file_count += 1
+                per_stage.setdefault(f"S4_{sig}_{name}", []).append(float(
+                    np.median(e[vv & affected]) - np.median(e[vv & ~affected])))
 
-    # nuisance controls on healthy files
-    nuisance_resp: dict[str, dict[str, list[float]]] = {}
+    # nuisance controls with COMPARABLE statistics
+    nuisance_resp: dict[str, list[float]] = {}
     for sample in nuisance_files:
         x0 = sample.x
+        med0 = np.median(x0, axis=1, keepdims=True)
         base = single_batch(sample, patchifier, args.device)
         vv = base["patch_valid_mask"][0].cpu().numpy()
-        amp0 = np.abs(base["patches"][0].cpu().numpy()).mean(axis=(1, 2))[vv]
+        fid_seed = int(hashlib.sha256(sample.file_id.encode()).hexdigest()[:8], 16)
         for tag, spec in NUISANCE:
-            x1 = apply_nuisance(x0, spec["kind"], spec["value"], seed=int(hashlib.sha256(sample.file_id.encode()).hexdigest()[:8], 16))
+            x1 = apply_nuisance(x0, spec["kind"], spec["value"], seed=fid_seed)
             b1 = single_batch(sample, patchifier, args.device, signal=x1)
-            amp1 = np.abs(b1["patches"][0].cpu().numpy()).mean(axis=(1, 2))[vv]
-            nuisance_resp.setdefault(f"S1_{tag}", []).append(float(np.median(np.abs(amp1 - amp0))))
+            d1 = np.abs(np.abs(b1["patches"][0].cpu().numpy() - med0[:, None, :]).mean(axis=(1, 2))
+                       - np.abs(base["patches"][0].cpu().numpy() - med0[:, None, :]).mean(axis=(1, 2)))
+            nuisance_resp.setdefault(f"S1_{tag}", []).append(float(np.median(d1[vv])))
             for name, pipe in pipes.items():
                 st0 = stage_latents(pipe, base)
                 st1 = stage_latents(pipe, b1)
+                for stage, key, geo in (("S2_local", "local", cond_local[name]),
+                                        ("S3_context", "context", cond_context[name])):
+                    e0 = geo.population_energy(
+                        st0[key], st0["valid"], base["robot_idx"].cpu(),
+                        base["program_idx"].cpu(), base["regime_ids"].cpu(),
+                    )["population_energy"][0].numpy()
+                    e1 = geo.population_energy(
+                        st1[key], st1["valid"], b1["robot_idx"].cpu(),
+                        b1["program_idx"].cpu(), b1["regime_ids"].cpu(),
+                    )["population_energy"][0].numpy()
+                    nuisance_resp.setdefault(f"{stage}_{name}_{tag}", []).append(
+                        float(np.median(np.abs(e1[vv] - e0[vv]))))
                 for sig in ("context_energy", "population_energy"):
                     d = np.abs(st1[sig][0].numpy()[vv] - st0[sig][0].numpy()[vv])
                     nuisance_resp.setdefault(f"S4_{sig}_{name}_{tag}", []).append(float(np.median(d)))
 
-    stages = {k: describe(np.array(v["values"])) for k, v in per_stage.items()}
+    stages = {k: describe(np.array(v)) for k, v in per_stage.items()}
+    stages["S0_corr_null_median"] = describe(np.array(corr_null_med))
+    stages["S0_corr_effect_obs_minus_null"] = describe(np.array(corr_effect))
+    stages["S0_corr_rank_empirical_p"] = describe(np.array(corr_rank))
+    stages["S0_corr_null_unavailable"] = {"n": null_unavailable}
     nuisance = {k: describe(np.array(v)) for k, v in nuisance_resp.items()}
-    fams = {k: describe(np.array(v)) for k, v in fam_contrast.items()}
+    fams = {k: {"gap": describe(np.array(v)),
+                "abs": describe(np.abs(np.array(v)))} for k, v in fam_s0.items()}
     result = {
         "provenance": {
             "commit": commit,
@@ -309,14 +417,16 @@ def main() -> int:
             "n_abnormal": len(abnormal),
             "n_nuisance_files": len(nuisance_files),
             "nuisance_probes": [t for t, _ in NUISANCE],
-            "note": "masks/labels post-hoc only; centroids unconditional dev-train (coarse trace)",
+            "conditional_fit": "dev-train-only hierarchy on local/context latents per checkpoint",
+            "null": f"matched within-file same-length background segments (K={N_NULL_SEGMENTS}, deterministic)",
+            "note": "masks/labels post-hoc only; patchifier is slicing/padding only (no filtering/normalization); V2 inference applies no patch normalization",
         },
         "stages": stages,
         "nuisance": nuisance,
-        "family_S1": fams,
+        "family_S0": fams,
     }
     (out_dir / "task4_diag.json").write_text(json.dumps(result, indent=2))
-    print(f"WROTE {out_dir / 'task4_diag.json'} ({file_count} abnormal + {len(nuisance_files)} nuisance files)")
+    print(f"WROTE {out_dir / 'task4_diag.json'} ({len(abnormal)} abnormal + {len(nuisance_files)} nuisance files)")
     return 0
 
 

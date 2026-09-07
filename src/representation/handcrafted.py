@@ -146,3 +146,50 @@ def batch_patch_features(
     for i in range(n):
         feats[i] = patch_features(patches[i], patch_pad_mask[i])
     return feats
+
+
+class Standardizer:
+    """Frozen center/scale transform fitted on development rows only.
+
+    Fit consumes healthy-only dev-train rows; val/static rows use
+    :meth:`apply` with the frozen parameters (no leakage). Zero-variance
+    dimensions keep scale 1.0 after centering (finite by construction):
+    they carry no signal and must neither explode nor vanish downstream.
+    """
+
+    def __init__(self, center: np.ndarray, scale: np.ndarray) -> None:
+        center = np.asarray(center, dtype=np.float64)
+        scale = np.asarray(scale, dtype=np.float64)
+        if center.ndim != 1 or scale.ndim != 1 or center.shape != scale.shape:
+            raise ValueError("center and scale must share one dimension")
+        if not np.isfinite(center).all() or not np.isfinite(scale).all():
+            raise ValueError("center and scale must be finite")
+        if bool((scale <= 0.0).any()):
+            raise ValueError("scale must be strictly positive")
+        self.center = center
+        self.scale = scale
+
+    @classmethod
+    def fit(cls, rows: np.ndarray) -> "Standardizer":
+        """Fit center/scale on development rows only."""
+        rows = np.asarray(rows, dtype=np.float64)
+        if rows.ndim != 2 or rows.shape[0] == 0:
+            raise ValueError("fit requires a non-empty [M, D] row matrix")
+        if not np.isfinite(rows).all():
+            raise ValueError("fit rows must be finite")
+        center = rows.mean(axis=0)
+        scale = rows.std(axis=0)
+        scale[scale == 0.0] = 1.0  # zero-scale finite policy
+        return cls(center, scale)
+
+    def apply(self, rows: np.ndarray) -> np.ndarray:
+        """Apply the FROZEN transform (never refit on eval rows)."""
+        rows = np.asarray(rows, dtype=np.float64)
+        if rows.ndim != 2 or rows.shape[1] != self.center.shape[0]:
+            raise ValueError("apply rows must match the fitted width")
+        out = (rows - self.center[None, :]) / self.scale[None, :]
+        return np.nan_to_num(out, nan=0.0, posinf=0.0, neginf=0.0)
+
+    def to_dict(self) -> dict:
+        """Serializable audit trail mapping standardized values back to raw."""
+        return {"center": self.center.tolist(), "scale": self.scale.tolist()}

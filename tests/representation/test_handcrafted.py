@@ -79,3 +79,42 @@ def test_batch_rejects_shape_mismatch():
 
     with pytest.raises(ValueError):
         batch_patch_features(np.zeros((4, 6, 32)), np.zeros((4, 31), dtype=bool))
+
+def test_standardizer_fit_apply_no_leakage():
+    from representation.handcrafted import Standardizer
+
+    rng = np.random.default_rng(3)
+    train = rng.normal(loc=5.0, scale=2.0, size=(100, 4))
+    std = Standardizer.fit(train)
+    # frozen params come from train rows only
+    assert np.allclose(std.center, train.mean(axis=0))
+    assert np.allclose(std.scale, train.std(axis=0))
+    # eval rows far outside train range transform with TRAIN stats, not their own
+    eval_rows = np.full((10, 4), 100.0)
+    out = std.apply(eval_rows)
+    assert np.allclose(out, (100.0 - train.mean(axis=0)) / train.std(axis=0))
+    assert np.isfinite(out).all()
+
+
+def test_standardizer_zero_scale_finite_policy():
+    from representation.handcrafted import Standardizer
+
+    rows = np.ones((20, 3))
+    rows[:, 0] = np.arange(20, dtype=float)
+    std = Standardizer.fit(rows)
+    assert std.scale[1] == 1.0 and std.scale[2] == 1.0
+    out = std.apply(rows)
+    assert np.isfinite(out).all()
+    assert (out[:, 1:] == 0.0).all()  # constant dims center to exact zero
+
+
+def test_standardizer_rejects_refit_shapes_and_nonfinite():
+    import pytest
+
+    from representation.handcrafted import Standardizer
+
+    std = Standardizer.fit(np.zeros((5, 4)))
+    with pytest.raises(ValueError):
+        std.apply(np.zeros((5, 5)))  # width mismatch, not silent truncation
+    with pytest.raises(ValueError):
+        Standardizer.fit(np.zeros((0, 4)))

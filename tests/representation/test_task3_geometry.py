@@ -60,3 +60,30 @@ def test_population_energy_zero_on_invalid_patches():
     )
     assert bool((out["population_energy"][~valid] == 0.0).all())
     assert bool(torch.isfinite(out["population_energy"][valid]).all())
+
+def test_roc_auc_matches_sklearn_convention():
+    import sys
+    from pathlib import Path
+
+    import numpy as np
+    from sklearn.metrics import roc_auc_score
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "experiments"))
+    from sprint12_task3_baselines import roc_auc_or_nan
+
+    rng = np.random.default_rng(0)
+    # ties: must match sklearn exactly (the inverted code failed here by symmetry)
+    scores = np.array([0.1, 0.4, 0.4, 0.9, 0.2, 0.7])
+    labels = np.array([0.0, 0.0, 1.0, 1.0, 0.0, 1.0])
+    assert roc_auc_or_nan(scores, labels) == roc_auc_score(labels, scores)
+    # random scores with ties from rounding
+    s = np.round(rng.normal(size=200), 1)
+    y = (rng.random(200) < 0.4).astype(float)
+    assert roc_auc_or_nan(s, y) == roc_auc_score(y, s)
+    # perfect ranking -> 1.0 (inverted code returned 0.0)
+    assert roc_auc_or_nan(np.array([3.0, 2.0, 1.0, 0.0]), np.array([1.0, 1.0, 0.0, 0.0])) == 1.0
+    # reversed ranking -> 0.0 (inverted code returned 1.0)
+    assert roc_auc_or_nan(np.array([0.0, 1.0, 2.0, 3.0]), np.array([1.0, 1.0, 0.0, 0.0])) == 0.0
+    # single-class input -> nan, never a fabricated rank
+    assert np.isnan(roc_auc_or_nan(np.array([1.0, 2.0]), np.array([0.0, 0.0])))
+    assert np.isnan(roc_auc_or_nan(np.array([1.0, 2.0]), np.array([1.0, 1.0])))
