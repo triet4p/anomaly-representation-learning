@@ -186,6 +186,10 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--data-root", required=True)
     ap.add_argument("--control-ckpt", required=True)
+    ap.add_argument("--hybrid-ckpt", required=True)
+    ap.add_argument("--out", required=True)
+    ap.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
+    ap.add_argument("--n-nuisance", type=int, default=32)
     args = ap.parse_args()
 
     commit = repo_commit()
