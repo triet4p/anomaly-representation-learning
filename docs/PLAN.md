@@ -10,7 +10,7 @@ robot-state tracking, and one-day/seven-day failure-risk evaluation.
 
 ## Current Sprint
 
-- [Sprint 11 — Chronological Factory Geometry and Early-Warning Validation](sprint-plans/sprint-11.md) — **Active; all Tasks 1–37 implemented/completed for review on corrected evidence, Batches A1–F2 pass, Batch F3 (Task 37) for review, pending the sprint-wide deep-review gate**
+- [Sprint 11 — Chronological Factory Geometry and Early-Warning Validation](sprint-plans/sprint-11.md) — **Complete on corrected evidence (training `e378626`, F1 `e725250`, F2 `3eef3d2`, report `ebde5d0`); Batches A1–F3 pass with zero actionable findings; sprint-wide deep review PASS (confidence 0.98); integrated verdict 0/4 stands as the accepted negative result**
 ## Paused Sprints
 
 - [Sprint 4 — Joint Training Stabilization and Rerun Export](sprint-plans/sprint-4.md) — **Paused with Tasks 15–22 pending**
