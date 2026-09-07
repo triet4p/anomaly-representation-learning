@@ -1,18 +1,20 @@
 """Target-hidden context scorer without query self-copying (Sprint 12 Task 8).
 
-Predicts each patch's latent from context that cannot see that patch: the
-target is hidden BEFORE any contextual mixing, including waveform-overlapping
-neighbors (stride < patch width ⇒ patches j-1/j/j+1 share waveform support).
-Targets are stop-gradient: gradients shape the context mixer and the head,
-never the targets. The scored field is the distinct experimental
-``hidden_context_energy`` — never the canonical ``context_energy`` or
-``population_energy``.
+Predicts each patch's latent from position-aware context that cannot see that
+patch's CONTENT: the target (plus waveform-overlapping neighbors j-1/j/j+1 and
+pads) is zeroed BEFORE any contextual mixing, while EVERY position — including
+the hidden target's own — receives the repo-standard sinusoidal position code
+(cf. SequenceContextEncoder._positions), so queries/keys carry order without
+content. Targets are stop-gradient: gradients shape the context mixer and the
+head, never the targets. Energy uses boring FIXED unit variance
+(``0.5 * ||z - mu||^2``): no learned variance head exists to clamp or copy,
+and loss terms share coherent declared scales. The scored field is the
+distinct experimental ``hidden_context_energy`` — never the canonical
+``context_energy`` or ``population_energy``.
 
-Run j consumes the latent sequence with positions {j-1, j, j+1} (and pads)
-zeroed before any mixing, and attention keys are additionally blocked there —
-no residual stream can carry the target into its own context. The
-no-target-path property is exact, not statistical, and is covered by
-perturbation tests.
+Supersession: the first revision (order-blind mixer + learned query-conditioned
+variance, whose NLL logvar term at -6.0 drowned the boundary) is REJECTED as
+defective; its checkpoints must not be reused.
 """
 
 from __future__ import annotations
@@ -22,7 +24,21 @@ from torch import nn
 #: Waveform-overlap radius in patch index units (stride 16 < width 32).
 OVERLAP_RADIUS = 1
 
-LOGVAR_LO, LOGVAR_HI = -6.0, 6.0
+
+def sinusoidal_positions(length: int, width: int, device: torch.device,
+                          dtype: torch.dtype) -> torch.Tensor:
+    """Repo-standard sinusoidal position codes (SequenceContextEncoder pattern)."""
+    import math
+
+    position = torch.arange(length, device=device, dtype=dtype).unsqueeze(1)
+    divisor = torch.exp(
+        torch.arange(0, width, 2, device=device, dtype=dtype)
+        * (-math.log(10_000.0) / width)
+    )
+    encoding = torch.zeros((length, width), device=device, dtype=dtype)
+    encoding[:, 0::2] = torch.sin(position * divisor)
+    encoding[:, 1::2] = torch.cos(position * divisor[: encoding[:, 1::2].shape[1]])
+    return encoding
 
 
 def allowed_keys(n: int, valid: torch.Tensor) -> torch.Tensor:
@@ -67,7 +83,7 @@ class TargetHiddenScorer(nn.Module):
             for _ in range(n_layers)
         ])
         self.mean = nn.Linear(d_model, d_model)
-        self.logvar = nn.Linear(d_model, d_model)
+        # NOTE: deliberately no variance head (fixed unit variance energy).
 
     def config(self) -> dict[str, int]:
         """Serializable architecture config for coherent checkpoints."""
@@ -75,20 +91,23 @@ class TargetHiddenScorer(nn.Module):
                 "n_layers": self.n_layers}
 
     def context_for(self, latents: torch.Tensor, valid: torch.Tensor) -> torch.Tensor:
-        """Context vectors with the target hidden BEFORE mixing.
+        """Position-aware context with target CONTENT hidden BEFORE mixing.
 
         Run j consumes latents with positions {j-1, j, j+1} (and pads) zeroed,
         so no residual stream can carry the target into its own context; keys
-        are additionally blocked in attention. context[b, j] is output position
+        are additionally blocked in attention. EVERY position — including the
+        zeroed target's own — receives the sinusoidal position code, so the
+        target query gets its POSITION ONLY. context[b, j] is output position
         j of run j (diagonal gather over the batched runs).
         """
         if latents.ndim != 3 or latents.shape[2] != self.d_model:
             raise ValueError(f"latents must be [B, N, {self.d_model}]")
         b, n, _ = latents.shape
         key_ok = allowed_keys(n, valid).to(latents.device)  # [B, N, N] per query
-        h = latents.unsqueeze(1).expand(b, n, n, -1) * key_ok.unsqueeze(-1).to(latents.dtype)
+        content = latents.unsqueeze(1).expand(b, n, n, -1) * key_ok.unsqueeze(-1).to(latents.dtype)
+        positions = sinusoidal_positions(n, self.d_model, latents.device, latents.dtype)
+        h = (content + positions.unsqueeze(0).unsqueeze(0)).reshape(b * n, n, -1)
         key_pad = ~key_ok.reshape(b * n, n)
-        h = h.reshape(b * n, n, -1)
         for layer in self.layers:
             h = layer(h, src_key_padding_mask=key_pad)
         h = h.reshape(b, n, n, -1)
@@ -99,17 +118,15 @@ class TargetHiddenScorer(nn.Module):
         return torch.where(has_keys.unsqueeze(-1), out, torch.zeros_like(out))
 
     def forward(self, latents: torch.Tensor, valid: torch.Tensor) -> dict[str, torch.Tensor]:
-        """Score stop-gradient targets against target-hidden references."""
+        """Score stop-gradient targets with fixed unit variance (boring energy)."""
         context = self.context_for(latents, valid)
         mu = self.mean(context)
-        lv = self.logvar(context).clamp(LOGVAR_LO, LOGVAR_HI)
         target = latents.detach()  # stop-gradient: never ease the targets
-        energy = 0.5 * ((target - mu).pow(2) / lv.exp() + lv).sum(dim=-1)
+        energy = 0.5 * (target - mu).pow(2).sum(dim=-1)
         energy = energy.masked_fill(~valid, 0.0)
         return {
             "hidden_context": context,
             "hidden_mean": mu,
-            "hidden_logvar": lv,
             "hidden_context_energy": energy,
             "patch_valid_mask": valid,
         }
