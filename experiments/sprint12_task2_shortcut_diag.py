@@ -232,9 +232,7 @@ def paired_stats(
             valid.to(batch["patches"].device),
             mask.to(batch["patches"].device),
             float(sev),
-            generator=torch.Generator(batch["patches"].device).manual_seed(seed)
-            if batch["patches"].device.type != "cpu"
-            else torch.Generator().manual_seed(seed),
+            generator=torch.Generator().manual_seed(seed + int(round(sev * 1000))),
         )
         cb = dict(batch, patches=corrupted)
         corr = encode(pipe, cb)
@@ -357,30 +355,49 @@ def main() -> int:
             encs = []
             for s in range(0, len(files), args.batch_size):
                 encs.append(encode(pipe, make_batch(files[s : s + args.batch_size], patchifier, args.device)))
-            enc = {k: torch.cat([e[k] for e in encs]) for k in encs[0]}
-            block["cohorts"][cohort_name] = cohort_stats(enc, cohort_name)
-            # per-file rows (bounded): mean over valid patches of each file
-            offset = 0
-            for f, e in zip(files, encs):
+            # Batches carry different patch counts; pool flattened valid rows.
+            flat = {k: [] for k in ("latents", "mean", "logvar", "context_energy", "population_energy")}
+            for e in encs:
                 v = e["valid"]
-                rows = []
-                for i in range(v.shape[0]):
-                    vi = v[i]
-                    if int(vi.sum()) == 0:
-                        continue
-                    r2 = (e["latents"][i][vi] - e["mean"][i][vi]).pow(2).sum(dim=-1).mean().item()
-                    rows.append(r2)
-                file_rows.append(
-                    {
-                        "checkpoint": name,
-                        "cohort": cohort_name,
-                        "file_id": f.file_id,
-                        "mean_resid_sq_per_patch": float(np.mean(rows)) if rows else float("nan"),
-                        "mean_context_energy": float(e["context_energy"][v].mean()),
-                        "mean_population_energy": float(e["population_energy"][v].mean()),
-                    }
-                )
-                offset += 1
+                flat["latents"].append(e["latents"][v])
+                flat["mean"].append(e["mean"][v])
+                flat["logvar"].append(e["logvar"][v])
+                flat["context_energy"].append(e["context_energy"][v])
+                flat["population_energy"].append(e["population_energy"][v])
+            n_all = int(sum(t.shape[0] for t in flat["latents"]))
+            enc = {
+                "latents": torch.cat(flat["latents"]),
+                "mean": torch.cat(flat["mean"]),
+                "logvar": torch.cat(flat["logvar"]),
+                "context_energy": torch.cat(flat["context_energy"]),
+                "population_energy": torch.cat(flat["population_energy"]),
+                "valid": torch.ones((n_all,), dtype=torch.bool),
+            }
+            block["cohorts"][cohort_name] = cohort_stats(enc, cohort_name)
+            for s in range(0, len(files), args.batch_size):
+                e = encs[s // args.batch_size]
+                v = e["valid"]
+                for j, f in enumerate(files[s : s + args.batch_size]):
+                    vi = v[j]
+                    r2 = (
+                        (e["latents"][j][vi] - e["mean"][j][vi]).pow(2).sum(dim=-1).mean().item()
+                        if int(vi.sum())
+                        else float("nan")
+                    )
+                    file_rows.append(
+                        {
+                            "checkpoint": name,
+                            "cohort": cohort_name,
+                            "file_id": f.file_id,
+                            "mean_resid_sq_per_patch": float(r2),
+                            "mean_context_energy": float(e["context_energy"][j][vi].mean())
+                            if int(vi.sum())
+                            else float("nan"),
+                            "mean_population_energy": float(e["population_energy"][j][vi].mean())
+                            if int(vi.sum())
+                            else float("nan"),
+                        }
+                    )
         for cohort_name, files in (("healthy", healthy), ("abnormal", abnormal)):
             sev_block = []
             for s in range(0, len(files), args.batch_size):
