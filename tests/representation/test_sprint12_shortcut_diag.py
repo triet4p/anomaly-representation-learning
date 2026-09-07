@@ -10,10 +10,15 @@ import torch
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "experiments"))
 
 from sprint12_task2_shortcut_diag import (  # noqa: E402
+    centered_within_dim_coupling,
     clamp_fractions,
+    describe,
     energy_terms,
+    file_corruption_mask,
+    file_direction,
     ordinary_least_squares_slope,
     pearson,
+    seed_from,
 )
 
 
@@ -69,3 +74,55 @@ def test_pearson_degenerate_returns_nan():
     assert pearson(np.arange(10, dtype=float), np.arange(10, dtype=float)) == (
         __import__("pytest").approx(1.0)
     )
+
+def test_centered_coupling_rejects_centroid_offset_confound():
+    # mu shares z's per-dim centroids but carries no within-dim signal:
+    # pooled cross-dim OLS looks strong while centered coupling is ~null.
+    rng = np.random.default_rng(0)
+    z = rng.normal(loc=0.0, scale=1.0, size=(300, 8))
+    z = z + np.arange(8)[None, :] * 5.0  # separated per-dim centroids
+    mu = np.roll(z, shift=150, axis=0)  # same centroids, unrelated rows
+    pooled = ordinary_least_squares_slope(z.ravel(), mu.ravel())
+    assert pooled["r2"] > 0.9  # confounded statistic looks like tracking
+    out = centered_within_dim_coupling(z, mu)
+    assert out["n_dims"] == 8
+    assert abs(out["centered_corr_pooled"]) < 0.2  # centered view rejects it
+
+
+def test_centered_coupling_keeps_true_tracking():
+    rng = np.random.default_rng(1)
+    z = rng.normal(size=(300, 8)) + np.arange(8)[None, :] * 5.0
+    mu = z + rng.normal(scale=1e-3, size=z.shape)
+    out = centered_within_dim_coupling(z, mu)
+    assert out["centered_corr_pooled"] > 0.99
+    assert out["centered_slope"]["median"] == __import__("pytest").approx(1.0, abs=1e-2)
+
+
+def test_file_mask_deterministic_and_partition_independent():
+    valid = np.array([True] * 40 + [False] * 5)
+    m1 = file_corruption_mask(45, valid, 0.25, "S-op-000001-abc", 0)
+    m2 = file_corruption_mask(45, valid, 0.25, "S-op-000001-abc", 0)
+    assert m1.dtype == bool and m1.shape == (45,)
+    assert (m1 == m2).all()  # same file -> same support, any call order
+    assert not m1[40:].any()  # never masks invalid patches
+    m3 = file_corruption_mask(45, valid, 0.25, "S-op-000002-def", 0)
+    assert not (m1 == m3).all()  # distinct files differ
+    assert seed_from("0", "S-op-000001-abc", "mask") == seed_from("0", "S-op-000001-abc", "mask")
+
+
+def test_file_direction_fixed_across_severities():
+    d1 = file_direction(6, 16, "S-op-000001-abc", 0)
+    d2 = file_direction(6, 16, "S-op-000001-abc", 0)
+    assert d1.shape == (6, 16) and (d1 == d2).all()
+
+
+def test_pooled_describe_not_mean_of_shard_medians():
+    # Guards Finding 5: pool actual rows, never average shard summaries.
+    rng = np.random.default_rng(2)
+    shards = [rng.normal(loc=k, scale=1.0, size=50) for k in range(4)]
+    pooled_median = describe(np.concatenate(shards))["median"]
+    mean_of_medians = float(np.mean([describe(s)["median"] for s in shards]))
+    assert pooled_median != mean_of_medians  # the bug changes the number
+    # ...and pooling is invariant to how rows are grouped.
+    regrouped = [np.concatenate(shards)[:100], np.concatenate(shards)[100:]]
+    assert describe(np.concatenate(regrouped))["median"] == pooled_median

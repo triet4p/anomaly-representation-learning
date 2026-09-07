@@ -3,20 +3,21 @@
 ## Overview
 
 The project builds a representation-learning anomaly detector and calibrated early-warning
-system for variable-length multi-channel telemetry. Sprint 11 replaces independently
-timestamped synthetic files with a causal 3–6 month factory simulation and replaces the
-near-chance V1 geometry with robot-program-conditioned patch geometry, longitudinal
-robot-state tracking, and one-day/seven-day failure-risk evaluation.
+system for variable-length multi-channel telemetry. Sprint 11 delivered causal factory
+simulation and conditional geometry, but its accepted scientific verdict is 0/4 gates.
+Sprint 12 diagnoses that failure, establishes observable-signal baselines, and gates
+representation recovery and calibrated early warning on independent scientific evidence.
 
 ## Current Sprint
 
-- [Sprint 11 — Chronological Factory Geometry and Early-Warning Validation](sprint-plans/sprint-11.md) — **Complete on corrected evidence (training `e378626`, F1 `e725250`, F2 `3eef3d2`, report `ebde5d0`); Batches A1–F3 pass with zero actionable findings; sprint-wide deep review PASS (confidence 0.98); integrated verdict 0/4 stands as the accepted negative result**
+- [Sprint 12 — Scorer Diagnosis, Signal Baselines, and Gated Scientific Recovery](sprint-plans/sprint-12.md) — **Active; diagnosis first, followed by evidence-gated development and independent evaluation. Full recommendation preserved verbatim in [SPRINT12-RECOMMENDATIONS.md](SPRINT12-RECOMMENDATIONS.md).**
 ## Paused Sprints
 
 - [Sprint 4 — Joint Training Stabilization and Rerun Export](sprint-plans/sprint-4.md) — **Paused with Tasks 15–22 pending**
 
 ## Completed Sprints
 
+- [Sprint 11 — Chronological Factory Geometry and Early-Warning Validation](sprint-plans/sprint-11.md) — **Complete on corrected evidence (training `e378626`, F1 `e725250`, F2 `3eef3d2`, report `ebde5d0`); Batches A1–F3 pass with zero actionable findings; sprint-wide deep review PASS (confidence 0.98); integrated verdict 0/4 stands as the accepted negative result**
 - [Sprint 10 — Results Consolidation](sprint-plans/sprint-10.md) — **Complete (evidence-only gate passed)**
 - [Sprint 9 — V1 Detection Improvement](sprint-plans/sprint-9.md) — **Complete (evidence-only gate passed; all tracks verdict retrain)**
 - [Sprint 8 — V1 Results Summary](sprint-plans/sprint-8.md) — **Complete (evidence-only gate passed)**
@@ -42,9 +43,10 @@ robot-state tracking, and one-day/seven-day failure-risk evaluation.
 | 12 | Side-effect-free version reporting from both synthetic-data CLI entry points | ✅ Sprint 3 |
 | 13 | Stable, diagnosable joint training with coherent rerun exports | ⏸ Sprint 4 paused |
 | 14 | Server-native latent-geometry execution with Git-synchronized runs | ✅ Sprint 6 (superseded the Sprint 5 Kaggle gate) |
-| 15 | Deterministic shared-unit factory calendar with robot health, failures, maintenance, quarantine, and chronological splits | 🔄 Sprint 11 |
-| 16 | Conditional hierarchical latent geometry with localized synthetic boundary learning | 🔄 Sprint 11 |
-| 17 | Static anomaly detection plus calibrated one-day/seven-day longitudinal early warning | 🔄 Sprint 11 |
+| 15 | Deterministic shared-unit factory calendar with health, failures, maintenance, quarantine, and chronological splits | Complete — Sprint 11 |
+| 16 | Conditional hierarchical latent geometry with localized synthetic boundary learning | Implemented — Sprint 11; scientific separation failed |
+| 17 | Static detection and calibrated one-day/seven-day early warning | Evaluated — Sprint 11 negative result; not scientifically validated |
+| 18 | Scorer diagnosis, observable-signal baselines, and independent scientific recovery gates | Active — Sprint 12 |
 
 ## High-Level Design Decisions
 
