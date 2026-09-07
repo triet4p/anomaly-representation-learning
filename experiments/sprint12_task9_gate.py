@@ -192,7 +192,7 @@ def main() -> int:
             batch["regime_ids"] = regimes.to(dev)
             valid = batch["patch_valid_mask"]
             gen = torch.Generator().manual_seed(1000 + step)
-            cmask = (torch.rand(valid.shape, generator=gen) < CORRUPTION_RATE) & valid
+            cmask = (torch.rand(valid.shape, generator=gen, device=valid.device) < CORRUPTION_RATE) & valid
             mech = MECHANISMS[step % len(MECHANISMS)]
             sa, sb = sev_pairs[step % len(sev_pairs)]
             with torch.no_grad():
