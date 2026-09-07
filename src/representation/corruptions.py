@@ -79,8 +79,8 @@ def severity_of(value: float) -> float:
 
 def _channel_subset(gen: torch.Generator, n_channels: int, device: torch.device) -> torch.Tensor:
     """Deterministic non-empty channel subset mask [C]."""
-    k = 1 + int(torch.randint(0, n_channels, (1,), generator=gen).item())
-    perm = torch.randperm(n_channels, generator=gen)[:k]
+    k = 1 + int(torch.randint(0, n_channels, (1,), generator=gen, device=device).item())
+    perm = torch.randperm(n_channels, generator=gen, device=device)[:k]
     out = torch.zeros((n_channels,), dtype=torch.float32, device=device)
     out[perm.to(device)] = 1.0
     return out
@@ -124,15 +124,13 @@ def corrupt(
     """Return the corrupted view for one mechanism at one severity."""
     sev = severity_of(severity)
     b, n, c, w = _require_shapes(patches, patch_pad_mask, patch_valid_mask, corruption_mask)
-    gen = generator if generator is not None else torch.Generator().manual_seed(0)
-    if gen.device != patches.device:
-        seed = gen.initial_seed()
-        try:
-            gen = torch.Generator(device=patches.device).manual_seed(seed)
-        except RuntimeError:
-            gen = torch.Generator().manual_seed(seed)
-    active = (corruption_mask & patch_valid_mask).unsqueeze(-1).unsqueeze(-1).to(patches.dtype)
+    seed = generator.initial_seed() if generator is not None else 0
+    try:
+        gen = torch.Generator(device=patches.device).manual_seed(seed)
+    except RuntimeError:
+        gen = torch.Generator().manual_seed(seed)  # device without generator support
     device = patches.device
+    active = (corruption_mask & patch_valid_mask).unsqueeze(-1).unsqueeze(-1).to(patches.dtype)
     if name == "level_drift":
         subset = _channel_subset(gen, c, device).reshape(1, 1, c, 1)
         ramp = torch.linspace(0.0, 1.0, w, device=device).reshape(1, 1, 1, w)
@@ -140,8 +138,8 @@ def corrupt(
         pert = sev * BOUNDS["level_drift"]["max_abs_offset"] * direction * subset * ramp
         pert = pert.expand(b, n, c, w)
     elif name == "relative_gain_drift":
-        a = int(torch.randint(0, c, (1,), generator=gen).item())
-        bb = (a + 1 + int(torch.randint(0, c - 1, (1,), generator=gen).item())) % c
+        a = int(torch.randint(0, c, (1,), generator=gen, device=device).item())
+        bb = (a + 1 + int(torch.randint(0, c - 1, (1,), generator=gen, device=device).item())) % c
         ramp = torch.linspace(0.0, 1.0, w, device=device)
         g = sev * BOUNDS["relative_gain_drift"]["max_rel_gain"]
         scale = torch.ones((b, n, c, w), dtype=patches.dtype, device=device)
@@ -157,7 +155,7 @@ def corrupt(
         return _blend(patches, patch_pad_mask, corruption_mask & patch_valid_mask, warped)
     elif name == "transient":
         width = max(1, int(w * BOUNDS["transient"]["max_width_frac"] * min(sev, 1.0) + 1))
-        start = int(torch.randint(0, max(1, w - width + 1), (1,), generator=gen).item())
+        start = int(torch.randint(0, max(1, w - width + 1), (1,), generator=gen, device=device).item())
         window = torch.zeros((w,), device=device)
         window[start:start + width] = 1.0
         subset = _channel_subset(gen, c, device).reshape(1, 1, c, 1)
