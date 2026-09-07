@@ -656,6 +656,13 @@ def build_task33(
             ),
         },
         "sparse_retention": retention,
+        "top_tail_mass_note": (
+            "Softmax-normalized valid-patch mass over the top-Q patches "
+            "(Q = max(1, ceil(top_q * n_valid))): w_i = exp(E_i - max E) / "
+            "sum_j exp(E_j - max E); additive-shift-invariant, valid for "
+            "signed NLL-scale energies. Supersedes the invalid total-fraction "
+            "definition (returned 0.0 on non-positive totals)."
+        ),
         "trajectory_continuity": continuity,
         "severity_energy": severity_table,
         "held_out_family_protocol": (
@@ -863,19 +870,25 @@ def _signal_block(
     score_key: str,
     decision_key: str,
     signal: str,
+    *,
+    include_elevated: bool = True,
 ) -> dict[str, object]:
-    """AUROC/AUPRC, descriptives, FP slices, family/severity recall, localization."""
+    """AUROC/AUPRC, descriptives, FP slices, family/severity recall, localization.
+
+    ``include_elevated=False`` removes the elevated-fraction fields from the
+    comparative conclusions (replaced by an explicit exclusion note) for
+    signals whose scale the restored operating threshold was never
+    calibrated on — the context-calibrated cutoff must not interpret
+    population elevated fractions.
+    """
     labels = [bool(f["abnormal"]) for f in static]
     scores = [float(f[score_key]) for f in static]
     decisions = [bool(f[decision_key]) for f in static]
     stats = confusion(decisions, labels)
     auroc, auprc = _roc_auprc(labels, scores)
     mean_key = score_key.replace("tail_energy", "mean_energy")
-    elev_key = score_key.replace("tail_energy", "elevated_fraction")
     means = [float(f[mean_key]) for f in static]
-    elev = [float(f[elev_key]) for f in static]
     mean_auroc, mean_auprc = _roc_auprc(labels, means)
-    elev_auroc, elev_auprc = _roc_auprc(labels, elev)
     normals = [f for f in static if not f["abnormal"]]
     normal_flags = [bool(f[decision_key]) for f in normals]
     fp_robot = group_rates([str(f["robot"]) for f in normals], normal_flags)
@@ -899,20 +912,16 @@ def _signal_block(
     mass_key = f"top_tail_mass_{signal}"
     argmax_hits = [bool(f[argmax_key]) for f in masked if f[argmax_key] is not None]
     top3 = [float(f[top3_key]) for f in masked if f[top3_key] is not None]
-    return {
+    block: dict[str, object] = {
         "energy_source": SIGNAL_ENERGY_SOURCE[signal],
         "score_key": score_key,
         "auroc_tail": auroc,
         "auprc_tail": auprc,
         "auroc_mean": mean_auroc,
         "auprc_mean": mean_auprc,
-        "auroc_elevated": elev_auroc,
-        "auprc_elevated": elev_auprc,
         **stats,
         "tail_abnormal": describe([s for s, y in zip(scores, labels) if y]),
         "tail_normal": describe([s for s, y in zip(scores, labels) if not y]),
-        "elevated_abnormal": describe([e for e, y in zip(elev, labels) if y]),
-        "elevated_normal": describe([e for e, y in zip(elev, labels) if not y]),
         "mean_abnormal": describe([m for m, y in zip(means, labels) if y]),
         "mean_normal": describe([m for m, y in zip(means, labels) if not y]),
         "fp_by_robot": fp_robot,
@@ -928,6 +937,23 @@ def _signal_block(
             "top_tail_mass_abnormal": describe([float(f[mass_key]) for f in abn]),
         },
     }
+    if include_elevated:
+        elev_key = score_key.replace("tail_energy", "elevated_fraction")
+        elev = [float(f[elev_key]) for f in static]
+        elev_auroc, elev_auprc = _roc_auprc(labels, elev)
+        block["auroc_elevated"] = elev_auroc
+        block["auprc_elevated"] = elev_auprc
+        block["elevated_abnormal"] = describe([e for e, y in zip(elev, labels) if y])
+        block["elevated_normal"] = describe([e for e, y in zip(elev, labels) if not y])
+    else:
+        block["elevated_fraction_excluded"] = (
+            "EXCLUDED from detection claims — the restored operating threshold "
+            "is calibrated on context_energy; applied to population-scale "
+            "energies it is uncalibrated cross-signal, so no population "
+            "elevated diagnostic is reported here (population detection uses "
+            "the dev-val population-tail operating point instead)."
+        )
+    return block
 
 
 def build_task34(
@@ -980,6 +1006,7 @@ def build_task34(
             "tail_energy_population",
             "_decision_population",
             "population",
+            include_elevated=False,
         )
         out[name] = {
             "n_static": len(static),

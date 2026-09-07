@@ -63,17 +63,32 @@ def mask_overlap_fraction(
 
 
 def top_tail_mass(energies: np.ndarray, valid: np.ndarray, top_q: float) -> float:
-    """Energy fraction carried by the top-Q valid patches (sparse retention)."""
+    """Softmax-normalized mass of the top-Q valid patches (sparse retention).
+
+    Over the valid signed energies ``E`` (e.g. negative NLL-scale context or
+    population energies), weights are ``w_i = exp(E_i - max E) / sum_j
+    exp(E_j - max E)`` — additive-shift-invariant, nonnegative, and summing
+    to one — and the mass is the weight sum over the top-Q patches ranked by
+    energy (``Q = max(1, ceil(top_q * n_valid))``). Uniform energies give
+    ``Q / n_valid`` regardless of sign or offset. The prior total-fraction
+    definition is invalid for signed energies (it returned 0.0 whenever the
+    energy total was non-positive) and must not be used.
+    """
     energy = np.asarray(energies, dtype=np.float64)
     mask = np.asarray(valid, dtype=bool)
     if energy.shape != mask.shape:
         raise ValueError("energies and valid must share shape")
     values = energy[mask]
-    if values.size == 0 or float(values.sum()) <= 0.0:
-        return 0.0
+    if values.size == 0:
+        raise ValueError("top_tail_mass requires at least one valid patch")
+    if not np.isfinite(values).all():
+        raise ValueError("top_tail_mass requires finite energies on valid patches")
     top_k = max(1, int(math.ceil(values.size * float(top_q))))
+    shifted = values - float(values.max())
+    weights = np.exp(shifted)
+    weights /= float(weights.sum())
     order = np.argsort(values)[::-1][:top_k]
-    return float(values[order].sum() / values.sum())
+    return float(weights[order].sum())
 
 
 def severity_bin(severity: float) -> str:

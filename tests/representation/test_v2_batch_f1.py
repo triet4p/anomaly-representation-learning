@@ -59,6 +59,35 @@ def test_top_tail_mass_sparse_vs_diffuse():
     with pytest.raises(ValueError):
         top_tail_mass(np.ones(5), np.ones(4, dtype=bool), 0.1)
 
+def test_top_tail_mass_signed_nll_shift_invariant():
+    rng = np.random.RandomState(7)
+    neg = -86.0 - np.abs(rng.normal(size=40))
+    neg[5] += 3.0  # one relatively elevated (less-negative) patch
+    valid = np.ones(40, dtype=bool)
+    mass = top_tail_mass(neg, valid, 0.1)
+    assert 0.0 < mass <= 1.0
+    assert mass > 0.1  # spike concentrates softmax mass above the uniform share
+    assert top_tail_mass(neg + 1000.0, valid, 0.1) == pytest.approx(mass)
+    assert top_tail_mass(neg - 50.0, valid, 0.1) == pytest.approx(mass)
+
+
+def test_top_tail_mass_uniform_and_invalid_masks():
+    uniform_neg = np.full(20, -67.5)
+    valid = np.ones(20, dtype=bool)
+    assert top_tail_mass(uniform_neg, valid, 0.1) == pytest.approx(0.1)
+    with pytest.raises(ValueError):
+        top_tail_mass(np.ones(10), np.zeros(10, dtype=bool), 0.1)
+    with pytest.raises(ValueError):
+        top_tail_mass(np.array([]), np.array([], dtype=bool), 0.1)
+    bad = np.ones(10)
+    bad[3] = np.nan
+    with pytest.raises(ValueError):
+        top_tail_mass(bad, np.ones(10, dtype=bool), 0.1)
+    bad_inf = np.full(10, -80.0)
+    bad_inf[0] = np.inf
+    with pytest.raises(ValueError):
+        top_tail_mass(bad_inf, np.ones(10, dtype=bool), 0.1)
+
 
 def test_bins_are_fixed_and_documented():
     assert severity_bin(0.1) == "low(<0.5)"
@@ -264,3 +293,22 @@ def test_task33_probes_report_per_signal():
     assert "context" in severity["hybrid"]
     continuity = continuity_probe(scored, scored)
     assert "population" in continuity["control"]
+
+
+def test_signal_block_excludes_population_elevated():
+    rows = [
+        _fake_file(f"s{i}", "static", abnormal=(i % 2 == 0), tail_context=10.0 + i,
+                   tail_population=20.0 + i, confidence=0.9 if i % 2 == 0 else 0.1)
+        for i in range(6)
+    ]
+    for f in rows:
+        f["_decision_population"] = f["tail_energy_population"] >= 20.0
+    block = _signal_block(rows, "tail_energy_population", "_decision_population",
+                          "population", include_elevated=False)
+    assert block["energy_source"] == POPULATION_ENERGY_FIELD
+    assert "elevated_abnormal" not in block
+    assert "auroc_elevated" not in block
+    assert "EXCLUDED" in block["elevated_fraction_excluded"]
+    ctx = _signal_block(rows, "tail_energy_context", "_decision_population",
+                        "context", include_elevated=True)
+    assert "elevated_abnormal" in ctx and "auroc_elevated" in ctx
