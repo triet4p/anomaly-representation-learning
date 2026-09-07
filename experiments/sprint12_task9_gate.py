@@ -167,6 +167,10 @@ def main() -> int:
         assert all(by_id[i].file_label is SampleLabel.NORMAL for i in train_ids + val_ids)
         fit_files += [by_id[i] for i in train_ids]
         cal_files += [by_id[i] for i in manifest["splits"]["dev_val"] if keep(i)]
+    assert len(fit_files) >= 120 and len(cal_files) >= 40, (len(fit_files), len(cal_files))
+    scorer = TargetHiddenScorer(d_model=32, n_heads=4, n_layers=2).to(args.device)
+    criterion = CounterfactualCriterion(boundary_margin=args.margin)
+    opt = torch.optim.Adam(scorer.parameters(), lr=args.lr)
     order = torch.randperm(len(fit_files), generator=torch.Generator().manual_seed(0)).tolist()
     ordered = [fit_files[i] for i in order]
     step = 0
