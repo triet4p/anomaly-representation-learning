@@ -244,11 +244,11 @@ def main() -> int:
             batch["robot_idx"].cpu().expand(int(vv.shape[0]))[vv],
             batch["program_idx"].cpu().expand(int(vv.shape[0]))[vv],
             batch["regime_ids"][0].cpu()[vv]], dim=1))
-    rows = torch.cat(std_rows)
+    rows_a = torch.cat(std_rows)
     aux = torch.cat(aux_rows)
-    geo = HierarchicalMahalanobisGeometry(rows.shape[1], **geo_kwargs)
-    geo.fit(rows, aux[:, 0], aux[:, 1], aux[:, 2],
-            torch.ones((rows.shape[0],), dtype=torch.bool))
+    geo = HierarchicalMahalanobisGeometry(rows_a.shape[1], **geo_kwargs)
+    geo.fit(rows_a, aux[:, 0], aux[:, 1], aux[:, 2],
+            torch.ones((rows_a.shape[0],), dtype=torch.bool))
     geo = geo.frozen()
 
     def geometry_tail(sample) -> float:
@@ -384,8 +384,8 @@ def main() -> int:
             "score_rule": "causal only (file end_time <= window end); amplitude zero-fit; "
                           "geometry_tail = top-10% mean of frozen FIT-conditional population energies",
         },
-        "fit": {"n_files": len(fit_files), "n_rows": int(rows.shape[0]),
-                "feature_dim": int(rows.shape[1])},
+        "fit": {"n_files": len(fit_files), "n_rows": int(rows_a.shape[0]),
+                "feature_dim": int(rows_a.shape[1])},
         "n_failures": len(per_failure),
         "scope": ("progressive failures only; weak/abrupt categories are UNAVAILABLE "
                   "under v2 abrupt_rate=0 (no new data generated; no generalization)."),
