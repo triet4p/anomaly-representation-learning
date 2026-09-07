@@ -250,7 +250,7 @@ def main() -> int:
                         pad = batch["patch_pad_mask"][0].cpu().numpy()
                         mat = (torch.from_numpy(std.apply(batch_patch_features(raw, pad))).float()
                                if arm == "handcrafted"
-                               else pipe.model.local(wp, batch["patch_pad_mask"]).cpu()[0])
+                               else pipe.model.local(wp, batch["patch_pad_mask"]).detach().cpu()[0])
                         geo = geo_a if arm == "handcrafted" else geo_b
                         ce = geo.population_energy(
                             mat.unsqueeze(0), v, batch["robot_idx"].cpu(),
