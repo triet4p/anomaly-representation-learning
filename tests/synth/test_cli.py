@@ -117,3 +117,27 @@ def test_normal_generation_argument_parsing_and_setup_are_preserved(
             "profile": "small",
         }
     ]
+
+def test_chronological_units_preserves_arrival_span():
+    """--units rescales cadence inversely, keeping the calendar span fixed."""
+    from synth.chronicle import server_config
+
+    args = cli.build_parser().parse_args([
+        "--chronological", "--profile", "server", "--units", "1200",
+        "--output", "dummy",
+    ])
+    assert args.units == 1200
+    cfg = server_config(seed=100)
+    base_span = cfg.scheduler.n_units * cfg.scheduler.arrival_interval_s
+    cfg.scheduler.n_units = args.units
+    scaled = base_span / args.units
+    assert scaled == 5400.0
+    assert base_span == 300 * 21600.0
+
+
+def test_chronological_units_rejects_nonpositive():
+    with __import__("pytest").raises(SystemExit):
+        cli.main([
+            "--chronological", "--profile", "server", "--units", "0",
+            "--output", "dummy",
+        ])

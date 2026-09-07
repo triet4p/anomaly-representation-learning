@@ -38,6 +38,9 @@ def build_parser() -> argparse.ArgumentParser:
                    help="materialize a chronological factory dataset (Tasks 5-7 pipeline)")
     p.add_argument("--profile", choices=("client", "server"), default="client",
                    help="chronological scale profile (default: client)")
+    p.add_argument("--units", type=int, default=None,
+                   help="chronological unit count; arrival cadence scales inversely "
+                   "to preserve the profile calendar span (default: profile value)")
     p.add_argument("--channels", type=int, choices=(3, 6), default=6)
     return p
 
@@ -60,6 +63,15 @@ def main(argv: list[str] | None = None) -> int:
         seed = 0 if args.seed is None else args.seed
         cfg = client_config(seed=seed) if args.profile == "client" else server_config(seed=seed)
         cfg.n_channels = args.channels
+        if args.units is not None:
+            if args.units <= 0:
+                build_parser().error("--units must be positive")
+            base_units = cfg.scheduler.n_units
+            base_interval = cfg.scheduler.arrival_interval_s
+            cfg.scheduler.n_units = args.units
+            scaled = base_interval * base_units / args.units
+            cfg.scheduler.arrival_interval_s = scaled
+            cfg.scheduler.arrival_jitter_s = scaled
         manifest = materialize_chronological(
             cfg, args.output, shard_size=args.shard_size,
             overwrite=args.overwrite,
