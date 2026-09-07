@@ -75,10 +75,10 @@ Reference/config/data hashes:
   `83d94b9daf8a6c873ea8af84a1001885021e27a0a9e39a3f136fc97366917aca`
   (984 841 B) (Tasks 30–32, both run manifests).
 - `experiments/v2_staged/full_control.yaml` sha256
-  `79266fd295aaa5996c88bee8925a5ae6c5c5e6f8ea3c5c5e6f8ea6b83fdc30ff31971b3dc59`
-  — recorded here exactly as `79266fd2…` per `task-30.md` (full value in that
-  artifact; the YAML itself is committed at
-  `../../experiments/v2_staged/full_control.yaml`).
+  `79266fd295aaa5996c88bee8925a5ae6c5c5e6f8ea6b83fdc30ff31971b3dc59`
+  (64 hex, matches `task-30.md` and the committed YAML at
+  `../../experiments/v2_staged/full_control.yaml`, reverified by local
+  `sha256sum`).
 - `experiments/v2_staged/full_hybrid.yaml` sha256
   `0dafe893d960a47051a0d091d1fb963da284f325c22aae00366a455738cdbceb`
   (`task-29.md`, `task-31.md`). A superseded first freeze `cdf73751…`
@@ -305,7 +305,7 @@ gate INFO.)
 | AUPRC 1d / 7d (baselines 0.163 / 0.837) | 0.103 / 0.792 | 0.107 / 0.793 | +0.004 / +0.001 (below prevalence both horizons, both variants — worse than constant) |
 | concordance C_7d (114 211 pairs) | 0.414 | 0.408 | −0.007 (higher risk → *later* failure) |
 | Brier 1d / 7d (constant ref 0.136 both) | 0.227 / 0.386 | 0.204 / 0.400 | −0.023 / +0.014 (7d ≈ 2.9× reference) |
-| ECE 1d / 7d | 0.252 / 0.418 | 0.290 / 0.446 | +0.038 / +0.028 |
+| ECE 1d / 7d | 0.252 / 0.418 | 0.222 / 0.446 | −0.030 / +0.028 |
 | conformal healthy coverage | 0.982 | 0.982 | 0.000 |
 
 - 7d recall is prevalence-driven, not evidence-driven: 401/479 usable files sit
