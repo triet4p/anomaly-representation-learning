@@ -4,7 +4,7 @@
 
 Create and freeze a synthetic telemetry benchmark on which causal early-warning ranking, positive lead time, false-alert behavior, and later calibrated-risk evaluation are structurally measurable before any representation or risk-model optimization resumes.
 
-**Status:** Active — Batches A/B/C1/C2/D1/D2 accepted; Task 15 `MEASURABLE` accepted; Task 16 done (ledger consistent, review pending); Task 17 (deep review) NOT started; Sprint 14 not started.
+**Status:** Active — Batches A/B/C1/C2/D1/D2 accepted; Task 15 `MEASURABLE` accepted; Task 16 accepted (ledger PASS); Task 17 (deep review) NOT started; Sprint 14 not started.
 
 ## Decision Context
 
@@ -65,7 +65,7 @@ Status legend: [ ] pending / [~] in progress / [x] done.
 
 ### Batch E — Review and closeout
 
-- [x] **Task 16 — Pass batch evidence gates.** Review Batches A–D with evidence reviewers. Any actionable defect returns to the same implementation owner, followed by a fresh review at the affected gate. Preserve failed and superseded review records. Evidence: `artifacts/sprint-13/review-*.md` plus `artifacts/sprint-13/review-index.md` (done; review pending).
+- [x] **Task 16 — Pass batch evidence gates.** Review Batches A–D with evidence reviewers. Any actionable defect returns to the same implementation owner, followed by a fresh review at the affected gate. Preserve failed and superseded review records. Evidence: `artifacts/sprint-13/review-*.md` plus `artifacts/sprint-13/review-index.md` (accepted: Task 16 gate PASS).
 
 - [ ] **Task 17 — Pass differential review and finalize Sprint 13.** Run a sprint-wide differential deep review over accepted evidence. Finalize only with zero actionable findings and an explicit benchmark measurability verdict. Update `docs/PLAN.md` and this plan without implying representation or calibrated-risk success. Evidence: `artifacts/sprint-13/task-17.md` and `artifacts/sprint-13/deep-review-final.md`.
 
