@@ -4,7 +4,7 @@
 
 Create and freeze a synthetic telemetry benchmark on which causal early-warning ranking, positive lead time, false-alert behavior, and later calibrated-risk evaluation are structurally measurable before any representation or risk-model optimization resumes.
 
-**Status:** Active — REMEDIATION (Batches A–D + Task 16 final-accepted; combined D2-v411/Task16 review PASS; Task 17 ready for fresh differential deep review; verdict `NOT_MEASURABLE`; Sprint 14 BLOCKED).
+**Status:** Active — REMEDIATION (Deep Review 6 FAIL — Task 16 matrix-correction complete, combined 16-final/combined evidence review pending; Task 17 pending fresh differential deep review; verdict `NOT_MEASURABLE`; Sprint 14 BLOCKED).
 
 ## Decision Context
 
@@ -65,9 +65,9 @@ Status legend: [ ] pending / [~] in progress / [x] done.
 
 ### Batch E — Review and closeout
 
-- [x] **Task 16 — Pass batch evidence gates.** Review Batches A–D with evidence reviewers. Any actionable defect returns to the same implementation owner, followed by a fresh review at the affected gate. Preserve failed and superseded review records. Evidence: `artifacts/sprint-13/review-*.md` plus `artifacts/sprint-13/review-index.md` (Combined D2-v411/Task16 evidence review PASS; batch-evidence ledger fully accepted; advance to Task 17 cleared).
+- [~] **Task 16 — Pass batch evidence gates.** Review Batches A–D with evidence reviewers. Any actionable defect returns to the same implementation owner, followed by a fresh review at the affected gate. Preserve failed and superseded review records. Evidence: `artifacts/sprint-13/review-*.md` plus `artifacts/sprint-13/review-index.md` (Deep Review 6 matrix-correction complete; combined 16-final/combined evidence review pending).
 
-- [ ] **Task 17 — Pass differential review and finalize Sprint 13.** Run a sprint-wide differential deep review over accepted evidence. Finalize only with zero actionable findings and an explicit benchmark measurability verdict. Update `docs/PLAN.md` and this plan without implying representation or calibrated-risk success. Evidence: `artifacts/sprint-13/task-17.md` and `artifacts/sprint-13/deep-review-final.md`. (Ready for fresh differential deep review; prior deep reviews 1-5: FAIL - see `artifacts/sprint-13/deep-review-1.md`, `artifacts/sprint-13/deep-review-2.md`, `artifacts/sprint-13/deep-review-3.md`, `artifacts/sprint-13/deep-review-4.md`, and `artifacts/sprint-13/deep-review-5.md`).
+- [ ] **Task 17 — Pass differential review and finalize Sprint 13.** Run a sprint-wide differential deep review over accepted evidence. Finalize only with zero actionable findings and an explicit benchmark measurability verdict. Update `docs/PLAN.md` and this plan without implying representation or calibrated-risk success. Evidence: `artifacts/sprint-13/task-17.md` and `artifacts/sprint-13/deep-review-final.md`. (Ready for fresh differential deep review; prior deep reviews 1-6: FAIL - see `artifacts/sprint-13/deep-review-1.md`, `artifacts/sprint-13/deep-review-2.md`, `artifacts/sprint-13/deep-review-3.md`, `artifacts/sprint-13/deep-review-4.md`, `artifacts/sprint-13/deep-review-5.md`, and `artifacts/sprint-13/deep-review-6.md`).
 
 ## Acceptance Criteria
 
