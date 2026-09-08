@@ -78,6 +78,9 @@ def roc_auc_or_nan(scores: np.ndarray, labels: np.ndarray) -> float:
     labels = np.asarray(labels, dtype=np.float64).ravel()
     if labels.min() == labels.max():
         return float("nan")
+    return float(roc_auc_score(labels, scores))
+
+
 def operating_points(scores: np.ndarray, labels: np.ndarray) -> list[tuple[float, float, float]]:
     """Tie-safe ROC operating points: (threshold, fpr, tpr), starting at (+inf, 0, 0).
 
