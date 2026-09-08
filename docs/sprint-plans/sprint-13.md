@@ -4,7 +4,7 @@
 
 Create and freeze a synthetic telemetry benchmark on which causal early-warning ranking, positive lead time, false-alert behavior, and later calibrated-risk evaluation are structurally measurable before any representation or risk-model optimization resumes.
 
-**Status:** Active — REMEDIATION R3 (Deep Review 2 FAIL, 4 findings; v4.1.1 conformance correction frozen, awaiting Main approval; verdict `UNRESOLVED_PENDING_REMEDIATION`; gates C1-v41/D1-v41/D2-v41/Task16 reopened; Task 17 remediation active; Sprint 14 BLOCKED).
+**Status:** Active — REMEDIATION (R3 PASS; v4.1.1 approved; C1 renewed-accepted; Task 11 stands accepted; corrected Tasks 13–14 rerun underway; D1 re-review pending; verdict unresolved; Sprint 14 BLOCKED).
 
 ## Decision Context
 
@@ -51,10 +51,10 @@ Status legend: [ ] pending / [~] in progress / [x] done.
 
 ### Batch C — Benchmark implementation and materialization
 
-- [~] **Task 8 — Implement versioned factory configuration changes.** Add only the generator/configuration controls required by Protocol v4 for duration, density, cohort mixture, maintenance cadence, and deterministic history identities. Reuse existing public generator contracts; do not add representation-aware seed selection or model-dependent generation. Evidence: `artifacts/sprint-13/task-8.md` (R3 remediation - gate reopened, re-verification pending).
-- [~] **Task 9 — Implement event and role metadata contracts.** Persist the fields needed to reproduce category membership, causal horizons, censoring, maintenance resets, quarantine, control-window eligibility, role assignment, and sealed provenance without leaking hidden state into model inputs. Evidence: `artifacts/sprint-13/task-9.md` (R3 remediation - gate reopened, re-verification pending).
-- [~] **Task 10 — Prove generator and metric-contract behavior.** Add focused behavioral checks for deterministic reloads, physical bounds, all three failure cohorts, maintenance segmentation, horizon censoring, control-window selection, positive-lead semantics, tie handling, and role isolation. Exercise the real public entry point with a tiny history. Evidence: `artifacts/sprint-13/task-10.md` (R3 remediation - gate reopened, re-verification pending).
-- [~] **Task 11 — Materialize independent Protocol v4 histories.** Generate all predeclared histories through the public entry point on the canonical remote checkout after commit/push/pull verification. Do not retry or replace histories based on model performance. Persist bounded manifests, hashes, counts, timing, device, and execution commit; keep bulk data remote. Evidence: `artifacts/sprint-13/task-11.md` (v4 run retired; v4.1 R2A done, C2 renewed-accepted).
+- [x] **Task 8 — Implement versioned factory configuration changes.** Add only the generator/configuration controls required by Protocol v4 for duration, density, cohort mixture, maintenance cadence, and deterministic history identities. Reuse existing public generator contracts; do not add representation-aware seed selection or model-dependent generation. Evidence: `artifacts/sprint-13/task-8.md` (C1-renewed accepted (R3 PASS)).
+- [x] **Task 9 — Implement event and role metadata contracts.** Persist the fields needed to reproduce category membership, causal horizons, censoring, maintenance resets, quarantine, control-window eligibility, role assignment, and sealed provenance without leaking hidden state into model inputs. Evidence: `artifacts/sprint-13/task-9.md` (C1-renewed accepted (R3 PASS)).
+- [x] **Task 10 — Prove generator and metric-contract behavior.** Add focused behavioral checks for deterministic reloads, physical bounds, all three failure cohorts, maintenance segmentation, horizon censoring, control-window selection, positive-lead semantics, tie handling, and role isolation. Exercise the real public entry point with a tiny history. Evidence: `artifacts/sprint-13/task-10.md` (C1-renewed accepted (R3 PASS)).
+- [x] **Task 11 — Materialize independent Protocol v4 histories.** Generate all predeclared histories through the public entry point on the canonical remote checkout after commit/push/pull verification. Do not retry or replace histories based on model performance. Persist bounded manifests, hashes, counts, timing, device, and execution commit; keep bulk data remote. Evidence: `artifacts/sprint-13/task-11.md` (C2-renewed accepted (generation unchanged)).
 
 ### Batch D — Structural measurability validation
 
