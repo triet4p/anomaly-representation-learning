@@ -437,9 +437,11 @@ def main() -> int:
             xc_raw = np.array(
                 [f["usage_h"], f["tsm_d"], f["trail_max"], f["trail_frac90"], f["persist"]])
             xb = float(np.array(frozen["coef_b"]) @ _apply_std(
-                frozen["standardizer_b"], xb_raw) + frozen["intercept_b"])
+                frozen["standardizer_b"], xb_raw.reshape(1, -1))[0]
+                + frozen["intercept_b"])
             xc = float(np.array(frozen["coef_c"]) @ _apply_std(
-                frozen["standardizer_c"], xc_raw) + frozen["intercept_c"])
+                frozen["standardizer_c"], xc_raw.reshape(1, -1))[0]
+                + frozen["intercept_c"])
             rows.append({
                 "file_id": s.file_id, "robot": f["robot"],
                 "end": float(h["files"][s.file_id]["end_time"]),
