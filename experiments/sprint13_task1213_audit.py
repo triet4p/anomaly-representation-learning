@@ -148,6 +148,7 @@ def audit_history(role: str, seed: int) -> dict:
             uneval += 1
     anchors = E.anchor_rows(rows, wins)
     controls = E.select_control_windows(anchors, ledger, wins)
+    ctrl_by_robot = Counter(w["robot_id"] for w in controls)
     base_cat: Counter = Counter()
     for failure in ledger:
         t_end = failure["failure_time"]
