@@ -560,7 +560,8 @@ def main() -> int:
             else ("UNAVAILABLE" if status_c == "UNAVAILABLE" else "FAIL"))
         histories.append(out_h)
 
-    auc7 = np.array([h["c"]["auroc_7d"] for h in histories])
+    event_aucs = np.array([h["c"].get("event_auroc_7d", float("nan")) for h in histories],
+                          dtype=float)
     result = {
         "provenance": {
             "commit": commit,
@@ -574,9 +575,13 @@ def main() -> int:
         "histories": histories,
         "g_rank": {
             "per_history_pass": [h["g_rank_pass"] for h in histories],
-            "auroc_7d_median_iqr": [float(np.median(auc7)),
-                                    float(np.percentile(auc7, 25)),
-                                    float(np.percentile(auc7, 75))],
+            "per_history_status": [h["g_rank_status"] for h in histories],
+            "event_auroc_7d_median_iqr": (
+                [float(np.nanmedian(event_aucs)),
+                 float(np.nanpercentile(event_aucs, 25)),
+                 float(np.nanpercentile(event_aucs, 75))]
+                if int(np.isfinite(event_aucs).sum()) > 0 else [float("nan")] * 3),
+            "n_scored": int(np.isfinite(event_aucs).sum()),
             "pass": bool(all(h["g_rank_pass"] for h in histories)),
         },
     }
