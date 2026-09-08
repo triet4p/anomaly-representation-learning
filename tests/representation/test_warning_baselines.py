@@ -122,3 +122,35 @@ def test_group_alert_episodes_and_event_recall():
     assert out["n_events"] == 2 and out["n_recalled"] == 1
     assert out["recall"] == 0.5
     assert abs(out["lead_time_d_median"] - (2.0 * 86400.0 - 10.0) / 86400.0) < 1e-9
+
+def test_val_threshold_and_scores_share_probability_scale():
+    """Regression: logit-scale thresholds can never fire on probability scores."""
+    from sprint12_task12_warning import (
+        operating_points,
+        sigmoid,
+        threshold_for_fpr,
+    )
+
+    rng = np.random.default_rng(0)
+    logits = rng.normal(loc=2.0, scale=1.5, size=200)
+    labels = (rng.random(200) < 0.3).astype(float)
+    probs = sigmoid(logits)
+    pts = operating_points(probs, labels)
+    thr = threshold_for_fpr(pts, 0.10)
+    assert thr <= 1.0  # a logit-scale threshold (e.g. 5.6) fails here
+    flagged = probs >= thr
+    n_neg = int((labels == 0).sum())
+    assert float((labels[flagged] == 0).sum() / max(1, n_neg)) <= 0.10 + 1e-9
+    # shipped defect pattern: a logit-scale threshold can never fire on
+    # probabilities, silently zeroing every companion metric.
+    assert float((probs >= 5.6).sum()) == 0.0
+
+
+def test_val_row_eligible_holds_both_exclusions():
+    """Regression: RISK-VAL must exclude program-03 AND maintenance overlap."""
+    from sprint12_task12_warning import val_row_eligible
+
+    assert val_row_eligible("program-01", False) == (True, "ok")
+    assert val_row_eligible("program-03", False) == (False, "program03")
+    assert val_row_eligible("program-01", True) == (False, "maintenance")
+    assert val_row_eligible("program-03", True)[0] is False

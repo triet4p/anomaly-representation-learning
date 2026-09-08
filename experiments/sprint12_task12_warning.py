@@ -155,6 +155,34 @@ def select_control_windows(
     return kept
 
 
+def _apply_std(saved: dict, rows: np.ndarray) -> np.ndarray:
+    """Apply a FROZEN fitted center/scale mapping (never refit on eval rows)."""
+    center = np.asarray(saved["center"], dtype=np.float64)
+    scale = np.asarray(saved["scale"], dtype=np.float64)
+    out = (np.asarray(rows, dtype=np.float64) - center[None, :]) / scale[None, :]
+    return np.nan_to_num(out, nan=0.0, posinf=0.0, neginf=0.0)
+
+
+def sigmoid(z: np.ndarray) -> np.ndarray:
+    """Logistic sigmoid (single probability-scale convention end to end)."""
+    return 1.0 / (1.0 + np.exp(-np.asarray(z, dtype=np.float64)))
+
+
+def val_row_eligible(program_id: str, in_maint: bool) -> tuple[bool, str]:
+    """RISK-VAL eligibility: hold out program-03 AND maintenance overlap.
+
+    Returns (eligible, reason) with reason in {"ok", "program03", "maintenance"}.
+    Protocol v3 §1 requires BOTH exclusions; omitting either is a defect
+    (the maintenance omission shipped once — this helper locks the rule and
+    is covered by regression tests).
+    """
+    if str(program_id) == "program-03":
+        return False, "program03"
+    if bool(in_maint):
+        return False, "maintenance"
+    return True, "ok"
+
+
 def _jsonable(value):
     """Recursively map non-finite floats to None for strict-JSON output."""
     if isinstance(value, float) and not np.isfinite(value):
@@ -388,28 +416,35 @@ def main() -> int:
     # VAL rows use the same eligibility (temporal, known outcome, no program-03,
     # no maintenance); scored with the FROZEN standardizer + model.
     val_scores_b, val_scores_c, val_y = [], [], []
-    n_val_excluded = 0
+    n_val_p3_excluded = n_val_maint_excluded = 0
     val_feats: dict[str, dict] = {}
     for h in val_hists:
         for f in featurize(h, dev_scores, q90):
             val_feats[h["manifest"]["seeds"]["temporal"], f["file_id"]] = f
     for h, s in eligible_rows(val_hists):
         f = val_feats[(h["manifest"]["seeds"]["temporal"], s.file_id)]
-        if str(h["files"][s.file_id]["program_id"]) == "program-03":
-            n_val_excluded += 1
+        ok, reason = val_row_eligible(
+            str(h["files"][s.file_id]["program_id"]), f["in_maint"])
+        if not ok:
+            if reason == "program03":
+                n_val_p3_excluded += 1
+            else:
+                n_val_maint_excluded += 1
             continue
         ft = s.future_targets
-        val_scores_b.append(float(
+        # Probability scale end to end: the SAME sigmoid applied to sealed
+        # scores below. A logit-scale threshold here can never fire there.
+        val_scores_b.append(float(sigmoid(
             np.array(frozen["coef_b"]) @ _apply_std(
                 frozen["standardizer_b"],
                 np.array([[f["usage_h"], f["tsm_d"]]]))[0]
-            + frozen["intercept_b"]))
-        val_scores_c.append(float(
+            + frozen["intercept_b"])))
+        val_scores_c.append(float(sigmoid(
             np.array(frozen["coef_c"]) @ _apply_std(
                 frozen["standardizer_c"],
                 np.array([[f["usage_h"], f["tsm_d"], f["trail_max"],
                            f["trail_frac90"], f["persist"]]]))[0]
-            + frozen["intercept_c"]))
+            + frozen["intercept_c"])))
         val_y.append(1.0 if bool(ft.failure_within_7d) else 0.0)
     val_points = {
         "b": operating_points(np.array(val_scores_b), np.array(val_y)),
@@ -420,10 +455,8 @@ def main() -> int:
     }
     frozen["n_val"] = len(val_y)
     frozen["n_val_pos"] = int(np.sum(val_y))
-    frozen["n_val_excluded"] = n_val_excluded
-
-    def sigmoid(z: np.ndarray) -> np.ndarray:
-        return 1.0 / (1.0 + np.exp(-z))
+    frozen["n_val_program03_excluded"] = n_val_p3_excluded
+    frozen["n_val_maint_excluded"] = n_val_maint_excluded
 
     histories = []
     for root in args.seal_roots:
