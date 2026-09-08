@@ -45,7 +45,7 @@ Status legend: [ ] pending / [~] in progress / [x] done. Implementation completi
 
 ### Batch G — Integrated scientific assessment
 
-- [ ] **Task 14 — Consolidate scientific verdict and sprint evidence.** Produce a complete report covering every recommendation, provenance, executed alternatives, positive/negative/unavailable outcomes, causal uncertainties, independent-test discipline, simple-baseline comparisons, and advancement decisions. Preserve Sprint 11 evidence verbatim. Record all batch evidence gates and unresolved dependencies. Do not declare completion while any planned conditional task is blocked without an explicit user-approved plan disposition. Evidence: `artifacts/sprint-12/task-14.md`.
+- [x] **Task 14 — Consolidate scientific verdict and sprint evidence.** Produce a complete report covering every recommendation, provenance, executed alternatives, positive/negative/unavailable outcomes, causal uncertainties, independent-test discipline, simple-baseline comparisons, and advancement decisions. Preserve Sprint 11 evidence verbatim. Record all batch evidence gates and unresolved dependencies. Do not declare completion while any planned conditional task is blocked without an explicit user-approved plan disposition. Evidence: `artifacts/sprint-12/task-14.md` (implementation complete; awaiting evidence review; sprint NOT declared complete — Task 15 not executed).
 - [ ] **Task 15 — Pass differential review and finalize sprint status.** After every task/batch evidence gate passes, run a sprint-wide differential deep review over the accepted evidence reports. Correct actionable findings through the retained worker, repeat affected evidence gates and then deep review, and update global/sprint status only with zero actionable findings and all task dispositions resolved. Evidence: `artifacts/sprint-12/task-15.md`.
 
 ## Acceptance Criteria and Scientific Stop Rules
@@ -79,7 +79,7 @@ Status legend: [ ] pending / [~] in progress / [x] done. Implementation completi
 - Batch D: ACCEPTED PASS with zero actionable defects (review-D2 by retained reviewer; corrected positional mean + fixed unit variance; G-learn FAIL valid — ranking 0.59, spearman 0.28, nuisance 0.35; revised worst; old D run superseded as defective; Task 10 BLOCKED, no sealed static reads).
 - Batch E: pending scientific prerequisites.
 - Batch F: awaiting review (Task 11 CORRECTED stands; Task 12 CORRECTED-2 + RERUN under frozen v3 (single probability scale — VAL thresholds 0.9478/0.9616 in (0,1); VAL maintenance exclusion enforced, 37 excluded; strict-JSON diagnostics): event G-rank UNAVAILABLE ×4 (20–25 positives, 2–4 negatives each — no file-AUROC substitution); companion metrics genuinely measured (event recall 0.80–0.95, lead median 0.0 d, FAR 0.0); prior runs superseded as evidence including the score-shift claim (retracted as logit/probability defect); Task 13 BLOCKED unfitted; worker does not self-accept).
-- Batch G: pending.
+- Batch G: Task 14 implementation complete — consolidation in `artifacts/sprint-12/task-14.md` (awaiting evidence review; Task 15 differential review NOT executed; sprint completion NOT declared; Tasks 10/13 retain user-approved BLOCKED final dispositions).
 - Sprint-wide deep review: pending.
 
 ## Notes / Blockers
