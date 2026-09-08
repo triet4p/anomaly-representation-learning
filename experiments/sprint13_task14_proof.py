@@ -12,10 +12,12 @@ scientific success. Structural reads only; no fitting, no selection.
 from __future__ import annotations
 
 import json
-
 DAY = 86400.0
 HORIZON_S = 7.0 * DAY
-FIXED_THRESHOLD = 0.6
+# ARBITRARY fixed companion threshold (never selected, never a verdict).
+# 0.3 (not 0.6: time scores saturate at 0.5) so recalled events exist and
+# lead/persistence medians are exercised on real windows.
+FIXED_THRESHOLD = 0.3
 
 ROSTER = [
     ("H-VAL-DESIGN", 300), ("H-DEV-1", 301), ("H-DEV-2", 302),
