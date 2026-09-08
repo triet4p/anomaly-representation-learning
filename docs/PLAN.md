@@ -13,7 +13,7 @@ components. Targeted model recovery is deferred until those two questions are an
 
 ## Current Sprint
 
-- [Sprint 13 — Measurable Early-Warning Benchmark](sprint-plans/sprint-13.md) — **Active (Batches A/B/C1/C2 accepted; Batch D1 Tasks 12–14 done, evidence pending review; Task 15 seal + verdict not started). Goal: prove that event ranking, positive lead time, false alerts, and later risk evaluation are structurally measurable under a frozen independent protocol.**
+- [Sprint 13 — Measurable Early-Warning Benchmark](sprint-plans/sprint-13.md) — **Active (Batches A/B/C1/C2/D1 accepted; Task 15 done with `MEASURABLE` verdict, review pending; Batch E not started; Sprint 14 not started). Goal: prove that event ranking, positive lead time, false alerts, and later risk evaluation are structurally measurable under a frozen independent protocol.**
 
 ## Queued Sprints
 
@@ -55,7 +55,7 @@ components. Targeted model recovery is deferred until those two questions are an
 | 16 | Conditional hierarchical latent geometry with localized synthetic boundary learning | Implemented — Sprint 11; scientific separation failed |
 | 17 | Static detection and calibrated one-day/seven-day early warning | Evaluated — Sprint 11 negative result; not scientifically validated |
 | 18 | Scorer diagnosis, observable-signal baselines, and independent scientific recovery gates | Complete — Sprint 12 (re-finalized; Tasks 10/13 BLOCKED-FINAL) |
-| 19 | Measurable multi-category early-warning benchmark with independent event controls | Active — Sprint 13 (A/B/C1/C2 accepted; D1 done, review pending; Task 15 not started) |
+| 19 | Measurable multi-category early-warning benchmark with independent event controls | Active — Sprint 13 (A/B/C1/C2/D1 accepted; Task 15 `MEASURABLE`, review pending; Batch E not started) |
 | 20 | Causal localization of representation-to-score bottlenecks | Queued — Sprint 14 |
 
 ## High-Level Design Decisions
