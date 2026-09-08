@@ -36,6 +36,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from representation.handcrafted import Standardizer  # noqa: E402
+from synth.chronicle import load_chronological  # noqa: E402
 
 DAY = 86400.0
 TRAIL_S = 7 * DAY
