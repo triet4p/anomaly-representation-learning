@@ -24,7 +24,7 @@ ROSTER = [
     ("H-SEAL-4", 603),
 ]
 
-BASE = "data/generated/sprint13"
+BASE = "data/generated/sprint13-v41"
 
 
 def sha(path: str) -> str:

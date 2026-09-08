@@ -26,7 +26,7 @@ ROSTER = [
 for _role, _seed in ROSTER:
     if _role.startswith("H-SEAL") or _seed in (600, 601, 602, 603):
         raise RuntimeError("Task 14 fixture proof must never touch sealed roles")
-BASE = "data/generated/sprint13"
+BASE = "data/generated/sprint13-v41"
 
 
 def prove_history(role: str) -> dict:
