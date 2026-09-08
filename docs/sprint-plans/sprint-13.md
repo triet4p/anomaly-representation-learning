@@ -4,7 +4,7 @@
 
 Create and freeze a synthetic telemetry benchmark on which causal early-warning ranking, positive lead time, false-alert behavior, and later calibrated-risk evaluation are structurally measurable before any representation or risk-model optimization resumes.
 
-**Status:** Active — REMEDIATION R2B done (D1 renewed-accepted; Task 15 renewed with `NOT_MEASURABLE` verdict — H-SEAL-2 abrupt 6 < 8 breaks sealed unanimity; D2 review pending; Sprint 14 BLOCKED).
+**Status:** Active — REMEDIATION (D2 renewed-accepted with verified `NOT_MEASURABLE`; Task 16 ledger renewed, review pending; Task 17 pending fresh deep review; Sprint 14 BLOCKED).
 
 ## Decision Context
 
@@ -58,10 +58,10 @@ Status legend: [ ] pending / [~] in progress / [x] done.
 
 ### Batch D — Structural measurability validation
 
-- [~] **Task 12 — Verify factory causality and partition integrity.** Confirm route/robot/program causality, chronological ordering, deterministic reloads, maintenance/recommissioning behavior, quarantine, failure-category assignment, role isolation, cold-start slices, and absence of future-state leakage. Evidence: `artifacts/sprint-13/task-12.md` (v4 retired; v4.1 R2B done, 13/13 pass, D1 re-review pending).
-- [~] **Task 13 — Audit clean-window and baseline coverage.** Measure per-history/per-robot positive events, negative controls, clean pre-failure baselines, maintenance-free exposure, healthy calibration rows, category counts, and exclusion reasons. Report distributions, not only pooled totals. No model scores may influence acceptance. Evidence: `artifacts/sprint-13/task-13.md` (v4 retired; v4.1 R2B done, 11/13 STRUCT-PASS, D1 re-review pending).
-- [~] **Task 14 — Demonstrate score-independent metric computability.** Run the frozen event-window and metric pipeline with deterministic synthetic score fixtures and trivial constant/observable-time baselines solely to prove event AUROC/G-rank, positive lead time, persistence, and false-alert episodes are defined. Do not treat baseline performance as model selection or scientific success. Evidence: `artifacts/sprint-13/task-14.md` (v4 retired; v4.1 R2B done on 9 non-sealed roles, D1 re-review pending).
-- [x] **Task 15 — Seal benchmark roles and publish the measurability verdict.** Seal accepted evaluation roots and manifests; record hashes and access rules. Return `MEASURABLE`, `NOT_MEASURABLE`, or `UNAVAILABLE` against every frozen floor. A non-pass blocks Sprint 14's benchmark-dependent work and calibrated-risk evaluation; it does not permit a metric fallback or post-hoc seed search. Evidence: `artifacts/sprint-13/task-15.md` (v4 retired; v4.1 renewal done, `NOT_MEASURABLE`, D2 review pending).
+- [~] **Task 12 — Verify factory causality and partition integrity.** Confirm route/robot/program causality, chronological ordering, deterministic reloads, maintenance/recommissioning behavior, quarantine, failure-category assignment, role isolation, cold-start slices, and absence of future-state leakage. Evidence: `artifacts/sprint-13/task-12.md` (v4 retired; v4.1 R2B done, 13/13 pass, D1 renewed-accepted).
+- [~] **Task 13 — Audit clean-window and baseline coverage.** Measure per-history/per-robot positive events, negative controls, clean pre-failure baselines, maintenance-free exposure, healthy calibration rows, category counts, and exclusion reasons. Report distributions, not only pooled totals. No model scores may influence acceptance. Evidence: `artifacts/sprint-13/task-13.md` (v4 retired; v4.1 R2B done, 11/13 STRUCT-PASS, D1 renewed-accepted).
+- [~] **Task 14 — Demonstrate score-independent metric computability.** Run the frozen event-window and metric pipeline with deterministic synthetic score fixtures and trivial constant/observable-time baselines solely to prove event AUROC/G-rank, positive lead time, persistence, and false-alert episodes are defined. Do not treat baseline performance as model selection or scientific success. Evidence: `artifacts/sprint-13/task-14.md` (v4 retired; v4.1 R2B done on 9 non-sealed roles, D1 renewed-accepted).
+- [x] **Task 15 — Seal benchmark roles and publish the measurability verdict.** Seal accepted evaluation roots and manifests; record hashes and access rules. Return `MEASURABLE`, `NOT_MEASURABLE`, or `UNAVAILABLE` against every frozen floor. A non-pass blocks Sprint 14's benchmark-dependent work and calibrated-risk evaluation; it does not permit a metric fallback or post-hoc seed search. Evidence: `artifacts/sprint-13/task-15.md` (v4 retired; v4.1 renewal done, `NOT_MEASURABLE`, D2 renewed-accepted).
 
 ### Batch E — Review and closeout
 

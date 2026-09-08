@@ -13,7 +13,7 @@ components. Targeted model recovery is deferred until those two questions are an
 
 ## Current Sprint
 
-- [Sprint 13 — Measurable Early-Warning Benchmark](sprint-plans/sprint-13.md) — **Active — REMEDIATION: Task 15 renewed with `NOT_MEASURABLE` verdict (H-SEAL-2 abrupt floor miss); D2 review pending; Sprint 14 BLOCKED. Goal: prove that event ranking, positive lead time, false alerts, and later risk evaluation are structurally measurable under a frozen independent protocol.**
+- [Sprint 13 — Measurable Early-Warning Benchmark](sprint-plans/sprint-13.md) — **Active — REMEDIATION (D2 renewed-accepted with verified `NOT_MEASURABLE`; Task 16 ledger renewed, review pending; Task 17 pending fresh deep review; Sprint 14 BLOCKED). Goal: prove that event ranking, positive lead time, false alerts, and later risk evaluation are structurally measurable under a frozen independent protocol.**
 
 ## Queued Sprints
 
@@ -55,7 +55,7 @@ components. Targeted model recovery is deferred until those two questions are an
 | 16 | Conditional hierarchical latent geometry with localized synthetic boundary learning | Implemented — Sprint 11; scientific separation failed |
 | 17 | Static detection and calibrated one-day/seven-day early warning | Evaluated — Sprint 11 negative result; not scientifically validated |
 | 18 | Scorer diagnosis, observable-signal baselines, and independent scientific recovery gates | Complete — Sprint 12 (re-finalized; Tasks 10/13 BLOCKED-FINAL) |
-| 19 | Measurable multi-category early-warning benchmark with independent event controls | REMEDIATION — renewed verdict `NOT_MEASURABLE`; D2 review pending; Sprint 14 BLOCKED |
+| 19 | Measurable multi-category early-warning benchmark with independent event controls | REMEDIATION — D2 renewed-accepted (`NOT_MEASURABLE` verified); Task 16 renewed, review pending; Task 17 pending; Sprint 14 BLOCKED |
 | 20 | Causal localization of representation-to-score bottlenecks | Queued — Sprint 14 |
 
 ## High-Level Design Decisions
