@@ -4,7 +4,7 @@
 
 Create and freeze a synthetic telemetry benchmark on which causal early-warning ranking, positive lead time, false-alert behavior, and later calibrated-risk evaluation are structurally measurable before any representation or risk-model optimization resumes.
 
-**Status:** Active — REMEDIATION R2A (R1 PASS; v4.1 `94f9c566…` APPROVED for R2; renewed Task 11 materialization in progress; prior `MEASURABLE` remains superseded; Sprint 14 BLOCKED).
+**Status:** Active — REMEDIATION R2A done (R1 PASS; v4.1 approved; 13 fresh v4.1 histories materialized 13/13 first-try; C2 re-review pending; prior `MEASURABLE` remains superseded; Sprint 14 BLOCKED).
 
 ## Decision Context
 
@@ -54,7 +54,7 @@ Status legend: [ ] pending / [~] in progress / [x] done.
 - [~] **Task 8 — Implement versioned factory configuration changes.** Add only the generator/configuration controls required by Protocol v4 for duration, density, cohort mixture, maintenance cadence, and deterministic history identities. Reuse existing public generator contracts; do not add representation-aware seed selection or model-dependent generation. Evidence: `artifacts/sprint-13/task-8.md` (REOPENED under R1 - pending re-verification).
 - [~] **Task 9 — Implement event and role metadata contracts.** Persist the fields needed to reproduce category membership, causal horizons, censoring, maintenance resets, quarantine, control-window eligibility, role assignment, and sealed provenance without leaking hidden state into model inputs. Evidence: `artifacts/sprint-13/task-9.md` (REOPENED under R1 - pending re-verification).
 - [~] **Task 10 — Prove generator and metric-contract behavior.** Add focused behavioral checks for deterministic reloads, physical bounds, all three failure cohorts, maintenance segmentation, horizon censoring, control-window selection, positive-lead semantics, tie handling, and role isolation. Exercise the real public entry point with a tiny history. Evidence: `artifacts/sprint-13/task-10.md` (REOPENED under R1 - pending re-verification).
-- [~] **Task 11 — Materialize independent Protocol v4 histories.** Generate all predeclared histories through the public entry point on the canonical remote checkout after commit/push/pull verification. Do not retry or replace histories based on model performance. Persist bounded manifests, hashes, counts, timing, device, and execution commit; keep bulk data remote. Evidence: `artifacts/sprint-13/task-11.md` (REOPENED under R1 - pending re-verification).
+- [~] **Task 11 — Materialize independent Protocol v4 histories.** Generate all predeclared histories through the public entry point on the canonical remote checkout after commit/push/pull verification. Do not retry or replace histories based on model performance. Persist bounded manifests, hashes, counts, timing, device, and execution commit; keep bulk data remote. Evidence: `artifacts/sprint-13/task-11.md` (v4 run retired; v4.1 R2A execution done, C2 re-review pending).
 
 ### Batch D — Structural measurability validation
 
