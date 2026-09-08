@@ -64,15 +64,23 @@ def prove_history(role: str) -> dict:
         except E.UnavailableError:
             auc, auc_state = None, "UNAVAILABLE"
         recalled, leads, persists = 0, [], []
+        # E5 surveillance: EVERY non-censored, non-maintenance operating
+        # file is scored (quarantined precursor files included — they may
+        # carry true alerts). Recall companions still use pos_files only.
         flagged_by_robot: dict = {}
+        for row in rows:
+            if row["is_censored"]:
+                continue
+            if any(s <= row["start_time"] < e
+                   for s, e in wins.get(row["robot_id"], [])):
+                continue
+            if scores[row["file_id"]] >= FIXED_THRESHOLD:
+                flagged_by_robot.setdefault(row["robot_id"], []).append(
+                    row["end_time"])
         for failure in ledger:
             cands = E.pos_files(rows, failure, wins)
             flagged = sorted(c["end_time"] for c in cands
                              if scores[c["file_id"]] >= FIXED_THRESHOLD)
-            for c in cands:
-                if scores[c["file_id"]] >= FIXED_THRESHOLD:
-                    flagged_by_robot.setdefault(c["robot_id"], []).append(
-                        c["end_time"])
             if flagged:
                 recalled += 1
                 leads.append(E.lead_days(failure["failure_time"], flagged))
