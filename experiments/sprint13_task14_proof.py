@@ -1,12 +1,11 @@
 """Task 14: score-independent metric computability proof — fixtures only.
 
-Runs the frozen event-window pipeline on every materialized manifest with two
-non-fitted, non-selected score arms: a constant arm (0.5) and an
-observable-time arm (days-since-reset mapped into [0, 1)). Proves E1–E5 are
-defined on real window structure, including lead/persistence/FAR semantics
-and tie behavior. Companion threshold 0.6 is ARBITRARY and fixed (never
-selected); outputs are computability evidence, never model selection or
-scientific success. Structural reads only; no fitting, no selection.
+Runs on NON-SEALED roles only (v4.1 §6 predeclared computability procedure);
+sealed roles are Task-13-structural-audit-only until a future score gate.
+Proves E1–E5 defined plus lead/persistence/FAR semantics and tie behavior.
+Companion threshold is ARBITRARY and fixed (never selected); outputs are
+computability evidence, never model selection or scientific success.
+Structural reads only; no fitting, no selection.
 """
 
 from __future__ import annotations
@@ -23,9 +22,10 @@ ROSTER = [
     ("H-VAL-DESIGN", 300), ("H-DEV-1", 301), ("H-DEV-2", 302),
     ("H-DEV-3", 303), ("H-FIT-1", 304), ("H-FIT-2", 305),
     ("H-FIT-3", 306), ("H-CAL-1", 307), ("H-CONF-1", 308),
-    ("H-SEAL-1", 400), ("H-SEAL-2", 401), ("H-SEAL-3", 402),
-    ("H-SEAL-4", 403),
 ]
+for _role, _ in ROSTER:
+    if _role.startswith("H-SEAL"):
+        raise RuntimeError("Task 14 fixture proof must never touch sealed roles")
 
 BASE = "data/generated/sprint13"
 
@@ -69,10 +69,7 @@ def prove_history(role: str) -> dict:
         # carry true alerts). Recall companions still use pos_files only.
         flagged_by_robot: dict = {}
         for row in rows:
-            if row["is_censored"]:
-                continue
-            if any(s <= row["start_time"] < e
-                   for s, e in wins.get(row["robot_id"], [])):
+            if not E.eligible_operational_row(row, wins):
                 continue
             if scores[row["file_id"]] >= FIXED_THRESHOLD:
                 flagged_by_robot.setdefault(row["robot_id"], []).append(
@@ -86,8 +83,7 @@ def prove_history(role: str) -> dict:
                 leads.append(E.lead_days(failure["failure_time"], flagged))
                 persists.append(len(flagged))
         eval_days = {(r["robot_id"], int(r["end_time"] // DAY)) for r in rows
-                     if not any(s <= r["start_time"] < e
-                                for s, e in wins.get(r["robot_id"], []))}
+                     if E.eligible_operational_row(r, wins)}
         false, far = E.false_alert_episodes(
             flagged_by_robot, ledger, float(len(eval_days)))
         arms[name] = {

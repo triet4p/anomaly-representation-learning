@@ -73,22 +73,23 @@ WEAK_AMPLITUDE_SCALE = 0.3
 _ABRUPT_SUPPRESS_S = 7.0 * 86400.0
 
 
-def _cohort_windows(health: FactoryHealth) -> dict[str, list[tuple]]:
+def _cohort_windows(health: FactoryHealth,
+                    failure_severity: float) -> dict[str, list[tuple]]:
     """Index failure manifest windows per robot for precursor gating.
 
-    Each entry is ``(onset_or_None, T, cohort, severity_mult)`` where the
-    multiplier folds the ordered severity support (s/2) and the weak
-    subtlety scale into precursor severity. Empty when the health run
-    carries no cohort ledger (legacy behavior: no gating).
+    Each entry is ``(onset_or_None, T, cohort, precursor_mult, fail_sev)``:
+    the precursor multiplier carries only the cohort tag physics
+    (weak subtlety vs full amplitude) while the ordered severity support
+    scales the failure-file manifestation alone — never retrospectively.
+    Empty when the health run carries no cohort ledger (legacy: no gating).
     """
     windows: dict[str, list[tuple]] = {}
     for record in health.failure_events:
-        mult = record.severity / 2.0
-        if record.cohort == "W":
-            mult *= WEAK_AMPLITUDE_SCALE
+        mult = WEAK_AMPLITUDE_SCALE if record.cohort == "W" else 1.0
+        fail_sev = min(0.95, failure_severity * record.severity / 2.0)
         windows.setdefault(record.robot_id, []).append(
             (record.degradation_onset, record.failure_time,
-             record.cohort, mult)
+             record.cohort, mult, fail_sev)
         )
     for entries in windows.values():
         entries.sort(key=lambda entry: entry[1])
@@ -100,25 +101,30 @@ def _window_context(
     robot_id: str,
     start_time: float,
     end_time: float,
-) -> tuple[float, bool]:
-    """Return ``(severity_mult, abrupt_suppress)`` for one operation.
+    failure_severity: float,
+) -> tuple[float, bool, float]:
+    """Return ``(precursor_mult, abrupt_suppress, fail_sev)`` for one operation.
 
     The multiplier comes from the earliest-T manifest window covering the
     operation start (1.0 outside any window). Suppression fires when the
     operation ends within 7 d before an abrupt failure, keeping abrupt
     pre-windows precursor-free by construction (isolated nuisance
-    manifestations are unaffected).
+    manifestations are unaffected). ``fail_sev`` is the severity of a
+    failure ending exactly at this operation's end, else the default.
     """
     mult = 1.0
     suppress = False
-    for onset, failure_time, cohort, scale in windows.get(robot_id, []):
+    fail_sev = failure_severity
+    for onset, failure_time, cohort, scale, sev in windows.get(robot_id, []):
         if cohort == "A":
             if 0.0 <= failure_time - end_time <= _ABRUPT_SUPPRESS_S:
                 suppress = True
         elif onset is not None and onset <= start_time < failure_time:
             if mult == 1.0:
                 mult = scale
-    return mult, suppress
+        if math.isclose(failure_time, end_time, rel_tol=1e-9, abs_tol=1e-6):
+            fail_sev = sev
+    return mult, suppress, fail_sev
 
 
 def _stable_int(*parts: str) -> int:
@@ -284,14 +290,14 @@ class TemporalAnomalyProcess:
         maintenances = [
             e for e in health.episodes if e.kind is EpisodeKind.MAINTENANCE
         ]
-        cohort_windows = _cohort_windows(health)
+        cohort_windows = _cohort_windows(health, tcfg.failure_severity)
         out: list[FileSample] = []
         policies: list[str] = []
         for event, state, sample in zip(schedule.events, health.states, samples):
             manifested, families, policy = self._decide(
                 event, state, tcfg, _window_context(
                     cohort_windows, event.robot_id,
-                    event.start_time, event.end_time)
+                    event.start_time, event.end_time, tcfg.failure_severity)
             )
             if not families:
                 out.append(sample)
@@ -325,13 +331,13 @@ class TemporalAnomalyProcess:
         event: OperationEvent,
         state: RobotHealthState,
         tcfg: TemporalAnomalyConfig,
-        context: tuple[float, bool] = (1.0, False),
+        context: tuple[float, bool, float | None] = (1.0, False, None),
     ) -> tuple[float | None, list[AnomalyFamily], str]:
         """Return ``(severity, candidate families, policy)`` for one operation.
 
-        ``context`` carries the cohort-window severity multiplier and the
-        abrupt pre-window suppression flag; the default preserves legacy
-        behavior exactly.
+        ``context`` carries the cohort-tag precursor multiplier, the abrupt
+        pre-window suppression flag, and the failure-file severity; the
+        default preserves legacy behavior exactly.
         """
         rng = np.random.default_rng(
             _stable_int("temporal-anomaly", str(tcfg.seed), event.operation_id)
@@ -345,13 +351,14 @@ class TemporalAnomalyProcess:
             # near-zero health still carry an obvious localized symptom.
             offset = int(rng.integers(len(TEMPORAL_FAMILIES)))
             rotated = TEMPORAL_FAMILIES[offset:] + TEMPORAL_FAMILIES[:offset]
-            return tcfg.failure_severity, rotated, FAILURE_POLICY
+            sev = context[2] if context[2] is not None else tcfg.failure_severity
+            return sev, rotated, FAILURE_POLICY
         manifested = progressive_severity(state.manifested_value, tcfg)
         if rng.random() < tcfg.isolated_rate:
             family = TEMPORAL_FAMILIES[int(rng.integers(len(TEMPORAL_FAMILIES)))]
             severity = float(rng.uniform(0.3, 0.8))
             return severity, [family], ISOLATED_POLICY
-        mult, suppress = context
+        mult, suppress, _ = context
         if not suppress and rng.random() < precursor_probability(
                 state.manifested_value, tcfg):
             family = TEMPORAL_FAMILIES[int(rng.integers(len(TEMPORAL_FAMILIES)))]

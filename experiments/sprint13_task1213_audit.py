@@ -153,8 +153,7 @@ def audit_history(role: str, seed: int) -> dict:
             base_cat[failure["cohort"]] += 1
     eval_days = set()
     for row in rows:
-        if any(s <= row["start_time"] < e
-               for s, e in wins.get(row["robot_id"], [])):
+        if not E.eligible_operational_row(row, wins):
             continue
         eval_days.add((row["robot_id"], int(row["end_time"] // DAY)))
     healthy = [r for r in rows
@@ -164,6 +163,34 @@ def audit_history(role: str, seed: int) -> dict:
     for r in healthy:
         fit_groups[(r["robot_id"], r["program_id"])] += 1
 
+    HOLDOUT_PROGRAMS = ("program-03",)
+    HOLDOUT_ROBOTS = ("robot-08",)
+    healthy_eligible = [
+        r for r in healthy
+        if r["program_id"] not in HOLDOUT_PROGRAMS
+        and r["robot_id"] not in HOLDOUT_ROBOTS
+    ]
+    dev_val_ids = set(manifest["splits"]["dev_val"])
+    cal_eligible = [
+        r for r in rows
+        if r["file_id"] in dev_val_ids
+        and r["program_id"] not in HOLDOUT_PROGRAMS
+        and r["robot_id"] not in HOLDOUT_ROBOTS
+    ]
+    fit_groups_eligible: Counter = Counter()
+    for r in healthy_eligible:
+        fit_groups_eligible[(r["robot_id"], r["program_id"])] += 1
+    from synth.config import PatchConfig as _PatchConfig
+    from synth.patchify import Patchifier as _Patchifier
+    _pcfg = manifest["resolved_config"]["patch"]
+    _patchifier = _Patchifier(_PatchConfig(
+        patch_size=int(_pcfg["patch_size"]), stride=int(_pcfg["stride"]),
+        pad_end=bool(_pcfg["pad_end"]), pad_value=float(_pcfg["pad_value"])))
+    _by_file = {s.file_id: s for s in samples}
+    patch_rows_eligible = sum(
+        int(_patchifier.patchify(_by_file[r["file_id"]]).patches.shape[0])
+        for r in healthy_eligible
+    )
     floors = {
         "positives_ge_25": pos_eval >= 25,
         "negatives_ge_25": len(controls) >= 25,
@@ -202,7 +229,12 @@ def audit_history(role: str, seed: int) -> dict:
         "clean_baselines_by_cohort": dict(base_cat),
         "evaluated_robot_days": len(eval_days),
         "healthy_precutoff": len(healthy),
+        "healthy_eligible": len(healthy_eligible),
+        "cal_eligible_rows": len(cal_eligible),
+        "eligible_patch_rows": patch_rows_eligible,
         "fit_group_min": min(fit_groups.values()) if fit_groups else 0,
+        "fit_group_min_eligible": (
+            min(fit_groups_eligible.values()) if fit_groups_eligible else 0),
         "floors": floors,
         "structural_state": struct,
         "per_robot": per_robot,

@@ -7,6 +7,7 @@ implementation on fixtures. No protocol seeds are used here (910+ only).
 
 from __future__ import annotations
 
+from statistics import median
 import json
 
 import pytest
@@ -253,6 +254,7 @@ def test_seal_roundtrip_and_tamper(tmp_path):
 
 
 def test_medium_history_cohorts_bounds_and_abrupt_null(tmp_path):
+    """v4 retired profile keeps structural shape (bounds now live in v4.1)."""
     root = tmp_path / "medium"
     assert synth_cli.main([
         "--chronological", "--profile", "sprint13", "--units", "150",
@@ -260,34 +262,137 @@ def test_medium_history_cohorts_bounds_and_abrupt_null(tmp_path):
     ]) == 0
     manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
     ledger = events_mod.failure_ledger(manifest)
-    cohorts = {r["cohort"] for r in ledger}
-    assert cohorts == {"P", "W", "A"}
-    for record in ledger:
-        if record["cohort"] == "P":
-            assert 7.0 <= record["duration_d"] <= 14.0
-        elif record["cohort"] == "W":
-            assert 14.0 <= record["duration_d"] <= 28.0
-        else:
-            assert record["duration_d"] == 0.0
-            assert record["degradation_onset"] is None
-            assert record["subtype"] in ("A1", "A2")
+    assert {r["cohort"] for r in ledger} == {"P", "W", "A"}
     failure_ids = {e["episode_id"] for e in manifest["episodes"]
                    if e["kind"] == "failure"}
     assert {r["failure_id"] for r in ledger} == failure_ids
-    samples, _ = load_chronological(root)
-    by_id = {s.file_id: s for s in samples}
-    for record in ledger:
-        if record["cohort"] != "A":
-            continue
-        window = [r for r in manifest["files"]
-                  if r["robot_id"] == record["robot_id"]
-                  and record["failure_time"] - 7 * DAY <= r["end_time"]
-                  < record["failure_time"]]
-        for row in window:
-            sample = by_id[row["file_id"]]
-            if sample.anomaly_meta is not None:
-                assert sample.anomaly_meta.extra.get("temporal_policy") != "precursor"
     pmaint = [e for e in manifest["episodes"]
               if e["episode_id"].startswith("pmaint-")]
     assert pmaint
     assert all(e["end_time"] > e["start_time"] for e in pmaint)
+
+
+def _precursor_severities(manifest, samples_by_id, cohort):
+    values = []
+    for record in events_mod.failure_ledger(manifest):
+        if record["cohort"] != cohort or record["degradation_onset"] is None:
+            continue
+        for row in manifest["files"]:
+            if row["robot_id"] != record["robot_id"]:
+                continue
+            if not record["degradation_onset"] <= row["end_time"] <= record["failure_time"]:
+                continue
+            sample = samples_by_id[row["file_id"]]
+            meta = sample.anomaly_meta
+            if meta is not None and meta.extra.get("temporal_policy") == "precursor":
+                values.append(float(meta.severity))
+    return values
+
+
+def test_v41_causal_dynamics_and_manifestation(tmp_path):
+    """v4.1: causal onset linkage, P/W ordering, severity ordering from
+    observable injection records, waveform-level A-null. (Day-bound
+    medians are verified at full scale in v4.1 §2 evidence; medium density
+    cannot test day bounds.)"""
+
+    root = tmp_path / "v41medium"
+    assert synth_cli.main([
+        "--chronological", "--profile", "sprint13-v41", "--units", "150",
+        "--seed", "931", "--protocol", "sprint13-protocol-v4.1",
+        "--output", str(root),
+    ]) == 0
+    manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["protocol"] == "sprint13-protocol-v4.1"
+    ledger = events_mod.failure_ledger(manifest)
+    assert {r["cohort"] for r in ledger} == {"P", "W", "A"}
+    episodes = {e["episode_id"]: e for e in manifest["episodes"]}
+    p_durs, w_durs = [], []
+    for record in ledger:
+        if record["cohort"] == "A":
+            assert record["duration_d"] == 0.0
+            assert record["degradation_onset"] is None
+            assert record["subtype"] in ("A1", "A2")
+            continue
+        linked = episodes[record["degradation_episode_id"]]
+        assert record["degradation_onset"] == linked["start_time"]
+        (p_durs if record["cohort"] == "P" else w_durs).append(
+            record["duration_d"])
+    assert p_durs and w_durs
+    assert median(p_durs) < median(w_durs)
+    samples, _ = load_chronological(root)
+    by_id = {s.file_id: s for s in samples}
+    p_sev = _precursor_severities(manifest, by_id, "P")
+    w_sev = _precursor_severities(manifest, by_id, "W")
+    assert p_sev and w_sev
+    assert median(p_sev) > median(w_sev)
+    pw_windows = [(r["robot_id"], r["degradation_onset"], r["failure_time"])
+                  for r in ledger if r["cohort"] in ("P", "W")]
+    for record in ledger:
+        if record["cohort"] != "A":
+            continue
+        for row in manifest["files"]:
+            if row["robot_id"] != record["robot_id"]:
+                continue
+            if not record["failure_time"] - 7 * DAY <= row["end_time"] < record["failure_time"]:
+                continue
+            sample = by_id[row["file_id"]]
+            meta = sample.anomaly_meta
+            if meta is None:
+                continue
+            policy = meta.extra.get("temporal_policy")
+            assert policy != "precursor" or any(
+                rb == row["robot_id"] and o <= row["end_time"] <= t
+                for rb, o, t in pw_windows), row["file_id"]
+    for row in manifest["files"]:
+        assert row["n_valid_patches"] >= 1
+    from synth.patchify import Patchifier
+    from synth.config import PatchConfig
+    checker = Patchifier(PatchConfig())
+    probe = by_id[manifest["files"][0]["file_id"]]
+    assert manifest["files"][0]["n_valid_patches"] == int(
+        checker.patchify(probe).patches.shape[0])
+
+
+def test_v41_profile_freezes_amended_operating_point():
+    from synth.chronicle import V41_SEEDS, sprint13_v41_history_config
+
+    assert V41_SEEDS == (500, 501, 502, 503, 504, 505, 506, 507, 508,
+                         600, 601, 602, 603)
+    cfg = sprint13_v41_history_config(seed=500)
+    assert cfg.factory.span_days == 180.0
+    assert cfg.fleet.n_robots == 8
+    cohorts = {c.cohort_id: c for c in cfg.health.cohorts}
+    assert cohorts["P"].wear_rate == 2.0e-4
+    assert cfg.health.upcoming_p == 0.55
+    assert cohorts["W"].wear_rate == 5.0e-5
+    assert cohorts["P"].failure_threshold_h == 2.0
+    assert cohorts["W"].failure_threshold_h == 1.35
+    assert cohorts["A"].wear_rate == 0.0
+
+
+def test_eligible_operational_row_predicate():
+    windows = {"robot-01": [[10.0 * DAY, 11.0 * DAY]]}
+    ok = _row("a", "robot-01", "program-01", 20.0 * DAY, 20.5 * DAY)
+    assert events_mod.eligible_operational_row(ok, windows)
+    censored = _row("b", "robot-01", "program-01", 20.0 * DAY, 20.5 * DAY,
+                    censored=True)
+    assert not events_mod.eligible_operational_row(censored, windows)
+    spanning = _row("c", "robot-01", "program-01", 9.5 * DAY, 10.5 * DAY)
+    assert not events_mod.eligible_operational_row(spanning, windows)
+    inside = _row("d", "robot-01", "program-01", 10.2 * DAY, 10.8 * DAY)
+    assert not events_mod.eligible_operational_row(inside, windows)
+    quarantined_ok = _row("e", "robot-01", "program-01", 20.0 * DAY, 20.5 * DAY,
+                          quarantined=True, reason="precursor_horizon")
+    assert events_mod.eligible_operational_row(quarantined_ok, windows)
+
+
+def test_holdout_exclusion_for_fit_cal_pools():
+    rows = [
+        _row("a", "robot-01", "program-01", 1.0 * DAY, 1.5 * DAY),
+        _row("b", "robot-01", "program-03", 2.0 * DAY, 2.5 * DAY),
+        _row("c", "robot-08", "program-01", 3.0 * DAY, 3.5 * DAY),
+    ]
+    eligible = [r for r in rows
+                if r["program_id"] != "program-03"
+                and r["robot_id"] != "robot-08"]
+    assert [r["file_id"] for r in eligible] == ["a"]

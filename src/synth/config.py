@@ -400,20 +400,24 @@ class SchedulerConfig:
 
 @dataclass
 class CohortConfig:
-    """One Sprint 13 failure-mode cohort (Protocol v4 §2).
+    """One Sprint 13 failure-mode cohort (Protocol v4.1 §3–§4).
 
-    A cohort parameterizes its own hazard term on the shared robot health
-    trajectory: progressive/weak cohorts use ``base_rate`` coupled to health
-    and usage, the abrupt cohort uses a constant ``abrupt_rate`` with no
+    A cohort parameterizes its own hazard term and, for progressive/weak
+    cohorts, its own degradation wear on the shared robot health trajectory:
+    ``wear_rate`` applies from degradation-episode open (cohort tag drawn
+    pre-failure), ``base_rate`` couples to health/usage only while an episode
+    is open, and the abrupt cohort uses a constant ``abrupt_rate`` with no
     degradation linkage. ``share`` is the target outcome fraction and must
     sum to 1 across the configured cohorts. ``degradation_min/max_d`` bound
-    the drawn manifest degradation window (abrupt cohorts use exactly 0).
+    the emergent manifest window (abrupt cohorts use exactly 0).
     ``amplitude_scale`` scales precursor manifestation severity (weak < 1).
     """
     cohort_id: str = "P"
     share: float = 1.0
     base_rate: float = 0.0
     abrupt_rate: float = 0.0
+    wear_rate: float | None = None
+    failure_threshold_h: float = 0.0
     amplitude_scale: float = 1.0
     degradation_min_d: float = 0.0
     degradation_max_d: float = 0.0
@@ -434,6 +438,21 @@ class CohortConfig:
         if self.cohort_id in ("P", "W") and self.abrupt_rate != 0.0:
             raise ValueError("non-abrupt cohorts must use abrupt_rate 0.0 "
                              f"(got {self.abrupt_rate!r})")
+        if self.wear_rate is not None:
+            self.wear_rate = float(self.wear_rate)
+            if not np.isfinite(self.wear_rate) or self.wear_rate < 0.0:
+                raise ValueError(
+                    f"cohort wear_rate must be non-negative finite, got {self.wear_rate!r}")
+            if self.cohort_id == "A" and self.wear_rate != 0.0:
+                raise ValueError("abrupt cohorts must use wear_rate 0.0 "
+                                 f"(got {self.wear_rate!r})")
+            if self.cohort_id in ("P", "W") and self.wear_rate <= 0.0:
+                raise ValueError("non-abrupt cohorts need positive wear_rate "
+                                 f"(got {self.wear_rate!r})")
+        self.failure_threshold_h = float(self.failure_threshold_h)
+        if not np.isfinite(self.failure_threshold_h) or self.failure_threshold_h < 0.0:
+            raise ValueError("cohort failure_threshold_h must be non-negative "
+                             f"finite, got {self.failure_threshold_h!r}")
         self.degradation_min_d = float(self.degradation_min_d)
         self.degradation_max_d = float(self.degradation_max_d)
         for name in ("degradation_min_d", "degradation_max_d"):
@@ -486,13 +505,14 @@ class HealthConfig:
     base_rate: float = 1e-9
     abrupt_rate: float = 0.0
     alpha: float = 2.0
+    cohorts: tuple[CohortConfig, ...] = field(default_factory=tuple)
+    upcoming_p: float = 0.6
+    preventive_interval_s: float = 0.0
+    preventive_duration_s: float = 0.0
     beta: float = 0.0
     maintenance_duration_s: float = 86400.0
     recommission_mean: float = 0.05
     recommission_scale: float = 0.02
-    cohorts: tuple[CohortConfig, ...] = field(default_factory=tuple)
-    preventive_interval_s: float = 0.0
-    preventive_duration_s: float = 0.0
 
     def __post_init__(self) -> None:
         if isinstance(self.seed, bool) or not isinstance(self.seed, int):
@@ -528,6 +548,10 @@ class HealthConfig:
                              f"{self.preventive_duration_s})")
         self.cohorts = tuple(self.cohorts)
         if self.cohorts:
+            if self.base_rate != 0.0 or self.abrupt_rate != 0.0:
+                raise ValueError("legacy base_rate/abrupt_rate must be 0.0 when "
+                                 "cohorts are configured "
+                                 f"(got {self.base_rate}, {self.abrupt_rate})")
             for cohort in self.cohorts:
                 if not isinstance(cohort, CohortConfig):
                     raise ValueError(

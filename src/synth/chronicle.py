@@ -41,6 +41,7 @@ from synth.dataset import (
     load_sample_bytes,
 )
 from synth.health import RobotHealthProcess
+from synth.patchify import Patchifier
 from synth.scheduled import ScheduledSignalGenerator
 from synth.scheduler import FactoryScheduler
 from synth.schema import EpisodeKind, SampleLabel
@@ -226,6 +227,43 @@ def sprint13_history_config(seed: int = 0) -> SynthConfig:
     return cfg
 
 
+#: Sprint 13 Protocol v4.1 roster (fresh identities; v4 300s/400s retired).
+V41_SEEDS = (500, 501, 502, 503, 504, 505, 506, 507, 508,
+             600, 601, 602, 603)
+
+
+def sprint13_v41_history_config(seed: int = 0) -> SynthConfig:
+    """Return the Protocol v4.1 benchmark history configuration.
+
+    Same 180-day, 8-robot, five-route factory as v4, with v4.1 §2–§4
+    mechanics: analytic hazard rates, cohort-specific wear
+    (w_P = 3.0e-4, w_W = 1.0e-4, base 2.5e-5, aging 1e-7), gated base
+    hazard on open degradation episodes, and pre-failure upcoming-cohort
+    draws. Only the seed varies between histories.
+    """
+    cfg = sprint13_history_config(seed=seed)
+    cfg.health = HealthConfig(
+        seed=seed, aging_rate=1e-7, wear_rate=3.0e-5, noise_scale=1e-3,
+        base_rate=0.0, alpha=5.0, beta=0.0, abrupt_rate=0.0,
+        degradation_onset=0.3, severity_scale=2.0, upcoming_p=0.55,
+        maintenance_duration_s=172800.0,
+        preventive_interval_s=30.0 * 86400.0,
+        preventive_duration_s=86400.0,
+        cohorts=(
+            CohortConfig(cohort_id="P", share=0.45, base_rate=5.0e-10,
+                         wear_rate=2.0e-4, failure_threshold_h=2.0,
+                         degradation_min_d=7.0, degradation_max_d=14.0),
+            CohortConfig(cohort_id="W", share=0.30, base_rate=3.0e-9,
+                         wear_rate=5.0e-5, failure_threshold_h=1.35,
+                         amplitude_scale=0.3,
+                         degradation_min_d=14.0, degradation_max_d=28.0),
+            CohortConfig(cohort_id="A", share=0.25, abrupt_rate=1.1e-5,
+                         wear_rate=0.0, subtypes=("A1", "A2")),
+        ),
+    )
+    return cfg
+
+
 def _require_root(root: str | Path, *, must_exist: bool) -> Path:
     if root is None or (isinstance(root, str) and not root.strip()):
         raise ValueError("chronological root must be an explicit path")
@@ -336,11 +374,14 @@ def materialize_chronological(
     shard_size: int = 64,
     overwrite: bool = False,
     role: str | None = None,
+    protocol: str | None = None,
 ) -> dict[str, object]:
     """Persist one chronological dataset plus complete manifests.
 
-    ``role`` names the Task 6 whole-history assignment (or None when
-    unassigned); it is recorded verbatim for provenance and sealing.
+    ``role`` names the whole-history assignment (or None when unassigned);
+    ``protocol`` names the frozen benchmark version (defaults to
+    ``sprint13-protocol-v4`` when a role is given — pass explicitly,
+    e.g. ``sprint13-protocol-v4.1``, for amended runs). Both recorded verbatim.
     """
     out = _require_root(root, must_exist=False)
     if shard_size <= 0:
@@ -389,11 +430,18 @@ def materialize_chronological(
         )
 
     maint_windows = _maintenance_windows(health)
+    if protocol is None and role is not None:
+        protocol = "sprint13-protocol-v4"
+    patchifier = Patchifier(cfg.patch)
+    patch_counts = {
+        sample.file_id: int(patchifier.patchify(sample).patches.shape[0])
+        for sample in labeled
+    }
 
     manifest: dict[str, object] = {
         "format": CHRONICLE_FORMAT,
         "generator_version": GENERATOR_VERSION,
-        "protocol": "sprint13-protocol-v4" if role is not None else None,
+        "protocol": protocol,
         "role": role,
         "config_hash": config_hash,
         "resolved_config": json.loads(
@@ -457,6 +505,7 @@ def materialize_chronological(
                     s.operation.robot_id,  # type: ignore[union-attr]
                     s.operation.start_time,  # type: ignore[union-attr]
                 ),
+                "n_valid_patches": patch_counts[s.file_id],
             }
             for s in labeled
         ],

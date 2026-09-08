@@ -36,12 +36,16 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--small", action="store_true", help="small smoke profile (12/8/12 samples)")
     p.add_argument("--chronological", action="store_true",
                    help="materialize a chronological factory dataset (Tasks 5-7 pipeline)")
-    p.add_argument("--profile", choices=("client", "server", "sprint13"),
+    p.add_argument("--profile", choices=("client", "server", "sprint13",
+                                          "sprint13-v41"),
                    default="client",
                    help="chronological scale profile (default: client)")
     p.add_argument("--role", type=str, default=None,
                    help="whole-history role recorded in the manifest "
                    "(Sprint 13 Task 6 roster; default: unassigned)")
+    p.add_argument("--protocol", type=str, default=None,
+                   help="frozen benchmark version recorded in the manifest "
+                   "(default: profile default)")
     p.add_argument("--channels", type=int, choices=(3, 6), default=6)
     p.add_argument("--units", type=int, default=None,
                    help="chronological unit count; arrival cadence scales inversely "
@@ -64,12 +68,17 @@ def main(argv: list[str] | None = None) -> int:
             materialize_chronological,
             server_config,
             sprint13_history_config,
+            sprint13_v41_history_config,
         )
         seed = 0 if args.seed is None else args.seed
         if args.profile == "client":
             cfg = client_config(seed=seed)
         elif args.profile == "server":
             cfg = server_config(seed=seed)
+        elif args.profile == "sprint13-v41":
+            cfg = sprint13_v41_history_config(seed=seed)
+            if args.protocol is None:
+                args.protocol = "sprint13-protocol-v4.1"
         else:
             cfg = sprint13_history_config(seed=seed)
         cfg.n_channels = args.channels
@@ -85,6 +94,7 @@ def main(argv: list[str] | None = None) -> int:
         manifest = materialize_chronological(
             cfg, args.output, shard_size=args.shard_size,
             overwrite=args.overwrite, role=args.role,
+            protocol=args.protocol,
         )
         counts = manifest["counts"]
         print(f"wrote {args.output / 'manifest.json'}: "

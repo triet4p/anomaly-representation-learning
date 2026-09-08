@@ -303,21 +303,25 @@ class RobotHealthProcess:
         open_deg_id: str | None = None
         preventive = self._preventive_blocks(
             robot_id, ordered, hcfg, episodes, counters)
+        by_id = ({c.cohort_id: c for c in hcfg.cohorts} if hcfg.cohorts else {})
+
+        def _draw_upcoming() -> str | None:
+            """Draw the next non-abrupt cohort before it manifests."""
+            if not by_id or "P" not in by_id or "W" not in by_id:
+                return None
+            return "P" if rng.random() < hcfg.upcoming_p else "W"
 
         def _next_id(kind: str) -> str:
             key = f"{robot_id}:{kind}"
             counters[key] = counters.get(key, 0) + 1
             return f"{kind}-{robot_id}-{counters[key]:04d}"
 
+        upcoming = _draw_upcoming()
 
         for event in ordered:
             gamma = program_sensitivity(event.robot_id, event.program_id, hcfg)
             for block_start, block_end in preventive:
                 if block_start <= event.start_time < block_end:
-                    if open_degradation is not None:
-                        open_degradation.end_time = block_start
-                        open_degradation = None
-                        open_deg_id = None
                     frozen = health
                     if maint_until is None or block_end > maint_until:
                         maint_until = block_end
@@ -336,6 +340,10 @@ class RobotHealthProcess:
                 continue
             recommissioned = False
             if maint_until is not None and event.start_time >= maint_until:
+                if open_degradation is not None:
+                    open_degradation.end_time = maint_until
+                    open_degradation = None
+                    open_deg_id = None
                 drawn = (
                     rng.normal(hcfg.recommission_mean, hcfg.recommission_scale)
                     if hcfg.recommission_scale > 0.0 else hcfg.recommission_mean
@@ -344,8 +352,14 @@ class RobotHealthProcess:
                 usage = 0.0
                 maint_until = None
                 recommissioned = True
+                upcoming = _draw_upcoming()
             health += hcfg.aging_rate * max(0.0, event.start_time - last_end)
-            health += hcfg.wear_rate * event.duration
+            if open_degradation is not None and upcoming is not None and by_id:
+                cohort_wear = by_id[upcoming].wear_rate
+                health += (cohort_wear if cohort_wear is not None
+                           else hcfg.wear_rate) * event.duration
+            else:
+                health += hcfg.wear_rate * event.duration
             if hcfg.noise_scale > 0.0:
                 health += rng.normal(0.0, hcfg.noise_scale)
             health = max(0.0, health)
@@ -364,42 +378,50 @@ class RobotHealthProcess:
                 _HAZARD_ARG_CAP, hcfg.alpha * health + hcfg.beta * usage)
             fired = None
             legacy_fires = False
-            if hcfg.cohorts:
-                for cohort in hcfg.cohorts:
-                    rate = (cohort.abrupt_rate
-                            + cohort.base_rate * math.exp(exponent))
+            if by_id:
+                if (open_degradation is not None and upcoming is not None
+                        and upcoming in by_id
+                        and by_id[upcoming].failure_threshold_h > 0.0
+                        and health >= by_id[upcoming].failure_threshold_h):
+                    fired = by_id[upcoming]
+                if fired is None:
+                    abrupt_cfg = by_id.get("A")
+                    if abrupt_cfg is not None and abrupt_cfg.abrupt_rate > 0.0:
+                        if rng.random() < 1.0 - math.exp(
+                                -abrupt_cfg.abrupt_rate * event.duration):
+                            fired = abrupt_cfg
+                if (fired is None and open_degradation is not None
+                        and upcoming is not None and upcoming in by_id):
+                    cohort = by_id[upcoming]
+                    rate = cohort.base_rate * math.exp(exponent)
                     if rng.random() < 1.0 - math.exp(-rate * event.duration):
                         fired = cohort
-                        break
             else:
                 hazard = hcfg.abrupt_rate + hcfg.base_rate * math.exp(exponent)
                 threshold = 1.0 - math.exp(-hazard * event.duration)
                 legacy_fires = rng.random() < threshold
             if fired is not None or legacy_fires:
-                if open_degradation is not None:
+                failure_id = _next_id("fail")
+                cohort_id: str | None = None
+                subtype: str | None = None
+                onset: float | None = None
+                duration_d = 0.0
+                sev_level = 1.0
+                if fired is not None and fired.cohort_id == "A":
+                    cohort_id = "A"
+                    subtype = "A1" if rng.random() < 0.5 else "A2"
+                    sev_level = (1.0, 2.0, 4.0)[int(rng.integers(3))]
+                elif fired is not None:
+                    assert open_degradation is not None and open_deg_id is not None
+                    cohort_id = fired.cohort_id
+                    onset = open_degradation.start_time
+                    duration_d = (event.end_time - onset) / 86400.0
+                    sev_level = (1.0, 2.0, 4.0)[int(rng.integers(3))]
                     open_degradation.end_time = event.end_time
                     open_degradation = None
-                failure_id = _next_id("fail")
-                if fired is None:
-                    cohort_id: str | None = None
-                elif fired.cohort_id == "A":
-                    cohort_id = "A"
-                    subtype: str | None = ("A1" if rng.random() < 0.5 else "A2")
-                    onset: float | None = None
-                    duration_d = 0.0
-                    sev_level = (1.0, 2.0, 4.0)[int(rng.integers(3))]
-                else:
-                    cohort_id = fired.cohort_id
-                    subtype = None
-                    span_d = float(rng.uniform(
-                        fired.degradation_min_d, fired.degradation_max_d))
-                    # Manifest onset is clamped at the history origin; the
-                    # drawn duration stands (the process degraded that long,
-                    # partly before recording began). Truncated baselines are
-                    # naturally reflected in coverage counts downstream.
-                    onset = max(0.0, event.end_time - span_d * 86400.0)
-                    duration_d = span_d
-                    sev_level = (1.0, 2.0, 4.0)[int(rng.integers(3))]
+                elif open_degradation is not None:
+                    open_degradation.end_time = event.end_time
+                    open_degradation = None
                 episodes.append(HealthEpisode(
                     episode_id=failure_id,
                     kind=EpisodeKind.FAILURE,

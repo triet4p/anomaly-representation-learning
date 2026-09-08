@@ -53,6 +53,7 @@ __all__ = [
     "client_config",
     "server_config",
     "sprint13_history_config",
+    "sprint13_v41_history_config",
     "write_seal",
     "verify_seal",
 ]
@@ -103,6 +104,7 @@ _EXPORT_MODULES = {
     "client_config": "synth.chronicle",
     "server_config": "synth.chronicle",
     "sprint13_history_config": "synth.chronicle",
+    "sprint13_v41_history_config": "synth.chronicle",
     "write_seal": "synth.chronicle",
     "verify_seal": "synth.chronicle",
     "DatasetBuilder": "synth.dataset",
@@ -130,6 +132,7 @@ if TYPE_CHECKING:
     from synth.chronicle import client_config, load_chronological
     from synth.chronicle import materialize_chronological, server_config
     from synth.chronicle import sprint13_history_config, verify_seal, write_seal
+    from synth.chronicle import sprint13_v41_history_config
     from synth.generator import SessionGenerator
     from synth.schema import AnomalyMeta, FileSample, RegimeMeta, SampleLabel
     from synth.schema import DegradationStage, EpisodeKind, FactoryProvenance

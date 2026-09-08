@@ -59,6 +59,16 @@ def _overlaps_maintenance(
     return False
 
 
+def eligible_operational_row(
+    row: dict, windows: dict[str, list[list[float]]]
+) -> bool:
+    """Shared E5/robot-day eligibility (v4.1 §7): NOT censored AND NOT
+    full-interval maintenance-overlapping. Used identically for the E5
+    numerator (scored rows), the E5 denominator days, and robot-day floors.
+    A (robot, day) counts iff at least one eligible row ends that day."""
+    return (not row["is_censored"]
+            and not _overlaps_maintenance(row, windows))
+
 def pos_files(
     rows: list[dict],
     failure: dict,
