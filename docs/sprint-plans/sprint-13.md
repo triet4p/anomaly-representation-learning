@@ -4,7 +4,7 @@
 
 Create and freeze a synthetic telemetry benchmark on which causal early-warning ranking, positive lead time, false-alert behavior, and later calibrated-risk evaluation are structurally measurable before any representation or risk-model optimization resumes.
 
-**Status:** Active — REMEDIATION (deep review FAIL, 5 actionable findings). Prior `MEASURABLE` SUPERSEDED as `UNRESOLVED_PENDING_REMEDIATION`. Task 17 in-progress (R1: v4.1 frozen `94f9c566…`, awaiting Main approval; causal dynamics + audit semantics implemented; no new protocol histories). Sprint 14 BLOCKED.
+**Status:** Active — REMEDIATION R2A (R1 PASS; v4.1 `94f9c566…` APPROVED for R2; renewed Task 11 materialization in progress; prior `MEASURABLE` remains superseded; Sprint 14 BLOCKED).
 
 ## Decision Context
 
