@@ -34,9 +34,9 @@ def _fake_history():
         "f3": {"robot_id": "r", "start_time": 200.0, "end_time": 300.0},
     }
     samples = [SimpleNamespace(file_id=fid) for fid in ("f1", "f2", "f3")]
-    sched = {"r": [{"end_time": 100.0, "duration": 100.0},
-                   {"end_time": 200.0, "duration": 100.0},
-                   {"end_time": 300.0, "duration": 100.0}]}
+    sched = {"r": [{"start_time": 0.0, "end_time": 100.0, "duration": 100.0},
+                   {"start_time": 100.0, "end_time": 200.0, "duration": 100.0},
+                   {"start_time": 200.0, "end_time": 300.0, "duration": 100.0}]}
     return {"samples": samples, "files": files, "by_robot": {"r": samples},
             "maint": {}, "sched": sched}
 
@@ -50,7 +50,18 @@ def test_trailing_excludes_current_file():
     assert feats["f2"]["trail_n"] == 1
     assert feats["f3"]["persist"] == 1  # f2 above q90, then f1 below stops the run
     assert feats["f2"]["trail_max"] == 1.0  # only f1 visible, not self
+def test_history_resets_at_maintenance():
+    from sprint12_task12_warning import featurize
 
+    h = _fake_history()
+    h["maint"] = {"r": [(150.0, 160.0)]}
+    scores = {"f1": 1.0, "f2": 5.0, "f3": 1.0}
+    feats = {f["file_id"]: f for f in featurize(h, scores, q90=4.0)}
+    # f3 starts at 200, last maintenance ends at 160: only the (200,300)
+    # event counts (100 s); earlier events are cut by the reset.
+    assert abs(feats["f3"]["usage_h"] - 100.0 / 3600.0) < 1e-9
+    assert feats["f3"]["trail_n"] == 1  # only f2 (end 200) visible
+    assert feats["f3"]["trail_max"] == 5.0
 
 def test_features_ignore_future_targets_shuffle():
     from sprint12_task12_warning import featurize
@@ -103,6 +114,7 @@ def test_group_alert_episodes_and_event_recall():
     from sprint12_task12_warning import event_recall_lead, group_alert_episodes
 
     eps = group_alert_episodes([1.0, 1.5, 10.0], 5.0)
+    assert eps == [[1.0, 1.5], [10.0]]
     assert group_alert_episodes([], 100.0) == []
     out = event_recall_lead(
         {"r": [1.0, 1.5, 10.0]},

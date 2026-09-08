@@ -128,6 +128,29 @@ def group_alert_episodes(sorted_ends: list[float], max_gap_s: float) -> list[lis
     return episodes
 
 
+def select_control_windows(
+    file_ends: list[float],
+    failures: list[float],
+    window_s: float,
+) -> list[tuple[float, float]]:
+    """Deterministic non-overlapping control windows of length window_s.
+
+    Candidates anchor at each file end e (ascending): window [e-window_s, e]
+    is kept iff no failure start lies in [e-window_s, e+window_s) (neither a
+    pre-failure horizon nor post-failure aftermath) and it does not overlap
+    an already kept window ([kept_end-window_s, kept_end)). Pure function of
+    sorted inputs: identical inputs always yield identical windows.
+    """
+    kept: list[tuple[float, float]] = []
+    for e in sorted(file_ends):
+        if any(e - window_s <= t < e + window_s for t in failures):
+            continue
+        if kept and e - kept[-1][1] < window_s:
+            continue
+        kept.append((e - window_s, e))
+    return kept
+
+
 def event_recall_lead(
     alert_ends_by_robot: dict[str, list[float]],
     failures: list[tuple[str, float]],
@@ -220,14 +243,17 @@ def featurize(h: dict, score_of: dict, q90: float | None = None):
         robot = str(files[fid]["robot_id"])
         start = float(files[fid]["start_time"])
         end = float(files[fid]["end_time"])
+        recommissioned = max([e for _, e in h["maint"].get(robot, []) if e <= start],
+                             default=0.0)
         usage = sum(float(e["duration"]) for e in h["sched"].get(robot, [])
-                    if float(e["end_time"]) <= end) / 3600.0
-        past_maint: list = []
+                    if float(e["end_time"]) <= end
+                    and float(e["start_time"]) >= recommissioned) / 3600.0
         mends = [e for _, e in h["maint"].get(robot, []) if e <= start]
         tsm = min(TSM_CAP_D, (start - max(mends)) / DAY) if mends else TSM_CAP_D
         prior = [p for p in h["by_robot"][robot]
                  if float(files[p.file_id]["end_time"]) < end
-                 and float(files[p.file_id]["end_time"]) >= end - TRAIL_S]
+                 and float(files[p.file_id]["end_time"]) >= end - TRAIL_S
+                 and float(files[p.file_id]["end_time"]) > recommissioned]
         tscores = [score_of[p.file_id] for p in prior]
         persist = 0
         for p in sorted(prior, key=lambda q: float(files[q.file_id]["end_time"]), reverse=True):
@@ -244,7 +270,6 @@ def featurize(h: dict, score_of: dict, q90: float | None = None):
             "trail_n": len(prior), "persist": persist,
             "in_maint": in_maint(h["maint"], robot, start, end),
         })
-        _ = past_maint
     return out
 
 
@@ -260,37 +285,63 @@ def main() -> int:
     out_dir.mkdir(parents=True, exist_ok=True)
 
     dev = [build_history(r) for r in args.dev_roots]
+    fit_seeds = sorted(int(h["manifest"]["seeds"]["temporal"]) for h in dev[:3])
+    val_seed = int(dev[3]["manifest"]["seeds"]["temporal"])
+    assert fit_seeds == [100, 101, 102], fit_seeds
+    assert val_seed == 103, val_seed
+    fit_hists, val_hists = dev[:3], [dev[3]]
+
+    def eligible_rows(histories):
+        """Eligible temporal rows: test_temporal view, known uncensored outcome."""
+        rows = []
+        for h in histories:
+            temporal = set(h["manifest"]["splits"]["test_temporal"])
+            for s in h["samples"]:
+                if s.file_id not in temporal:
+                    continue
+                ft = s.future_targets
+                if ft is None or bool(ft.is_censored):
+                    continue
+                rows.append((h, s))
+        return rows
+
+    # q90 and scores: file scores need no fitting; q90 threshold value comes
+    # from RISK-FIT eligible rows only.
     dev_scores = {}
     for h in dev:
         for s in h["samples"]:
             dev_scores[s.file_id] = file_score(s.x)
-    q90 = float(np.quantile(list(dev_scores.values()), 0.90))
+    fit_pool = eligible_rows(fit_hists)
+    q90 = float(np.quantile([dev_scores[s.file_id] for _, s in fit_pool], 0.90))
 
-    # supervised fit set: dev files with known outcomes (censored excluded).
+    # supervised fit set: RISK-FIT eligible temporal rows with known outcomes.
     # Cold-start holdout: program-03 NEVER enters the fit. Maintenance
     # operations are excluded for train/eval symmetry. Post-cutoff precursor
-    # files stay IN (they carry the positive outcomes a warning model needs;
-    # restricting to healthy-only would remove all positives — see task notes).
+    # rows stay IN (they carry the positive outcomes a warning model needs;
+    # healthy-only restriction would remove all positives — rejected in v3).
     from sklearn.linear_model import LogisticRegression
     Xb, Xc, y = [], [], []
-    n_fit_p3_excluded = n_fit_maint_excluded = 0
-    for h in dev:
-        feats = {f["file_id"]: f for f in featurize(h, dev_scores, q90)}
-        for s in h["samples"]:
-            ft = s.future_targets
-            if ft is None or bool(ft.is_censored):
-                continue
-            if str(h["files"][s.file_id]["program_id"]) == "program-03":
-                n_fit_p3_excluded += 1
-                continue
-            f = feats[s.file_id]
-            if f["in_maint"]:
-                n_fit_maint_excluded += 1
-                continue
-            Xb.append([f["usage_h"], f["tsm_d"]])
-            Xc.append([f["usage_h"], f["tsm_d"], f["trail_max"],
-                       f["trail_frac90"], f["persist"]])
-            y.append(1.0 if bool(ft.failure_within_7d) else 0.0)
+    n_fit_nontemporal = n_fit_p3_excluded = n_fit_maint_excluded = 0
+    fit_feats = {}
+    for h in fit_hists:
+        for f in featurize(h, dev_scores, q90):
+            fit_feats[f["file_id"]] = f
+    for h, s in fit_pool:
+        if str(h["files"][s.file_id]["program_id"]) == "program-03":
+            n_fit_p3_excluded += 1
+            continue
+        f = fit_feats[s.file_id]
+        if f["in_maint"]:
+            n_fit_maint_excluded += 1
+            continue
+        ft = s.future_targets
+        Xb.append([f["usage_h"], f["tsm_d"]])
+        Xc.append([f["usage_h"], f["tsm_d"], f["trail_max"],
+                   f["trail_frac90"], f["persist"]])
+        y.append(1.0 if bool(ft.failure_within_7d) else 0.0)
+    n_fit_nontemporal = sum(
+        1 for h in fit_hists for s in h["samples"]
+        if s.file_id not in set(h["manifest"]["splits"]["test_temporal"]))
     Xb_raw = np.array(Xb)
     Xc_raw = np.array(Xc)
     y = np.array(y)
@@ -301,6 +352,9 @@ def main() -> int:
     clf_b = LogisticRegression().fit(Xb, y)
     clf_c = LogisticRegression().fit(Xc, y)
     frozen = {
+        "protocol": "sprint12-protocol-v3",
+        "risk_fit_seeds": [100, 101, 102],
+        "risk_val_seed": 103,
         "const_rate": const_rate,
         "q90": q90,
         "standardizer_b": std_b.to_dict(),
@@ -311,17 +365,47 @@ def main() -> int:
         "intercept_c": float(clf_c.intercept_[0]),
         "n_fit": int(y.size),
         "n_pos_fit": int(y.sum()),
+        "n_fit_nontemporal_excluded": int(n_fit_nontemporal),
         "n_fit_program03_excluded": n_fit_p3_excluded,
         "n_fit_maint_excluded": n_fit_maint_excluded,
     }
-    # DEV operating thresholds at FPR <= 0.10 per arm (tie-safe, frozen).
-    dev_points = {
-        "b": operating_points(Xb @ np.array(frozen["coef_b"]) + frozen["intercept_b"], y),
-        "c": operating_points(Xc @ np.array(frozen["coef_c"]) + frozen["intercept_c"], y),
+    # RISK-VAL operating thresholds at FPR <= 0.10 per arm (tie-safe, frozen).
+    # VAL rows use the same eligibility (temporal, known outcome, no program-03,
+    # no maintenance); scored with the FROZEN standardizer + model.
+    val_scores_b, val_scores_c, val_y = [], [], []
+    n_val_excluded = 0
+    val_feats: dict[str, dict] = {}
+    for h in val_hists:
+        for f in featurize(h, dev_scores, q90):
+            val_feats[h["manifest"]["seeds"]["temporal"], f["file_id"]] = f
+    for h, s in eligible_rows(val_hists):
+        f = val_feats[(h["manifest"]["seeds"]["temporal"], s.file_id)]
+        if str(h["files"][s.file_id]["program_id"]) == "program-03":
+            n_val_excluded += 1
+            continue
+        ft = s.future_targets
+        val_scores_b.append(float(
+            np.array(frozen["coef_b"]) @ _apply_std(
+                frozen["standardizer_b"],
+                np.array([[f["usage_h"], f["tsm_d"]]]))[0]
+            + frozen["intercept_b"]))
+        val_scores_c.append(float(
+            np.array(frozen["coef_c"]) @ _apply_std(
+                frozen["standardizer_c"],
+                np.array([[f["usage_h"], f["tsm_d"], f["trail_max"],
+                           f["trail_frac90"], f["persist"]]]))[0]
+            + frozen["intercept_c"]))
+        val_y.append(1.0 if bool(ft.failure_within_7d) else 0.0)
+    val_points = {
+        "b": operating_points(np.array(val_scores_b), np.array(val_y)),
+        "c": operating_points(np.array(val_scores_c), np.array(val_y)),
     }
-    frozen["dev_threshold_fpr010"] = {
-        arm: threshold_for_fpr(pts, 0.10) for arm, pts in dev_points.items()
+    frozen["val_threshold_fpr010"] = {
+        arm: threshold_for_fpr(pts, 0.10) for arm, pts in val_points.items()
     }
+    frozen["n_val"] = len(val_y)
+    frozen["n_val_pos"] = int(np.sum(val_y))
+    frozen["n_val_excluded"] = n_val_excluded
 
     def sigmoid(z: np.ndarray) -> np.ndarray:
         return 1.0 / (1.0 + np.exp(-z))
@@ -359,6 +443,7 @@ def main() -> int:
                 "file_id": s.file_id, "robot": f["robot"],
                 "end": float(h["files"][s.file_id]["end_time"]),
                 "program": str(h["files"][s.file_id]["program_id"]),
+                "quarantined": bool(h["files"][s.file_id]["is_quarantined"]),
                 "y7": bool(ft.failure_within_7d), "y1": bool(ft.failure_within_1d),
                 "a": frozen["const_rate"], "b": float(sigmoid(xb)), "c": float(sigmoid(xc)),
             })
@@ -369,6 +454,8 @@ def main() -> int:
                        "n_no_target": n_no_target,
                        "n_pos_7d": int(yy7.sum()),
                        "n_pos_1d": int(sum(1 for r in rows if r["y1"]))}
+        failures = [(str(e["robot_id"]), float(e["start_time"]))
+                    for e in h["episodes"] if str(e.get("kind")) == "failure"]
         for arm in ("a", "b", "c"):
             sc = np.array([r[arm] for r in rows])
             auc7 = roc_auc_or_nan(sc, yy7)
@@ -382,21 +469,62 @@ def main() -> int:
                 out_h[arm]["auroc_7d_program03"] = roc_auc_or_nan(
                     np.array([r[arm] for r in p3]),
                     np.array([r["y7"] for r in p3], dtype=float))
-            # Event metrics at the frozen DEV FPR<=0.10 threshold (arm b/c only;
-            # arm a is constant and alerts either everywhere or nowhere).
-            if arm in frozen["dev_threshold_fpr010"]:
-                thr = frozen["dev_threshold_fpr010"][arm]
+            # Event-level positives: one score per failure = max file score
+            # among eligible files of the same robot ending in [T-7d, T].
+            pos_scores, n_pos_unevaluable = [], 0
+            for robot, t_fail in failures:
+                in_window = [r[arm] for r in rows
+                             if r["robot"] == robot
+                             and t_fail - 7 * DAY <= r["end"] <= t_fail]
+                if in_window:
+                    pos_scores.append(float(max(in_window)))
+                else:
+                    n_pos_unevaluable += 1
+            # Event-level negatives: deterministic same-robot control windows.
+            neg_scores, n_neg_windows = [], 0
+            for rb in sorted({r["robot"] for r in rows}):
+                rb_ends = sorted(r["end"] for r in rows
+                                 if r["robot"] == rb and not r["quarantined"])
+                rb_fails = sorted(t for r2, t in failures if r2 == rb)
+                by_end = {r["end"]: r[arm] for r in rows if r["robot"] == rb}
+                for w0, w1 in select_control_windows(rb_ends, rb_fails, 7 * DAY):
+                    member = [by_end[e] for e in rb_ends if w0 <= e <= w1]
+                    if member:
+                        neg_scores.append(float(max(member)))
+                        n_neg_windows += 1
+            out_h[arm]["event_n_pos"] = len(pos_scores)
+            out_h[arm]["event_n_pos_unevaluable"] = n_pos_unevaluable
+            out_h[arm]["event_n_neg"] = len(neg_scores)
+            if len(pos_scores) >= 2 and len(neg_scores) >= 6:
+                labels = np.array([1.0] * len(pos_scores) + [0.0] * len(neg_scores))
+                out_h[arm]["event_auroc_7d"] = roc_auc_or_nan(
+                    np.array(pos_scores + neg_scores), labels)
+                out_h[arm]["event_status"] = "scored"
+            else:
+                out_h[arm]["event_auroc_7d"] = float("nan")
+                out_h[arm]["event_status"] = "UNAVAILABLE"
+            # Thresholded event companions at the frozen RISK-VAL threshold
+            # (arms b/c only; arm a is constant and alerts everywhere/nowhere).
+            if arm in frozen["val_threshold_fpr010"]:
+                thr = frozen["val_threshold_fpr010"][arm]
                 flagged_by_robot: dict[str, list[float]] = {}
                 for r in rows:
                     if r[arm] >= thr:
                         flagged_by_robot.setdefault(r["robot"], []).append(r["end"])
                 alert_episodes = {rb: group_alert_episodes(sorted(e), 2 * DAY)
                                   for rb, e in flagged_by_robot.items()}
-                failures = [(str(e["robot_id"]), float(e["start_time"]))
-                            for e in h["episodes"] if str(e.get("kind")) == "failure"]
                 flat_alerts = {rb: sorted(t for ep in eps for t in ep)
                                for rb, eps in alert_episodes.items()}
                 out_h[arm]["event_7d"] = event_recall_lead(flat_alerts, failures, 7 * DAY)
+                persist_counts = []
+                for rb, eps in alert_episodes.items():
+                    for ep in eps:
+                        if any(t2 - 7 * DAY <= t <= t2
+                               for t in ep
+                               for _, t2 in [x for x in failures if x[0] == rb]):
+                            persist_counts.append(len(ep))
+                out_h[arm]["persistence_median"] = (
+                    float(np.median(persist_counts)) if persist_counts else float("nan"))
                 n_ep = sum(len(eps) for eps in alert_episodes.values())
                 fails_by_robot: dict[str, list[float]] = {}
                 for r2, t2 in failures:
@@ -414,9 +542,16 @@ def main() -> int:
                 out_h[arm]["n_alert_episodes"] = n_ep
                 out_h[arm]["false_alert_episodes_per_robot_day"] = (
                     n_false / robot_days if robot_days > 0 else float("nan"))
-        auc_c = out_h["c"]["auroc_7d"]
-        auc_a = out_h["a"]["auroc_7d"]
-        out_h["g_rank_pass"] = bool(auc_c >= 0.70 and auc_c >= auc_a + 0.10)
+        auc_c = out_h["c"].get("event_auroc_7d", float("nan"))
+        auc_a = out_h["a"].get("event_auroc_7d", float("nan"))
+        status_c = out_h["c"].get("event_status")
+        out_h["g_rank_pass"] = bool(
+            status_c == "scored"
+            and np.isfinite(auc_c) and np.isfinite(auc_a)
+            and auc_c >= 0.70 and auc_c >= auc_a + 0.10)
+        out_h["g_rank_status"] = (
+            "PASS" if out_h["g_rank_pass"]
+            else ("UNAVAILABLE" if status_c == "UNAVAILABLE" else "FAIL"))
         histories.append(out_h)
 
     auc7 = np.array([h["c"]["auroc_7d"] for h in histories])
