@@ -132,9 +132,14 @@ def audit_history(role: str, seed: int) -> dict:
                   and record["subtype"] in ("A1", "A2"), "a-shape", errors)
 
     # --- Task 13: coverage floors (overall ledger, no holdout exclusion) ---
-    pos_eval, uneval = 0, 0
+    # Reset-spanning [T−H, T] horizons are unevaluable (v4.1.1 §7).
+    pos_eval, uneval, uneval_reset = 0, 0, 0
     pos_cat: Counter = Counter()
     for failure in ledger:
+        if E.positive_window_intersects_reset(failure, wins):
+            uneval += 1
+            uneval_reset += 1
+            continue
         cands = E.pos_files(rows, failure, wins)
         if cands:
             pos_eval += 1
@@ -142,8 +147,7 @@ def audit_history(role: str, seed: int) -> dict:
         else:
             uneval += 1
     anchors = E.anchor_rows(rows, wins)
-    controls = E.select_control_windows(anchors, ledger)
-    ctrl_by_robot = Counter(w["robot_id"] for w in controls)
+    controls = E.select_control_windows(anchors, ledger, wins)
     base_cat: Counter = Counter()
     for failure in ledger:
         t_end = failure["failure_time"]
@@ -225,10 +229,9 @@ def audit_history(role: str, seed: int) -> dict:
             r["quarantine_reason"] for r in rows if r["is_quarantined"])),
         "failures_total": len(ledger),
         "cohorts": dict(cohorts),
-        "task12_errors": errors,
-        "task12_pass": not errors,
-        "positives_evaluable": pos_eval,
         "positives_unevaluable": uneval,
+        "positives_unevaluable_reset": uneval_reset,
+        "positives_evaluable": pos_eval,
         "positives_by_cohort": dict(pos_cat),
         "negatives": len(controls),
         "negatives_by_robot": dict(ctrl_by_robot),

@@ -473,3 +473,58 @@ def test_audit_and_proof_rosters_use_v41_seeds():
     proof_seeds = sorted(s for _, s in _proof.ROSTER)
     assert proof_seeds == [500, 501, 502, 503, 504, 505, 506, 507, 508]
     assert not any(r.startswith("H-SEAL") for r, _ in _proof.ROSTER)
+
+
+def test_temporal_view_membership_enforced():
+    failure = _failure("robot-01", 50.0)
+    dev_row = _row("dev", "robot-01", "program-01", 49.0 * DAY, 49.5 * DAY,
+                   views=("dev-train",))
+    assert events_mod.pos_files([dev_row], failure, {}) == []
+    assert events_mod.anchor_rows([dev_row], {}) == []
+    assert not events_mod.eligible_operational_row(dev_row, {})
+
+
+def test_reset_spanning_positive_is_unevaluable():
+    failure = _failure("robot-01", 50.0)
+    wins = {"robot-01": [[46.0 * DAY, 46.5 * DAY]]}
+    assert events_mod.positive_window_intersects_reset(failure, wins)
+    assert not events_mod.positive_window_intersects_reset(failure, {})
+    assert not events_mod.positive_window_intersects_reset(
+        failure, {"robot-01": [[43.0 * DAY, 43.0 * DAY]]})
+
+
+def test_control_candidate_spanning_maintenance_rejected():
+    anchors = [_row("a", "robot-01", "program-01", 19.0 * DAY, 20.0 * DAY)]
+    wins = {"robot-01": [[15.0 * DAY, 15.5 * DAY]]}
+    assert events_mod.select_control_windows(anchors, [], wins) == []
+    assert len(events_mod.select_control_windows(anchors, [], {})) == 1
+
+
+def test_episodes_split_at_resets():
+    flagged = {"robot-01": [10.0 * DAY, 11.0 * DAY]}
+    wins = {"robot-01": [[10.4 * DAY, 10.6 * DAY]]}
+    false_split, _ = events_mod.false_alert_episodes(flagged, [], 100.0, wins)
+    assert false_split == 2
+    false_joined, _ = events_mod.false_alert_episodes(flagged, [], 100.0)
+    assert false_joined == 1
+
+
+def test_output_contract_helpers():
+    median, q1, q3 = events_mod.median_iqr(
+        [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0])
+    assert (median, q1, q3) == (6.5, 3.25, 9.75)
+    assert events_mod.summarize_values([1.0]) == {"n": 1, "status": "sparse"}
+    full = events_mod.summarize_values([float(v) for v in range(12)])
+    assert full["status"] == "ok" and full["median"] == 5.5
+    assert events_mod.rule_of_three_bound(150.0) == 0.02
+    with pytest.raises(events_mod.UnavailableError):
+        events_mod.rule_of_three_bound(0.0)
+    with pytest.raises(events_mod.UnavailableError):
+        events_mod.median_iqr([])
+    good = {"event_auc": 0.8, "recall": 0.5, "recall_cp": [0.4, 0.6],
+            "lead": {"n": 12, "status": "ok", "median": 2.0},
+            "persistence": {"n": 3, "status": "sparse"},
+            "far": 0.0, "false_episodes": 0, "far_bound": 0.02}
+    assert events_mod.check_arm_computable(good)
+    assert not events_mod.check_arm_computable({"event_auc": 0.8})
+    assert not events_mod.check_arm_computable(dict(good, far_bound=None))

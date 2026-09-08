@@ -44,12 +44,15 @@ def prove_history(role: str) -> dict:
         for r in rows
     }
     anchors = E.anchor_rows(rows, wins)
-    controls = E.select_control_windows(anchors, ledger)
+    controls = E.select_control_windows(anchors, ledger, wins)
 
     arms = {}
     for name, scores in (("constant", const), ("observable_time", time_scores)):
         pos, uneval = [], 0
         for failure in ledger:
+            if E.positive_window_intersects_reset(failure, wins):
+                uneval += 1
+                continue
             cands = E.pos_files(rows, failure, wins)
             if not cands:
                 uneval += 1
@@ -63,9 +66,6 @@ def prove_history(role: str) -> dict:
         except E.UnavailableError:
             auc, auc_state = None, "UNAVAILABLE"
         recalled, leads, persists = 0, [], []
-        # E5 surveillance: EVERY non-censored, non-maintenance operating
-        # file is scored (quarantined precursor files included — they may
-        # carry true alerts). Recall companions still use pos_files only.
         flagged_by_robot: dict = {}
         for row in rows:
             if not E.eligible_operational_row(row, wins):
@@ -74,6 +74,8 @@ def prove_history(role: str) -> dict:
                 flagged_by_robot.setdefault(row["robot_id"], []).append(
                     row["end_time"])
         for failure in ledger:
+            if E.positive_window_intersects_reset(failure, wins):
+                continue
             cands = E.pos_files(rows, failure, wins)
             flagged = sorted(c["end_time"] for c in cands
                              if scores[c["file_id"]] >= FIXED_THRESHOLD)
@@ -84,22 +86,26 @@ def prove_history(role: str) -> dict:
         eval_days = {(r["robot_id"], int(r["end_time"] // DAY)) for r in rows
                      if E.eligible_operational_row(r, wins)}
         false, far = E.false_alert_episodes(
-            flagged_by_robot, ledger, float(len(eval_days)))
+            flagged_by_robot, ledger, float(len(eval_days)), wins)
+        recall = recalled / len(pos) if pos else None
         arms[name] = {
             "event_auc": auc, "auc_state": auc_state,
             "positives_evaluable": len(pos), "positives_unevaluable": uneval,
             "negatives": len(neg),
-            "recall_at_fixed_threshold": recalled / len(pos) if pos else None,
-            "lead_median": sorted(leads)[len(leads) // 2] if leads else None,
+            "recall": recall,
+            "recall_cp": (list(E.clopper_pearson(recalled, len(pos)))
+                          if pos else None),
+            "lead": E.summarize_values(leads),
             "lead_positive_fraction": (
                 sum(1 for x in leads if x > 0.0) / len(leads) if leads else None),
-            "persistence_median": (
-                sorted(persists)[len(persists) // 2] if persists else None),
-            "false_episodes": false, "far_per_robot_day": far,
+            "persistence": E.summarize_values(persists),
+            "false_episodes": false, "far": far,
+            "far_bound": (E.rule_of_three_bound(float(len(eval_days)))
+                          if false == 0 and eval_days else None),
         }
+        arms[name]["computable"] = E.check_arm_computable(arms[name])
     return {"role": role, "arms": arms,
-            "computable": all(a["auc_state"] == "defined"
-                              for a in arms.values())}
+            "computable": all(a["computable"] for a in arms.values())}
 
 
 def main() -> int:
