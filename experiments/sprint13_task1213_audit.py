@@ -230,6 +230,8 @@ def audit_history(role: str, seed: int) -> dict:
             r["quarantine_reason"] for r in rows if r["is_quarantined"])),
         "failures_total": len(ledger),
         "cohorts": dict(cohorts),
+        "task12_errors": errors,
+        "task12_pass": not errors,
         "positives_unevaluable": uneval,
         "positives_unevaluable_reset": uneval_reset,
         "positives_evaluable": pos_eval,
