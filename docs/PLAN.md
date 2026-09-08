@@ -13,7 +13,7 @@ components. Targeted model recovery is deferred until those two questions are an
 
 ## Current Sprint
 
-- [Sprint 13 — Measurable Early-Warning Benchmark](sprint-plans/sprint-13.md) — **Active — REMEDIATION (Batches A–D + Task 16 final-accepted; combined 16-final/combined review PASS; Task 17 ready for fresh differential deep review; `NOT_MEASURABLE`; Sprint 14 BLOCKED). Goal: prove that event ranking, positive lead time, false alerts, and later risk evaluation are structurally measurable under a frozen independent protocol.**
+None — Sprint 13 is Complete (final deep review PASS, negative `NOT_MEASURABLE` verdict); Sprint 14 remains queued but benchmark-blocked, not active.
 
 ## Queued Sprints
 
@@ -22,8 +22,8 @@ components. Targeted model recovery is deferred until those two questions are an
 ## Paused Sprints
 
 - [Sprint 4 — Joint Training Stabilization and Rerun Export](sprint-plans/sprint-4.md) — **Paused with Tasks 15–22 pending**
-
 ## Completed Sprints
+- [Sprint 13 — Measurable Early-Warning Benchmark](sprint-plans/sprint-13.md) — **Complete (final differential deep review PASS, Deep Review 7, 0.995, zero findings; Tasks 1–17 accepted; verdict `NOT_MEASURABLE` — 0/13 STRUCT-PASS, all four sealed histories STRUCT-FAIL, zero UNAVAILABLE; no representation, warning-usefulness, or calibrated-risk success; Sprint 14 benchmark-dependent execution BLOCKED)**
 - [Sprint 12 — Scorer Diagnosis, Signal Baselines, and Gated Scientific Recovery](sprint-plans/sprint-12.md) — **Complete (administrative re-finalization; batch gates A3/B2/C2/D2/F3/G2/G3/G4 accepted, Differential Deep Reviews 4+5 PASS with zero actionable findings; Tasks 10/13 retained as user-approved BLOCKED-FINAL scientific stops; no sealed-static reads, no calibrated-risk fit)**
 - [Sprint 11 — Chronological Factory Geometry and Early-Warning Validation](sprint-plans/sprint-11.md) — **Complete on corrected evidence (training `e378626`, F1 `e725250`, F2 `3eef3d2`, report `ebde5d0`); Batches A1–F3 pass with zero actionable findings; sprint-wide deep review PASS (confidence 0.98); integrated verdict 0/4 stands as the accepted negative result**
 - [Sprint 10 — Results Consolidation](sprint-plans/sprint-10.md) — **Complete (evidence-only gate passed)**
@@ -55,7 +55,7 @@ components. Targeted model recovery is deferred until those two questions are an
 | 16 | Conditional hierarchical latent geometry with localized synthetic boundary learning | Implemented — Sprint 11; scientific separation failed |
 | 17 | Static detection and calibrated one-day/seven-day early warning | Evaluated — Sprint 11 negative result; not scientifically validated |
 | 18 | Scorer diagnosis, observable-signal baselines, and independent scientific recovery gates | Complete — Sprint 12 (re-finalized; Tasks 10/13 BLOCKED-FINAL) |
-| 19 | Measurable multi-category early-warning benchmark with independent event controls | REMEDIATION — Batches A–D + Task 16 final-accepted; Task 17 ready for fresh differential deep review; `NOT_MEASURABLE`; Sprint 14 BLOCKED |
+| 19 | Measurable multi-category early-warning benchmark with independent event controls | Complete — Sprint 13 (final deep review PASS; verdict `NOT_MEASURABLE` — 0/13 STRUCT-PASS, four sealed STRUCT-FAIL, zero UNAVAILABLE; Sprint 14 benchmark-dependent execution BLOCKED) |
 | 20 | Causal localization of representation-to-score bottlenecks | Queued — Sprint 14 |
 
 ## High-Level Design Decisions
