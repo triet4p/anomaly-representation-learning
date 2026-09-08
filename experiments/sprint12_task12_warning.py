@@ -155,6 +155,17 @@ def select_control_windows(
     return kept
 
 
+def _jsonable(value):
+    """Recursively map non-finite floats to None for strict-JSON output."""
+    if isinstance(value, float) and not np.isfinite(value):
+        return None
+    if isinstance(value, dict):
+        return {k: _jsonable(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_jsonable(v) for v in value]
+    return value
+
+
 def event_recall_lead(
     alert_ends_by_robot: dict[str, list[float]],
     failures: list[tuple[str, float]],
@@ -585,7 +596,7 @@ def main() -> int:
             "pass": bool(all(h["g_rank_pass"] for h in histories)),
         },
     }
-    (out_dir / "task12_diag.json").write_text(json.dumps(result, indent=2))
+    (out_dir / "task12_diag.json").write_text(json.dumps(_jsonable(result), indent=2))
     print(f"WROTE {out_dir / 'task12_diag.json'} g_rank_pass={result['g_rank']['pass']}")
     return 0
 
