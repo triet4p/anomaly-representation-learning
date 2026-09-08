@@ -10,14 +10,13 @@ representation recovery and calibrated early warning on independent scientific e
 
 ## Current Sprint
 
-- None — Sprint 12 is **Complete** (administrative closeout under Differential Deep Review 4 PASS; see Completed Sprints). Sprint 4 remains paused.
+- [Sprint 12 — Scorer Diagnosis, Signal Baselines, and Gated Scientific Recovery](sprint-plans/sprint-12.md) — **Active (closeout REOPENED — one post-closeout stale-note correction pending follow-up review).**
 
 ## Paused Sprints
 
 - [Sprint 4 — Joint Training Stabilization and Rerun Export](sprint-plans/sprint-4.md) — **Paused with Tasks 15–22 pending**
 
 ## Completed Sprints
-- [Sprint 12 — Scorer Diagnosis, Signal Baselines, and Gated Scientific Recovery](sprint-plans/sprint-12.md) — **Complete (administrative closeout; batch gates A3/B2/C2/D2/F3/G2/G3 accepted, Differential Deep Review 4 PASS with zero actionable findings; Tasks 10/13 retained as user-approved BLOCKED-FINAL scientific stops; no sealed-static reads, no calibrated-risk fit)**
 - [Sprint 11 — Chronological Factory Geometry and Early-Warning Validation](sprint-plans/sprint-11.md) — **Complete on corrected evidence (training `e378626`, F1 `e725250`, F2 `3eef3d2`, report `ebde5d0`); Batches A1–F3 pass with zero actionable findings; sprint-wide deep review PASS (confidence 0.98); integrated verdict 0/4 stands as the accepted negative result**
 - [Sprint 10 — Results Consolidation](sprint-plans/sprint-10.md) — **Complete (evidence-only gate passed)**
 - [Sprint 9 — V1 Detection Improvement](sprint-plans/sprint-9.md) — **Complete (evidence-only gate passed; all tracks verdict retrain)**
@@ -47,7 +46,7 @@ representation recovery and calibrated early warning on independent scientific e
 | 15 | Deterministic shared-unit factory calendar with health, failures, maintenance, quarantine, and chronological splits | Complete — Sprint 11 |
 | 16 | Conditional hierarchical latent geometry with localized synthetic boundary learning | Implemented — Sprint 11; scientific separation failed |
 | 17 | Static detection and calibrated one-day/seven-day early warning | Evaluated — Sprint 11 negative result; not scientifically validated |
-| 18 | Scorer diagnosis, observable-signal baselines, and independent scientific recovery gates | Complete — Sprint 12 (closeout; Tasks 10/13 BLOCKED-FINAL) |
+| 18 | Scorer diagnosis, observable-signal baselines, and independent scientific recovery gates | Sprint 12 closeout REOPENED — stale-note fix pending follow-up review |
 
 ## High-Level Design Decisions
 
