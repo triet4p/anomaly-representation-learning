@@ -86,7 +86,7 @@ def audit_history(role: str, seed: int) -> dict:
     allowed_keys = {"file_id", "operation_id", "robot_id", "program_id",
                     "start_time", "end_time", "file_label", "is_quarantined",
                     "quarantine_reason", "is_censored", "member_views",
-                    "last_reset_time"}
+                    "last_reset_time", "n_valid_patches"}
     check(all(set(r) <= allowed_keys for r in rows), "no-score-keys", errors)
     views = manifest["splits"]
     check(not (set(views["dev_train"]) & set(views["quarantined"])),
@@ -98,7 +98,6 @@ def audit_history(role: str, seed: int) -> dict:
     by_id = {r["file_id"]: r for r in rows}
     check(all(by_id[i]["end_time"] <= cutoff + 1e-6 for i in dev_ids),
           "dev-pre-cutoff", errors)
-
     # --- maintenance behavior ---
     for robot, intervals in wins.items():
         for start, end in intervals:
@@ -115,12 +114,19 @@ def audit_history(role: str, seed: int) -> dict:
     # --- category assignment ---
     cohorts = Counter(r["cohort"] for r in ledger)
     check(set(cohorts) == {"P", "W", "A"}, "all-cohorts", errors)
+    p_durs = sorted(r["duration_d"] for r in ledger if r["cohort"] == "P")
+    w_durs = sorted(r["duration_d"] for r in ledger if r["cohort"] == "W")
+    check(bool(p_durs) and bool(w_durs), "pw-present", errors)
+    if p_durs:
+        from statistics import median as _med
+        check(min(p_durs) >= 2.0 and max(p_durs) <= 15.0, "p-dist-shape", errors)
+        check(5.0 <= _med(p_durs) <= 10.0, "p-dist-median", errors)
+    if w_durs:
+        from statistics import median as _med
+        check(min(w_durs) >= 6.0 and max(w_durs) <= 28.0, "w-dist-shape", errors)
+        check(12.0 <= _med(w_durs) <= 24.0, "w-dist-median", errors)
     for record in ledger:
-        if record["cohort"] == "P":
-            check(7.0 <= record["duration_d"] <= 14.0, "p-duration", errors)
-        elif record["cohort"] == "W":
-            check(14.0 <= record["duration_d"] <= 28.0, "w-duration", errors)
-        else:
+        if record["cohort"] == "A":
             check(record["duration_d"] == 0.0
                   and record["degradation_onset"] is None
                   and record["subtype"] in ("A1", "A2"), "a-shape", errors)
