@@ -332,6 +332,70 @@ class HealthEpisode:
                     f"episode end_time {self.end_time} precedes start_time {self.start_time}"
                 )
 
+@dataclass
+class FailureEvent:
+    """One benchmark failure event with its post-hoc category labels.
+
+    Post-hoc diagnostic/target metadata only (methodology §20.9) — it MUST
+    NOT enter encoder inputs. ``failure_time`` is the failure-onset timestamp
+    ``T``; ``cohort`` is one of ``P`` (progressive), ``W`` (weak-precursor),
+    or ``A`` (abrupt/no-precursor). Abrupt events carry no degradation onset
+    and zero duration by construction. ``degradation_onset`` is the drawn
+    manifest onset (``failure_time - duration_d``) for P/W. ``severity`` is
+    the ordered support level in {1.0, 2.0, 4.0}. ``subtype`` names the
+    abrupt subtype (A1/A2) and is None otherwise.
+    """
+    failure_id: str
+    robot_id: str
+    failure_time: float
+    cohort: str
+    subtype: str | None = None
+    degradation_onset: float | None = None
+    duration_d: float = 0.0
+    severity: float = 1.0
+    degradation_episode_id: str | None = None
+    maintenance_episode_id: str | None = None
+
+    def __post_init__(self) -> None:
+        _require_identity(self.failure_id, "failure_id")
+        _require_identity(self.robot_id, "robot_id")
+        self.failure_time = _require_nonnegative_time(
+            self.failure_time, "failure_time")
+        if self.cohort not in ("P", "W", "A"):
+            raise ValueError(
+                f"cohort must be one of 'P', 'W', 'A', got {self.cohort!r}")
+        self.duration_d = _require_nonnegative_time(
+            self.duration_d, "duration_d")
+        if self.cohort == "A":
+            if self.degradation_onset is not None:
+                raise ValueError("abrupt failures must not carry a "
+                                 "degradation onset")
+            if self.duration_d != 0.0:
+                raise ValueError("abrupt failures must have zero duration")
+            if self.subtype not in ("A1", "A2"):
+                raise ValueError(
+                    f"abrupt failures need subtype A1/A2, got {self.subtype!r}")
+        else:
+            if self.subtype is not None:
+                raise ValueError("non-abrupt failures must not carry a subtype")
+            if self.degradation_onset is None:
+                raise ValueError(
+                    f"cohort {self.cohort} failures need a degradation onset")
+            self.degradation_onset = _require_nonnegative_time(
+                self.degradation_onset, "degradation_onset")
+            if not self.degradation_onset < self.failure_time:
+                raise ValueError("degradation onset must precede failure time")
+            if self.duration_d <= 0.0:
+                raise ValueError("non-abrupt failures need positive duration")
+        if self.severity not in (1.0, 2.0, 4.0):
+            raise ValueError(
+                f"severity must be one of 1.0, 2.0, 4.0, got {self.severity!r}")
+        if self.degradation_episode_id is not None:
+            _require_identity(self.degradation_episode_id,
+                              "degradation_episode_id")
+        if self.maintenance_episode_id is not None:
+            _require_identity(self.maintenance_episode_id,
+                              "maintenance_episode_id")
 
 @dataclass
 class ObservableAnomalyLabels:

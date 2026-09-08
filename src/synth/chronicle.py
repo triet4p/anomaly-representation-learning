@@ -24,6 +24,7 @@ from pathlib import Path
 
 from synth.config import (
     GENERATOR_VERSION,
+    CohortConfig,
     FactoryCalendarConfig,
     HealthConfig,
     RouteConfig,
@@ -42,7 +43,7 @@ from synth.dataset import (
 from synth.health import RobotHealthProcess
 from synth.scheduled import ScheduledSignalGenerator
 from synth.scheduler import FactoryScheduler
-from synth.schema import SampleLabel
+from synth.schema import EpisodeKind, SampleLabel
 from synth.splits import ChronologicalSplitter
 from synth.temporal import TemporalAnomalyProcess
 
@@ -116,6 +117,114 @@ def server_config(seed: int = 0) -> SynthConfig:
     cfg.scheduler.arrival_jitter_s = 21600.0
     return cfg
 
+#: Sprint 13 operating point (Protocol v4 §2): 180-day histories on eight
+#: robots with three competing failure cohorts at 22-day per-robot MTBF.
+SPRINT13_SEEDS = (300, 301, 302, 303, 304, 305, 306, 307, 308,
+                  400, 401, 402, 403)
+
+
+def sprint13_history_config(seed: int = 0) -> SynthConfig:
+    """Return the Protocol v4 benchmark history configuration.
+
+    Eight robots on five two-stage routes (program-03 rides route-B,
+    robot-08 closes route-E); 180-day span with day-120 development cutoff;
+    competing P/W/A cohort hazards; preventive maintenance every 30 days
+    """
+
+    cfg = SynthConfig()
+    cfg.factory = FactoryCalendarConfig(
+        span_days=180.0, dev_cutoff_days=120.0, quarantine_days=7.0, seed=seed
+    )
+    cfg.scheduler = SchedulerConfig(
+        n_units=1152,
+        arrival_interval_s=11200.0,
+        arrival_jitter_s=11200.0,
+        routes=[
+            RouteConfig(
+                route_id="route-A",
+                product_type="sedan",
+                stages=[
+                    RouteStageConfig(
+                        robot_id="robot-01", program_id="program-01",
+                        duration_s=600.0, travel_after_s=60.0,
+                    ),
+                    RouteStageConfig(
+                        robot_id="robot-02", program_id="program-02",
+                        duration_s=600.0, travel_after_s=0.0,
+                    ),
+                ],
+            ),
+            RouteConfig(
+                route_id="route-B",
+                product_type="hatch",
+                stages=[
+                    RouteStageConfig(
+                        robot_id="robot-02", program_id="program-03",
+                        duration_s=600.0, travel_after_s=60.0,
+                    ),
+                    RouteStageConfig(
+                        robot_id="robot-03", program_id="program-04",
+                        duration_s=600.0, travel_after_s=0.0,
+                    ),
+                ],
+            ),
+            RouteConfig(
+                route_id="route-C",
+                product_type="sedan",
+                stages=[
+                    RouteStageConfig(
+                        robot_id="robot-04", program_id="program-05",
+                        duration_s=600.0, travel_after_s=60.0,
+                    ),
+                    RouteStageConfig(
+                        robot_id="robot-05", program_id="program-06",
+                        duration_s=600.0, travel_after_s=0.0,
+                    ),
+                ],
+            ),
+            RouteConfig(
+                route_id="route-D",
+                product_type="hatch",
+                stages=[
+                    RouteStageConfig(
+                        robot_id="robot-06", program_id="program-07",
+                        duration_s=600.0, travel_after_s=60.0,
+                    ),
+                    RouteStageConfig(
+                        robot_id="robot-07", program_id="program-08",
+                        duration_s=600.0, travel_after_s=0.0,
+                    ),
+                    RouteStageConfig(
+                        robot_id="robot-08", program_id="program-01",
+                        duration_s=600.0, travel_after_s=0.0,
+                    ),
+                ],
+            ),
+        ],
+        seed=seed,
+    )
+    cfg.fleet.n_robots = 8
+    cfg.health = HealthConfig(
+        seed=seed, aging_rate=5e-7, wear_rate=1e-4, noise_scale=1e-3,
+        base_rate=0.0, alpha=2.5, beta=0.0, abrupt_rate=0.0,
+        degradation_onset=0.3, severity_scale=2.0,
+        maintenance_duration_s=172800.0,
+        preventive_interval_s=30.0 * 86400.0,
+        preventive_duration_s=86400.0,
+        cohorts=(
+            CohortConfig(cohort_id="P", share=0.45, base_rate=3.0e-7,
+                         degradation_min_d=7.0, degradation_max_d=14.0),
+            CohortConfig(cohort_id="W", share=0.30, base_rate=3.6e-7,
+                         amplitude_scale=0.3,
+                         degradation_min_d=14.0, degradation_max_d=28.0),
+            CohortConfig(cohort_id="A", share=0.25, abrupt_rate=1.6e-5,
+                         subtypes=("A1", "A2")),
+        ),
+    )
+    cfg.signal.seed = seed
+    cfg.temporal.seed = seed
+    return cfg
+
 
 def _require_root(root: str | Path, *, must_exist: bool) -> Path:
     if root is None or (isinstance(root, str) and not root.strip()):
@@ -124,6 +233,86 @@ def _require_root(root: str | Path, *, must_exist: bool) -> Path:
     if must_exist and not path.is_dir():
         raise FileNotFoundError(f"chronological root not found: {path}")
     return path
+
+
+def _failure_to_dict(record) -> dict[str, object]:
+    """Render one FailureEvent ledger record for the manifest."""
+    return {
+        "failure_id": record.failure_id,
+        "robot_id": record.robot_id,
+        "failure_time": record.failure_time,
+        "cohort": record.cohort,
+        "subtype": record.subtype,
+        "degradation_onset": record.degradation_onset,
+        "duration_d": record.duration_d,
+        "severity": record.severity,
+        "degradation_episode_id": record.degradation_episode_id,
+        "maintenance_episode_id": record.maintenance_episode_id,
+    }
+
+
+def _maintenance_windows(health) -> dict[str, list[list[float]]]:
+    """Index bounded maintenance windows per robot for reset derivation."""
+    windows: dict[str, list[list[float]]] = {}
+    for episode in health.episodes:
+        if episode.kind is not EpisodeKind.MAINTENANCE:
+            continue
+        assert episode.end_time is not None
+        windows.setdefault(episode.robot_id, []).append(
+            [episode.start_time, episode.end_time])
+    for intervals in windows.values():
+        intervals.sort()
+    return windows
+
+
+def _last_reset_time(
+    windows: dict[str, list[list[float]]], robot_id: str, start_time: float
+) -> float:
+    """Return the last recommissioning end at or before a file start."""
+    reset = 0.0
+    for window_start, window_end in windows.get(robot_id, []):
+        if window_end <= start_time:
+            reset = max(reset, window_end)
+        elif window_start > start_time:
+            break
+    return reset
+
+
+def write_seal(root: str | Path, role: str) -> dict[str, object]:
+    """Seal one materialized history against training/selection access.
+
+    Records the manifest digest, config hash, seeds, and role in
+    ``seal.json``. Deterministic: no timestamps. Task 11 writes seals;
+    Task 15 verifies them.
+    """
+    out = _require_root(root, must_exist=True)
+    manifest_path = out / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    seal = {
+        "protocol": "sprint13-protocol-v4",
+        "role": role,
+        "manifest_sha256": _hash_file(manifest_path),
+        "config_hash": manifest["config_hash"],
+        "seeds": manifest["seeds"],
+    }
+    _atomic_json(out / "seal.json", seal)
+    return seal
+
+
+def verify_seal(root: str | Path) -> dict[str, object]:
+    """Verify a sealed history root; raise on any mismatch or tamper."""
+    out = _require_root(root, must_exist=True)
+    seal_path = out / "seal.json"
+    if not seal_path.is_file():
+        raise FileNotFoundError(f"seal not found: {seal_path}")
+    seal = json.loads(seal_path.read_text(encoding="utf-8"))
+    manifest_path = out / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if seal.get("manifest_sha256") != _hash_file(manifest_path):
+        raise ValueError(f"seal manifest digest mismatch at {out}")
+    if seal.get("config_hash") != manifest.get("config_hash"):
+        raise ValueError(f"seal config hash mismatch at {out}")
+    return seal
 
 
 def build_chronological(cfg: SynthConfig):
@@ -146,8 +335,13 @@ def materialize_chronological(
     *,
     shard_size: int = 64,
     overwrite: bool = False,
+    role: str | None = None,
 ) -> dict[str, object]:
-    """Persist one chronological dataset plus complete manifests."""
+    """Persist one chronological dataset plus complete manifests.
+
+    ``role`` names the Task 6 whole-history assignment (or None when
+    unassigned); it is recorded verbatim for provenance and sealing.
+    """
     out = _require_root(root, must_exist=False)
     if shard_size <= 0:
         raise ValueError("shard_size must be positive")
@@ -194,9 +388,13 @@ def materialize_chronological(
             }
         )
 
+    maint_windows = _maintenance_windows(health)
+
     manifest: dict[str, object] = {
         "format": CHRONICLE_FORMAT,
         "generator_version": GENERATOR_VERSION,
+        "protocol": "sprint13-protocol-v4" if role is not None else None,
+        "role": role,
         "config_hash": config_hash,
         "resolved_config": json.loads(
             json.dumps(asdict(cfg), sort_keys=True, default=str)
@@ -224,13 +422,15 @@ def materialize_chronological(
             "test_temporal": len(splits.test_temporal),
             "quarantined": len(splits.quarantined),
         },
+        "schedule": [_operation_to_dict(e) for e in schedule.events],
+        "episodes": [_episode_to_dict(e) for e in health.episodes],
+        "failure_events": [_failure_to_dict(r) for r in health.failure_events],
+        "maintenance_windows": maint_windows,
         "calendar": {
             "span_s": schedule.span_s,
             "cutoff_time": splits.cutoff_time,
             "quarantine_s": splits.quarantine_s,
         },
-        "schedule": [_operation_to_dict(e) for e in schedule.events],
-        "episodes": [_episode_to_dict(e) for e in health.episodes],
         "splits": {
             "dev_train": list(splits.dev_train),
             "dev_val": list(splits.dev_val),
@@ -249,7 +449,14 @@ def materialize_chronological(
                 "end_time": s.operation.end_time,  # type: ignore[union-attr]
                 "file_label": s.file_label.value,
                 "is_quarantined": s.split_provenance.is_quarantined,  # type: ignore[union-attr]
+                "quarantine_reason": s.split_provenance.quarantine_reason,  # type: ignore[union-attr]
+                "is_censored": s.future_targets.is_censored,  # type: ignore[union-attr]
                 "member_views": list(s.split_provenance.member_views),  # type: ignore[union-attr]
+                "last_reset_time": _last_reset_time(
+                    maint_windows,
+                    s.operation.robot_id,  # type: ignore[union-attr]
+                    s.operation.start_time,  # type: ignore[union-attr]
+                ),
             }
             for s in labeled
         ],

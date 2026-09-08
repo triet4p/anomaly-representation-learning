@@ -44,6 +44,7 @@ from synth.scheduler import FactorySchedule
 from synth.schema import (
     DegradationStage,
     EpisodeKind,
+    FailureEvent,
     HealthEpisode,
     OperationEvent,
     RobotHealthState,
@@ -98,6 +99,7 @@ class FactoryHealth:
     operation_ids: list[str] = field(default_factory=list)
     states: list[RobotHealthState] = field(default_factory=list)
     episodes: list[HealthEpisode] = field(default_factory=list)
+    failure_events: list[FailureEvent] = field(default_factory=list)
     seed: int = 0
     span_s: float = 0.0
 
@@ -153,6 +155,25 @@ class FactoryHealth:
                     f"{episode.episode_id}: maintenance needs a bounded window"
                 )
                 maintenances.append(episode)
+        if self.failure_events:
+            unmatched = list(failures)
+            for record in self.failure_events:
+                if record.cohort == "A":
+                    assert record.degradation_onset is None, (
+                        f"{record.failure_id}: abrupt records carry no onset")
+                else:
+                    assert record.degradation_onset is not None, (
+                        f"{record.failure_id}: non-abrupt records need onset")
+                hits = [
+                    f for f in unmatched
+                    if f.robot_id == record.robot_id and math.isclose(
+                        f.start_time, record.failure_time,
+                        rel_tol=1e-9, abs_tol=_TIME_ABS_TOL)
+                ]
+                assert len(hits) == 1, (
+                    f"{record.failure_id}: needs exactly one failure episode")
+                unmatched.remove(hits[0])
+            assert not unmatched, "every failure episode needs a ledger record"
         by_event = {e.operation_id: e for e in schedule.events}
         for operation_id, state in zip(self.operation_ids, self.states):
             event = by_event[operation_id]
@@ -240,11 +261,12 @@ class RobotHealthProcess:
                                         schedule.events[i].end_time))
         states: list[RobotHealthState | None] = [None] * len(schedule.events)
         episodes: list[HealthEpisode] = []
+        failure_events: list[FailureEvent] = []
         counters: dict[str, int] = {}
         for robot_id in sorted(by_robot):
             trajectory = self._run_robot(
                 robot_id, [schedule.events[i] for i in by_robot[robot_id]],
-                hcfg, rng, episodes, counters,
+                hcfg, rng, episodes, failure_events, counters,
             )
             for index, state in zip(by_robot[robot_id], trajectory):
                 states[index] = state
@@ -253,6 +275,7 @@ class RobotHealthProcess:
             operation_ids=[e.operation_id for e in schedule.events],
             states=[s for s in states if s is not None],
             episodes=episodes,
+            failure_events=failure_events,
             seed=hcfg.seed,
             span_s=schedule.span_s,
         )
@@ -266,6 +289,7 @@ class RobotHealthProcess:
         hcfg: HealthConfig,
         rng: np.random.Generator,
         episodes: list[HealthEpisode],
+        failure_events: list[FailureEvent],
         counters: dict[str, int],
     ) -> list[RobotHealthState]:
         """Evolve one robot trajectory in causal time order."""
@@ -277,14 +301,27 @@ class RobotHealthProcess:
         frozen = 0.0
         open_degradation: HealthEpisode | None = None
         open_deg_id: str | None = None
+        preventive = self._preventive_blocks(
+            robot_id, ordered, hcfg, episodes, counters)
 
         def _next_id(kind: str) -> str:
             key = f"{robot_id}:{kind}"
             counters[key] = counters.get(key, 0) + 1
             return f"{kind}-{robot_id}-{counters[key]:04d}"
 
+
         for event in ordered:
             gamma = program_sensitivity(event.robot_id, event.program_id, hcfg)
+            for block_start, block_end in preventive:
+                if block_start <= event.start_time < block_end:
+                    if open_degradation is not None:
+                        open_degradation.end_time = block_start
+                        open_degradation = None
+                        open_deg_id = None
+                    frozen = health
+                    if maint_until is None or block_end > maint_until:
+                        maint_until = block_end
+                    break
             if maint_until is not None and event.start_time < maint_until:
                 severity = min(1.0, frozen / hcfg.severity_scale)
                 out.append(RobotHealthState(
@@ -323,15 +360,46 @@ class RobotHealthProcess:
                 )
                 episodes.append(open_degradation)
                 open_deg_id = open_degradation.episode_id
-            hazard = hcfg.abrupt_rate + hcfg.base_rate * math.exp(
-                min(_HAZARD_ARG_CAP, hcfg.alpha * health + hcfg.beta * usage)
-            )
-            threshold = 1.0 - math.exp(-hazard * event.duration)
-            if rng.random() < threshold:
+            exponent = min(
+                _HAZARD_ARG_CAP, hcfg.alpha * health + hcfg.beta * usage)
+            fired = None
+            legacy_fires = False
+            if hcfg.cohorts:
+                for cohort in hcfg.cohorts:
+                    rate = (cohort.abrupt_rate
+                            + cohort.base_rate * math.exp(exponent))
+                    if rng.random() < 1.0 - math.exp(-rate * event.duration):
+                        fired = cohort
+                        break
+            else:
+                hazard = hcfg.abrupt_rate + hcfg.base_rate * math.exp(exponent)
+                threshold = 1.0 - math.exp(-hazard * event.duration)
+                legacy_fires = rng.random() < threshold
+            if fired is not None or legacy_fires:
                 if open_degradation is not None:
                     open_degradation.end_time = event.end_time
                     open_degradation = None
                 failure_id = _next_id("fail")
+                if fired is None:
+                    cohort_id: str | None = None
+                elif fired.cohort_id == "A":
+                    cohort_id = "A"
+                    subtype: str | None = ("A1" if rng.random() < 0.5 else "A2")
+                    onset: float | None = None
+                    duration_d = 0.0
+                    sev_level = (1.0, 2.0, 4.0)[int(rng.integers(3))]
+                else:
+                    cohort_id = fired.cohort_id
+                    subtype = None
+                    span_d = float(rng.uniform(
+                        fired.degradation_min_d, fired.degradation_max_d))
+                    # Manifest onset is clamped at the history origin; the
+                    # drawn duration stands (the process degraded that long,
+                    # partly before recording began). Truncated baselines are
+                    # naturally reflected in coverage counts downstream.
+                    onset = max(0.0, event.end_time - span_d * 86400.0)
+                    duration_d = span_d
+                    sev_level = (1.0, 2.0, 4.0)[int(rng.integers(3))]
                 episodes.append(HealthEpisode(
                     episode_id=failure_id,
                     kind=EpisodeKind.FAILURE,
@@ -340,13 +408,27 @@ class RobotHealthProcess:
                     end_time=event.end_time,
                 ))
                 maint_until = event.end_time + hcfg.maintenance_duration_s
+                maint_id = _next_id("maint")
                 episodes.append(HealthEpisode(
-                    episode_id=_next_id("maint"),
+                    episode_id=maint_id,
                     kind=EpisodeKind.MAINTENANCE,
                     robot_id=robot_id,
                     start_time=event.end_time,
                     end_time=maint_until,
                 ))
+                if fired is not None and cohort_id is not None:
+                    failure_events.append(FailureEvent(
+                        failure_id=failure_id,
+                        robot_id=robot_id,
+                        failure_time=event.end_time,
+                        cohort=cohort_id,
+                        subtype=subtype,
+                        degradation_onset=onset,
+                        duration_d=duration_d,
+                        severity=sev_level,
+                        degradation_episode_id=open_deg_id,
+                        maintenance_episode_id=maint_id,
+                    ))
                 frozen = health
                 out.append(RobotHealthState(
                     health_value=health,
@@ -381,3 +463,38 @@ class RobotHealthProcess:
                 ))
             last_end = event.end_time
         return out
+    @staticmethod
+    def _preventive_blocks(
+        robot_id: str,
+        ordered: list[OperationEvent],
+        hcfg: HealthConfig,
+        episodes: list[HealthEpisode],
+        counters: dict[str, int],
+    ) -> list[tuple[float, float]]:
+        """Emit explicit preventive maintenance windows for one robot.
+
+        Blocks recur every ``preventive_interval_s`` from t=0 while the
+        interval start precedes the robot's last operation end. Disabled
+        (empty) when the interval is 0. Each block is an explicit
+        recommissioning boundary like corrective maintenance.
+        """
+        blocks: list[tuple[float, float]] = []
+        if hcfg.preventive_interval_s <= 0.0 or not ordered:
+            return blocks
+        horizon = max(e.end_time for e in ordered)
+        index = 1
+        while index * hcfg.preventive_interval_s < horizon:
+            start = index * hcfg.preventive_interval_s
+            end = start + hcfg.preventive_duration_s
+            key = f"{robot_id}:pmaint"
+            counters[key] = counters.get(key, 0) + 1
+            episodes.append(HealthEpisode(
+                episode_id=f"pmaint-{robot_id}-{counters[key]:04d}",
+                kind=EpisodeKind.MAINTENANCE,
+                robot_id=robot_id,
+                start_time=start,
+                end_time=end,
+            ))
+            blocks.append((start, end))
+            index += 1
+        return blocks

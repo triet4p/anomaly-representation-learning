@@ -399,6 +399,69 @@ class SchedulerConfig:
             raise ValueError(f"seed must be non-negative, got {self.seed}")
 
 @dataclass
+class CohortConfig:
+    """One Sprint 13 failure-mode cohort (Protocol v4 §2).
+
+    A cohort parameterizes its own hazard term on the shared robot health
+    trajectory: progressive/weak cohorts use ``base_rate`` coupled to health
+    and usage, the abrupt cohort uses a constant ``abrupt_rate`` with no
+    degradation linkage. ``share`` is the target outcome fraction and must
+    sum to 1 across the configured cohorts. ``degradation_min/max_d`` bound
+    the drawn manifest degradation window (abrupt cohorts use exactly 0).
+    ``amplitude_scale`` scales precursor manifestation severity (weak < 1).
+    """
+    cohort_id: str = "P"
+    share: float = 1.0
+    base_rate: float = 0.0
+    abrupt_rate: float = 0.0
+    amplitude_scale: float = 1.0
+    degradation_min_d: float = 0.0
+    degradation_max_d: float = 0.0
+    subtypes: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        _require_cohort_id(self.cohort_id)
+        for name in ("share", "base_rate", "abrupt_rate", "amplitude_scale"):
+            value = float(getattr(self, name))
+            if not np.isfinite(value) or value < 0.0:
+                raise ValueError(
+                    f"cohort {name} must be a non-negative finite value, "
+                    f"got {getattr(self, name)!r}")
+            setattr(self, name, value)
+        if self.cohort_id == "A" and self.base_rate != 0.0:
+            raise ValueError("abrupt cohorts must use base_rate 0.0 "
+                             f"(got {self.base_rate!r})")
+        if self.cohort_id in ("P", "W") and self.abrupt_rate != 0.0:
+            raise ValueError("non-abrupt cohorts must use abrupt_rate 0.0 "
+                             f"(got {self.abrupt_rate!r})")
+        self.degradation_min_d = float(self.degradation_min_d)
+        self.degradation_max_d = float(self.degradation_max_d)
+        for name in ("degradation_min_d", "degradation_max_d"):
+            value = float(getattr(self, name))
+            if not np.isfinite(value) or value < 0.0:
+                raise ValueError(
+                    f"cohort {name} must be non-negative finite, got {value!r}")
+        if self.degradation_max_d < self.degradation_min_d:
+            raise ValueError("cohort degradation bounds are invalid: "
+                             f"[{self.degradation_min_d}, {self.degradation_max_d}]")
+        if self.cohort_id == "A" and (
+                self.degradation_min_d != 0.0 or self.degradation_max_d != 0.0):
+            raise ValueError("abrupt cohorts must draw degradation 0.0")
+        self.subtypes = tuple(self.subtypes)
+        for subtype in self.subtypes:
+            if not isinstance(subtype, str) or not subtype:
+                raise ValueError(
+                    f"cohort subtypes must be non-empty strings, got {subtype!r}")
+
+
+def _require_cohort_id(value: str) -> str:
+    """Return ``value`` if it names a supported failure cohort."""
+    if value not in ("P", "W", "A"):
+        raise ValueError(
+            f"cohort_id must be one of 'P', 'W', 'A', got {value!r}")
+    return value
+
+@dataclass
 class HealthConfig:
     """Robot-wide health, failure, and maintenance parameters (§20.5–20.8).
 
@@ -427,6 +490,9 @@ class HealthConfig:
     maintenance_duration_s: float = 86400.0
     recommission_mean: float = 0.05
     recommission_scale: float = 0.02
+    cohorts: tuple[CohortConfig, ...] = field(default_factory=tuple)
+    preventive_interval_s: float = 0.0
+    preventive_duration_s: float = 0.0
 
     def __post_init__(self) -> None:
         if isinstance(self.seed, bool) or not isinstance(self.seed, int):
@@ -448,6 +514,30 @@ class HealthConfig:
                 raise ValueError(
                     f"{name} must be finite, got {getattr(self, name)!r}")
             setattr(self, name, value)
+        for name in ("preventive_interval_s", "preventive_duration_s"):
+            value = float(getattr(self, name))
+            if not np.isfinite(value) or value < 0.0:
+                raise ValueError(
+                    f"{name} must be a non-negative finite value, "
+                    f"got {getattr(self, name)!r}")
+            setattr(self, name, value)
+        if (self.preventive_interval_s == 0.0) != (self.preventive_duration_s == 0.0):
+            raise ValueError("preventive maintenance needs both a positive "
+                             "interval and duration, or neither "
+                             f"(got {self.preventive_interval_s}, "
+                             f"{self.preventive_duration_s})")
+        self.cohorts = tuple(self.cohorts)
+        if self.cohorts:
+            for cohort in self.cohorts:
+                if not isinstance(cohort, CohortConfig):
+                    raise ValueError(
+                        f"cohorts must hold CohortConfig entries, got {cohort!r}")
+            total = sum(cohort.share for cohort in self.cohorts)
+            if not np.isclose(total, 1.0):
+                raise ValueError(
+                    f"cohort shares must sum to 1.0, got {total!r}")
+            if sorted(cohort.cohort_id for cohort in self.cohorts) != ["A", "P", "W"]:
+                raise ValueError("cohorts must cover exactly P, W, and A once each")
         if self.sensitivity_min < 0.0 or self.sensitivity_max < self.sensitivity_min:
             raise ValueError(
                 "program sensitivities require 0 <= sensitivity_min <= "

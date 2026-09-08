@@ -37,6 +37,7 @@ __all__ = [
     "FutureFailureTargets",
     "SplitProvenance",
     "FactoryProvenance",
+    "FailureEvent",
     "MODEL_INPUT_FIELD_NAMES",
     "DIAGNOSTIC_ONLY_FIELD_NAMES",
     "ALLOWED_SPLIT_VIEWS",
@@ -51,6 +52,9 @@ __all__ = [
     "load_chronological",
     "client_config",
     "server_config",
+    "sprint13_history_config",
+    "write_seal",
+    "verify_seal",
 ]
 
 _EXPORT_MODULES = {
@@ -68,6 +72,7 @@ _EXPORT_MODULES = {
     "FutureFailureTargets": "synth.schema",
     "SplitProvenance": "synth.schema",
     "FactoryProvenance": "synth.schema",
+    "FailureEvent": "synth.schema",
     "MODEL_INPUT_FIELD_NAMES": "synth.schema",
     "DIAGNOSTIC_ONLY_FIELD_NAMES": "synth.schema",
     "ALLOWED_SPLIT_VIEWS": "synth.schema",
@@ -84,6 +89,7 @@ _EXPORT_MODULES = {
     "RouteStageConfig": "synth.config",
     "HealthConfig": "synth.config",
     "SignalConfig": "synth.config",
+    "CohortConfig": "synth.config",
     "SynthConfig": "synth.config",
     "FactoryCalendarConfig": "synth.config",
     "SUPPORTED_CHANNEL_COUNTS": "synth.config",
@@ -96,6 +102,9 @@ _EXPORT_MODULES = {
     "load_chronological": "synth.chronicle",
     "client_config": "synth.chronicle",
     "server_config": "synth.chronicle",
+    "sprint13_history_config": "synth.chronicle",
+    "write_seal": "synth.chronicle",
+    "verify_seal": "synth.chronicle",
     "DatasetBuilder": "synth.dataset",
     "iter_materialized": "synth.dataset",
 }
@@ -111,7 +120,7 @@ def __getattr__(name: str):
 
 if TYPE_CHECKING:
     from synth.config import SUPPORTED_CHANNEL_COUNTS, FactoryCalendarConfig, SynthConfig
-    from synth.config import RouteConfig, RouteStageConfig, SchedulerConfig, HealthConfig
+    from synth.config import CohortConfig, RouteConfig, RouteStageConfig, SchedulerConfig, HealthConfig
     from synth.config import SignalConfig, TemporalAnomalyConfig
     from synth.temporal import TemporalAnomalies, TemporalAnomalyProcess
     from synth.scheduler import FactorySchedule, FactoryScheduler
@@ -120,10 +129,12 @@ if TYPE_CHECKING:
     from synth.splits import ChronologicalSplitter, ChronologicalSplits
     from synth.chronicle import client_config, load_chronological
     from synth.chronicle import materialize_chronological, server_config
+    from synth.chronicle import sprint13_history_config, verify_seal, write_seal
     from synth.generator import SessionGenerator
     from synth.schema import AnomalyMeta, FileSample, RegimeMeta, SampleLabel
     from synth.schema import DegradationStage, EpisodeKind, FactoryProvenance
+    from synth.schema import ALLOWED_SPLIT_VIEWS, DIAGNOSTIC_ONLY_FIELD_NAMES
+    from synth.schema import FailureEvent
     from synth.schema import FutureFailureTargets, HealthEpisode, ObservableAnomalyLabels
     from synth.schema import OperatingContext, OperationEvent, RobotHealthState, SplitProvenance
-    from synth.schema import ALLOWED_SPLIT_VIEWS, DIAGNOSTIC_ONLY_FIELD_NAMES
     from synth.schema import MODEL_INPUT_FIELD_NAMES, SECONDS_PER_DAY, SECONDS_PER_WEEK

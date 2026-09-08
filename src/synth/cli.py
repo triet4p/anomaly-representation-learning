@@ -36,12 +36,16 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--small", action="store_true", help="small smoke profile (12/8/12 samples)")
     p.add_argument("--chronological", action="store_true",
                    help="materialize a chronological factory dataset (Tasks 5-7 pipeline)")
-    p.add_argument("--profile", choices=("client", "server"), default="client",
+    p.add_argument("--profile", choices=("client", "server", "sprint13"),
+                   default="client",
                    help="chronological scale profile (default: client)")
+    p.add_argument("--role", type=str, default=None,
+                   help="whole-history role recorded in the manifest "
+                   "(Sprint 13 Task 6 roster; default: unassigned)")
+    p.add_argument("--channels", type=int, choices=(3, 6), default=6)
     p.add_argument("--units", type=int, default=None,
                    help="chronological unit count; arrival cadence scales inversely "
                    "to preserve the profile calendar span (default: profile value)")
-    p.add_argument("--channels", type=int, choices=(3, 6), default=6)
     return p
 
 
@@ -59,9 +63,15 @@ def main(argv: list[str] | None = None) -> int:
             client_config,
             materialize_chronological,
             server_config,
+            sprint13_history_config,
         )
         seed = 0 if args.seed is None else args.seed
-        cfg = client_config(seed=seed) if args.profile == "client" else server_config(seed=seed)
+        if args.profile == "client":
+            cfg = client_config(seed=seed)
+        elif args.profile == "server":
+            cfg = server_config(seed=seed)
+        else:
+            cfg = sprint13_history_config(seed=seed)
         cfg.n_channels = args.channels
         if args.units is not None:
             if args.units <= 0:
@@ -74,7 +84,7 @@ def main(argv: list[str] | None = None) -> int:
             cfg.scheduler.arrival_jitter_s = scaled
         manifest = materialize_chronological(
             cfg, args.output, shard_size=args.shard_size,
-            overwrite=args.overwrite,
+            overwrite=args.overwrite, role=args.role,
         )
         counts = manifest["counts"]
         print(f"wrote {args.output / 'manifest.json'}: "

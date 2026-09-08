@@ -5,12 +5,19 @@
 The project builds a representation-learning anomaly detector and calibrated early-warning
 system for variable-length multi-channel telemetry. Sprint 11 delivered causal factory
 simulation and conditional geometry, but its accepted scientific verdict is 0/4 gates.
-Sprint 12 diagnoses that failure, establishes observable-signal baselines, and gates
-representation recovery and calibrated early warning on independent scientific evidence.
+Sprint 12 diagnosed that failure: observable telemetry carries more signal than the learned
+pipeline retains, while the temporal benchmark lacks enough clean controls and failure-mode
+coverage for identifiable early-warning evaluation. Sprint 13 now owns benchmark
+measurability; queued Sprint 14 owns causal localization of weak representation-to-score
+components. Targeted model recovery is deferred until those two questions are answered.
 
 ## Current Sprint
 
-- None — Sprint 12 is **Complete** (administrative re-finalization under Evidence Gate G4 PASS + Differential Deep Review 5 PASS; see Completed Sprints). Sprint 4 remains paused.
+- [Sprint 13 — Measurable Early-Warning Benchmark](sprint-plans/sprint-13.md) — **Active (Batches A/B accepted, v4 approved; Batch C1 Tasks 8–10 done, evidence pending review; Task 11 blocked on C1 gate). Goal: prove that event ranking, positive lead time, false alerts, and later risk evaluation are structurally measurable under a frozen independent protocol.**
+
+## Queued Sprints
+
+- [Sprint 14 — Representation Failure Localization and Component Attribution](sprint-plans/sprint-14.md) — **Queued behind Sprint 13 `MEASURABLE`; identifies weak normalization, patchification, encoder/objective, pooling, geometry, scorer, or aggregation components before any targeted recovery sprint.**
 
 ## Paused Sprints
 
@@ -48,6 +55,8 @@ representation recovery and calibrated early warning on independent scientific e
 | 16 | Conditional hierarchical latent geometry with localized synthetic boundary learning | Implemented — Sprint 11; scientific separation failed |
 | 17 | Static detection and calibrated one-day/seven-day early warning | Evaluated — Sprint 11 negative result; not scientifically validated |
 | 18 | Scorer diagnosis, observable-signal baselines, and independent scientific recovery gates | Complete — Sprint 12 (re-finalized; Tasks 10/13 BLOCKED-FINAL) |
+| 19 | Measurable multi-category early-warning benchmark with independent event controls | Active — Sprint 13 (Batches A/B accepted, v4 approved; C1 done, review pending; Task 11 blocked on gate) |
+| 20 | Causal localization of representation-to-score bottlenecks | Queued — Sprint 14 |
 
 ## High-Level Design Decisions
 
@@ -97,6 +106,13 @@ representation recovery and calibrated early warning on independent scientific e
 - **Confidence and risk:** Empirical/conformal anomaly confidence and censored
   one-day/seven-day survival risk are separate outputs. Geometry health, anomaly
   evidence, and future-failure probability must never be conflated.
+- **Benchmark before model recovery:** Establish score-independent event measurability,
+  positive-lead semantics, clean negative controls, progressive/weak/abrupt cohorts, and
+  sealed history roles before resuming representation or calibrated-risk optimization.
+- **Attribution before redesign:** Trace signal through normalization, patchification, local
+  and contextual encoders, objective, pooling, conditional geometry, scorer, and aggregation.
+  A bottleneck claim requires both stagewise loss and replicated recovery under a bounded
+  component bypass/replacement; ambiguous evidence remains `UNRESOLVED`.
 
 ## Verification Gates
 
@@ -122,6 +138,19 @@ hybrid training, bounded result extraction, conditional geometry analysis, seale
 static inference, and chronological early-warning analysis. Every batch requires a
 fresh `evidence-reviewer` PASS with zero actionable findings; sprint completion also
 requires a sprint-wide differential `deep-reviewer` PASS.
+
+## Sprint 13–14 Verification Gates
+
+Sprint 13 freezes its measurement contract, statistical floors, failure cohorts, roles, and
+stop rules before generation. It closes only with a reviewed `MEASURABLE`,
+`NOT_MEASURABLE`, or `UNAVAILABLE` verdict. Model performance and seed search cannot be
+used to accept histories, and file AUROC cannot substitute for unavailable event metrics.
+
+Sprint 14 starts benchmark-dependent attribution only after an accepted Sprint 13
+`MEASURABLE` verdict. It uses common stagewise metrics, a frozen component-substitution
+matrix, and bounded one-component interventions. It closes as `IDENTIFIED`,
+`MULTIPLE BOTTLENECKS`, or `UNRESOLVED`; production recovery and calibrated risk remain
+future gated work.
 
 ## Out of Scope for V1
 
