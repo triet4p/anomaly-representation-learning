@@ -13,7 +13,7 @@ components. Targeted model recovery is deferred until those two questions are an
 
 ## Current Sprint
 
-- [Sprint 13 — Measurable Early-Warning Benchmark](sprint-plans/sprint-13.md) — **Active — REMEDIATION R3 (Deep Review 2 FAIL; v4.1.1 correction frozen, awaiting approval; verdict `UNRESOLVED_PENDING_REMEDIATION`; C1-v41/D1-v41/D2-v41/Task16 reopened; Task 17 active; Sprint 14 BLOCKED). Goal: prove that event ranking, positive lead time, false alerts, and later risk evaluation are structurally measurable under a frozen independent protocol.**
+- [Sprint 13 — Measurable Early-Warning Benchmark](sprint-plans/sprint-13.md) — **Active — REMEDIATION (R3 approved rerun done: 0/13 STRUCT-PASS under corrected semantics; D1 re-review pending; verdict unresolved; Sprint 14 BLOCKED). Goal: prove that event ranking, positive lead time, false alerts, and later risk evaluation are structurally measurable under a frozen independent protocol.**
 
 ## Queued Sprints
 
@@ -55,7 +55,7 @@ components. Targeted model recovery is deferred until those two questions are an
 | 16 | Conditional hierarchical latent geometry with localized synthetic boundary learning | Implemented — Sprint 11; scientific separation failed |
 | 17 | Static detection and calibrated one-day/seven-day early warning | Evaluated — Sprint 11 negative result; not scientifically validated |
 | 18 | Scorer diagnosis, observable-signal baselines, and independent scientific recovery gates | Complete — Sprint 12 (re-finalized; Tasks 10/13 BLOCKED-FINAL) |
-| 19 | Measurable multi-category early-warning benchmark with independent event controls | REMEDIATION R3 — Deep Review 2 FAIL; v4.1.1 awaiting approval; verdict unresolved; Task 17 active; Sprint 14 BLOCKED |
+| 19 | Measurable multi-category early-warning benchmark with independent event controls | REMEDIATION R3 rerun done — 0/13 STRUCT-PASS (corrected rules); D1 re-review pending; Sprint 14 BLOCKED |
 | 20 | Causal localization of representation-to-score bottlenecks | Queued — Sprint 14 |
 
 ## High-Level Design Decisions
