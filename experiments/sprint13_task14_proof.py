@@ -19,14 +19,13 @@ HORIZON_S = 7.0 * DAY
 FIXED_THRESHOLD = 0.3
 
 ROSTER = [
-    ("H-VAL-DESIGN", 300), ("H-DEV-1", 301), ("H-DEV-2", 302),
-    ("H-DEV-3", 303), ("H-FIT-1", 304), ("H-FIT-2", 305),
-    ("H-FIT-3", 306), ("H-CAL-1", 307), ("H-CONF-1", 308),
+    ("H-VAL-DESIGN", 500), ("H-DEV-1", 501), ("H-DEV-2", 502),
+    ("H-DEV-3", 503), ("H-FIT-1", 504), ("H-FIT-2", 505),
+    ("H-FIT-3", 506), ("H-CAL-1", 507), ("H-CONF-1", 508),
 ]
-for _role, _ in ROSTER:
-    if _role.startswith("H-SEAL"):
+for _role, _seed in ROSTER:
+    if _role.startswith("H-SEAL") or _seed in (600, 601, 602, 603):
         raise RuntimeError("Task 14 fixture proof must never touch sealed roles")
-
 BASE = "data/generated/sprint13"
 
 

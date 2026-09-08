@@ -17,11 +17,11 @@ DAY = 86400.0
 HORIZON_S = 7.0 * DAY
 
 ROSTER = [
-    ("H-VAL-DESIGN", 300), ("H-DEV-1", 301), ("H-DEV-2", 302),
-    ("H-DEV-3", 303), ("H-FIT-1", 304), ("H-FIT-2", 305),
-    ("H-FIT-3", 306), ("H-CAL-1", 307), ("H-CONF-1", 308),
-    ("H-SEAL-1", 400), ("H-SEAL-2", 401), ("H-SEAL-3", 402),
-    ("H-SEAL-4", 403),
+    ("H-VAL-DESIGN", 500), ("H-DEV-1", 501), ("H-DEV-2", 502),
+    ("H-DEV-3", 503), ("H-FIT-1", 504), ("H-FIT-2", 505),
+    ("H-FIT-3", 506), ("H-CAL-1", 507), ("H-CONF-1", 508),
+    ("H-SEAL-1", 600), ("H-SEAL-2", 601), ("H-SEAL-3", 602),
+    ("H-SEAL-4", 603),
 ]
 
 BASE = "data/generated/sprint13"
@@ -50,7 +50,7 @@ def audit_history(role: str, seed: int) -> dict:
 
     # --- identity / provenance ---
     check(manifest["role"] == role, "role-match", errors)
-    check(manifest.get("protocol") == "sprint13-protocol-v4", "protocol-tag", errors)
+    check(manifest.get("protocol") == "sprint13-protocol-v4.1", "protocol-tag", errors)
     check(manifest["seeds"]["health"] == seed, "seed-match", errors)
     samples, _ = load_chronological(root)
     check([s.file_id for s in samples] == [r["file_id"] for r in rows],

@@ -396,3 +396,80 @@ def test_holdout_exclusion_for_fit_cal_pools():
                 if r["program_id"] != "program-03"
                 and r["robot_id"] != "robot-08"]
     assert [r["file_id"] for r in eligible] == ["a"]
+
+
+def test_abrupt_failures_never_link_degradation_episodes(tmp_path):
+    from synth.chronicle import load_chronological as _load
+
+    root = tmp_path / "v41unlink"
+    assert synth_cli.main([
+        "--chronological", "--profile", "sprint13-v41", "--units", "250",
+        "--seed", "932", "--protocol", "sprint13-protocol-v4.1",
+        "--output", str(root),
+    ]) == 0
+    manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["protocol"] == "sprint13-protocol-v4.1"
+    ledger = events_mod.failure_ledger(manifest)
+    assert {r["cohort"] for r in ledger} == {"P", "W", "A"}
+    abrupt_times = {
+        (r["robot_id"], r["failure_time"]) for r in ledger
+        if r["cohort"] == "A"
+    }
+    assert abrupt_times
+    for record in ledger:
+        if record["cohort"] == "A":
+            assert record["degradation_episode_id"] is None
+        else:
+            assert record["degradation_episode_id"] is not None
+    for episode in manifest["episodes"]:
+        if episode["kind"] != "degradation" or episode["end_time"] is None:
+            continue
+        assert (episode["robot_id"], episode["end_time"]) not in abrupt_times
+    samples, _ = _load(root)
+    assert samples
+
+
+def test_seal_propagates_manifest_protocol(tmp_path):
+    from synth.chronicle import verify_seal as _verify
+    from synth.chronicle import write_seal as _seal
+
+    root = tmp_path / "sealproto"
+    assert synth_cli.main([
+        "--chronological", "--profile", "sprint13-v41", "--units", "24",
+        "--seed", "933", "--protocol", "sprint13-protocol-v4.1",
+        "--role", "SMOKE-VAL", "--output", str(root),
+    ]) == 0
+    seal = _seal(root, role="SMOKE-SEAL")
+    assert seal["protocol"] == "sprint13-protocol-v4.1"
+    assert _verify(root)["protocol"] == "sprint13-protocol-v4.1"
+    manifest_path = root / "manifest.json"
+    text = manifest_path.read_text(encoding="utf-8")
+    manifest_path.write_text(
+        text.replace("sprint13-protocol-v4.1", "sprint13-protocol-v9"),
+        encoding="utf-8")
+    with pytest.raises(ValueError):
+        _verify(root)
+
+
+def _load_experiment_module(name):
+    import importlib.util
+    from pathlib import Path
+
+    path = Path("experiments") / f"{name}.py"
+    if not path.is_file():
+        path = Path(__file__).resolve().parents[2] / "experiments" / f"{name}.py"
+    spec = importlib.util.spec_from_file_location(name, path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_audit_and_proof_rosters_use_v41_seeds():
+    _audit = _load_experiment_module("sprint13_task1213_audit")
+    _proof = _load_experiment_module("sprint13_task14_proof")
+    audit_seeds = sorted(s for _, s in _audit.ROSTER)
+    assert audit_seeds == [500, 501, 502, 503, 504, 505, 506, 507, 508,
+                           600, 601, 602, 603]
+    proof_seeds = sorted(s for _, s in _proof.ROSTER)
+    assert proof_seeds == [500, 501, 502, 503, 504, 505, 506, 507, 508]
+    assert not any(r.startswith("H-SEAL") for r, _ in _proof.ROSTER)

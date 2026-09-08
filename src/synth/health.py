@@ -448,7 +448,8 @@ class RobotHealthProcess:
                         degradation_onset=onset,
                         duration_d=duration_d,
                         severity=sev_level,
-                        degradation_episode_id=open_deg_id,
+                        degradation_episode_id=(
+                            None if cohort_id == "A" else open_deg_id),
                         maintenance_episode_id=maint_id,
                     ))
                 frozen = health
@@ -460,7 +461,8 @@ class RobotHealthProcess:
                     degradation_severity=severity,
                     degradation_episode_id=open_deg_id,
                 ))
-                open_deg_id = None
+                if cohort_id != "A":
+                    open_deg_id = None
             else:
                 if recommissioned:
                     stage = DegradationStage.RECOMMISSIONED

@@ -319,15 +319,19 @@ def _last_reset_time(
 def write_seal(root: str | Path, role: str) -> dict[str, object]:
     """Seal one materialized history against training/selection access.
 
-    Records the manifest digest, config hash, seeds, and role in
-    ``seal.json``. Deterministic: no timestamps. Task 11 writes seals;
-    Task 15 verifies them.
+    Records the manifest digest, config hash, seeds, role, and the
+    manifest's own protocol tag in ``seal.json``. The protocol must be a
+    known Sprint 13 benchmark version; legacy manifests without a tag keep
+    the v4 default so old seals stay valid. Deterministic: no timestamps.
     """
     out = _require_root(root, must_exist=True)
     manifest_path = out / "manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    protocol = manifest.get("protocol") or "sprint13-protocol-v4"
+    if protocol not in ("sprint13-protocol-v4", "sprint13-protocol-v4.1"):
+        raise ValueError(f"unknown benchmark protocol {protocol!r} at {out}")
     seal = {
-        "protocol": "sprint13-protocol-v4",
+        "protocol": protocol,
         "role": role,
         "manifest_sha256": _hash_file(manifest_path),
         "config_hash": manifest["config_hash"],
@@ -350,6 +354,9 @@ def verify_seal(root: str | Path) -> dict[str, object]:
         raise ValueError(f"seal manifest digest mismatch at {out}")
     if seal.get("config_hash") != manifest.get("config_hash"):
         raise ValueError(f"seal config hash mismatch at {out}")
+    if seal.get("protocol") != (manifest.get("protocol")
+                                or "sprint13-protocol-v4"):
+        raise ValueError(f"seal protocol mismatch at {out}")
     return seal
 
 
