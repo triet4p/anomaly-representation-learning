@@ -4,7 +4,7 @@
 
 Create and freeze a synthetic telemetry benchmark on which causal early-warning ranking, positive lead time, false-alert behavior, and later calibrated-risk evaluation are structurally measurable before any representation or risk-model optimization resumes.
 
-**Status:** Active — REMEDIATION (all batches + Task 16 final-accepted; Task 17 ready for fresh differential deep review, not started; verdict `NOT_MEASURABLE`; Sprint 14 BLOCKED).
+**Status:** Active — REMEDIATION (Deep Review 3 FAIL — 1 MEDIUM status finding, corrected; Task 16 correction complete, fresh evidence review pending; Task 17 remediation active; verdict `NOT_MEASURABLE`; Sprint 14 BLOCKED).
 
 ## Decision Context
 
@@ -61,11 +61,11 @@ Status legend: [ ] pending / [~] in progress / [x] done.
 - [x] **Task 12 — Verify factory causality and partition integrity.** Confirm route/robot/program causality, chronological ordering, deterministic reloads, maintenance/recommissioning behavior, quarantine, failure-category assignment, role isolation, cold-start slices, and absence of future-state leakage. Evidence: `artifacts/sprint-13/task-12.md` (D1-v411 accepted).
 - [x] **Task 13 — Audit clean-window and baseline coverage.** Measure per-history/per-robot positive events, negative controls, clean pre-failure baselines, maintenance-free exposure, healthy calibration rows, category counts, and exclusion reasons. Report distributions, not only pooled totals. No model scores may influence acceptance. Evidence: `artifacts/sprint-13/task-13.md` (D1-v411 accepted).
 - [x] **Task 14 — Demonstrate score-independent metric computability.** Run the frozen event-window and metric pipeline with deterministic synthetic score fixtures and trivial constant/observable-time baselines solely to prove event AUROC/G-rank, positive lead time, persistence, and false-alert episodes are defined. Do not treat baseline performance as model selection or scientific success. Evidence: `artifacts/sprint-13/task-14.md` (D1-v411 accepted).
-- [x] **Task 15 — Seal benchmark roles and publish the measurability verdict.** Seal accepted evaluation roots and manifests; record hashes and access rules. Return `MEASURABLE`, `NOT_MEASURABLE`, or `UNAVAILABLE` against every frozen floor. A non-pass blocks Sprint 14's benchmark-dependent work and calibrated-risk evaluation; it does not permit a metric fallback or post-hoc seed search. Evidence: `artifacts/sprint-13/task-15.md` (v4/v4.1 retired; v4.1.1 renewal done, `NOT_MEASURABLE`, D2 review pending).
+- [x] **Task 15 — Seal benchmark roles and publish the measurability verdict.** Seal accepted evaluation roots and manifests; record hashes and access rules. Return `MEASURABLE`, `NOT_MEASURABLE`, or `UNAVAILABLE` against every frozen floor. A non-pass blocks Sprint 14's benchmark-dependent work and calibrated-risk evaluation; it does not permit a metric fallback or post-hoc seed search. Evidence: `artifacts/sprint-13/task-15.md` (v4/v4.1 retired; v4.1.1 renewal done, NOT_MEASURABLE, D2-v411 accepted).
 
 ### Batch E — Review and closeout
 
-- [x] **Task 16 — Pass batch evidence gates.** Review Batches A–D with evidence reviewers. Any actionable defect returns to the same implementation owner, followed by a fresh review at the affected gate. Preserve failed and superseded review records. Evidence: `artifacts/sprint-13/review-*.md` plus `artifacts/sprint-13/review-index.md` (accepted: final Task 16 gate PASS).
+- [~] **Task 16 — Pass batch evidence gates.** Review Batches A–D with evidence reviewers. Any actionable defect returns to the same implementation owner, followed by a fresh review at the affected gate. Preserve failed and superseded review records. Evidence: `artifacts/sprint-13/review-*.md` plus `artifacts/sprint-13/review-index.md` (correction complete; fresh evidence review pending).
 
 - [ ] **Task 17 — Pass differential review and finalize Sprint 13.** Run a sprint-wide differential deep review over accepted evidence. Finalize only with zero actionable findings and an explicit benchmark measurability verdict. Update `docs/PLAN.md` and this plan without implying representation or calibrated-risk success. Evidence: `artifacts/sprint-13/task-17.md` and `artifacts/sprint-13/deep-review-final.md`. (Ready for fresh differential deep review; prior deep reviews 1–2: FAIL — see `artifacts/sprint-13/deep-review-2.md`.)
 
