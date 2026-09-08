@@ -4,7 +4,7 @@
 
 Create and freeze a synthetic telemetry benchmark on which causal early-warning ranking, positive lead time, false-alert behavior, and later calibrated-risk evaluation are structurally measurable before any representation or risk-model optimization resumes.
 
-**Status:** Active — REMEDIATION (all batches + Task 16 final-accepted incl. status re-review PASS; Task 17 ready for fresh differential deep review, not started; verdict `NOT_MEASURABLE`; Sprint 14 BLOCKED).
+**Status:** Active — REMEDIATION (Deep Review 4 FAIL — status defects corrected; Task 16 correction complete, fresh evidence review pending; Task 17 pending fresh deep review; verdict `NOT_MEASURABLE`; Sprint 14 BLOCKED).
 
 ## Decision Context
 
@@ -38,9 +38,9 @@ Status legend: [ ] pending / [~] in progress / [x] done.
 
 ### Batch A — Measurement contract
 
-- [x] **Task 1 — Reconcile accepted benchmark failure evidence.** Inventory the accepted Sprint 12 facts that constrain redesign: MTBF around 11–13 days, only 2–4 valid negative control windows per history against the frozen floor of 6, 12/85 failures with clean baselines, 73/85 without them, progressive-only coverage, maintenance/quarantine saturation, and median warning lead time of 0.0 days. Verify the exact source artifacts, hashes, runtime roots, and meanings before proposing new settings. Evidence: `artifacts/sprint-13/task-1.md` (done; review pending).
-- [x] **Task 2 — Define causal event estimands and window semantics.** Freeze the positive event unit, same-history/robot negative controls, prediction horizons, exclusion intervals, deterministic non-overlap/matching, censoring, maintenance resets, first-alert lead time, persistence, event recall, standard tie-aware event AUROC/G-rank, and false-alert episodes per robot-day. Explicitly distinguish failure-adjacent detection from advance warning. Evidence: `artifacts/sprint-13/task-2.md` (done; review pending).
-- [x] **Task 3 — Derive statistical cohort floors and safety margins.** Determine per-history and aggregate minimum positive events, negative controls, clean baseline coverage, category coverage, healthy calibration rows, and independent-history counts from the intended uncertainty and false-alert target. Include a safety margin above the mathematical minimum rather than designing to barely meet six negative controls. Freeze `PASS`, `FAIL`, and `UNAVAILABLE` rules. Evidence: `artifacts/sprint-13/task-3.md` (done; review pending).
+- [x] **Task 1 — Reconcile accepted benchmark failure evidence.** Inventory the accepted Sprint 12 facts that constrain redesign: MTBF around 11–13 days, only 2–4 valid negative control windows per history against the frozen floor of 6, 12/85 failures with clean baselines, 73/85 without them, progressive-only coverage, maintenance/quarantine saturation, and median warning lead time of 0.0 days. Verify the exact source artifacts, hashes, runtime roots, and meanings before proposing new settings. Evidence: `artifacts/sprint-13/task-1.md` (Batch A/A2 PASS accepted).
+- [x] **Task 2 — Define causal event estimands and window semantics.** Freeze the positive event unit, same-history/robot negative controls, prediction horizons, exclusion intervals, deterministic non-overlap/matching, censoring, maintenance resets, first-alert lead time, persistence, event recall, standard tie-aware event AUROC/G-rank, and false-alert episodes per robot-day. Explicitly distinguish failure-adjacent detection from advance warning. Evidence: `artifacts/sprint-13/task-2.md` (Batch A/A2 PASS accepted).
+- [x] **Task 3 — Derive statistical cohort floors and safety margins.** Determine per-history and aggregate minimum positive events, negative controls, clean baseline coverage, category coverage, healthy calibration rows, and independent-history counts from the intended uncertainty and false-alert target. Include a safety margin above the mathematical minimum rather than designing to barely meet six negative controls. Freeze `PASS`, `FAIL`, and `UNAVAILABLE` rules. Evidence: `artifacts/sprint-13/task-3.md` (Batch A/A2 PASS accepted).
 
 ### Batch B — Factory and partition design
 
@@ -65,9 +65,9 @@ Status legend: [ ] pending / [~] in progress / [x] done.
 
 ### Batch E — Review and closeout
 
-- [x] **Task 16 — Pass batch evidence gates.** Review Batches A–D with evidence reviewers. Any actionable defect returns to the same implementation owner, followed by a fresh review at the affected gate. Preserve failed and superseded review records. Evidence: `artifacts/sprint-13/review-*.md` plus `artifacts/sprint-13/review-index.md` (accepted: final Task 16 gate PASS + status re-review PASS).
+- [~] **Task 16 — Pass batch evidence gates.** Review Batches A–D with evidence reviewers. Any actionable defect returns to the same implementation owner, followed by a fresh review at the affected gate. Preserve failed and superseded review records. Evidence: `artifacts/sprint-13/review-*.md` plus `artifacts/sprint-13/review-index.md` (correction complete; fresh evidence review pending).
 
-- [ ] **Task 17 — Pass differential review and finalize Sprint 13.** Run a sprint-wide differential deep review over accepted evidence. Finalize only with zero actionable findings and an explicit benchmark measurability verdict. Update `docs/PLAN.md` and this plan without implying representation or calibrated-risk success. Evidence: `artifacts/sprint-13/task-17.md` and `artifacts/sprint-13/deep-review-final.md`. (Ready for fresh differential deep review; prior deep reviews 1–2: FAIL — see `artifacts/sprint-13/deep-review-2.md`.)
+- [ ] **Task 17 — Pass differential review and finalize Sprint 13.** Run a sprint-wide differential deep review over accepted evidence. Finalize only with zero actionable findings and an explicit benchmark measurability verdict. Update `docs/PLAN.md` and this plan without implying representation or calibrated-risk success. Evidence: `artifacts/sprint-13/task-17.md` and `artifacts/sprint-13/deep-review-final.md`. (Ready for fresh differential deep review; prior deep reviews 1-3: FAIL - see artifacts/sprint-13/deep-review-3.md and deep-review-4.md).
 
 ## Acceptance Criteria
 
