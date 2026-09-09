@@ -37,7 +37,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--chronological", action="store_true",
                    help="materialize a chronological factory dataset (Tasks 5-7 pipeline)")
     p.add_argument("--profile", choices=("client", "server", "sprint13",
-                                          "sprint13-v41"),
+                                          "sprint13-v41", "sprint14-v3"),
                    default="client",
                    help="chronological scale profile (default: client)")
     p.add_argument("--role", type=str, default=None,
@@ -69,6 +69,7 @@ def main(argv: list[str] | None = None) -> int:
             server_config,
             sprint13_history_config,
             sprint13_v41_history_config,
+            sprint14_v3_history_config,
         )
         seed = 0 if args.seed is None else args.seed
         if args.profile == "client":
@@ -79,6 +80,10 @@ def main(argv: list[str] | None = None) -> int:
             cfg = sprint13_v41_history_config(seed=seed)
             if args.protocol is None:
                 args.protocol = "sprint13-protocol-v4.1"
+        elif args.profile == "sprint14-v3":
+            cfg = sprint14_v3_history_config(seed=seed)
+            if args.protocol is None:
+                args.protocol = "sprint14-benchmark-protocol-v3"
         else:
             cfg = sprint13_history_config(seed=seed)
         cfg.n_channels = args.channels

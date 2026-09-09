@@ -370,6 +370,79 @@ def test_v41_profile_freezes_amended_operating_point():
     assert cohorts["A"].wear_rate == 0.0
 
 
+def test_sprint14_v3_profile_freezes_amended_operating_point():
+    from synth.chronicle import S14_SEEDS, sprint14_v3_history_config
+
+    assert S14_SEEDS == (700, 701, 702, 703, 710, 711, 712, 713,
+                         720, 721, 722, 723, 730, 731, 732, 733)
+    cfg = sprint14_v3_history_config(seed=700)
+    assert cfg.factory.span_days == 180.0
+    assert cfg.factory.quarantine_days == 7.0
+    assert cfg.fleet.n_robots == 9
+    assignments = [(s.robot_id, r.route_id, s.program_id)
+                   for r in cfg.scheduler.routes for s in r.stages]
+    assert len(assignments) == 9
+    robots = [a[0] for a in assignments]
+    assert sorted(set(robots)) == [f"robot-{i:02d}" for i in range(1, 10)]
+    assert robots.count("robot-02") == 1
+    route_b = [a for a in assignments if a[1] == "route-B"]
+    assert ("robot-09", "route-B", "program-03") in route_b
+    assert ("robot-02", "route-B", "program-03") not in route_b
+    assert ("robot-08", "route-D", "program-01") in assignments
+    cohorts = {c.cohort_id: c for c in cfg.health.cohorts}
+    assert cohorts["P"].subtypes == ("P1", "P2")
+    assert cohorts["W"].subtypes == ("W1", "W2")
+    assert cohorts["A"].subtypes == ("A1", "A2")
+    assert cohorts["P"].wear_rate == 2.0e-4
+    assert cohorts["P"].base_rate == 5.0e-10
+    assert cohorts["W"].wear_rate == 5.0e-5
+    assert cohorts["A"].abrupt_rate == 1.1e-5
+    assert cfg.health.upcoming_p == 0.55
+    assert cfg.scheduler.n_units == 1152
+    for stream in ("factory", "scheduler", "health", "signal", "temporal"):
+        assert getattr(cfg, stream).seed == 700
+
+
+def test_pw_subtype_validation_rules():
+    for cohort, good in (("P", "P2"), ("W", "W2")):
+        event = FailureEvent(
+            failure_id="fail-r1-0001", robot_id="robot-01",
+            failure_time=10.0 * DAY, cohort=cohort, subtype=good,
+            degradation_onset=2.0 * DAY, duration_d=8.0, severity=2.0)
+        assert event.subtype == good
+    with pytest.raises(ValueError):
+        FailureEvent(
+            failure_id="x", robot_id="r", failure_time=10.0, cohort="P",
+            subtype="W1", degradation_onset=2.0, duration_d=1.0, severity=1.0)
+    with pytest.raises(ValueError):
+        FailureEvent(
+            failure_id="x", robot_id="r", failure_time=10.0, cohort="A",
+            subtype="P1", severity=1.0)
+
+
+def test_subtype_gain_map_with_legacy_fallback():
+    from types import SimpleNamespace
+
+    from synth.temporal import SUBTYPE_GAINS, _cohort_windows
+
+    assert SUBTYPE_GAINS == {"P1": 1.0, "P2": 0.55, "W1": 0.3, "W2": 0.16}
+    records = [
+        SimpleNamespace(robot_id="r", cohort="P", subtype="P2",
+                        degradation_onset=1.0, failure_time=9.0 * DAY,
+                        severity=2.0),
+        SimpleNamespace(robot_id="r", cohort="W", subtype=None,
+                        degradation_onset=1.0, failure_time=20.0 * DAY,
+                        severity=1.0),
+        SimpleNamespace(robot_id="r", cohort="P", subtype=None,
+                        degradation_onset=1.0, failure_time=30.0 * DAY,
+                        severity=4.0),
+    ]
+    health = SimpleNamespace(failure_events=records)
+    windows = _cohort_windows(health, 0.9)["r"]
+    mults = sorted(entry[3] for entry in windows)
+    assert mults == [0.3, 0.55, 1.0]
+
+
 def test_eligible_operational_row_predicate():
     windows = {"robot-01": [[10.0 * DAY, 11.0 * DAY]]}
     ok = _row("a", "robot-01", "program-01", 20.0 * DAY, 20.5 * DAY)

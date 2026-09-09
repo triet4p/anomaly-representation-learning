@@ -168,6 +168,23 @@ def _require_nonnegative_time(value: float, name: str) -> float:
         raise ValueError(f"{name} must be non-negative, got {result}")
     return result
 
+#: Mechanism subtypes permitted on episode/failure diagnostic metadata.
+#: Abrupt subtypes name distinct draws; P/W subtypes name distinct
+#: precursor-manifestation pathways (Sprint 14 protocol v3). Diagnostic
+#: metadata only — never part of model-visible file rows.
+SUBTYPE_VOCABULARY = ("P1", "P2", "W1", "W2", "A1", "A2")
+
+
+def _require_optional_subtype(value: str | None, name: str) -> str | None:
+    """Return ``value`` if None or a known mechanism subtype, else fail."""
+    if value is None:
+        return None
+    if value not in SUBTYPE_VOCABULARY:
+        raise ValueError(
+            f"{name} must be one of {SUBTYPE_VOCABULARY} or None, "
+            f"got {value!r}")
+    return value
+
 
 @dataclass
 class OperationEvent:
@@ -313,6 +330,7 @@ class HealthEpisode:
     robot_id: str
     start_time: float
     end_time: float | None = None
+    subtype: str | None = None
 
     def __post_init__(self) -> None:
         _require_identity(self.episode_id, "episode_id")
@@ -326,11 +344,11 @@ class HealthEpisode:
             raise ValueError(f"kind must be an EpisodeKind, got {self.kind!r}")
         self.start_time = _require_nonnegative_time(self.start_time, "start_time")
         if self.end_time is not None:
-            self.end_time = _require_nonnegative_time(self.end_time, "end_time")
             if self.end_time < self.start_time:
                 raise ValueError(
                     f"episode end_time {self.end_time} precedes start_time {self.start_time}"
                 )
+        self.subtype = _require_optional_subtype(self.subtype, "subtype")
 
 @dataclass
 class FailureEvent:
@@ -340,10 +358,13 @@ class FailureEvent:
     NOT enter encoder inputs. ``failure_time`` is the failure-onset timestamp
     ``T``; ``cohort`` is one of ``P`` (progressive), ``W`` (weak-precursor),
     or ``A`` (abrupt/no-precursor). Abrupt events carry no degradation onset
-    and zero duration by construction. ``degradation_onset`` is the drawn
-    manifest onset (``failure_time - duration_d``) for P/W. ``severity`` is
-    the ordered support level in {1.0, 2.0, 4.0}. ``subtype`` names the
-    abrupt subtype (A1/A2) and is None otherwise.
+    and zero duration by construction, with subtype ``A1``/``A2``.
+    Non-abrupt events carry the precursor-manifestation subtype of their
+    episode (``P1``/``P2`` for progressive, ``W1``/``W2`` for weak-precursor;
+    legacy records without subtype emission carry None).
+    ``degradation_onset`` is the drawn manifest onset
+    (``failure_time - duration_d``) for P/W. ``severity`` is
+    the ordered support level in {1.0, 2.0, 4.0}.
     """
     failure_id: str
     robot_id: str
@@ -375,9 +396,17 @@ class FailureEvent:
             if self.subtype not in ("A1", "A2"):
                 raise ValueError(
                     f"abrupt failures need subtype A1/A2, got {self.subtype!r}")
+        elif self.cohort == "P":
+            if self.subtype not in (None, "P1", "P2"):
+                raise ValueError(
+                    f"progressive failures need subtype P1/P2 or None, "
+                    f"got {self.subtype!r}")
         else:
-            if self.subtype is not None:
-                raise ValueError("non-abrupt failures must not carry a subtype")
+            if self.subtype not in (None, "W1", "W2"):
+                raise ValueError(
+                    f"weak-precursor failures need subtype W1/W2 or None, "
+                    f"got {self.subtype!r}")
+        if self.cohort != "A":
             if self.degradation_onset is None:
                 raise ValueError(
                     f"cohort {self.cohort} failures need a degradation onset")

@@ -69,6 +69,14 @@ TEMPORAL_FAMILIES: list[AnomalyFamily] = [
 #: Subtlety scale for weak-precursor manifestation severity (Task 4 §2).
 WEAK_AMPLITUDE_SCALE = 0.3
 
+#: Frozen precursor-manifestation gains per mechanism subtype
+#: (Sprint 14 protocol v3 §1). P1/W1 preserve legacy cohort behavior;
+#: P2 (√(1.0·0.3) ≈ 0.55) is the logarithmic midpoint of the generator's
+#: own two cohort gains and W2 (0.3·√0.3 ≈ 0.16) takes the same ratio
+#: step below W1. Gains scale symptom severity only — wear, hazard,
+#: timing, density, and eligibility are untouched.
+SUBTYPE_GAINS = {"P1": 1.0, "P2": 0.55, "W1": 0.3, "W2": 0.16}
+
 #: Precursor quarantine radius (seconds) for abrupt-failure suppression.
 _ABRUPT_SUPPRESS_S = 7.0 * 86400.0
 
@@ -78,14 +86,17 @@ def _cohort_windows(health: FactoryHealth,
     """Index failure manifest windows per robot for precursor gating.
 
     Each entry is ``(onset_or_None, T, cohort, precursor_mult, fail_sev)``:
-    the precursor multiplier carries only the cohort tag physics
-    (weak subtlety vs full amplitude) while the ordered severity support
+    the precursor multiplier carries the episode mechanism-subtype physics
+    (per-subtype gain where the failure record names one, else the legacy
+    cohort tag physics) while the ordered severity support
     scales the failure-file manifestation alone — never retrospectively.
     Empty when the health run carries no cohort ledger (legacy: no gating).
     """
     windows: dict[str, list[tuple]] = {}
     for record in health.failure_events:
-        mult = WEAK_AMPLITUDE_SCALE if record.cohort == "W" else 1.0
+        mult = SUBTYPE_GAINS.get(
+            record.subtype,
+            WEAK_AMPLITUDE_SCALE if record.cohort == "W" else 1.0)
         fail_sev = min(0.95, failure_severity * record.severity / 2.0)
         windows.setdefault(record.robot_id, []).append(
             (record.degradation_onset, record.failure_time,

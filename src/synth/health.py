@@ -311,6 +311,33 @@ class RobotHealthProcess:
                 return None
             return "P" if rng.random() < hcfg.upcoming_p else "W"
 
+        deg_sub_ordinal: dict[tuple[str, str], int] = {}
+
+        def _draw_pw_subtype(cohort: str | None) -> str | None:
+            """Draw one precursor-manifestation subtype at episode opening.
+
+            Sprint 14 protocol v3: causal selection on a dedicated sub-stream
+            derived from (health seed, robot, cohort, per-cohort episode
+            ordinal). The shared health RNG is never touched, so hazard
+            draws — and hence failure timing and density — are invariant
+            to subtype emission. Returns None for legacy configs whose
+            cohort declares no subtypes (v4.1 behavior preserved exactly).
+            """
+            if cohort is None or cohort not in by_id:
+                return None
+            labels = by_id[cohort].subtypes
+            if not labels:
+                return None
+            key = (robot_id, cohort)
+            deg_sub_ordinal[key] = deg_sub_ordinal.get(key, 0) + 1
+            digest = hashlib.sha256(
+                "|".join(["sprint14-subtype", str(hcfg.seed), robot_id,
+                          cohort, str(deg_sub_ordinal[key])]).encode()
+            ).digest()
+            sub_rng = np.random.default_rng(
+                int.from_bytes(digest[:8], "big"))
+            return labels[int(sub_rng.integers(len(labels)))]
+
         def _next_id(kind: str) -> str:
             key = f"{robot_id}:{kind}"
             counters[key] = counters.get(key, 0) + 1
@@ -371,6 +398,7 @@ class RobotHealthProcess:
                     kind=EpisodeKind.DEGRADATION,
                     robot_id=robot_id,
                     start_time=event.start_time,
+                    subtype=_draw_pw_subtype(upcoming),
                 )
                 episodes.append(open_degradation)
                 open_deg_id = open_degradation.episode_id
@@ -414,6 +442,10 @@ class RobotHealthProcess:
                 elif fired is not None:
                     assert open_degradation is not None and open_deg_id is not None
                     cohort_id = fired.cohort_id
+                    subtype = open_degradation.subtype
+                    assert subtype is None or subtype in by_id[cohort_id].subtypes, (
+                        f"episode subtype {subtype!r} not declared by "
+                        f"cohort {cohort_id!r}")
                     onset = open_degradation.start_time
                     duration_d = (event.end_time - onset) / 86400.0
                     sev_level = (1.0, 2.0, 4.0)[int(rng.integers(3))]
@@ -472,6 +504,7 @@ class RobotHealthProcess:
                             kind=EpisodeKind.DEGRADATION,
                             robot_id=robot_id,
                             start_time=event.start_time,
+                            subtype=_draw_pw_subtype(upcoming),
                         )
                         episodes.append(open_degradation)
                         open_deg_id = open_degradation.episode_id

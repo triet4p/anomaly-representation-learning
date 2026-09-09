@@ -19,7 +19,7 @@ from __future__ import annotations
 import json
 import os
 import zipfile
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from pathlib import Path
 
 from synth.config import (
@@ -231,6 +231,11 @@ def sprint13_history_config(seed: int = 0) -> SynthConfig:
 V41_SEEDS = (500, 501, 502, 503, 504, 505, 506, 507, 508,
              600, 601, 602, 603)
 
+#: Sprint 14 Protocol v3 roster (cycle-1 Design 700–703; Fit 710–712;
+#: Calibration 713; Confirmation 720–723; Sealed 730–733).
+S14_SEEDS = (700, 701, 702, 703, 710, 711, 712, 713,
+             720, 721, 722, 723, 730, 731, 732, 733)
+
 
 def sprint13_v41_history_config(seed: int = 0) -> SynthConfig:
     """Return the Protocol v4.1 benchmark history configuration.
@@ -261,6 +266,47 @@ def sprint13_v41_history_config(seed: int = 0) -> SynthConfig:
                          wear_rate=0.0, subtypes=("A1", "A2")),
         ),
     )
+    return cfg
+
+
+def sprint14_v3_history_config(seed: int = 0) -> SynthConfig:
+    """Return the Sprint 14 Protocol v3 benchmark history configuration.
+
+    v4.1 factory with the cycle-1 Option A amendment: a ninth robot ends
+    robot-02 double duty (route-B first stage moves to ``robot-09`` with
+    ``program-03`` staying on route-B); P/W cohorts declare physical
+    manifestation subtypes (protocol v3 §1). All rates, physics, units,
+    cadence, and route volumes identical to v4.1.
+    """
+    cfg = sprint13_v41_history_config(seed=seed)
+
+    routes = []
+    for route in cfg.scheduler.routes:
+        stages = [
+            RouteStageConfig(
+                robot_id=("robot-09" if (route.route_id == "route-B"
+                                        and stage.robot_id == "robot-02")
+                          else stage.robot_id),
+                program_id=stage.program_id,
+                duration_s=stage.duration_s,
+                travel_after_s=stage.travel_after_s,
+            )
+            for stage in route.stages
+        ]
+        routes.append(RouteConfig(
+            route_id=route.route_id,
+            product_type=route.product_type,
+            stages=stages,
+        ))
+    cfg.scheduler.routes = routes
+    cfg.fleet.n_robots = 9
+    subtype_labels = {"P": ("P1", "P2"), "W": ("W1", "W2"),
+                      "A": ("A1", "A2")}
+    cohorts = [
+        replace(cohort, subtypes=subtype_labels[cohort.cohort_id])
+        for cohort in cfg.health.cohorts
+    ]
+    cfg.health = replace(cfg.health, cohorts=tuple(cohorts))
     return cfg
 
 
@@ -321,14 +367,17 @@ def write_seal(root: str | Path, role: str) -> dict[str, object]:
 
     Records the manifest digest, config hash, seeds, role, and the
     manifest's own protocol tag in ``seal.json``. The protocol must be a
-    known Sprint 13 benchmark version; legacy manifests without a tag keep
-    the v4 default so old seals stay valid. Deterministic: no timestamps.
+    known benchmark version (Sprint 13 v4/v4.1 or Sprint 14 v3/v4); legacy
+    manifests without a tag keep the v4 default so old seals stay valid.
+    Deterministic: no timestamps.
     """
     out = _require_root(root, must_exist=True)
     manifest_path = out / "manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     protocol = manifest.get("protocol") or "sprint13-protocol-v4"
-    if protocol not in ("sprint13-protocol-v4", "sprint13-protocol-v4.1"):
+    if protocol not in ("sprint13-protocol-v4", "sprint13-protocol-v4.1",
+                        "sprint14-benchmark-protocol-v3",
+                        "sprint14-benchmark-protocol-v4"):
         raise ValueError(f"unknown benchmark protocol {protocol!r} at {out}")
     seal = {
         "protocol": protocol,
