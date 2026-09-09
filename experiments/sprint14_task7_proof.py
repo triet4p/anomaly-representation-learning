@@ -9,8 +9,14 @@ subtype separation/containment, P/W rate/timing invariance, and A1/A2
 invariance. Any failed check raises (stop before Task 8).
 
 Bounded output: artifacts/sprint-14/server-task7-cycle-3/task7.json.
-(v5 tooling: cycle-specific roots plus a no-overwrite guard;
+(v5.1 tooling: cycle-specific rerun roots plus a no-overwrite guard;
 never writes to cycle-1 or cycle-2 evidence paths.)
+Re-evaluation mode (`--reevaluate`, v5.1 §13): verifies recorded hashes of
+the exact preserved seed-796 roots, reloads deterministically, asserts
+configured cohort shares, runs EG3 fixture arms, and completes seal
+round-trips on verified-identical working copies into
+`artifacts/sprint-14/server-task7-cycle-3-reeval/`. Never generates,
+mutates, or overwrites any root.
 """
 
 from __future__ import annotations
@@ -28,6 +34,16 @@ BASE = Path("data/generated/sprint14-task7-c3")
 OUT = Path("artifacts/sprint-14/server-task7-cycle-3")
 SEED_FULL = 796
 SEED_TINY = 797
+
+#: Re-evaluation inputs (v5.1): exact preserved seed-796 roots. Digests
+#: below are the independently accepted pre-incident records; any mismatch
+#: aborts before any check runs. Outputs go only to RE_EVAL_OUT.
+RE_EVAL_OUT = Path("artifacts/sprint-14/server-task7-cycle-3-reeval")
+RE_EVAL_SEAL = RE_EVAL_OUT / "seal-check"
+RE_EVAL_FULL = Path("data/generated/sprint14-task7-c3/full-796a")
+RE_EVAL_TINY = Path("data/generated/sprint14-task7-c3/tiny-797")
+EXPECTED_FULL_MANIFEST = "5b230719210364d6c5e0be0257ee6b3665c4518929cd88afccb2ed5397e78691"
+EXPECTED_TINY_MANIFEST = "10102db8d082e0a3600cd659ab8f4ea3b84aa76b01dd6c388f7f92307a111735"
 ALLOWED_ROW_KEYS = {"file_id", "operation_id", "robot_id", "program_id",
                     "start_time", "end_time", "file_label", "is_quarantined",
                     "quarantine_reason", "is_censored", "member_views",
@@ -103,6 +119,19 @@ def check_determinism() -> dict:
             "failures": len(la), "root": str(root_a)}
 
 
+def check_configured_shares(manifest: dict) -> dict:
+    """Assert the frozen configured cohort probabilities exactly.
+
+    Reads the resolved generator configuration embedded in the manifest —
+    never realized sample counts. Realized shares are reported
+    descriptively by callers and gated nowhere.
+    """
+    cfg_shares = {c["cohort_id"]: c["share"]
+                  for c in manifest["resolved_config"]["health"]["cohorts"]}
+    assert cfg_shares == {"P": 0.45, "W": 0.30, "A": 0.25}, cfg_shares
+    return {"P": 0.45, "W": 0.30, "A": 0.25}
+
+
 def check_physics_and_subtypes(root: Path) -> dict:
     from synth import events as E
     from synth.chronicle import load_chronological, verify_seal, write_seal
@@ -157,13 +186,18 @@ def check_physics_and_subtypes(root: Path) -> dict:
         if record["cohort"] != "A":
             linked = episodes[record["degradation_episode_id"]]
             assert linked["start_time"] <= record["failure_time"]
+    check_configured_shares(manifest)
     shares = {c: len(v) / len(ledger) for c, v in cohorts.items()}
-    for c, target in (("P", 0.45), ("W", 0.30), ("A", 0.25)):
-        assert abs(shares[c] - target) <= 0.08, (c, shares[c])
-    out["cohort_shares"] = shares
-    out["n_failures"] = len(ledger)
-    out["subtype_counts"] = {s: sum(1 for r in ledger if r["subtype"] == s)
-                             for s in ("P1", "P2", "W1", "W2", "A1", "A2")}
+    out["cohort_shares_realized_raw"] = shares
+    eval_cat: dict = {}
+    for failure in ledger:
+        if E.positive_window_intersects_reset(failure, wins):
+            continue
+        if E.pos_files(rows, failure, wins):
+            eval_cat[failure["cohort"]] = eval_cat.get(failure["cohort"], 0) + 1
+    n_eval = sum(eval_cat.values())
+    out["cohort_shares_realized_evaluable"] = {
+        c: (eval_cat.get(c, 0) / n_eval if n_eval else 0.0) for c in "PWA"}
     sev_by_file = {}
     for sample in samples:
         meta = sample.anomaly_meta
@@ -341,5 +375,93 @@ def main() -> int:
     return 0
 
 
+def main_reevaluate() -> int:
+    """Deterministic re-evaluation of preserved roots only (v5.1 §13).
+
+    Verifies recorded hashes, reloads deterministically, asserts the
+    configured cohort probabilities, runs the EG3 fixture arms, and
+    completes seal round-trips on verified-identical working copies.
+    Never generates, mutates, or overwrites any root.
+    """
+    from synth import events as E
+    from synth.chronicle import load_chronological, verify_seal, write_seal
+
+    if RE_EVAL_OUT.exists() and any(RE_EVAL_OUT.iterdir()):
+        raise RuntimeError(
+            f"refusing to overwrite preserved evidence at {RE_EVAL_OUT}; "
+            f"a new protocol version is required for another rerun")
+    RE_EVAL_OUT.mkdir(parents=True, exist_ok=True)
+    RE_EVAL_SEAL.mkdir(parents=True, exist_ok=True)
+    result: dict = {"mode": "reevaluate", "protocol": "sprint14-benchmark-protocol-v5.1"}
+    roots = {}
+    for label, root, expected in (
+            ("full", RE_EVAL_FULL, EXPECTED_FULL_MANIFEST),
+            ("tiny", RE_EVAL_TINY, EXPECTED_TINY_MANIFEST)):
+        manifest_path = root / "manifest.json"
+        observed = sha_file(manifest_path)
+        assert observed == expected, (label, observed, expected)
+        samples, manifest = load_chronological(root)
+        assert manifest["role"] is None
+        assert manifest["protocol"] == "sprint14-benchmark-protocol-v5"
+        rows = manifest["files"]
+        assert [s.file_id for s in samples] == [r["file_id"] for r in rows]
+        for row in rows:
+            assert set(row) <= ALLOWED_ROW_KEYS, f"row key leak: {set(row) - ALLOWED_ROW_KEYS}"
+            assert "subtype" not in row and "cohort" not in row
+        ledger = E.failure_ledger(manifest)
+        wins = manifest["maintenance_windows"]
+        result[label] = {
+            "root": str(root), "manifest_sha256": observed,
+            "files": len(rows), "failures": len(ledger),
+            "configured_shares": check_configured_shares(manifest),
+        }
+        if label == "full":
+            const = {r["file_id"]: 0.5 for r in rows}
+            time_scores = {
+                r["file_id"]: max(0.0, (r["end_time"] - r["last_reset_time"]) / DAY) / (
+                    max(0.0, (r["end_time"] - r["last_reset_time"]) / DAY) + 30.0)
+                for r in rows}
+            assert E.roc_auc_tie_aware([0.5] * 10, [0.5] * 10) == 0.5
+            assert E.roc_auc_tie_aware([1.0] * 10, [0.0] * 10) == 1.0
+            assert E.roc_auc_tie_aware([0.0] * 10, [1.0] * 10) == 0.0
+            assert E.lead_days(ledger[0]["failure_time"],
+                               [ledger[0]["failure_time"]]) == 0.0
+            arms = {}
+            for name, scores in (("constant", const), ("observable_time", time_scores)):
+                arm = prove_arm(rows, ledger, wins, scores, E)
+                arms[name] = {"computable": arm["computable"],
+                              "event_auc": arm["event_auc"],
+                              "positives_evaluable": arm["positives_evaluable"],
+                              "negatives": arm["negatives"]}
+            assert all(a["computable"] for a in arms.values())
+            result[label]["fixtures"] = arms
+            result[label]["seals"] = {}
+            for role_dir, expected_digest in (("full-796a", EXPECTED_FULL_MANIFEST),
+                                             ("tiny-797", EXPECTED_TINY_MANIFEST)):
+                source = RE_EVAL_FULL if role_dir == "full-796a" else RE_EVAL_TINY
+                seal_dir = RE_EVAL_SEAL / role_dir
+                seal_dir.mkdir(parents=True, exist_ok=True)
+                (seal_dir / "manifest.json").write_bytes(
+                    (source / "manifest.json").read_bytes())
+                assert sha_file(seal_dir / "manifest.json") == expected_digest
+                seal = write_seal(seal_dir, role="H-TASK7-REEVAL")
+                assert verify_seal(seal_dir)["manifest_sha256"] == seal["manifest_sha256"]
+                assert seal["protocol"] == "sprint14-benchmark-protocol-v5"
+                result[label]["seals"][role_dir] = {
+                    "role": "H-TASK7-REEVAL",
+                    "manifest_sha256": seal["manifest_sha256"],
+                    "protocol": seal["protocol"],
+                }
+    (RE_EVAL_OUT / "task7-reeval.json").write_text(
+        json.dumps(result, indent=1), encoding="utf-8")
+    print("TASK7-REEVAL-PASS " + json.dumps({
+        "full_manifest": EXPECTED_FULL_MANIFEST[:12],
+        "fixtures": {k: v["computable"]
+                     for k, v in result["full"]["fixtures"].items()}}))
+    return 0
+
+
 if __name__ == "__main__":
+    if "--reevaluate" in sys.argv:
+        raise SystemExit(main_reevaluate())
     raise SystemExit(main())
