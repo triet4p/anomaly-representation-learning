@@ -1,4 +1,4 @@
-"""Sprint 14 Task 7: public-entry causal/deterministic proof (v3-identical DGP; runnable under Protocol v4/v4.1 tags).
+"""Sprint 14 Task 7: public-entry causal/deterministic proof (v5 DGP; runnable under Protocol v5 tag).
 
 Disposable proof roots only (seed 796 full-size, seed 797 tiny); never any
 cycle roster. Proves through the real local CLI: fresh-process
@@ -55,8 +55,8 @@ def sha_file(path: Path) -> str:
 def materialize(seed: int, root: Path, units: int | None) -> None:
     if root.exists():
         shutil.rmtree(root)
-    cmd = ["--chronological", "--profile", "sprint14-v3",
-           "--seed", str(seed), "--protocol", "sprint14-benchmark-protocol-v4",
+    cmd = ["--chronological", "--profile", "sprint14-v5",
+           "--seed", str(seed), "--protocol", "sprint14-benchmark-protocol-v5",
            "--output", str(root)]
     if units is not None:
         cmd += ["--units", str(units)]
@@ -65,11 +65,11 @@ def materialize(seed: int, root: Path, units: int | None) -> None:
 
 def check_tiny() -> dict:
     from synth.chronicle import load_chronological
-    root = BASE / "tiny-741"
+    root = BASE / "tiny-797"
     materialize(SEED_TINY, root, units=96)
     samples, manifest = load_chronological(root)
     rows = manifest["files"]
-    assert manifest["protocol"] == "sprint14-benchmark-protocol-v4"
+    assert manifest["protocol"] == "sprint14-benchmark-protocol-v5"
     assert manifest["role"] is None
     assert [s.file_id for s in samples] == [r["file_id"] for r in rows]
     for sample in samples:
@@ -88,8 +88,8 @@ def check_tiny() -> dict:
 
 
 def check_determinism() -> dict:
-    root_a = BASE / "full-740a"
-    root_b = BASE / "full-740b"
+    root_a = BASE / "full-796a"
+    root_b = BASE / "full-796b"
     materialize(SEED_FULL, root_a, units=None)
     materialize(SEED_FULL, root_b, units=None)
     ma = (root_a / "manifest.json").read_bytes()
@@ -192,10 +192,10 @@ def check_physics_and_subtypes(root: Path) -> dict:
 
 def check_timing_invariance() -> dict:
     from dataclasses import replace
-    from synth.chronicle import build_chronological, sprint14_v3_history_config
+    from synth.chronicle import build_chronological, sprint14_v5_history_config
 
     def twin(subtypes_on: bool):
-        cfg = sprint14_v3_history_config(seed=SEED_FULL)
+        cfg = sprint14_v5_history_config(seed=SEED_FULL)
         base_units = cfg.scheduler.n_units
         cfg.scheduler.n_units = 150
         scaled = cfg.scheduler.arrival_interval_s * base_units / 150
@@ -324,8 +324,8 @@ def main() -> int:
                 f"a new protocol version is required for another rerun")
     OUT.mkdir(parents=True, exist_ok=True)
     result = {"seed_full": SEED_FULL, "seed_tiny": SEED_TINY,
-              "profile": "sprint14-v3",
-              "protocol": "sprint14-benchmark-protocol-v4"}
+              "profile": "sprint14-v5",
+              "protocol": "sprint14-benchmark-protocol-v5"}
     result["tiny"] = check_tiny()
     result["determinism"] = check_determinism()
     root = Path(result["determinism"]["root"])
