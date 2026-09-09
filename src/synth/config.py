@@ -243,7 +243,7 @@ class FleetConfig:
 
 @dataclass
 class FactoryCalendarConfig:
-    """3–6 month shared-unit factory calendar (methodology §20.1, §20.10).
+    """3–8 month shared-unit factory calendar (methodology §20.1, §20.10).
 
     ``calendar_origin`` is the ISO YYYY-MM-DD date of t=0; scheduled event
     timestamps are float seconds after that origin. ``dev_cutoff_days``
@@ -270,9 +270,9 @@ class FactoryCalendarConfig:
             if not np.isfinite(value):
                 raise ValueError(f"{name} must be finite, got {getattr(self, name)!r}")
             setattr(self, name, value)
-        if not 90.0 <= self.span_days <= 183.0:
+        if not 90.0 <= self.span_days <= 250.0:
             raise ValueError(
-                f"span_days must cover a 3–6 month calendar (≈90–183 days), "
+                f"span_days must cover a 3–8 month calendar (≈90–250 days), "
                 f"got {self.span_days}"
             )
         if not 0.0 < self.dev_cutoff_days < self.span_days:

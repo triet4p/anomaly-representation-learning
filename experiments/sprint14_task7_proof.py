@@ -1,16 +1,16 @@
 """Sprint 14 Task 7: public-entry causal/deterministic proof (v3-identical DGP; runnable under Protocol v4/v4.1 tags).
 
-Disposable proof roots only (seed 740 full-size, seed 741 tiny); never the
-cycle-1 roster. Proves through the real local CLI: fresh-process
+Disposable proof roots only (seed 796 full-size, seed 797 tiny); never any
+cycle roster. Proves through the real local CLI: fresh-process
 determinism, chronology, route/robot exclusivity, maintenance/reset
 semantics, physical bounds, role isolation, future-state exclusion, EG3
 metric fixtures, manifest/seal integrity, dedicated-RNG timing invariance,
 subtype separation/containment, P/W rate/timing invariance, and A1/A2
 invariance. Any failed check raises (stop before Task 8).
 
-Bounded output: artifacts/sprint-14/server-task7-cycle-2-rerun/task7.json.
-(v4.1 tooling: cycle-specific rerun roots plus a no-overwrite guard;
-never writes to cycle-1 or first-attempt cycle-2 evidence paths.)
+Bounded output: artifacts/sprint-14/server-task7-cycle-3/task7.json.
+(v5 tooling: cycle-specific roots plus a no-overwrite guard;
+never writes to cycle-1 or cycle-2 evidence paths.)
 """
 
 from __future__ import annotations
@@ -24,10 +24,10 @@ from pathlib import Path
 DAY = 86400.0
 FIXED_THRESHOLD = 0.3
 
-BASE = Path("data/generated/sprint14-task7-rerun")
-OUT = Path("artifacts/sprint-14/server-task7-cycle-2-rerun")
-SEED_FULL = 740
-SEED_TINY = 741
+BASE = Path("data/generated/sprint14-task7-c3")
+OUT = Path("artifacts/sprint-14/server-task7-cycle-3")
+SEED_FULL = 796
+SEED_TINY = 797
 ALLOWED_ROW_KEYS = {"file_id", "operation_id", "robot_id", "program_id",
                     "start_time", "end_time", "file_label", "is_quarantined",
                     "quarantine_reason", "is_censored", "member_views",

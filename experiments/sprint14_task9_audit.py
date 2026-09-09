@@ -1,6 +1,6 @@
-"""Sprint 14 Task 9: cycle-2 Design promotion audit under Protocol v4.
+"""Sprint 14 Task 9: cycle-3 Design promotion audit under Protocol v5.
 
-Audits each Design history (742-745) independently against every hard
+Audits each Design history (780-783) independently against every hard
 floor, every promotion target (negatives >= 32), concentration limits,
 80% lead-support predicates, Fit/Calibration support projection, subtype
 presence/eligibility, per-robot evaluable-positive concentration,
@@ -8,8 +8,8 @@ control-rejection reasons, and EG1/EG3. No pooling: DESIGN-PASS requires
 every target on that history. No scores beyond deterministic fixtures;
 no probe execution.
 
-Reads: data/generated/sprint14-v4/H-DESIGN-<k>/manifest.json
-Writes: artifacts/sprint-14/design-audit-cycle-2.json
+Reads: data/generated/sprint14-v5/H-DESIGN-<k>/manifest.json
+Writes: artifacts/sprint-14/design-audit-cycle-3.json
 """
 
 from __future__ import annotations
@@ -22,10 +22,10 @@ DAY = 86400.0
 HORIZON_S = 7.0 * DAY
 FIXED_THRESHOLD = 0.3
 
-BASE = Path("data/generated/sprint14-v4")
-OUT = Path("artifacts/sprint-14/design-audit-cycle-2.json")
-ROSTER = [("H-DESIGN-5", 742), ("H-DESIGN-6", 743),
-          ("H-DESIGN-7", 744), ("H-DESIGN-8", 745)]
+BASE = Path("data/generated/sprint14-v5")
+OUT = Path("artifacts/sprint-14/design-audit-cycle-3.json")
+ROSTER = [("H-DESIGN-9", 780), ("H-DESIGN-10", 781),
+          ("H-DESIGN-11", 782), ("H-DESIGN-12", 783)]
 ALLOWED_ROW_KEYS = {"file_id", "operation_id", "robot_id", "program_id",
                     "start_time", "end_time", "file_label", "is_quarantined",
                     "quarantine_reason", "is_censored", "member_views",
@@ -112,7 +112,7 @@ def audit_history(role: str, seed: int) -> dict:
             errors.append(name)
 
     check(manifest["role"] == role, "role-match")
-    check(manifest.get("protocol") == "sprint14-benchmark-protocol-v3",
+    check(manifest.get("protocol") == "sprint14-benchmark-protocol-v5",
           "protocol-tag")
     check(manifest["seeds"]["health"] == seed, "seed-match")
     samples, _ = load_chronological(root)

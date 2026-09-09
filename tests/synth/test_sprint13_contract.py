@@ -403,6 +403,39 @@ def test_sprint14_v3_profile_freezes_amended_operating_point():
         assert getattr(cfg, stream).seed == 700
 
 
+def test_sprint14_v5_profile_freezes_availability_exposure_settings():
+    from synth.chronicle import sprint14_v5_history_config
+
+    cfg = sprint14_v5_history_config(seed=780)
+    assert cfg.factory.span_days == 240.0
+    assert cfg.factory.dev_cutoff_days == 160.0
+    assert cfg.factory.quarantine_days == 7.0
+    assert cfg.scheduler.n_units == 1536
+    assert cfg.scheduler.arrival_interval_s == 11200.0
+    assert cfg.health.preventive_interval_s == 60.0 * DAY
+    assert cfg.health.preventive_duration_s == 86400.0
+    assert cfg.health.maintenance_duration_s == 86400.0
+    assert cfg.fleet.n_robots == 9
+    cohorts = {c.cohort_id: c for c in cfg.health.cohorts}
+    assert cohorts["P"].base_rate == 5.0e-10
+    assert cohorts["P"].wear_rate == 2.0e-4
+    assert cohorts["W"].wear_rate == 5.0e-5
+    assert cohorts["A"].abrupt_rate == 1.1e-5
+    assert cohorts["P"].subtypes == ("P1", "P2")
+    assert cohorts["W"].subtypes == ("W1", "W2")
+    assert cfg.health.upcoming_p == 0.55
+    robots = [s.robot_id for r in cfg.scheduler.routes for s in r.stages]
+    assert sorted(set(robots)) == [f"robot-{i:02d}" for i in range(1, 10)]
+    assert robots.count("robot-02") == 1
+    for stream in ("factory", "scheduler", "health", "signal", "temporal"):
+        assert getattr(cfg, stream).seed == 780
+    from synth.config import FactoryCalendarConfig
+    assert FactoryCalendarConfig(span_days=183.0).span_days == 183.0
+    assert FactoryCalendarConfig(span_days=240.0).span_days == 240.0
+    with pytest.raises(ValueError):
+        FactoryCalendarConfig(span_days=251.0)
+
+
 def test_pw_subtype_validation_rules():
     for cohort, good in (("P", "P2"), ("W", "W2")):
         event = FailureEvent(

@@ -310,6 +310,25 @@ def sprint14_v3_history_config(seed: int = 0) -> SynthConfig:
     return cfg
 
 
+def sprint14_v5_history_config(seed: int = 0) -> SynthConfig:
+    """Return the Sprint 14 Protocol v5 benchmark history configuration.
+
+    v3/v4 DGP with the cycle-3 A+C amendment: preventive cadence 30 d
+    → 60 d (1 d duration kept), corrective downtime 2 d → 1 d, and a
+    uniform 240-day calendar (cutoff 160 d, 1536 units at unchanged
+    arrival cadence). All cohort rates, physics, routes, holdouts,
+    quarantine, and eligibility semantics identical to v4/v4.1.
+    """
+    cfg = sprint14_v3_history_config(seed=seed)
+    cfg.factory = replace(
+        cfg.factory, span_days=240.0, dev_cutoff_days=160.0)
+    cfg.scheduler = replace(cfg.scheduler, n_units=1536)
+    cfg.health = replace(
+        cfg.health, maintenance_duration_s=86400.0,
+        preventive_interval_s=60.0 * 86400.0)
+    return cfg
+
+
 def _require_root(root: str | Path, *, must_exist: bool) -> Path:
     if root is None or (isinstance(root, str) and not root.strip()):
         raise ValueError("chronological root must be an explicit path")
@@ -367,7 +386,7 @@ def write_seal(root: str | Path, role: str) -> dict[str, object]:
 
     Records the manifest digest, config hash, seeds, role, and the
     manifest's own protocol tag in ``seal.json``. The protocol must be a
-    known benchmark version (Sprint 13 v4/v4.1 or Sprint 14 v3/v4); legacy
+    known benchmark version (Sprint 13 v4/v4.1 or Sprint 14 v3/v4/v5);
     manifests without a tag keep the v4 default so old seals stay valid.
     Deterministic: no timestamps.
     """
@@ -377,7 +396,8 @@ def write_seal(root: str | Path, role: str) -> dict[str, object]:
     protocol = manifest.get("protocol") or "sprint13-protocol-v4"
     if protocol not in ("sprint13-protocol-v4", "sprint13-protocol-v4.1",
                         "sprint14-benchmark-protocol-v3",
-                        "sprint14-benchmark-protocol-v4"):
+                        "sprint14-benchmark-protocol-v4",
+                        "sprint14-benchmark-protocol-v5"):
         raise ValueError(f"unknown benchmark protocol {protocol!r} at {out}")
     seal = {
         "protocol": protocol,
