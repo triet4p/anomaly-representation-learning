@@ -392,7 +392,8 @@ def main_reevaluate() -> int:
             f"a new protocol version is required for another rerun")
     RE_EVAL_OUT.mkdir(parents=True, exist_ok=True)
     RE_EVAL_SEAL.mkdir(parents=True, exist_ok=True)
-    result: dict = {"mode": "reevaluate", "protocol": "sprint14-benchmark-protocol-v5.1"}
+    result: dict = {"mode": "reevaluate", "protocol": "sprint14-benchmark-protocol-v5",
+                    "tooling": "sprint14-benchmark-protocol-v5.2"}
     roots = {}
     for label, root, expected in (
             ("full", RE_EVAL_FULL, EXPECTED_FULL_MANIFEST),
