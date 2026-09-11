@@ -7,23 +7,26 @@ system for variable-length multi-channel telemetry. Sprint 11 delivered causal f
 simulation and conditional geometry, but its accepted scientific verdict is 0/4 gates.
 Sprint 12 diagnosed that failure: observable telemetry carries more signal than the learned
 pipeline retains, while the temporal benchmark lacks enough clean controls and failure-mode
-coverage for identifiable early-warning evaluation. Sprint 13 now owns benchmark
-measurability; queued Sprint 14 owns causal localization of weak representation-to-score
-components. Targeted model recovery is deferred until those two questions are answered.
+coverage for identifiable early-warning evaluation. Sprint 13 and Sprint 14 both returned
+reviewed `NOT_MEASURABLE` verdicts. Sprint 15 now owns a fresh balanced causal benchmark
+recovery with new protocols, deterministic fresh seed namespaces, and a success-only
+candidate loop. Representation attribution has moved to Sprint 16; Sprint 15 delivered final `MEASURABLE` and its reviewed handoff is ACTIVE pending the mandatory post-final evidence review (see Current Sprint).
 
 ## Current Sprint
 
-None — Sprint 13 is Complete (final deep review PASS, negative `NOT_MEASURABLE` verdict); Sprint 14 remains queued but benchmark-blocked, not active.
+Sprint 15 - Balanced Causal Benchmark Recovery and Measurability Certification is **COMPLETE** with final verdict `MEASURABLE` for Candidate 7 (Gate F-r12 PASS with 0 actionable findings; final differential deep review R3 PASS with 0 actionable findings and 0 unanswered questions; EG7 PASS; Task 22 DONE per `artifacts/sprint-15/task-22.md` on `deep-review-final-r3.md`). Historical correction rounds and all failed/deprecated reviews preserved as indexed evidence. Mandatory post-final evidence review required before Sprint 16 starts benchmark-dependent work.
 
 ## Queued Sprints
 
-- [Sprint 14 — Representation Failure Localization and Component Attribution](sprint-plans/sprint-14.md) — **Queued behind Sprint 13 `MEASURABLE`; identifies weak normalization, patchification, encoder/objective, pooling, geometry, scorer, or aggregation components before any targeted recovery sprint.**
+- [Sprint 15 — Balanced Causal Benchmark Recovery and Measurability Certification](sprint-plans/sprint-15.md) — **COMPLETE (`MEASURABLE`; Task 22 DONE; post-final evidence review required before Sprint 16 starts).**
+- [Sprint 16 — Representation Failure Localization and Component Attribution](sprint-plans/sprint-16.md) — **READY (reviewed handoff ACTIVE per `artifacts/sprint-15/task-22.md`; Sealed H-SEAL-37..40 still forbidden) — not started; benchmark-dependent execution may start only after the mandatory post-final evidence review passes.**
 
 ## Paused Sprints
 
 - [Sprint 4 — Joint Training Stabilization and Rerun Export](sprint-plans/sprint-4.md) — **Paused with Tasks 15–22 pending**
 ## Completed Sprints
-- [Sprint 13 — Measurable Early-Warning Benchmark](sprint-plans/sprint-13.md) — **Complete (final differential deep review PASS, Deep Review 7, 0.995, zero findings; Tasks 1–17 accepted; verdict `NOT_MEASURABLE` — 0/13 STRUCT-PASS, all four sealed histories STRUCT-FAIL, zero UNAVAILABLE; no representation, warning-usefulness, or calibrated-risk success; Sprint 14 benchmark-dependent execution BLOCKED)**
+- [Sprint 14 — Benchmark Measurability Recovery](sprint-plans/sprint-14.md) — **Complete (negative closeout review PASS, zero findings; Tasks 1–19 complete on the negative branch with Tasks 10–15 truthfully NOT_RUN; final verdict `NOT_MEASURABLE` — EG2 0/4 abrupt count/share shortfall, 3/3 cycles exhausted, EG4–EG7 NOT_RUN, no deep review; no attribution handoff)**
+- [Sprint 13 — Measurable Early-Warning Benchmark](sprint-plans/sprint-13.md) — **Complete (final differential deep review PASS, Deep Review 7, 0.995, zero findings; Tasks 1–17 accepted; verdict `NOT_MEASURABLE` — 0/13 STRUCT-PASS, all four sealed histories STRUCT-FAIL, zero UNAVAILABLE; no representation, warning-usefulness, or calibrated-risk success)**
 - [Sprint 12 — Scorer Diagnosis, Signal Baselines, and Gated Scientific Recovery](sprint-plans/sprint-12.md) — **Complete (administrative re-finalization; batch gates A3/B2/C2/D2/F3/G2/G3/G4 accepted, Differential Deep Reviews 4+5 PASS with zero actionable findings; Tasks 10/13 retained as user-approved BLOCKED-FINAL scientific stops; no sealed-static reads, no calibrated-risk fit)**
 - [Sprint 11 — Chronological Factory Geometry and Early-Warning Validation](sprint-plans/sprint-11.md) — **Complete on corrected evidence (training `e378626`, F1 `e725250`, F2 `3eef3d2`, report `ebde5d0`); Batches A1–F3 pass with zero actionable findings; sprint-wide deep review PASS (confidence 0.98); integrated verdict 0/4 stands as the accepted negative result**
 - [Sprint 10 — Results Consolidation](sprint-plans/sprint-10.md) — **Complete (evidence-only gate passed)**
@@ -55,8 +58,10 @@ None — Sprint 13 is Complete (final deep review PASS, negative `NOT_MEASURABLE
 | 16 | Conditional hierarchical latent geometry with localized synthetic boundary learning | Implemented — Sprint 11; scientific separation failed |
 | 17 | Static detection and calibrated one-day/seven-day early warning | Evaluated — Sprint 11 negative result; not scientifically validated |
 | 18 | Scorer diagnosis, observable-signal baselines, and independent scientific recovery gates | Complete — Sprint 12 (re-finalized; Tasks 10/13 BLOCKED-FINAL) |
-| 19 | Measurable multi-category early-warning benchmark with independent event controls | Complete — Sprint 13 (final deep review PASS; verdict `NOT_MEASURABLE` — 0/13 STRUCT-PASS, four sealed STRUCT-FAIL, zero UNAVAILABLE; Sprint 14 benchmark-dependent execution BLOCKED) |
-| 20 | Causal localization of representation-to-score bottlenecks | Queued — Sprint 14 |
+| 19 | Measurable multi-category early-warning benchmark with independent event controls | Complete — Sprint 13 (final deep review PASS; verdict `NOT_MEASURABLE` — 0/13 STRUCT-PASS, four sealed STRUCT-FAIL, zero UNAVAILABLE) |
+| 20 | Benchmark measurability recovery with independent confirmation and sealed generalization | Complete — Sprint 14 (`NOT_MEASURABLE`) |
+| 21 | Balanced causal benchmark recovery and measurability certification | Complete — Sprint 15 (final `MEASURABLE`; Task 22 DONE; post-final review required) |
+| 22 | Causal localization of representation-to-score bottlenecks | Ready — Sprint 16 (reviewed handoff ACTIVE; not started; post-final review gates start of benchmark work) |
 
 ## High-Level Design Decisions
 
@@ -139,18 +144,29 @@ static inference, and chronological early-warning analysis. Every batch requires
 fresh `evidence-reviewer` PASS with zero actionable findings; sprint completion also
 requires a sprint-wide differential `deep-reviewer` PASS.
 
-## Sprint 13–14 Verification Gates
+## Sprint 13–16 Verification Gates
 
-Sprint 13 freezes its measurement contract, statistical floors, failure cohorts, roles, and
-stop rules before generation. It closes only with a reviewed `MEASURABLE`,
-`NOT_MEASURABLE`, or `UNAVAILABLE` verdict. Model performance and seed search cannot be
-used to accept histories, and file AUROC cannot substitute for unavailable event metrics.
+Sprint 13 and Sprint 14 remain immutable negative benchmark records. Sprint 14 followed
+[`Benchmark Measurability Exit Gates`](BENCHMARK_MEASURABILITY_EXIT_GATES.md), exhausted
+three prospectively versioned diagnostic cycles, and closed `NOT_MEASURABLE` without deep
+review because EG2 failed. Its roots and evidence remain diagnostic-only and cannot be
+reopened as a fourth cycle.
 
-Sprint 14 starts benchmark-dependent attribution only after an accepted Sprint 13
-`MEASURABLE` verdict. It uses common stagewise metrics, a frozen component-substitution
-matrix, and bounded one-component interventions. It closes as `IDENTIFIED`,
-`MULTIPLE BOTTLENECKS`, or `UNRESOLVED`; production recovery and calibrated risk remain
-future gated work.
+Sprint 15 creates a new gate document,
+`BENCHMARK_MEASURABILITY_EXIT_GATES_V2.md`, before generating outcomes. It uses a
+calendar-first balanced causal evaluation profile with predeclared per-history event quotas,
+bounded nuisance envelopes, explicit causal signal margins, fresh disjoint roles, unchanged
+causal windows and acceptance thresholds, and one-shot roots within each candidate. Failed
+candidates are preserved and retired; a new prospectively reviewed methodology uses the next
+deterministic seed namespace. Sprint 15 has no negative terminal branch: finalization requires
+EG0–EG6 provisional `MEASURABLE`, every evidence gate PASS, and a zero-actionable sprint-wide
+deep review.
+
+Sprint 16 starts benchmark-dependent attribution only after Sprint 15 returns final
+`MEASURABLE` with a zero-actionable closeout and explicit handoff. It uses common stagewise
+metrics, a frozen component-substitution matrix, and bounded one-component interventions.
+It closes as `IDENTIFIED`, `MULTIPLE BOTTLENECKS`, or `UNRESOLVED`; production recovery
+and calibrated risk remain future gated work.
 
 ## Out of Scope for V1
 
