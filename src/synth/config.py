@@ -270,9 +270,9 @@ class FactoryCalendarConfig:
             if not np.isfinite(value):
                 raise ValueError(f"{name} must be finite, got {getattr(self, name)!r}")
             setattr(self, name, value)
-        if not 90.0 <= self.span_days <= 250.0:
+        if not 90.0 <= self.span_days <= 400.0:
             raise ValueError(
-                f"span_days must cover a 3–8 month calendar (≈90–250 days), "
+                f"span_days must cover a 3–13 month calendar (≈90–400 days), "
                 f"got {self.span_days}"
             )
         if not 0.0 < self.dev_cutoff_days < self.span_days:
@@ -513,6 +513,8 @@ class HealthConfig:
     maintenance_duration_s: float = 86400.0
     recommission_mean: float = 0.05
     recommission_scale: float = 0.02
+    min_duration_gate: bool = False
+    stratified_subtype_emission: bool = False
 
     def __post_init__(self) -> None:
         if isinstance(self.seed, bool) or not isinstance(self.seed, int):
@@ -575,6 +577,14 @@ class HealthConfig:
         if not np.isfinite(self.severity_scale) or self.severity_scale <= 0.0:
             raise ValueError(
                 f"severity_scale must be positive, got {self.severity_scale!r}")
+        if not isinstance(self.min_duration_gate, bool):
+            raise ValueError(
+                "min_duration_gate must be a bool, "
+                f"got {self.min_duration_gate!r}")
+        if not isinstance(self.stratified_subtype_emission, bool):
+            raise ValueError(
+                "stratified_subtype_emission must be a bool, "
+                f"got {self.stratified_subtype_emission!r}")
 
 @dataclass
 class SignalConfig:

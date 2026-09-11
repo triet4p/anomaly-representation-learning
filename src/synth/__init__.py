@@ -56,6 +56,13 @@ __all__ = [
     "sprint13_v41_history_config",
     "sprint14_v3_history_config",
     "sprint14_v5_history_config",
+    "sprint15_v1_history_config",
+    "sprint15_v2_history_config",
+    "sprint15_v3_history_config",
+    "sprint15_v4_history_config",
+    "sprint15_v5_history_config",
+    "sprint15_v6_history_config",
+    "sprint15_v7_history_config",
     "write_seal",
     "verify_seal",
 ]
@@ -109,6 +116,13 @@ _EXPORT_MODULES = {
     "sprint13_v41_history_config": "synth.chronicle",
     "sprint14_v3_history_config": "synth.chronicle",
     "sprint14_v5_history_config": "synth.chronicle",
+    "sprint15_v1_history_config": "synth.chronicle",
+    "sprint15_v2_history_config": "synth.chronicle",
+    "sprint15_v3_history_config": "synth.chronicle",
+    "sprint15_v4_history_config": "synth.chronicle",
+    "sprint15_v5_history_config": "synth.chronicle",
+    "sprint15_v6_history_config": "synth.chronicle",
+    "sprint15_v7_history_config": "synth.chronicle",
     "write_seal": "synth.chronicle",
     "verify_seal": "synth.chronicle",
     "DatasetBuilder": "synth.dataset",
@@ -139,6 +153,13 @@ if TYPE_CHECKING:
     from synth.chronicle import sprint13_v41_history_config
     from synth.chronicle import sprint14_v3_history_config
     from synth.chronicle import sprint14_v5_history_config
+    from synth.chronicle import sprint15_v1_history_config
+    from synth.chronicle import sprint15_v2_history_config
+    from synth.chronicle import sprint15_v3_history_config
+    from synth.chronicle import sprint15_v4_history_config
+    from synth.chronicle import sprint15_v5_history_config
+    from synth.chronicle import sprint15_v6_history_config
+    from synth.chronicle import sprint15_v7_history_config
     from synth.generator import SessionGenerator
     from synth.schema import AnomalyMeta, FileSample, RegimeMeta, SampleLabel
     from synth.schema import DegradationStage, EpisodeKind, FactoryProvenance

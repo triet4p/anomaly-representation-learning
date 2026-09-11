@@ -329,6 +329,161 @@ def sprint14_v5_history_config(seed: int = 0) -> SynthConfig:
     return cfg
 
 
+def sprint15_v1_history_config(seed: int = 0) -> SynthConfig:
+    """Return the Sprint 15 Protocol v1 balanced history configuration.
+
+    v5 factory with the Batch B hypothesis-3 amendment (H1 measured
+    infeasible at 240 d: P/P2 shortfall, 32 < 48 controls with ~70% of
+    robot-days clearance-blocked; H2 blocked by the 250-day code guard):
+    360-day span with units 1536 -> 2304 at unchanged arrival cadence
+    (density, durations, and wear physics preserved; the guard widens
+    250 -> 400 d with all eligibility predicates unchanged), development
+    cutoff at 50% (180 d), abrupt rate 1.1e-5 -> 2.2e-5 ~s-1 (A pool covers
+    the exact 8/8 quota after reset exclusions), upcoming P draw 0.55 ->
+    0.52 with W episode wear 5.0e-5 -> 6.2e-5 (W pool margin for the exact
+    12/12 split). Routes, robots, cadence, maintenance, quarantine, gains,
+    thresholds, and eligibility semantics identical to v5. Predicted:
+    P ~25/25, W ~23/23, A eligible ~13/13, controls ~55, duration shapes
+    preserved; verified on proof roots before any Design materialization
+    (Tasks 9/11).
+    """
+    cfg = sprint14_v5_history_config(seed=seed)
+    cfg.factory = replace(
+        cfg.factory, span_days=360.0, dev_cutoff_days=180.0)
+    cfg.scheduler = replace(cfg.scheduler, n_units=2304)
+    cohorts = []
+    for cohort in cfg.health.cohorts:
+        if cohort.cohort_id == "W":
+            cohorts.append(replace(cohort, wear_rate=6.2e-5))
+        elif cohort.cohort_id == "A":
+            cohorts.append(replace(cohort, abrupt_rate=2.2e-5))
+        else:
+            cohorts.append(cohort)
+    cfg.health = replace(
+        cfg.health, upcoming_p=0.52, cohorts=tuple(cohorts))
+    return cfg
+
+
+def sprint15_v2_history_config(seed: int = 0) -> SynthConfig:
+    """Return the Sprint 15 Protocol v2 balanced history configuration.
+
+    Identical to ``sprint15_v1_history_config`` (Batch B hypothesis-3
+    settings carried forward unchanged) with exactly one addition:
+    ``health.min_duration_gate`` enabled per protocol v2 §7a, so non-abrupt
+    cohorts cannot fire before the frozen audit minimum durations
+    (P 2.0 d, W 6.0 d). All rates, wear, thresholds, gains, routes, calendar,
+    maintenance, quarantine, and eligibility semantics identical to v1.
+    """
+    cfg = sprint15_v1_history_config(seed=seed)
+    cfg.health = replace(cfg.health, min_duration_gate=True)
+    return cfg
+
+
+def sprint15_v3_history_config(seed: int = 0) -> SynthConfig:
+    """Return the Sprint 15 Protocol v3 balanced history configuration.
+
+    Identical to ``sprint15_v2_history_config`` (Batch B hypothesis-3
+    settings plus the §7a minimum-duration firing gate carried forward
+    unchanged). Protocol v3 changes only acceptance scheduling (§3a joint
+    fair rounds, implemented in the allocator) — no generator physics,
+    rates, wear, thresholds, gains, routes, calendar, maintenance,
+    quarantine, or eligibility semantics differ from v2.
+    """
+    cfg = sprint15_v2_history_config(seed=seed)
+    return cfg
+
+
+def sprint15_v4_history_config(seed: int = 0) -> SynthConfig:
+    """Return the Sprint 15 Protocol v4 balanced history configuration.
+
+    Identical to ``sprint15_v3_history_config`` (Batch B hypothesis-3
+    settings plus the §7a minimum-duration firing gate carried forward
+    unchanged). Protocol v4 changes only acceptance scheduling (§3b exact
+    deterministic CSP, implemented in the allocator) — no generator physics,
+    rates, wear, thresholds, gains, routes, calendar, maintenance,
+    quarantine, or eligibility semantics differ from v3.
+    """
+    cfg = sprint15_v3_history_config(seed=seed)
+    return cfg
+
+
+def sprint15_v5_history_config(seed: int = 0) -> SynthConfig:
+    """Return the Sprint 15 Protocol v5 balanced history configuration.
+
+    Identical to ``sprint15_v4_history_config`` except the §1 calendar-volume
+    margin: operation volume scales 1.5× at frozen per-unit mechanics
+    (``n_units`` 2304 → 3456 with the arrival interval/jitter rescaled
+    inversely to preserve the frozen 360-day span). Routes, fleet, span, dev
+    cutoff, quarantine, per-unit failure physics/rates/wear/thresholds/gains,
+    maintenance, §7a gate, and all eligibility semantics identical to v4.
+    """
+    cfg = sprint15_v4_history_config(seed=seed)
+    scale = 2304 / 3456
+    cfg.scheduler = replace(
+        cfg.scheduler,
+        n_units=3456,
+        arrival_interval_s=cfg.scheduler.arrival_interval_s * scale,
+        arrival_jitter_s=cfg.scheduler.arrival_jitter_s * scale,
+    )
+    return cfg
+
+
+#: Candidate-6 fixed-budget cohort outcome shares (protocol v6 §1a).
+#: Documentary targets summing to 1.0; realized mix emerges from the rates.
+S15_V6_SHARES = {"P": 0.41, "W": 0.28, "A": 0.31}
+
+#: Candidate-6 dominant hazard rates (protocol v6 §1a): abrupt up 30%,
+#: P/W base down 8%/9% at fixed total density. All other cohort fields
+#: (wear, thresholds, degradation bounds, amplitude, subtypes, upcoming draw)
+#: are inherited unchanged from the v4 configuration.
+S15_V6_RATES = {"P": 4.6e-10, "W": 2.73e-9, "A": 2.86e-5}
+
+
+def sprint15_v6_history_config(seed: int = 0) -> SynthConfig:
+    """Return the Sprint 15 Protocol v6 balanced history configuration.
+
+    Built from ``sprint15_v4_history_config`` (the v5 densification is fully
+    reverted: ``n_units`` 2304 with arrival interval/jitter ``11200.0 s``),
+    with exactly one change: the §1a fixed-budget cohort reallocation
+    (documentary shares P 0.41 / W 0.28 / A 0.31 via dominant hazard rates
+    A 2.86e-5, P 4.6e-10, W 2.73e-9). Upcoming draw, wear, thresholds, gains,
+    routes, fleet, span, dev cutoff, quarantine, maintenance, §7a gate, and
+    all eligibility semantics identical to v4.
+    """
+
+    cfg = sprint15_v4_history_config(seed=seed)
+    cohorts = []
+    for cohort in cfg.health.cohorts:
+        if cohort.cohort_id == "A":
+            cohorts.append(replace(
+                cohort, share=S15_V6_SHARES["A"],
+                abrupt_rate=S15_V6_RATES["A"]))
+        elif cohort.cohort_id in ("P", "W"):
+            cohorts.append(replace(
+                cohort, share=S15_V6_SHARES[cohort.cohort_id],
+                base_rate=S15_V6_RATES[cohort.cohort_id]))
+        else:  # pragma: no cover - cohort alphabet fixed to P/W/A
+            cohorts.append(cohort)
+    cfg.health = replace(cfg.health, cohorts=tuple(cohorts))
+    return cfg
+
+
+def sprint15_v7_history_config(seed: int = 0) -> SynthConfig:
+    """Return the Sprint 15 Protocol v7 balanced history configuration.
+
+    Identical to ``sprint15_v4_history_config`` in every scheduler, fleet,
+    factory, cohort-share/rate, upcoming-draw, wear, threshold, gain, route,
+    maintenance, and §7a setting, with exactly one change: the §1a
+    deterministic subtype-stratification flag
+    (``health.stratified_subtype_emission = True``). The v5 densification and
+    v6 rate shifts are fully reverted by construction (built from v4, never
+    from v5/v6).
+    """
+    cfg = sprint15_v4_history_config(seed=seed)
+    cfg.health = replace(cfg.health, stratified_subtype_emission=True)
+    return cfg
+
+
 def _require_root(root: str | Path, *, must_exist: bool) -> Path:
     if root is None or (isinstance(root, str) and not root.strip()):
         raise ValueError("chronological root must be an explicit path")
@@ -367,7 +522,6 @@ def _maintenance_windows(health) -> dict[str, list[list[float]]]:
         intervals.sort()
     return windows
 
-
 def _last_reset_time(
     windows: dict[str, list[list[float]]], robot_id: str, start_time: float
 ) -> float:
@@ -386,7 +540,8 @@ def write_seal(root: str | Path, role: str) -> dict[str, object]:
 
     Records the manifest digest, config hash, seeds, role, and the
     manifest's own protocol tag in ``seal.json``. The protocol must be a
-    known benchmark version (Sprint 13 v4/v4.1 or Sprint 14 v3/v4/v5);
+    known benchmark version (Sprint 13 v4/v4.1, Sprint 14 v3/v4/v5, or
+    Sprint 15 v1/v2/v3/v4/v5/v6/v7);
     manifests without a tag keep the v4 default so old seals stay valid.
     Deterministic: no timestamps.
     """
@@ -397,7 +552,13 @@ def write_seal(root: str | Path, role: str) -> dict[str, object]:
     if protocol not in ("sprint13-protocol-v4", "sprint13-protocol-v4.1",
                         "sprint14-benchmark-protocol-v3",
                         "sprint14-benchmark-protocol-v4",
-                        "sprint14-benchmark-protocol-v5"):
+                        "sprint15-benchmark-protocol-v1",
+                        "sprint15-benchmark-protocol-v2",
+                        "sprint15-benchmark-protocol-v3",
+                        "sprint15-benchmark-protocol-v4",
+                        "sprint15-benchmark-protocol-v5",
+                        "sprint15-benchmark-protocol-v6",
+                        "sprint15-benchmark-protocol-v7"):
         raise ValueError(f"unknown benchmark protocol {protocol!r} at {out}")
     seal = {
         "protocol": protocol,
@@ -443,6 +604,32 @@ def build_chronological(cfg: SynthConfig):
     return schedule, health, labeled, splits
 
 
+def _manifest_file_rows(labeled, maint_windows, patch_counts):
+    """Build the model-visible file-row table (shared persist/allocate path)."""
+    return [
+        {
+            "file_id": s.file_id,
+            "operation_id": s.operation.operation_id,  # type: ignore[union-attr]
+            "robot_id": s.operation.robot_id,  # type: ignore[union-attr]
+            "program_id": s.operation.program_id,  # type: ignore[union-attr]
+            "start_time": s.operation.start_time,  # type: ignore[union-attr]
+            "end_time": s.operation.end_time,  # type: ignore[union-attr]
+            "file_label": s.file_label.value,
+            "is_quarantined": s.split_provenance.is_quarantined,  # type: ignore[union-attr]
+            "quarantine_reason": s.split_provenance.quarantine_reason,  # type: ignore[union-attr]
+            "is_censored": s.future_targets.is_censored,  # type: ignore[union-attr]
+            "member_views": list(s.split_provenance.member_views),  # type: ignore[union-attr]
+            "last_reset_time": _last_reset_time(
+                maint_windows,
+                s.operation.robot_id,  # type: ignore[union-attr]
+                s.operation.start_time,  # type: ignore[union-attr]
+            ),
+            "n_valid_patches": patch_counts[s.file_id],
+        }
+        for s in labeled
+    ]
+
+
 def materialize_chronological(
     cfg: SynthConfig,
     root: str | Path,
@@ -451,6 +638,7 @@ def materialize_chronological(
     overwrite: bool = False,
     role: str | None = None,
     protocol: str | None = None,
+    sprint15=None,
 ) -> dict[str, object]:
     """Persist one chronological dataset plus complete manifests.
 
@@ -458,6 +646,10 @@ def materialize_chronological(
     ``protocol`` names the frozen benchmark version (defaults to
     ``sprint13-protocol-v4`` when a role is given — pass explicitly,
     e.g. ``sprint13-protocol-v4.1``, for amended runs). Both recorded verbatim.
+    ``sprint15`` carries a ``synth.balanced.Sprint15Binding`` for Sprint 15
+    histories: quota allocation runs fail-fast before shard I/O and a
+    ``sprint15`` provenance block joins the manifest. ``None`` (default)
+    preserves the legacy path byte-for-byte.
     """
     out = _require_root(root, must_exist=False)
     if shard_size <= 0:
@@ -469,9 +661,46 @@ def materialize_chronological(
         )
     schedule, health, labeled, splits = build_chronological(cfg)
     config_hash = cfg.hash()
+    maint_windows = _maintenance_windows(health)
+    if protocol is None and role is not None:
+        protocol = "sprint13-protocol-v4"
+    patchifier = Patchifier(cfg.patch)
+    patch_counts = {
+        sample.file_id: int(patchifier.patchify(sample).patches.shape[0])
+        for sample in labeled
+    }
+    sprint15_block = None
+    if sprint15 is not None:
+        from synth.balanced import prepare_sprint15_block
+
+        if not overwrite and out.exists() and any(out.iterdir()):
+            raise FileExistsError(
+                f"sprint15 target root exists and is non-empty: {out}; "
+                "refusing to start without overwrite"
+            )
+        pre_rows = _manifest_file_rows(labeled, maint_windows, patch_counts)
+        pre_ledger = [_failure_to_dict(r) for r in health.failure_events]
+        resolved = json.loads(
+            json.dumps(asdict(cfg), sort_keys=True, default=str)
+        )
+        sprint15_block = prepare_sprint15_block(
+            rows=pre_rows,
+            ledger=pre_ledger,
+            wins=maint_windows,
+            schedule_events=[
+                _operation_to_dict(e) for e in schedule.events
+            ],
+            resolved_config=resolved,
+            config_hash=config_hash,
+            history_seed=cfg.health.seed,
+            role=role,
+            quota=sprint15.quota,
+            profile=sprint15.profile,
+            protocol=sprint15.protocol,
+            method=sprint15.method,
+        )
     files_dir = out / "files"
     files_dir.mkdir(parents=True, exist_ok=True)
-
     shards: list[dict[str, object]] = []
     total = len(labeled)
     expected_n = (total + shard_size - 1) // shard_size
@@ -504,15 +733,6 @@ def materialize_chronological(
                 "sha256": _hash_file(final_path),
             }
         )
-
-    maint_windows = _maintenance_windows(health)
-    if protocol is None and role is not None:
-        protocol = "sprint13-protocol-v4"
-    patchifier = Patchifier(cfg.patch)
-    patch_counts = {
-        sample.file_id: int(patchifier.patchify(sample).patches.shape[0])
-        for sample in labeled
-    }
 
     manifest: dict[str, object] = {
         "format": CHRONICLE_FORMAT,
@@ -563,30 +783,11 @@ def materialize_chronological(
             "quarantined": list(splits.quarantined),
             "failed_episode_ids": list(splits.failed_episode_ids),
         },
-        "files": [
-            {
-                "file_id": s.file_id,
-                "operation_id": s.operation.operation_id,  # type: ignore[union-attr]
-                "robot_id": s.operation.robot_id,  # type: ignore[union-attr]
-                "program_id": s.operation.program_id,  # type: ignore[union-attr]
-                "start_time": s.operation.start_time,  # type: ignore[union-attr]
-                "end_time": s.operation.end_time,  # type: ignore[union-attr]
-                "file_label": s.file_label.value,
-                "is_quarantined": s.split_provenance.is_quarantined,  # type: ignore[union-attr]
-                "quarantine_reason": s.split_provenance.quarantine_reason,  # type: ignore[union-attr]
-                "is_censored": s.future_targets.is_censored,  # type: ignore[union-attr]
-                "member_views": list(s.split_provenance.member_views),  # type: ignore[union-attr]
-                "last_reset_time": _last_reset_time(
-                    maint_windows,
-                    s.operation.robot_id,  # type: ignore[union-attr]
-                    s.operation.start_time,  # type: ignore[union-attr]
-                ),
-                "n_valid_patches": patch_counts[s.file_id],
-            }
-            for s in labeled
-        ],
+        "files": _manifest_file_rows(labeled, maint_windows, patch_counts),
         "shards": shards,
     }
+    if sprint15_block is not None:
+        manifest["sprint15"] = sprint15_block
     _atomic_json(manifest_path, manifest)
 
     reloaded, _ = load_chronological(out)

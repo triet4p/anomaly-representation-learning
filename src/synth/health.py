@@ -54,6 +54,14 @@ from synth.schema import (
 #: probability already saturates at 1.
 _HAZARD_ARG_CAP = 50.0
 
+#: Minimum degradation duration in days before a non-abrupt cohort may fire.
+#: Sprint 15 protocol v2 §7a; values sourced verbatim from the frozen audit
+#: floors (``synth.balanced.audit_sprint15``: P ``min >= 2.0 d``,
+#: W ``min >= 6.0 d``). Consulted only when
+#: ``HealthConfig.min_duration_gate`` is enabled (candidate-2 profiles);
+#: legacy and candidate-1 paths (flag off) never observe this table.
+MIN_DEGRADATION_DURATION_D = {"P": 2.0, "W": 6.0}
+
 #: Tolerance (seconds) for health-episode boundary comparisons.
 _TIME_ABS_TOL = 1e-6
 
@@ -312,6 +320,7 @@ class RobotHealthProcess:
             return "P" if rng.random() < hcfg.upcoming_p else "W"
 
         deg_sub_ordinal: dict[tuple[str, str], int] = {}
+        abrupt_ordinal: dict[str, int] = {}
 
         def _draw_pw_subtype(cohort: str | None) -> str | None:
             """Draw one precursor-manifestation subtype at episode opening.
@@ -322,6 +331,14 @@ class RobotHealthProcess:
             draws — and hence failure timing and density — are invariant
             to subtype emission. Returns None for legacy configs whose
             cohort declares no subtypes (v4.1 behavior preserved exactly).
+
+            Sprint 15 protocol v7 (flag-gated): with
+            ``stratified_subtype_emission`` set, the uniform pick is replaced
+            by deterministic round-robin alternation
+            ``labels[(ordinal + digest[0]) % len(labels)]`` on the same
+            dedicated inputs, so emitted per-(robot, cohort) subtype counts
+            differ by at most one. Flag-off behavior is byte-identical to v6
+            and earlier.
             """
             if cohort is None or cohort not in by_id:
                 return None
@@ -334,6 +351,9 @@ class RobotHealthProcess:
                 "|".join(["sprint14-subtype", str(hcfg.seed), robot_id,
                           cohort, str(deg_sub_ordinal[key])]).encode()
             ).digest()
+            if getattr(hcfg, "stratified_subtype_emission", False):
+                return labels[
+                    (deg_sub_ordinal[key] + digest[0]) % len(labels)]
             sub_rng = np.random.default_rng(
                 int.from_bytes(digest[:8], "big"))
             return labels[int(sub_rng.integers(len(labels)))]
@@ -407,11 +427,24 @@ class RobotHealthProcess:
             fired = None
             legacy_fires = False
             if by_id:
-                if (open_degradation is not None and upcoming is not None
-                        and upcoming in by_id
-                        and by_id[upcoming].failure_threshold_h > 0.0
-                        and health >= by_id[upcoming].failure_threshold_h):
-                    fired = by_id[upcoming]
+                if upcoming is not None:
+                    upcoming_cohort = by_id.get(upcoming)
+                else:
+                    upcoming_cohort = None
+                duration_gate_open = (
+                    not hcfg.min_duration_gate
+                    or open_degradation is None
+                    or upcoming_cohort is None
+                    or upcoming_cohort.cohort_id == "A"
+                    or (event.end_time - open_degradation.start_time) / 86400.0
+                    >= MIN_DEGRADATION_DURATION_D.get(
+                        upcoming_cohort.cohort_id, 0.0)
+                )
+                if (open_degradation is not None and upcoming_cohort is not None
+                        and upcoming_cohort.failure_threshold_h > 0.0
+                        and duration_gate_open
+                        and health >= upcoming_cohort.failure_threshold_h):
+                    fired = upcoming_cohort
                 if fired is None:
                     abrupt_cfg = by_id.get("A")
                     if abrupt_cfg is not None and abrupt_cfg.abrupt_rate > 0.0:
@@ -419,8 +452,9 @@ class RobotHealthProcess:
                                 -abrupt_cfg.abrupt_rate * event.duration):
                             fired = abrupt_cfg
                 if (fired is None and open_degradation is not None
-                        and upcoming is not None and upcoming in by_id):
-                    cohort = by_id[upcoming]
+                        and upcoming_cohort is not None
+                        and duration_gate_open):
+                    cohort = upcoming_cohort
                     rate = cohort.base_rate * math.exp(exponent)
                     if rng.random() < 1.0 - math.exp(-rate * event.duration):
                         fired = cohort
@@ -434,10 +468,24 @@ class RobotHealthProcess:
                 subtype: str | None = None
                 onset: float | None = None
                 duration_d = 0.0
-                sev_level = 1.0
                 if fired is not None and fired.cohort_id == "A":
                     cohort_id = "A"
-                    subtype = "A1" if rng.random() < 0.5 else "A2"
+                    if getattr(hcfg, "stratified_subtype_emission", False):
+                        abrupt_ordinal[robot_id] = (
+                            abrupt_ordinal.get(robot_id, 0) + 1)
+                        offset = hashlib.sha256(
+                            "|".join(["sprint15-stratified-A",
+                                      str(hcfg.seed),
+                                      robot_id]).encode()).digest()[0]
+                        labels = by_id["A"].subtypes
+                        subtype = labels[
+                            (abrupt_ordinal[robot_id] + offset)
+                            % len(labels)]
+                        rng.random()  # stream-preserving no-op: keeps legacy
+                        # shared-RNG consumption bit-identical so failure
+                        # timing/density are invariant to emission.
+                    else:
+                        subtype = "A1" if rng.random() < 0.5 else "A2"
                     sev_level = (1.0, 2.0, 4.0)[int(rng.integers(3))]
                 elif fired is not None:
                     assert open_degradation is not None and open_deg_id is not None

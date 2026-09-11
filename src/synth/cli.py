@@ -37,8 +37,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--chronological", action="store_true",
                    help="materialize a chronological factory dataset (Tasks 5-7 pipeline)")
     p.add_argument("--profile", choices=("client", "server", "sprint13",
-                                          "sprint13-v41", "sprint14-v3",
-                                          "sprint14-v5"),
+                                         "sprint13-v41", "sprint14-v3",
+                                         "sprint14-v5", "sprint15-v1",
+                                         "sprint15-v2", "sprint15-v3",
+                                         "sprint15-v4", "sprint15-v5",
+                                         "sprint15-v6", "sprint15-v7"),
                    default="client",
                    help="chronological scale profile (default: client)")
     p.add_argument("--role", type=str, default=None,
@@ -72,6 +75,13 @@ def main(argv: list[str] | None = None) -> int:
             sprint13_v41_history_config,
             sprint14_v3_history_config,
             sprint14_v5_history_config,
+            sprint15_v1_history_config,
+            sprint15_v2_history_config,
+            sprint15_v3_history_config,
+            sprint15_v4_history_config,
+            sprint15_v5_history_config,
+            sprint15_v6_history_config,
+            sprint15_v7_history_config,
         )
         seed = 0 if args.seed is None else args.seed
         if args.profile == "client":
@@ -90,6 +100,34 @@ def main(argv: list[str] | None = None) -> int:
             cfg = sprint14_v5_history_config(seed=seed)
             if args.protocol is None:
                 args.protocol = "sprint14-benchmark-protocol-v5"
+        elif args.profile == "sprint15-v1":
+            cfg = sprint15_v1_history_config(seed=seed)
+            if args.protocol is None:
+                args.protocol = "sprint15-benchmark-protocol-v1"
+        elif args.profile == "sprint15-v2":
+            cfg = sprint15_v2_history_config(seed=seed)
+            if args.protocol is None:
+                args.protocol = "sprint15-benchmark-protocol-v2"
+        elif args.profile == "sprint15-v3":
+            cfg = sprint15_v3_history_config(seed=seed)
+            if args.protocol is None:
+                args.protocol = "sprint15-benchmark-protocol-v3"
+        elif args.profile == "sprint15-v4":
+            cfg = sprint15_v4_history_config(seed=seed)
+            if args.protocol is None:
+                args.protocol = "sprint15-benchmark-protocol-v4"
+        elif args.profile == "sprint15-v5":
+            cfg = sprint15_v5_history_config(seed=seed)
+            if args.protocol is None:
+                args.protocol = "sprint15-benchmark-protocol-v5"
+        elif args.profile == "sprint15-v6":
+            cfg = sprint15_v6_history_config(seed=seed)
+            if args.protocol is None:
+                args.protocol = "sprint15-benchmark-protocol-v6"
+        elif args.profile == "sprint15-v7":
+            cfg = sprint15_v7_history_config(seed=seed)
+            if args.protocol is None:
+                args.protocol = "sprint15-benchmark-protocol-v7"
         else:
             cfg = sprint13_history_config(seed=seed)
         cfg.n_channels = args.channels
@@ -102,10 +140,44 @@ def main(argv: list[str] | None = None) -> int:
             scaled = base_interval * base_units / args.units
             cfg.scheduler.arrival_interval_s = scaled
             cfg.scheduler.arrival_jitter_s = scaled
+        from synth.balanced import S15_PROFILE_V2, S15_PROTOCOL_V2
+        from synth.balanced import S15_PROFILE_V3, S15_PROTOCOL_V3
+        from synth.balanced import S15_PROFILE_V4, S15_PROTOCOL_V4
+        from synth.balanced import S15_PROFILE_V5, S15_PROTOCOL_V5
+        from synth.balanced import S15_PROFILE_V6, S15_PROTOCOL_V6
+        from synth.balanced import S15_PROFILE_V7, S15_PROTOCOL_V7
+        from synth.balanced import Sprint15Binding
+
+        if args.profile == "sprint15-v7":
+            binding = Sprint15Binding(profile=S15_PROFILE_V7,
+                                      protocol=S15_PROTOCOL_V7,
+                                      method="exact")
+        elif args.profile == "sprint15-v6":
+            binding = Sprint15Binding(profile=S15_PROFILE_V6,
+                                      protocol=S15_PROTOCOL_V6,
+                                      method="exact")
+        elif args.profile == "sprint15-v5":
+            binding = Sprint15Binding(profile=S15_PROFILE_V5,
+                                      protocol=S15_PROTOCOL_V5,
+                                      method="exact")
+        elif args.profile == "sprint15-v4":
+            binding = Sprint15Binding(profile=S15_PROFILE_V4,
+                                      protocol=S15_PROTOCOL_V4,
+                                      method="exact")
+        elif args.profile == "sprint15-v3":
+            binding = Sprint15Binding(profile=S15_PROFILE_V3,
+                                      protocol=S15_PROTOCOL_V3)
+        elif args.profile == "sprint15-v2":
+            binding = Sprint15Binding(profile=S15_PROFILE_V2,
+                                      protocol=S15_PROTOCOL_V2)
+        else:
+            binding = (Sprint15Binding()
+                       if args.profile == "sprint15-v1" else None)
         manifest = materialize_chronological(
             cfg, args.output, shard_size=args.shard_size,
             overwrite=args.overwrite, role=args.role,
             protocol=args.protocol,
+            sprint15=binding,
         )
         counts = manifest["counts"]
         print(f"wrote {args.output / 'manifest.json'}: "
