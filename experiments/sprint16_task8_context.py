@@ -181,15 +181,21 @@ def main() -> int:
         return row["robot_idx"] <= n_r - 1 and row["program_idx"] <= n_p - 1
 
     @torch.no_grad()
-    def encode_both(padded: np.ndarray, pad_mask: np.ndarray, valid_mask: np.ndarray,
+    def encode_both(padded: np.ndarray, pad_mask: np.ndarray,
                     robot_idx: int, program_idx: int,
                     regimes: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-        """Frozen local + contextual latents on identical patches."""
+        """Frozen local + contextual latents on identical patches.
+
+        ``padded`` is [K,C,W] full windows, ``pad_mask`` bool [K,W]
+        (True = padded). Per-patch validity is valid_len > 0, already
+        enforced by the caller subset; the forward valid mask is all-True.
+        """
         if not (0 <= robot_idx < n_r and 0 <= program_idx < n_p):
             raise ValueError(f"conditioning out of range: {(robot_idx, program_idx)}")
+        K = padded.shape[0]
         pw = torch.asarray(padded, dtype=torch.float32).unsqueeze(0).to(device)
         pm = torch.asarray(pad_mask, dtype=torch.bool).unsqueeze(0).to(device)
-        vm = torch.asarray(valid_mask, dtype=torch.bool).unsqueeze(0).to(device)
+        vm = torch.ones((1, K), dtype=torch.bool).to(device)
         local = model.local(pw, pm)
         if isinstance(local, dict):
             local = local["patch_latents"]
@@ -234,7 +240,7 @@ def main() -> int:
             regs = patch_regime_ids(
                 [sample] * 1, starts.reshape(1, -1), int(keep.sum()))
             loc, ctx = encode_both(
-                patches[keep], pad[keep], ~pad[keep],
+                patches[keep], pad[keep],
                 int(sample.robot_idx), int(sample.program_idx),
                 np.asarray(regs[0]))
             fit_loc.append(loc)
@@ -299,7 +305,7 @@ def main() -> int:
             regs = patch_regime_ids(
                 [sample] * 1, starts.reshape(1, -1), int(keep.size))
             loc, ctx = encode_both(
-                patches[keep], pad[keep], ~pad[keep],
+                patches[keep], pad[keep],
                 int(sample.robot_idx), int(sample.program_idx),
                 np.asarray(regs[0]))
             n_patches += keep.size
