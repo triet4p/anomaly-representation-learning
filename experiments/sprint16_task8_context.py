@@ -4,17 +4,16 @@ Runs where the accepted checkpoints live (GPU server, verified commit):
 loads the accepted control/hybrid V2 checkpoints (sha256 asserted before
 load) and compares, at EXACTLY matched valid patch positions/support,
 frozen LOCAL latents (LocalPatchEncoder) against frozen CONTEXTUAL latents
-(full-model forward patch_latents) with the shared diagnostic reader:
-linear (Fit-healthy centroid distance) and simple nonlinear (kNN distance,
-k=5, deterministic ≤30k bank). File/event scores use the frozen per-event
-max; per history/category event AUROC comes from the Task 3 contract
-reader. Conditioning-compatibility rule (predeclared, from the checkpoint's
-own config at runtime): only files with robot_idx < n_robots AND
-program_idx < n_programs enter EITHER arm — no invented mapping, identical
-support both arms. No objective intervention, no geometry/scorer/pooling
-fusion, labels post-hoc, FIT-only fitting, CONF-only evaluation, A
-companion only, no verdict (Task 16 owns verdicts). Sealed roots never
-touched (only FIT + CONFIRMATION paths).
+(direct ``model.context_encoder(local, valid_mask)`` call — robot/program
+independent, bit-identical to the full-forward ``patch_latents``) with the
+shared diagnostic reader: linear (Fit-healthy centroid distance) and simple
+nonlinear (kNN distance, k=5, deterministic ≤30k bank). File/event scores
+use the frozen per-event max; per history/category event AUROC comes from
+the Task 3 contract reader. FULL Task 7 support (all files/patches, no
+index filter — the encoder call needs no conditioning). No objective
+intervention, no geometry/scorer/pooling fusion, labels post-hoc, FIT-only
+fitting, CONF-only evaluation, A companion only, no verdict (Task 16 owns
+verdicts). Sealed roots never touched (only FIT + CONFIRMATION paths).
 
 Usage (server, from the verified repo root):
   .venv/bin/python experiments/sprint16_task8_context.py \\
@@ -141,7 +140,7 @@ def main() -> int:
     import torch
 
     from representation import attribution_metrics as M
-    from representation.v2_inference import V2InferencePipeline, patch_regime_ids
+    from representation.v2_inference import V2InferencePipeline
     from synth import balanced as B
     from synth import events as E
     from synth import probe15 as P
@@ -177,21 +176,19 @@ def main() -> int:
         samples, _ = load_chronological(root)
         return samples, manifest
 
-    def compatible(row) -> bool:
-        return row["robot_idx"] <= n_r - 1 and row["program_idx"] <= n_p - 1
 
     @torch.no_grad()
-    def encode_both(padded: np.ndarray, pad_mask: np.ndarray,
-                    robot_idx: int, program_idx: int,
-                    regimes: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    def encode_both(padded: np.ndarray, pad_mask: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         """Frozen local + contextual latents on identical patches.
 
         ``padded`` is [K,C,W] full windows, ``pad_mask`` bool [K,W]
-        (True = padded). Per-patch validity is valid_len > 0, already
-        enforced by the caller subset; the forward valid mask is all-True.
+        (True = padded). Per-patch validity is valid_len > 0, enforced by
+        the caller subset; both encoders receive all-True masks. The
+        contextual call is robot/program independent
+        (``context_encoder(local, valid_mask)``) — no conditioning indices,
+        no invented mapping; bit-identical to the full-forward
+        ``patch_latents`` by construction (same submodule, same inputs).
         """
-        if not (0 <= robot_idx < n_r and 0 <= program_idx < n_p):
-            raise ValueError(f"conditioning out of range: {(robot_idx, program_idx)}")
         K = padded.shape[0]
         pw = torch.asarray(padded, dtype=torch.float32).unsqueeze(0).to(device)
         pm = torch.asarray(pad_mask, dtype=torch.bool).unsqueeze(0).to(device)
@@ -199,20 +196,14 @@ def main() -> int:
         local = model.local(pw, pm)
         if isinstance(local, dict):
             local = local["patch_latents"]
-        full = model(
-            pw, pm, vm,
-            torch.tensor([robot_idx], dtype=torch.long).to(device),
-            torch.tensor([program_idx], dtype=torch.long).to(device),
-            torch.asarray(regimes, dtype=torch.long).unsqueeze(0).to(device))
-        ctx = full["patch_latents"]
+        ctx = model.context_encoder(local, vm)
         if isinstance(ctx, dict):
             ctx = ctx["patch_latents"]
         return (local.detach().cpu().numpy()[0].astype(np.float64),
                 ctx.detach().cpu().numpy()[0].astype(np.float64))
-
     # --- Fit: healthy patch latents (local + contextual), same patches ---
     fit_loc, fit_ctx = [], []
-    fit_n, fit_skip = 0, 0
+    fit_n = 0
     for role, seed in FIT:
         samples, manifest = load_root(role, "FIT")
         assert manifest["seeds"]["health"] == seed, f"seed-match:{role}"
@@ -225,9 +216,6 @@ def main() -> int:
                     or row["robot_id"] == B.ROBOT_RESERVE):
                 continue
             sample = by_id[row["file_id"]]
-            if sample.robot_idx > n_r - 1 or sample.program_idx > n_p - 1:
-                fit_skip += 1
-                continue
             x = np.asarray(sample.x, dtype=np.float64)
             batch = patchifier.patchify(_wrap(x))
             patches = np.asarray(batch.patches, dtype=np.float64)
@@ -236,19 +224,13 @@ def main() -> int:
             keep = valid > 0
             if not keep.any():
                 continue
-            starts = np.asarray(batch.starts, dtype=int)[keep]
-            regs = patch_regime_ids(
-                [sample] * 1, starts.reshape(1, -1), int(keep.sum()))
-            loc, ctx = encode_both(
-                patches[keep], pad[keep],
-                int(sample.robot_idx), int(sample.program_idx),
-                np.asarray(regs[0]))
+            loc, ctx = encode_both(patches[keep], pad[keep])
             fit_loc.append(loc)
             fit_ctx.append(ctx)
             fit_n += 1
     fit_loc = np.vstack(fit_loc).astype(np.float64)
     fit_ctx = np.vstack(fit_ctx).astype(np.float64)
-    log["steps"].append({"fit_files": fit_n, "fit_skipped_idx": fit_skip,
+    log["steps"].append({"fit_files": fit_n,
                          "fit_patches": int(fit_loc.shape[0])})
     st_loc = M.FrozenStandardizer.fit(fit_loc, source="FIT-healthy-patches")
     st_ctx = M.FrozenStandardizer.fit(fit_ctx, source="FIT-healthy-patches")
@@ -282,15 +264,12 @@ def main() -> int:
         assert manifest["seeds"]["health"] == seed, f"seed-match:{role}"
         assert manifest.get("protocol") == B.S15_PROTOCOL_V7, f"tag:{role}"
         by_id = {s.file_id: s for s in samples}
-        rows_all = manifest["files"]
-        rows = [r for r in rows_all
-                if by_id[r["file_id"]].robot_idx <= n_r - 1
-                and by_id[r["file_id"]].program_idx <= n_p - 1]
+        rows = manifest["files"]
         wins = manifest["maintenance_windows"]
         ledger = E.failure_ledger(manifest)
         file_lin_loc, file_knn_loc = {}, {}
         file_lin_ctx, file_knn_ctx = {}, {}
-        n_patches, n_skipped = 0, len(rows_all) - len(rows)
+        n_patches = 0
         for row in rows:
             sample = by_id[row["file_id"]]
             x = np.asarray(sample.x, dtype=np.float64)
@@ -301,13 +280,7 @@ def main() -> int:
             keep = np.flatnonzero(valid > 0)
             if keep.size == 0:
                 raise ValueError(f"zero valid patches: {row['file_id']}")
-            starts = np.asarray(batch.starts, dtype=int)[keep]
-            regs = patch_regime_ids(
-                [sample] * 1, starts.reshape(1, -1), int(keep.size))
-            loc, ctx = encode_both(
-                patches[keep], pad[keep],
-                int(sample.robot_idx), int(sample.program_idx),
-                np.asarray(regs[0]))
+            loc, ctx = encode_both(patches[keep], pad[keep])
             n_patches += keep.size
             ll, lk = score_patches(loc, st_loc, cen_loc, bank_loc)
             cl, ck = score_patches(ctx, st_ctx, cen_ctx, bank_ctx)
@@ -375,7 +348,6 @@ def main() -> int:
                 sev[cohort] = {"rho_context_linear": None, "n": len(pts)}
         per_history.append({"role": role, "seed": seed,
                             "n_files": len(rows),
-                            "n_skipped_idx": int(n_skipped),
                             "n_patches": int(n_patches),
                             "categories": cats, "severity": sev})
     metrics = {"checkpoint": args.checkpoint, "sha256": digest,
