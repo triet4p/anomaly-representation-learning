@@ -30,3 +30,7 @@ experiments/20260905/05/smoke.log
 experiments/20260905/06/task7.log
 # Sprint task evidence (implement-atomic-task skill; never commit)
 artifacts/
+# Local-only bulk (never commit; preserved on disk)
+# graphify knowledge-graph outputs/cache; raw Sprint 14 Task 7 proof dataset shards
+graphify-out/
+data/.archive-c2-task7-proof/
