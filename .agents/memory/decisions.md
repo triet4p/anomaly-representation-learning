@@ -193,3 +193,10 @@
 **Alternatives considered:** Computing P+W-macro cells post-hoc from saved outputs; executing B-variants now; broadening parity language to all rewritten commits.
 **Reason:** Post-outcome computation and execution would be outcome-driven and protocol-forbidden; per-cell macro points cannot be reconstructed from AUROC-only records without reruns; the deep review explicitly requires containment-only handling with lineage preserved.
 **Consequences:** All R2/R4 SUSPECT labels stay qualified until a newly frozen contract reproduces them under pooled primary; C4 remains UNRESOLVED with a recorded deviation; future Task 19/deep-review records must repeat (not broaden) the parity distinction.
+
+## [2026-09-12] Supersede §9.4 fallback label for C4 as non-operative (R2 gloss)
+
+**Decision:** Retain C4 UNRESOLVED but explicitly supersede the earlier '§9.4 open fallback / P5 spirit' label as non-operative: the correct characterization is explicit §9.1 deviation (B-a/B-b never executed) with §9.4 inapplicable (budget unexhausted), movement undefined, and zero movement/restoration credit taken; this gloss corrects without rewriting the preserved correction history.
+**Alternatives considered:** Leaving the §9.4 label standing; executing B-variants post-outcome; waiving §9.1.
+**Reason:** The R2 deep review identifies a live contradiction — §9.4 is a budget-exhaustion fallback and 7 of 20 counts went unspent, so invoking it is false; only an explicit deviation statement is truthful, and post-outcome execution or waiver would both violate frozen protocol.
+**Consequences:** All C4 references must use the deviation wording; Task 16/18/D-packet shorthands updated accordingly; any future bypass needs a newly frozen contract.

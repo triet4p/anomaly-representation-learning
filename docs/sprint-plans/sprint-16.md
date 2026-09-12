@@ -4,7 +4,7 @@
 
 Identify, with stagewise measurements and controlled component substitutions, which part or parts of the representation-to-score pipeline lose or fail to exploit observable anomaly signal; do not attempt an unconstrained end-to-end redesign.
 
-**Status:** ACTIVE — Tasks 1–17 passed evidence review with 0 actionable findings; Task 18 batch gates + Task 16/14 verdict records under deep-review containment (`agent://Sprint16DeepReview` FAIL, confidence 0.97: 2 MEDIUM + 1 LOW — frozen-primary gap, C4 deviation, parity wording). Prior batch PASS/READY states SUPERSEDED, corrections complete documentation-only, re-evidence-review pending. Accepted attribution state stands `UNRESOLVED` with empty/not-authorized Sprint 17 scope (robust holdings). Task 19 differential deep review recorded R1 FAIL, not done — Task 19 remains `[~]`. Sealed H-SEAL-37..40 remain forbidden to open/score/probe.
+**Status:** ACTIVE — Tasks 1–17 passed evidence review with 0 actionable findings; Task 18 batch gates + Task 16/14/17 verdict records under deep-review containment (`agent://Sprint16DeepReview` FAIL + R2 FAIL at `agent://Sprint16DeepReviewR2`, confidence 0.98: 3 LOW — Task17 qualification leak, C4 §9.4 wording, no PASS materialization). Prior batch PASS/READY states SUPERSEDED, phase-one corrections complete documentation-only, scoped re-evidence-review pending. Accepted attribution state stands `UNRESOLVED` with empty/not-authorized Sprint 17 scope (robust holdings). Task 19 differential deep review recorded R1 FAIL, not done — Task 19 remains `[~]`. Sealed H-SEAL-37..40 remain forbidden to open/score/probe.
 
 ## Decision Context
 
