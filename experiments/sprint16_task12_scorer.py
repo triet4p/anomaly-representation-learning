@@ -35,14 +35,22 @@ each, Task 10 form) on P-tail, P-max, G-tail, G-max; residual sensitivity =
 P-abl-tail vs P-tail; energy components = NLL vs MSE (mixture-vs-single was
 Task 11). C9 <8-valid-patch window exclusion with per-history counts.
 
-context_energy comes from the production model.forward path; S-a reuses the
-production head module with masked input (no new weights); mixture energies
-use the Task 11 batched-exact mirror (equality proven by that task's
---self-test at the same code lineage); production aggregate_file_state is
-called directly. Deterministic single run per checkpoint (fixed seeds, eval,
-no grad). No threshold fitting, no fusion, no verdict (Task 16 owns
-verdicts). Labels/masks/categories are post-hoc diagnostics only. Sealed
-roots never touched (FIT + CONFIRMATION only).
+Latents come from the production local/context encoder path; context_energy
+and cond_mean/logvar come from the production head module on those latents.
+S-a reuses the production head with masked input (no new weights); mixture
+energies use the Task 11 batched-exact mirror (equality proven by that
+task's --self-test at the same code lineage); production
+aggregate_file_state is called directly. Deterministic single run per
+checkpoint (fixed seeds, eval, no grad). No threshold fitting, no fusion,
+no verdict (Task 16 owns verdicts). Labels/masks/categories are post-hoc
+diagnostics only. Sealed roots never touched (FIT + CONFIRMATION only).
+EXECUTABILITY SCOPE (pre-outcome): the checkpoint conditioning vocabulary
+(n_robots x n_programs embeddings) covers only part of the evaluation
+population, and the production head asserts on out-of-vocabulary indices.
+S_pred arms therefore serve the in-vocabulary file subset only (counted
+per history, never remapped — Task 9 v5 skip-rule precedent); S_pop arms
+serve the full universe (Task 11 fallback rule). Identical support holds
+within each family; the vocabulary shortfall itself is a Task 12 finding.
 
 Usage (server, from the verified repo root):
   .venv/bin/python experiments/sprint16_task12_scorer.py \\
@@ -261,6 +269,9 @@ def main() -> int:
             "n_robots": len(prod_snap["robot"]),
             "fleet_n": prod_snap["fleet"]["n"]}
     log["steps"].append({"restored_bank": bank})
+    NR, NP = int(cfg.n_robots), int(cfg.n_programs)
+    log["steps"].append({"conditioning_vocab": {"n_robots": NR,
+                                                "n_programs": NP}})
     patchifier = Patchifier(PatchConfig())
     data_root = Path(args.data_root)
 
@@ -272,40 +283,65 @@ def main() -> int:
 
     @torch.no_grad()
     def file_signals(sample, row, batch, keep) -> dict[str, np.ndarray]:
-        """Frozen base patch signals + regimes + latents for one file."""
+        """Frozen base patch signals + regimes + latents for one file.
+
+        Conditioning path (head: NLL, query-ablation, MSE) executes ONLY for
+        files whose training-time indices fall inside the checkpoint's
+        fitted conditioning vocabulary (robot < n_robots and program <
+        n_programs); out-of-range files get NaN head signals, are counted,
+        and are NEVER remapped (Task 9 v5 skip-rule precedent). The
+        geometry path (mixture) serves the full universe (Task 11 rule).
+        """
         K = keep.size
         pw = torch.asarray(np.asarray(batch.patches, dtype=np.float64)[keep],
                            dtype=torch.float32).unsqueeze(0).to(device)
         pm = torch.asarray(np.asarray(batch.pad_mask, dtype=bool)[keep],
                            dtype=torch.bool).unsqueeze(0).to(device)
         vm = torch.ones((1, K), dtype=torch.bool).to(device)
+        local = model.local(pw, pm)
+        if isinstance(local, dict):
+            local = local["patch_latents"]
+        lat = model.context_encoder(local, vm)
+        if isinstance(lat, dict):
+            lat = lat["patch_latents"]
+        lat = lat.detach().cpu()
         rb = torch.tensor([int(sample.robot_idx)])
         pr = torch.tensor([int(sample.program_idx)])
         starts = torch.as_tensor(np.asarray(batch.starts,
                                             dtype=np.int64)[keep]).unsqueeze(0)
         rg = patch_regime_ids([sample], starts, K)
-        enc = model(pw, pm, vm, rb.to(device), pr.to(device),
-                    rg.to(device))
-        lat = enc["patch_latents"].detach().cpu()
-        nll = enc["context_energy"].detach().cpu().numpy()[0].astype(np.float64)
-        cm = enc["cond_mean"].detach().cpu()
-        mse = ((lat - cm).pow(2)).sum(-1).numpy()[0].astype(np.float64)
-        # S-a: production head with the latent block zeroed pre-mixing.
-        ctx = model._context_vectors(rb.to(device), pr.to(device),
-                                     rg.to(device))
-        abl = model.head(torch.zeros_like(lat.to(device)), ctx)
-        zl = lat.to(device)
-        a_nll = (0.5 * (((zl - abl["cond_mean"]).pow(2)
-                         / abl["cond_logvar"].exp() + abl["cond_logvar"])
-                        .sum(-1))).detach().cpu().numpy()[0].astype(np.float64)
+        in_range = bool(rb.item() < NR and pr.item() < NP)
+        nan = np.full(K, np.nan)
+        nll = abl = mse = nan
+        if in_range:
+            try:
+                ctx = model._context_vectors(rb.to(device), pr.to(device),
+                                             rg.to(device))
+                params = model.head(lat.to(device), ctx)
+                cm = params["cond_mean"].detach().cpu()
+                lv = params["cond_logvar"].detach().cpu()
+                zl = lat
+                nll = (0.5 * (((zl - cm).pow(2) / lv.exp() + lv).sum(-1))
+                       ).numpy()[0].astype(np.float64)
+                mse = ((zl - cm).pow(2)).sum(-1).numpy()[0].astype(np.float64)
+                ab = model.head(torch.zeros_like(lat.to(device)), ctx)
+                abl = (0.5 * (((zl.to(device) - ab["cond_mean"]).pow(2)
+                               / ab["cond_logvar"].exp()
+                               + ab["cond_logvar"]).sum(-1))
+                       ).detach().cpu().numpy()[0].astype(np.float64)
+            except (RuntimeError, IndexError, ValueError):
+                in_range = False
         lat_f = lat.reshape(K, -1)
         mix, _ = batched_mixture_energy(
             prod_geo, lat_f,
             rb.repeat_interleave(K), pr.repeat_interleave(K))
-        return {"nll": nll, "abl": a_nll, "mse": mse,
+        return {"nll": np.asarray(nll, dtype=np.float64),
+                "abl": np.asarray(abl, dtype=np.float64),
+                "mse": np.asarray(mse, dtype=np.float64),
                 "mix": mix.numpy().astype(np.float64),
                 "regimes": rg.numpy()[0].astype(int),
-                "lat": lat_f.numpy().astype(np.float32)}
+                "lat": lat_f.numpy().astype(np.float32),
+                "in_range": in_range}
 
     def tail_energy(lat1: np.ndarray, e1: np.ndarray, rg1: np.ndarray,
                     source: str) -> float:
@@ -323,25 +359,32 @@ def main() -> int:
             elevated_threshold=agg_cfg["elevated_threshold"],
             n_regimes=agg_cfg["n_regimes"])
         return float(st["tail_energy"][0].item())
-
     def arm_file_scores(sig: dict) -> dict[str, float]:
         """All 13 arms' file-level scores from one file's base signals."""
         lat1, rg = sig["lat"], sig["regimes"]
-        return {
-            "P-tail": tail_energy(lat1, sig["nll"], rg, "context_energy"),
-            "P-abl-tail": tail_energy(lat1, sig["abl"], rg, "context_energy"),
-            "P-mse-tail": tail_energy(lat1, sig["mse"], rg, "context_energy"),
-            "P-mse-max": reduce_patches(sig["mse"], "max"),
-            "P-max": reduce_patches(sig["nll"], "max"),
-            "P-top4": reduce_patches(sig["nll"], "top4"),
-            "P-median": reduce_patches(sig["nll"], "median"),
-            "P-p90": reduce_patches(sig["nll"], "p90"),
+
+        if sig["in_range"]:
+            p = {
+                "P-tail": tail_energy(lat1, sig["nll"], rg, "context_energy"),
+                "P-abl-tail": tail_energy(lat1, sig["abl"], rg, "context_energy"),
+                "P-mse-tail": tail_energy(lat1, sig["mse"], rg, "context_energy"),
+                "P-mse-max": reduce_patches(sig["mse"], "max"),
+                "P-max": reduce_patches(sig["nll"], "max"),
+                "P-top4": reduce_patches(sig["nll"], "top4"),
+                "P-median": reduce_patches(sig["nll"], "median"),
+                "P-p90": reduce_patches(sig["nll"], "p90"),
+            }
+        else:
+            p = {a: float("nan") for a in P_ARMS}
+        p.update({
             "G-tail": tail_energy(lat1, sig["mix"], rg, "population_energy"),
             "G-max": reduce_patches(sig["mix"], "max"),
             "G-top4": reduce_patches(sig["mix"], "top4"),
             "G-median": reduce_patches(sig["mix"], "median"),
             "G-p90": reduce_patches(sig["mix"], "p90"),
-        }
+        })
+        assert set(p) == set(ARMS), "arm coverage"
+        return p
 
     # --- Fit: healthy base signals per file (background reference) ---
     fit_files: dict[str, dict] = {}
@@ -423,13 +466,25 @@ def main() -> int:
         direct_control_dropped = 0
 
         def direct_reader(base: str, method: str):
-            """Negatives + event scorer over pooled window patches."""
-            nonlocal direct_excluded, direct_control_dropped
+            """Negatives + event scorer over pooled window patches.
+
+            S_pred bases (nll/abl/mse) pool in-range files only (head
+            signals are NaN out of vocabulary); mix serves the universe.
+            """
+            only_in_range = base in ("nll", "abl", "mse")
+
+            def members_ok(fid: str) -> bool:
+                return (fid in patch_bank and
+                        (not only_in_range or patch_bank[fid]["in_range"]))
+
             neg = []
             for w in controls:
-                pool = np.concatenate(
-                    [patch_bank[m["file_id"]][base]
-                     for m in w["members"] if m["file_id"] in patch_bank])
+                qual = [m["file_id"] for m in w["members"]
+                        if members_ok(m["file_id"])]
+                if not qual:
+                    direct_control_dropped += 1
+                    continue
+                pool = np.concatenate([patch_bank[f][base] for f in qual])
                 if pool.size < MIN_WINDOW_PATCHES:
                     direct_control_dropped += 1
                     continue
@@ -440,7 +495,7 @@ def main() -> int:
                 if E.positive_window_intersects_reset(failure, wins):
                     return None
                 cands = [c for c in E.pos_files(rows, failure, wins)
-                         if c["file_id"] in patch_bank]
+                         if members_ok(c["file_id"])]
                 if not cands:
                     return None
                 pool = np.concatenate([patch_bank[c["file_id"]][base]
@@ -535,11 +590,15 @@ def main() -> int:
                 floor = TOPK4 if method == "top4" else 1
                 bg = np.array([reduce_patches(patch_bank[i][base], method)
                                if patch_bank[i][base].size >= floor
+                               and (base == "mix"
+                                    or patch_bank[i]["in_range"])
                                else np.nan for i in bg_ids
                                if i in patch_bank])
                 bg = bg[np.isfinite(bg)]
                 ref = np.array([reduce_patches(fit_files[f][base], method)
                                 if fit_files[f][base].size >= floor
+                                and (base == "mix"
+                                     or fit_files[f]["in_range"])
                                 else np.nan for f in fit_files])
                 ref = ref[np.isfinite(ref)]
             if bg.size == 0 or ref.size == 0:
@@ -553,6 +612,10 @@ def main() -> int:
         per_history.append({
             "role": role, "seed": seed, "n_files": len(rows),
             "n_patches": int(n_patches),
+            "n_in_range_files": int(sum(1 for s in patch_bank.values()
+                                       if s["in_range"])),
+            "n_out_of_vocab_files": int(sum(1 for s in patch_bank.values()
+                                           if not s["in_range"])),
             "n_dropped_control_windows": int(tail_dropped),
             "n_direct_control_dropped": int(direct_control_dropped),
             "n_excluded_direct_windows": int(direct_excluded),
