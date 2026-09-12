@@ -465,6 +465,7 @@ def main() -> int:
             return neg, event_score
 
         direct_excluded = 0
+        direct_control_dropped = 0
         def direct_reader(base: str, method: str):
             """Negatives + event scorer over pooled window patches.
 
