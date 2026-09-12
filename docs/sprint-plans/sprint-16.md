@@ -4,7 +4,7 @@
 
 Identify, with stagewise measurements and controlled component substitutions, which part or parts of the representation-to-score pipeline lose or fail to exploit observable anomaly signal; do not attempt an unconstrained end-to-end redesign.
 
-**Status:** ACTIVE — Tasks 1–10 passed evidence review with 0 actionable findings (`agent://Sprint16Task10EvidenceR2` closes Task 10). Task 11 done — R1 evidence review FAILED (1 HIGH + 2 MEDIUM + 1 LOW reporting defects, `agent://Sprint16Task11Evidence`); correction complete evidence-only, fresh evidence review pending. Task 12 is pending — no Task 12 work started. Sealed H-SEAL-37..40 remain forbidden to open/score/probe.
+**Status:** ACTIVE — Tasks 1–11 passed evidence review with 0 actionable findings (`agent://Sprint16Task11Evidence` closes Task 11). Task 12 done — scorer/aggregation readout measured on frozen latents+bank (`artifacts/sprint-16/task-12.md`, remote loop at `ba5a7ea`); evidence review pending per sprint gates. Task 13 is pending — no Task 13 work started. Sealed H-SEAL-37..40 remain forbidden to open/score/probe.
 
 ## Decision Context
 
@@ -79,7 +79,7 @@ Status legend: [ ] pending / [~] in progress / [x] done.
 - [x] **Task 9 — Diagnose objective and masking pressure.** Using bounded frozen-checkpoint or tiny development-only interventions, measure whether masked prediction, target construction, contrastive weighting, gradient competition, or mask composition encourages interpolation/self-conditioning/nuisance invariance instead of retaining physical signals. Keep architecture fixed. Evidence: `artifacts/sprint-16/task-9.md`.
 - [x] **Task 10 — Measure file embedding and pooling retention.** Compare valid-patch distributions, mean/file embeddings, duration effects, sparse anomalies, and controlled alternative diagnostic pooling while holding latent representations fixed. Determine whether healthy-patch dominance erases localized evidence. Evidence: `artifacts/sprint-16/task-10.md`.
 - [x] **Task 11 — Measure conditional-geometry readability.** Feed both oracle features and learned features through the same regularized hierarchical healthy-only geometry. Compare simple diagnostic readers against production conditional centroids, covariance, hierarchy, fallback, reference-bank, and distance scaling. Determine whether geometry loses information already present in its inputs. Evidence: `artifacts/sprint-16/task-11.md`.
-- [ ] **Task 12 — Measure scorer and aggregation readability.** Hold representations and geometry fixed while comparing the production context/population scores with predeclared simple diagnostic scorers and patch-to-file aggregations. Test residual sensitivity, energy components, tail behavior, duration dependence, and localized support without fusing independent scores. Evidence: `artifacts/sprint-16/task-12.md`.
+- [x] **Task 12 — Measure scorer and aggregation readability.** Hold representations and geometry fixed while comparing the production context/population scores with predeclared simple diagnostic scorers and patch-to-file aggregations. Test residual sensitivity, energy components, tail behavior, duration dependence, and localized support without fusing independent scores. Evidence: `artifacts/sprint-16/task-12.md`.
 
 ### Batch C — Component substitution and causal attribution
 
