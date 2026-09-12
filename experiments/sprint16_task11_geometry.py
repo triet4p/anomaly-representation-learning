@@ -402,11 +402,12 @@ def main() -> int:
         regimes = patch_regime_ids([sample], starts,
                                    int(keep.size)).numpy()[0].astype(int)
         n = keep.size
-        cond = {"robot": np.full(n, int(row["robot_id"])),
-                "program": np.full(n, int(row["program_id"])),
+        # Conditioning indices are the integer training-time indices carried
+        # by the sample (manifest rows hold string codes only).
+        cond = {"robot": np.full(n, int(sample.robot_idx)),
+                "program": np.full(n, int(sample.program_idx)),
                 "regime": regimes}
         return {"oracle": vecs, "local": loc, "context": ctx, "cond": cond}
-
     # --- Fit: healthy rows per family + refit production-form geometries ---
     fit_rows: dict[str, list] = {f: [] for f in FAMILIES}
     fit_cond: dict[str, list] = {f: [] for f in FAMILIES}
