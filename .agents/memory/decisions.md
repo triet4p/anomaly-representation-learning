@@ -186,3 +186,10 @@
 **Alternatives considered:** Scoping a C7 bank-rewrite task on directional recovery; opening diagnostic follow-ups as authorized work; leaving the scope implicit.
 **Reason:** The Task 17 rule authorizes only causally supported bottlenecks, and C7 fails replication where upstream is measurable (full audit peaks at 1/4); converting a non-protocol-valid lead into production work is exactly the guessed redesign the protocol forbids, while an explicit empty scope with bounded reopening conditions preserves the diagnostic value without authorizing anything.
 **Consequences:** No Sprint 17 plan exists and none may be inferred; any future recovery or diagnostic proposal must be newly frozen and cannot cite Task 17 as approval; Task 18 gates proceed on the UNRESOLVED closeout.
+
+## [2026-09-12] Contain deep-review findings without new computation
+
+**Decision:** Qualify (never rewrite) the Task 16 R-labels as provisional under the disclosed P/W-separated reading since no driver computed frozen P+W-macro points/LCBs; record the C4 B-a/B-b skip as an explicit protocol deviation with incomplete coverage and zero credit taken; restrict tree-parity claims to the two proven Task 14 mappings; mark all batch PASS/Task 18 READY states superseded pending re-review while preserving robust holdings (zero R3 paths, overall UNRESOLVED, EMPTY scope).
+**Alternatives considered:** Computing P+W-macro cells post-hoc from saved outputs; executing B-variants now; broadening parity language to all rewritten commits.
+**Reason:** Post-outcome computation and execution would be outcome-driven and protocol-forbidden; per-cell macro points cannot be reconstructed from AUROC-only records without reruns; the deep review explicitly requires containment-only handling with lineage preserved.
+**Consequences:** All R2/R4 SUSPECT labels stay qualified until a newly frozen contract reproduces them under pooled primary; C4 remains UNRESOLVED with a recorded deviation; future Task 19/deep-review records must repeat (not broaden) the parity distinction.
