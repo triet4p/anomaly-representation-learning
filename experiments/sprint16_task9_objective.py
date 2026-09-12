@@ -401,6 +401,8 @@ def main() -> int:
                 gnorms.setdefault(name, []).append(float(sum(vals)))
             cl = clean["patch_latents"].detach().cpu().numpy()[0]
             kl = corrupt["patch_latents"].detach().cpu().numpy()[0]
+            cm_np = clean["cond_mean"].detach().cpu().numpy()[0]
+            km_np = corrupt["cond_mean"].detach().cpu().numpy()[0]
             m = cmask & np.ones(K, dtype=bool)
             pred_all.append(km_np[m] - cm_np[m])
             true_all.append(kl[m] - cl[m])
