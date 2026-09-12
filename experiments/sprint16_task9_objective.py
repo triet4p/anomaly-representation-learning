@@ -735,6 +735,8 @@ def _eval_retrain(args) -> int:
                     np.array([1.0] * len(pos) + [0.0] * len(neg)))), 4),
                     "n_pos": len(pos)}
         per_history.append({"role": role, "seed": seed, "categories": cats})
+    out = {"retrained_sha256": digest, "arch_provenance": arch_provenance,
+           "histories": per_history}
     evaldir = Path(args.out) / f"eval-{Path(args.ckpt).parent.name}"
     evaldir.mkdir(parents=True, exist_ok=True)
     (evaldir / "metrics.json").write_text(json.dumps(out, indent=1, sort_keys=True))
