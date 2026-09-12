@@ -390,7 +390,8 @@ def main() -> int:
                           for k, v in terms.items() if k != "loss"})
             model.zero_grad(set_to_none=True)
             params = [p for p in model.parameters() if p.requires_grad]
-            for name in ("boundary", "background", "variance", "covariance"):
+            for name in ("boundary_loss", "background_loss", "normal_loss",
+                         "density_raw", "variance_raw", "covariance_raw"):
                 if name not in terms:
                     continue
                 g = torch.autograd.grad(
@@ -419,9 +420,10 @@ def main() -> int:
         raise ValueError("frozen-diag modified weights")
     log["steps"].append({"weights_unchanged": True, "grad_splits": grad_splits})
 
-    # Nuisance invariance: same dev batch under gain/offset transforms.
+    # Nuisance invariance: same dev batch clean vs gain/offset transforms.
     nuisance = []
-    for label, fn in (("gain1.5", lambda a: 1.5 * a),
+    for label, fn in (("clean", lambda a: a),
+                      ("gain1.5", lambda a: 1.5 * a),
                       ("offset2.0", lambda a: a + 2.0)):
         vals = []
         for pw, pm, ri, pi, regs, fid in dev:
