@@ -10,24 +10,18 @@ path, architecture fixed. Modes:
   (boundary/background/variance/covariance via per-term autograd.grad —
   weights never stepped, asserted unchanged), predicted-mean tracking
   (cosine between predicted-mean shift and actual corrupt shift, median +
-  paired-bootstrap CI), severity response (synthesized severities 1.0/2.0/
-  4.0 with the training corruption process), and nuisance-invariance probes
-  (gain/offset transforms, Task-5-comparable). No weight update in this mode.
-- retrain: FAILS CLOSED. The v3-frozen C5 variants (mask ratio 0.40→0.15,
-  contrastive λmax 0.1→0.0) name knobs that do not exist in the accepted
-  V2 counterfactual stack (proven: CounterfactualCriterion signature has
-  only boundary_margin/background/variance/covariance weights; V2Config
-  has no mask/contrastive fields). This mode asserts knob presence and
-  aborts with that evidence — it never substitutes unapproved variants
-  and never consumes gradient budget (0/2 runs, 0/600 steps).
+  paired-bootstrap CI), severity response, and nuisance probes. No weight
+  update in this mode.
+- retrain: executes ONE v5 variant (control only, exactly 300 steps,
+  one-shot output guard, accepted-weights init, one knob zeroed).
+  Fail-closed gates: real-knob verification, control-only, no-replacement.
 - eval-retrain: evaluates a given retrained checkpoint's local latents
   per-category on Confirmation (Task-7-style readout) for future use.
 - self-test: synthetic plumbing checks, no checkpoint/data.
 
 Budget (protocol hard caps, enforced in-code): at most 2 gradient runs,
-each ≤300 steps; retrain mode aborts before step 0. Sealed roots are never
+each exactly 300 steps. Sealed roots are never
 touched (only FIT paths in frozen-diag; CONFIRMATION only in eval-retrain).
-
 Usage (server, verified repo root):
   .venv/bin/python experiments/sprint16_task9_objective.py --mode frozen-diag \\
     --checkpoint control --data-root <roots> --out <dir> --device cuda
@@ -43,6 +37,9 @@ import sys
 import time
 from pathlib import Path
 from types import SimpleNamespace
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO_ROOT / "src"))
 
 FIT = (("H-FIT-28", 1604), ("H-FIT-29", 1605), ("H-FIT-30", 1606))
 CONF = (("H-CONF-34", 1608), ("H-CONF-35", 1609), ("H-CONF-36", 1610),
