@@ -356,7 +356,7 @@ def main() -> int:
     gen = torch.Generator().manual_seed(20260202)
     grad_splits = []
     for severity in SEVERITIES:
-        tvals, gnorms, track, satisf = [], {}, [], []
+        tvals, gnorms, pred_all, true_all, satisf = [], {}, [], [], []
         for pw, pm, ri, pi, regs, fid in dev:
             K = pw.shape[0]
             cmask = np.zeros(K, dtype=bool)
@@ -401,19 +401,19 @@ def main() -> int:
                 gnorms.setdefault(name, []).append(float(sum(vals)))
             cl = clean["patch_latents"].detach().cpu().numpy()[0]
             kl = corrupt["patch_latents"].detach().cpu().numpy()[0]
-            cm_np = clean["cond_mean"].detach().cpu().numpy()[0]
-            km_np = corrupt["cond_mean"].detach().cpu().numpy()[0]
             m = cmask & np.ones(K, dtype=bool)
-            track.append(tracking_cosine(km_np[m] - cm_np[m], kl[m] - cl[m]))
+            pred_all.append(km_np[m] - cm_np[m])
+            true_all.append(kl[m] - cl[m])
             e_clean = clean["context_energy"].detach().cpu().numpy()[0]
             e_corrupt = corrupt["context_energy"].detach().cpu().numpy()[0]
             satisf.append(float((e_corrupt[m] > e_clean[m]).mean()))
+        pooled = tracking_cosine(np.vstack(pred_all), np.vstack(true_all))
         grad_splits.append({
             "severity": severity,
             "term_means": {k: float(np.mean([t[k] for t in tvals]))
                            for k in tvals[0]},
             "grad_norm_means": {k: float(np.mean(v)) for k, v in gnorms.items()},
-            "tracking_median": float(np.median([t["median"] for t in track])),
+            "tracking": pooled,
             "boundary_satisfaction": float(np.mean(satisf))})
     after = sum(p.detach().double().sum().item() for p in model.parameters())
     if after != before:
@@ -730,10 +730,9 @@ def _eval_retrain(args) -> int:
             if not pos or not neg:
                 cats[cat] = {"reason": "no support"}
             else:
-                cats[cat] = {"auc": round(float(M.tie_auc(
-                    np.array(pos + neg),
-                    np.array([1.0] * len(pos) + [0.0] * len(neg)))), 4),
-                    "n_pos": len(pos)}
+                ci = _auc_ci(pos, neg)
+                cats[cat] = {k: round(v, 4) if isinstance(v, float) else v
+                             for k, v in ci.items()}
         per_history.append({"role": role, "seed": seed, "categories": cats})
     out = {"retrained_sha256": digest, "arch_provenance": arch_provenance,
            "histories": per_history}
