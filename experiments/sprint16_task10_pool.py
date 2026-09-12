@@ -247,8 +247,6 @@ def main() -> int:
                          "fit_patches": int(fit_loc.shape[0]),
                          "provenance_token": token})
 
-    def patch_scores_of(feats: np.ndarray, st, cen) -> np.ndarray:
-        return np.linalg.norm(st.apply(feats) - cen, axis=1)
 
     # --- Confirmation: four pooling readouts per stage ---
     METHODS = ("mean", "top8mean", "median", "max")
@@ -269,14 +267,52 @@ def main() -> int:
         n_patches, n_short = 0, 0
         anchors = E.anchor_rows(rows, wins)
         controls = E.select_control_windows(anchors, ledger, wins)
-
+        for row in rows:
+            x = np.asarray(by_id[row["file_id"]].x, dtype=np.float64)
+            C, T = x.shape
+            dt = (row["end_time"] - row["start_time"]) / T
+            since_reset = row["end_time"] - row["last_reset_time"]
+            batch = patchifier.patchify(_wrap(x))
+            patches = np.asarray(batch.patches, dtype=np.float64)
+            valid = np.asarray(batch.valid_len, dtype=int)
+            pad = np.asarray(batch.pad_mask, dtype=bool)
+            keep = np.flatnonzero(valid > 0)
+            if keep.size == 0:
+                raise ValueError(f"zero valid patches: {row['file_id']}")
+            loc, ctx = encode_both(patches[keep], pad[keep])
+            n_patches += keep.size
+            zl = st_loc.apply(loc)
+            zc = st_ctx.apply(ctx)
+            dl = np.linalg.norm(zl - cen_loc, axis=1)
+            dc = np.linalg.norm(zc - cen_ctx, axis=1)
+            for stage, d in (("local", dl), ("context", dc)):
+                for m in METHODS:
+                    try:
+                        scores[stage][m][row["file_id"]] = pool_scores(d, m)
+                    except ValueError:
+                        scores[stage][m][row["file_id"]] = float("nan")
+            patch_counts[row["file_id"]] = int(keep.size)
+        # Unified valid universe: files short for top8mean (<8 patches) leave
+        # EVERY reader (identical support); counted, never silently kept.
+        short_ids = [fid for fid, sm in scores["local"]["top8mean"].items()
+                     if not np.isfinite(sm)]
+        for stage in ("local", "context"):
+            for m in METHODS:
+                for fid in short_ids:
+                    scores[stage][m].pop(fid, None)
+        n_short = len(short_ids)
         def window_reader(score_map: dict[str, float]):
             scored = {k: v for k, v in score_map.items() if np.isfinite(v)}
-            neg = [E.window_score([m["file_id"] for m in w["members"]
-                                   if m["file_id"] in scored], scored)
-                   for w in controls]
-            neg = [v for v in neg if v is not None and np.isfinite(v)]
-
+            kept, dropped = [], 0
+            for w in controls:
+                members = [m["file_id"] for m in w["members"]
+                           if m["file_id"] in scored]
+                if not members:
+                    dropped += 1
+                    continue
+                kept.append(E.window_score(members, scored))
+            neg = [v for v in kept if v is not None and np.isfinite(v)]
+            window_reader.dropped = dropped
             def event_score(failure: dict) -> float | None:
                 if E.positive_window_intersects_reset(failure, wins):
                     return None
@@ -288,9 +324,11 @@ def main() -> int:
             return neg, event_score
 
         results: dict[str, dict] = {}
+        dropped_windows = 0
         for stage in ("local", "context"):
             for m in METHODS:
                 neg, ev = window_reader(scores[stage][m])
+                dropped_windows = max(dropped_windows, window_reader.dropped)
                 cell: dict[str, dict] = {}
                 for cat in CATEGORIES:
                     cohort = cat[0] if len(cat) == 2 else cat
@@ -382,7 +420,8 @@ def main() -> int:
         per_history.append({
             "role": role, "seed": seed, "n_files": len(rows),
             "n_patches": int(n_patches),
-            "n_short_top8_files": int(n_short),
+            "n_dropped_short_files": int(n_short),
+            "n_dropped_control_windows": int(dropped_windows),
             "patch_dist": {"min": int(vcounts.min()),
                            "median": float(np.median(vcounts)),
                            "max": int(vcounts.max())},
@@ -390,6 +429,7 @@ def main() -> int:
             "support_median_patches": sup_med,
             "categories": results,
             "slices": slices,
+            "background": background,
         })
     metrics = {"checkpoint": args.checkpoint, "sha256": digest,
                "provenance_token": token, "histories": per_history,
