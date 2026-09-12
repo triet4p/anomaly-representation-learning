@@ -4,7 +4,7 @@
 
 Identify, with stagewise measurements and controlled component substitutions, which part or parts of the representation-to-score pipeline lose or fail to exploit observable anomaly signal; do not attempt an unconstrained end-to-end redesign.
 
-**Status:** ACTIVE — Tasks 1–11 passed evidence review with 0 actionable findings (`agent://Sprint16Task11Evidence` closes Task 11). Task 12 done — R1 evidence review FAILED (3 MEDIUM + 2 LOW reporting defects, `agent://Sprint16Task12Evidence`); correction complete evidence-only, fresh evidence review pending. Task 13 is pending — no Task 13 work started. Sealed H-SEAL-37..40 remain forbidden to open/score/probe.
+**Status:** ACTIVE — Tasks 1–12 passed evidence review with 0 actionable findings (`agent://Sprint16Task12Evidence` closes Task 12). Task 13 is in progress. Sealed H-SEAL-37..40 remain forbidden to open/score/probe.
 
 ## Decision Context
 
@@ -83,7 +83,7 @@ Status legend: [ ] pending / [~] in progress / [x] done.
 
 ### Batch C — Component substitution and causal attribution
 
-- [ ] **Task 13 — Execute the component substitution matrix.** Run the predeclared cross-combinations: handcrafted features with simple reader and production geometry; local/contextual learned latents with the same reader; learned latents with production and alternative scorers; oracle features through production pooling/aggregation; and frozen encoders with target-hidden scoring. Change one boundary at a time and report per-history deltas. Evidence: `artifacts/sprint-16/task-13.md`.
+- [~] **Task 13 — Execute the component substitution matrix.** Run the predeclared cross-combinations: handcrafted features with simple reader and production geometry; local/contextual learned latents with the same reader; learned latents with production and alternative scorers; oracle features through production pooling/aggregation; and frozen encoders with target-hidden scoring. Change one boundary at a time and report per-history deltas. Evidence: `artifacts/sprint-16/task-13.md`.
 - [ ] **Task 14 — Apply bounded interventions to suspect components.** For each localized suspect, execute only the frozen minimal bypass or replacement needed to test causality. Examples may include signal-preserving normalization, support-preserving patch settings, local-versus-context bypass, fixed objective/masking ablation, diagnostic pooling, alternative regularized geometry, or non-query-conditioned scoring. These are confirmation experiments, not final redesigns. Evidence: `artifacts/sprint-16/task-14.md`.
 - [ ] **Task 15 — Replicate intervention recovery across histories and mechanisms.** Require recovery on independent development/confirmation histories and relevant mechanism categories. Quantify nuisance false alarms, unaffected-background stability, severity behavior, localization, and uncertainty. A single seed, pooled-only improvement, or recovery accompanied by unacceptable nuisance regression cannot establish a bottleneck. Evidence: `artifacts/sprint-16/task-15.md`.
 
