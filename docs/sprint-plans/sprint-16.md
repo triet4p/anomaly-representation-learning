@@ -4,7 +4,7 @@
 
 Identify, with stagewise measurements and controlled component substitutions, which part or parts of the representation-to-score pipeline lose or fail to exploit observable anomaly signal; do not attempt an unconstrained end-to-end redesign.
 
-**Status:** ACTIVE — Tasks 1–10 passed evidence review with 0 actionable findings (`agent://Sprint16Task10EvidenceR2` closes Task 10). Task 11 done — shipped bank degrades P/W vs simple reader on frozen latents (`artifacts/sprint-16/task-11.md`, remote loop at `10bc87c`); evidence review pending per sprint gates. Task 12 is pending — no Task 12 work started. Sealed H-SEAL-37..40 remain forbidden to open/score/probe.
+**Status:** ACTIVE — Tasks 1–10 passed evidence review with 0 actionable findings (`agent://Sprint16Task10EvidenceR2` closes Task 10). Task 11 done — R1 evidence review FAILED (1 HIGH + 2 MEDIUM + 1 LOW reporting defects, `agent://Sprint16Task11Evidence`); correction complete evidence-only, fresh evidence review pending. Task 12 is pending — no Task 12 work started. Sealed H-SEAL-37..40 remain forbidden to open/score/probe.
 
 ## Decision Context
 
