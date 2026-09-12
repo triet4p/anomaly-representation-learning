@@ -466,29 +466,31 @@ def main() -> int:
 
         direct_excluded = 0
         direct_control_dropped = 0
+
         def direct_reader(base: str, method: str):
             """Negatives + event scorer over pooled window patches.
 
             S_pred bases (nll/abl/mse) pool in-range files only (head
             signals are NaN out of vocabulary); mix serves the universe.
+            Returns (neg, event_score, control_drops) — callers aggregate
+            with max so shared windows are not multi-counted across arms.
             """
-            nonlocal direct_control_dropped
             only_in_range = base in ("nll", "abl", "mse")
 
             def members_ok(fid: str) -> bool:
                 return (fid in patch_bank and
                         (not only_in_range or patch_bank[fid]["in_range"]))
 
-            neg = []
+            neg, drops = [], 0
             for w in controls:
                 qual = [m["file_id"] for m in w["members"]
                         if members_ok(m["file_id"])]
                 if not qual:
-                    direct_control_dropped += 1
+                    drops += 1
                     continue
                 pool = np.concatenate([patch_bank[f][base] for f in qual])
                 if pool.size < MIN_WINDOW_PATCHES:
-                    direct_control_dropped += 1
+                    drops += 1
                     continue
                 neg.append(reduce_patches(pool, method))
 
@@ -506,16 +508,12 @@ def main() -> int:
                     direct_excluded += 1
                     return None
                 return reduce_patches(pool, method)
-            return neg, event_score
-
-        readers: dict[str, tuple] = {}
-        tail_dropped = 0
-        for a in TAIL_ARMS:
-            neg, ev = window_reader(scores[a])
-            tail_dropped = max(tail_dropped, window_reader.dropped)
-            readers[a] = (neg, ev)
+            return neg, event_score, drops
         for a, (base, method) in ARM_BASE.items():
-            readers[a] = direct_reader(base, method)
+            neg, ev, dr = direct_reader(base, method)
+            readers[a] = (neg, ev)
+            direct_control_dropped = max(direct_control_dropped, dr)
+        cat_excluded = direct_excluded
 
         results: dict[str, dict] = {}
         for a in ARMS:
@@ -620,7 +618,9 @@ def main() -> int:
                                            if not s["in_range"])),
             "n_dropped_control_windows": int(tail_dropped),
             "n_direct_control_dropped": int(direct_control_dropped),
-            "n_excluded_direct_windows": int(direct_excluded),
+            "n_excluded_direct_windows": int(cat_excluded),
+            "n_excluded_direct_windows_slice_phase": int(
+                direct_excluded - cat_excluded),
             "duration_median_d": dur_med,
             "support_median_patches": sup_med,
             "categories": results,
