@@ -179,3 +179,10 @@
 **Alternatives considered:** Keeping C4 HEALTHY on no-loss-observed grounds; inventing a Main waiver for unexecuted movement; executing B-variants now outside the frozen budget.
 **Reason:** R1 requires measured movement below 0.05 and unexecuted variants leave movement undefined, so the conservative protocol path (P5 spirit, §9.4 fallback) forces UNRESOLVED; the evidence review mandates the downgrade plus exact counts, and post-freeze execution would be outcome-driven.
 **Consequences:** Task 17 must treat C4 as evidence-insufficient (no bypass data), not as exonerated; the seven-SUSPECT/two-UNRESOLVED tally is the binding Sprint 16 attribution state pending re-review.
+
+## [2026-09-12] Close Sprint 17 recovery scope as empty under UNRESOLVED
+
+**Decision:** Authorize zero Sprint 17 implementation tasks: with zero Task 16 BOTTLENECKs, the Task 17 rule permits no production recovery work, and SUSPECT/UNRESOLVED components (including the C7 directional bank-swap lead) must not be converted into redesign; future recovery needs a newly frozen sprint/contract meeting the full R3 bar.
+**Alternatives considered:** Scoping a C7 bank-rewrite task on directional recovery; opening diagnostic follow-ups as authorized work; leaving the scope implicit.
+**Reason:** The Task 17 rule authorizes only causally supported bottlenecks, and C7 fails replication where upstream is measurable (full audit peaks at 1/4); converting a non-protocol-valid lead into production work is exactly the guessed redesign the protocol forbids, while an explicit empty scope with bounded reopening conditions preserves the diagnostic value without authorizing anything.
+**Consequences:** No Sprint 17 plan exists and none may be inferred; any future recovery or diagnostic proposal must be newly frozen and cannot cite Task 17 as approval; Task 18 gates proceed on the UNRESOLVED closeout.
