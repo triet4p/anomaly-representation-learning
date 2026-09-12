@@ -86,6 +86,8 @@ CHECKPOINTS = {
         "sha256": "76be843b0a5fa94c8cdd646e2734c804498f9c38088ed71c3f16f9aa97e2cc94",
     },
 }
+P_ARMS = ("P-tail", "P-abl-tail", "P-mse-tail", "P-mse-max", "P-max",
+          "P-top4", "P-median", "P-p90")
 FIT = (("H-FIT-28", 1604), ("H-FIT-29", 1605), ("H-FIT-30", 1606))
 CONF = (("H-CONF-34", 1608), ("H-CONF-35", 1609), ("H-CONF-36", 1610),
         ("H-CONF-37", 1611))
