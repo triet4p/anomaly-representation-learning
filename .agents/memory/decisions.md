@@ -172,3 +172,10 @@
 **Alternatives considered:** Promoting C7 bank-swap to BOTTLENECK on directional replication; calling C4/C6/C8/C9 HEALTHY despite measured movement; leaving mixed R0/R4 cells unaggregated without a stated rule.
 **Reason:** Full up+gap+post audit peaks at 1/4 replication for C7 (macro and subtype), so no R3 path exists and P4/P5 forbid promotion; movement ≥0.05 mechanically fires R2 for C5/C6/C8/C9 with direction notes preventing misread as production fault; the least-favorable-firing-row aggregation is declared explicitly so mixed R0/R4 cells resolve deterministically.
 **Consequences:** Task 17 may scope only SUSPECT-bounded diagnostics, never a C7 production bank rewrite as a proven fix; future agents must not upgrade any verdict without new replicated intervention evidence under the same R0-R4 mechanics.
+
+## [2026-09-12] Correct Task 16 C4 to UNRESOLVED and SUSPECT count to seven
+
+**Decision:** Downgrade C4 from HEALTHY to UNRESOLVED (movement undefined, not zero — B-a/B-b never executed, §9.4 open fallback) and correct Sprint 16 counts to seven SUSPECTs (C2/C3/C5/C6/C7/C8/C9), zero HEALTHY, two UNRESOLVED (C1 NOT PRESENT, C4), zero BOTTLENECKs, overall UNRESOLVED; this entry corrects (never rewrites) the earlier verdict-methodology note.
+**Alternatives considered:** Keeping C4 HEALTHY on no-loss-observed grounds; inventing a Main waiver for unexecuted movement; executing B-variants now outside the frozen budget.
+**Reason:** R1 requires measured movement below 0.05 and unexecuted variants leave movement undefined, so the conservative protocol path (P5 spirit, §9.4 fallback) forces UNRESOLVED; the evidence review mandates the downgrade plus exact counts, and post-freeze execution would be outcome-driven.
+**Consequences:** Task 17 must treat C4 as evidence-insufficient (no bypass data), not as exonerated; the seven-SUSPECT/two-UNRESOLVED tally is the binding Sprint 16 attribution state pending re-review.
