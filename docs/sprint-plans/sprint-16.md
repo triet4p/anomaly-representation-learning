@@ -4,7 +4,7 @@
 
 Identify, with stagewise measurements and controlled component substitutions, which part or parts of the representation-to-score pipeline lose or fail to exploit observable anomaly signal; do not attempt an unconstrained end-to-end redesign.
 
-**Status:** ACTIVE — Tasks 1–15 passed evidence review with 0 actionable findings (`agent://Sprint16Task15Evidence` closes Task 15). Task 16 is in progress. Sealed H-SEAL-37..40 remain forbidden to open/score/probe.
+**Status:** ACTIVE — Tasks 1–15 passed evidence review with 0 actionable findings (`agent://Sprint16Task15Evidence` closes Task 15). Task 16 done — overall state UNRESOLVED with zero BOTTLENECKs (`artifacts/sprint-16/task-16.md`); evidence review pending per sprint gates. Task 17 is pending — no Task 17 work started. Sealed H-SEAL-37..40 remain forbidden to open/score/probe.
 
 ## Decision Context
 
@@ -89,7 +89,7 @@ Status legend: [ ] pending / [~] in progress / [x] done.
 
 ### Batch D — Attribution verdict and closeout
 
-- [~] **Task 16 — Publish the component attribution matrix.** For normalization, patchification, local encoder, context encoder, objective/masking, file pooling, conditional geometry, scorer, and aggregation, report signal retention, localization evidence, intervention recovery, replication, residual uncertainty, and verdict: `HEALTHY`, `SUSPECT`, `BOTTLENECK`, or `UNRESOLVED` (evidence-insufficient per `experiments/sprint16-attribution-protocol-v2.md` §10 R0; prospective). C1 resolves UNRESOLVED/NOT PRESENT if absent. Evidence: `artifacts/sprint-16/task-16.md`.
+- [x] **Task 16 — Publish the component attribution matrix.** For normalization, patchification, local encoder, context encoder, objective/masking, file pooling, conditional geometry, scorer, and aggregation, report signal retention, localization evidence, intervention recovery, replication, residual uncertainty, and verdict: `HEALTHY`, `SUSPECT`, `BOTTLENECK`, or `UNRESOLVED` (evidence-insufficient per `experiments/sprint16-attribution-protocol-v2.md` §10 R0; prospective). C1 resolves UNRESOLVED/NOT PRESENT if absent. Evidence: `artifacts/sprint-16/task-16.md`.
 - [ ] **Task 17 — Define the bounded Sprint 17 recovery scope.** Convert only causally supported bottlenecks into proposed implementation tasks and gates. Do not prescribe a wholesale architecture rewrite when attribution is unresolved, and do not include calibrated-risk work before useful event ranking. Evidence: `artifacts/sprint-16/task-17.md`.
 - [ ] **Task 18 — Pass batch evidence gates.** Review each completed batch with an evidence reviewer. Any actionable defect returns to the same implementation owner and the affected gate repeats. Preserve all failed, corrected, and superseded records. Evidence: `artifacts/sprint-16/review-*.md`.
 - [ ] **Task 19 — Pass differential review and finalize Sprint 16.** Run a sprint-wide differential deep review over accepted evidence. Finalize only with zero actionable findings and an explicit attribution state. Update `docs/PLAN.md` without claiming production recovery, independent sealed performance, early-warning utility, or calibrated risk. Evidence: `artifacts/sprint-16/task-19.md` and `artifacts/sprint-16/deep-review-final.md`.
