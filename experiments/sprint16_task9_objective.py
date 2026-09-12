@@ -248,10 +248,7 @@ def main() -> int:
     from representation.v2_objectives import (
         CounterfactualCriterion, synthesize_corrupted_patches)
     from synth import balanced as B
-    pipe = V2InferencePipeline.load(str(ck_path), device=device)
-    model = pipe.model.eval()
-    absence = audit_absent_objectives(model)
-    log["steps"].append({"absence_audit": absence})
+    from synth.chronicle import load_chronological
     from synth.config import PatchConfig
     from synth.patchify import Patchifier
 
@@ -278,9 +275,11 @@ def main() -> int:
     outdir.mkdir(parents=True, exist_ok=True)
     log = {"mode": "frozen-diag", "checkpoint": args.checkpoint,
            "sha256": digest, "device": device, "steps": []}
-
     pipe = V2InferencePipeline.load(str(ck_path), device=device)
+
     model = pipe.model.eval()
+    absence = audit_absent_objectives(model)
+    log["steps"].append({"absence_audit": absence})
     for p in model.parameters():
         p.requires_grad_(True)
     before = sum(p.detach().double().sum().item() for p in model.parameters())
