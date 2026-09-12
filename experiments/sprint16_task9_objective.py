@@ -644,6 +644,7 @@ def _eval_retrain(args) -> int:
         sequence_layers=cfg["sequence_layers"],
         attention_heads=cfg["attention_heads"], dropout=0.0).eval()
     _model.load_state_dict(payload["model_state"])
+    _model.to(args.device)
     local_enc = _model.local
     patchifier = Patchifier(PatchConfig())
     data_root = Path(args.data_root)
