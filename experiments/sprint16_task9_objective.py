@@ -620,7 +620,21 @@ def _eval_retrain(args) -> int:
         raise FileNotFoundError(f"retrained checkpoint missing: {ck_path}")
     digest = sha256_file(ck_path)
     payload = torch.load(str(ck_path), map_location="cpu", weights_only=False)
-    cfg = payload["config"]
+    if isinstance(payload.get("config"), dict):
+        cfg = payload["config"]
+        arch_provenance = "embedded"
+    else:
+        # First-round retrains predate the config-saving fix. Architecture
+        # is exactly the accepted control config: retraining alters weights
+        # only, never architecture — verified by loading the arch from the
+        # hash-verified accepted control checkpoint (no new bytes invented).
+        ctrl = CHECKPOINTS["control"]
+        ctrl_path = Path(ctrl["path"])
+        if sha256_file(ctrl_path) != ctrl["sha256"]:
+            raise ValueError("accepted control checkpoint hash mismatch")
+        cfg = torch.load(str(ctrl_path), map_location="cpu",
+                         weights_only=False)["config"]
+        arch_provenance = "accepted-control-checkpoint"
     from representation.v2_patch import ContextConditionedPatchEncoder
 
     _model = ContextConditionedPatchEncoder(
@@ -720,7 +734,8 @@ def _eval_retrain(args) -> int:
                     np.array([1.0] * len(pos) + [0.0] * len(neg)))), 4),
                     "n_pos": len(pos)}
         per_history.append({"role": role, "seed": seed, "categories": cats})
-    out = {"retrained_sha256": digest, "histories": per_history}
+    out = {"retrained_sha256": digest, "arch_provenance": arch_provenance,
+           "histories": per_history}
     (outdir / "metrics.json").write_text(json.dumps(out, indent=1, sort_keys=True))
     print(json.dumps({"eval_retrain": "done", "sha256": digest[:12]}))
     return 0
