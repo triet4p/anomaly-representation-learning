@@ -465,14 +465,13 @@ def main() -> int:
             return neg, event_score
 
         direct_excluded = 0
-        direct_control_dropped = 0
-
         def direct_reader(base: str, method: str):
             """Negatives + event scorer over pooled window patches.
 
             S_pred bases (nll/abl/mse) pool in-range files only (head
             signals are NaN out of vocabulary); mix serves the universe.
             """
+            nonlocal direct_control_dropped
             only_in_range = base in ("nll", "abl", "mse")
 
             def members_ok(fid: str) -> bool:
