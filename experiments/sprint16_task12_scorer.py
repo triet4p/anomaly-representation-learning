@@ -509,6 +509,12 @@ def main() -> int:
                     return None
                 return reduce_patches(pool, method)
             return neg, event_score, drops
+        readers: dict[str, tuple] = {}
+        tail_dropped = 0
+        for a in TAIL_ARMS:
+            neg, ev = window_reader(scores[a])
+            tail_dropped = max(tail_dropped, window_reader.dropped)
+            readers[a] = (neg, ev)
         for a, (base, method) in ARM_BASE.items():
             neg, ev, dr = direct_reader(base, method)
             readers[a] = (neg, ev)
