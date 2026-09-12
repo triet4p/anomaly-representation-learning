@@ -35,12 +35,13 @@ def test_tracking_rejects_bad_shapes():
     with pytest.raises(ValueError):
         tracking_cosine(np.full((4, 2), np.nan), np.zeros((4, 2)))
 
-
-def test_c5_knobs_fail_closed():
-    assert set(C5_VARIANTS) == {"mask015", "nocontrast"}
+def test_c5_knobs_v5_present_old_absent():
+    assert set(C5_VARIANTS) == {"nobackground", "nocovariance"}
     for variant in C5_VARIANTS:
-        with pytest.raises(ValueError, match="absent"):
-            check_c5_knob(variant)
+        check_c5_knob(variant)  # real knobs: must NOT raise
+    for variant in ("mask015", "nocontrast"):
+        with pytest.raises(KeyError):
+            check_c5_knob(variant)  # superseded v3 names: not variants
     with pytest.raises(KeyError):
         check_c5_knob("unapproved-variant")
 

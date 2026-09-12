@@ -44,21 +44,6 @@ import time
 from pathlib import Path
 from types import SimpleNamespace
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO_ROOT / "src"))
-
-CHECKPOINTS = {
-    "control": {
-        "path": ("/tmp/sprint11-task30-corrected-control/full/"
-                 "control-normal-only/default/v2_checkpoint.pt"),
-        "sha256": "8bdb845b17a788ad39101e0f98c0654edb55727f0eec540ca44046b63dba2b7c",
-    },
-    "hybrid": {
-        "path": ("/tmp/sprint11-task31-corrected-hybrid/full/"
-                 "hybrid-boundary/default/v2_checkpoint.pt"),
-        "sha256": "76be843b0a5fa94c8cdd646e2734c804498f9c38088ed71c3f16f9aa97e2cc94",
-    },
-}
 FIT = (("H-FIT-28", 1604), ("H-FIT-29", 1605), ("H-FIT-30", 1606))
 CONF = (("H-CONF-34", 1608), ("H-CONF-35", 1609), ("H-CONF-36", 1610),
         ("H-CONF-37", 1611))
@@ -68,11 +53,18 @@ CORRUPT_EVERY = 4  # deterministic: every 4th valid patch is corrupted
 DEV_FILES = 8  # fixed first-N compatible Fit-healthy files per root
 MAX_GRAD_RUNS = 2
 MAX_GRAD_STEPS = 300
+RETRAIN_STEPS = 300  # exact, no early stopping (avoids selection bias)
+RETRAIN_LR = 1e-3  # accepted stack default (build_v2_training_stack)
+RETRAIN_SEVERITY = 2.0  # frozen single severity for retrain batches
+RETRAIN_GEN_SEED = 20260202
 
-#: v3-frozen C5 variants and the knob each requires in the training stack.
+#: v5 C5 variants: exactly two FIT-healthy-only, architecture-fixed
+#: diagnostic ablations of the REAL counterfactual objective. Both execute
+#: on CONTROL only (v5 §2 budget accounting); any other checkpoint is
+#: refused. Each executes at most once (existing output dir refuses).
 C5_VARIANTS = {
-    "mask015": {"knob": "mask_ratio", "from": 0.40, "to": 0.15},
-    "nocontrast": {"knob": "contrastive_weight_max", "from": 0.1, "to": 0.0},
+    "nobackground": {"knob": "background_weight", "value": 0.0},
+    "nocovariance": {"knob": "covariance_weight", "value": 0.0},
 }
 
 
@@ -85,11 +77,12 @@ def sha256_file(path: Path) -> str:
 
 
 def check_c5_knob(variant: str) -> None:
-    """Fail closed: the frozen C5 variant knob must exist to run.
+    """Fail closed: the v5 C5 variant knob must exist to run.
 
-    Raises ValueError with knob-absence evidence when the accepted V2
-    counterfactual stack exposes no such parameter. Never returns True for
-    a missing knob; never substitutes an unapproved variant.
+    Returns silently when the knob is a real CounterfactualCriterion
+    parameter (or V2Config field). Raises ValueError for anything else —
+    including the superseded v3 mask/contrastive names, which are absent
+    from the accepted stack. Never substitutes an unapproved variant.
     """
     import inspect
 
@@ -104,9 +97,39 @@ def check_c5_knob(variant: str) -> None:
         return
     raise ValueError(
         f"C5 variant {variant!r} requires knob {knob!r}, absent from the "
-        f"accepted V2 stack (criterion params{sig}; "
-        f"V2Config has no mask/contrastive field). "
-        f"Retrain refused without a protocol amendment.")
+        f"accepted V2 stack. Retrain refused without a protocol amendment.")
+
+
+def audit_absent_objectives(model) -> dict[str, object]:
+    """Document V1-objective absence on the loaded accepted model (v5 §1).
+
+    Returns module/config/signature evidence that masked prediction, EMA
+    target construction, masking schedules, and contrastive weighting are
+    NOT PRESENT. Any presence finding raises (fail closed — the v5 premise
+    would be false).
+    """
+    import inspect
+
+    from representation import v2_objectives as O
+    from representation.v2_config import V2Config
+
+    modules = sorted(type(m).__name__ for m in model.modules())
+    bad_modules = [m for m in modules
+                   if "EMA" in m or "Masked" in m or "Contrastive" in m]
+    if bad_modules:
+        raise ValueError(f"unexpected objective modules: {bad_modules}")
+    fields = set(V2Config.model_fields)
+    bad_fields = [f for f in fields
+                  if "mask" in f or "contrast" in f or "ema" in f.lower()]
+    if bad_fields:
+        raise ValueError(f"unexpected objective fields: {bad_fields}")
+    sig = str(inspect.signature(O.CounterfactualCriterion.__init__))
+    return {"ema_target_modules": [],
+            "masked_prediction_modules": [],
+            "mask_schedule_fields": [],
+            "contrastive_terms": [],
+            "criterion_signature": sig,
+            "verdict": "NOT PRESENT (all four V1 objective families absent)"}
 
 
 def tracking_cosine(pred_shift, true_shift) -> dict[str, float]:
@@ -154,13 +177,15 @@ def self_test() -> int:
         pass
     else:
         raise AssertionError("shape mismatch must raise")
+    for variant in ("nobackground", "nocovariance"):
+        check_c5_knob(variant)  # must NOT raise: real criterion knobs
     for variant in ("mask015", "nocontrast"):
         try:
             check_c5_knob(variant)
-        except ValueError as exc:
-            assert "absent" in str(exc), exc
+        except KeyError:
+            pass  # superseded v3 names are not in C5_VARIANTS at all
         else:
-            raise AssertionError(f"{variant} knob check must fail closed")
+            raise AssertionError(f"{variant} must not be a v5 variant")
     try:
         check_c5_knob("nope")
     except KeyError:
@@ -168,6 +193,7 @@ def self_test() -> int:
     else:
         raise AssertionError("unknown variant must raise KeyError")
     assert MAX_GRAD_RUNS == 2 and MAX_GRAD_STEPS == 300
+    assert RETRAIN_STEPS == 300
     print(json.dumps({"self_test": "PASS"}))
     return 0
 
@@ -207,7 +233,7 @@ def main() -> int:
     ap.add_argument("--mode", choices=("frozen-diag", "retrain", "eval-retrain"),
                     default="frozen-diag")
     ap.add_argument("--checkpoint", choices=("control", "hybrid"), default="control")
-    ap.add_argument("--variant", choices=sorted(C5_VARIANTS), default="mask015")
+    ap.add_argument("--variant", choices=sorted(C5_VARIANTS), default="nobackground")
     ap.add_argument("--ckpt", default="")
     ap.add_argument("--data-root", default="")
     ap.add_argument("--out", default="")
@@ -225,16 +251,15 @@ def main() -> int:
     from representation.v2_objectives import (
         CounterfactualCriterion, synthesize_corrupted_patches)
     from synth import balanced as B
-    from synth import events as E
-    from synth import probe15 as P
-    from synth.chronicle import load_chronological
+    pipe = V2InferencePipeline.load(str(ck_path), device=device)
+    model = pipe.model.eval()
+    absence = audit_absent_objectives(model)
+    log["steps"].append({"absence_audit": absence})
     from synth.config import PatchConfig
     from synth.patchify import Patchifier
 
     if args.mode == "retrain":
-        # Fail closed BEFORE any gradient step, any data touch, any write.
-        check_c5_knob(args.variant)
-        raise ValueError("unreachable: knob present but no approved runner")
+        return _retrain(args)
 
     if args.mode == "eval-retrain":
         return _eval_retrain(args)
@@ -411,8 +436,8 @@ def main() -> int:
     log["steps"].append({"nuisance": nuisance})
 
     metrics = {"mode": "frozen-diag", "checkpoint": args.checkpoint,
-               "sha256": digest, "grad_splits": grad_splits,
-               "nuisance": nuisance,
+               "sha256": digest, "absence_audit": absence,
+               "grad_splits": grad_splits, "nuisance": nuisance,
                "elapsed_s": round(time.time() - t0, 1)}
     (outdir / "metrics.json").write_text(json.dumps(metrics, indent=1,
                                                     sort_keys=True))
@@ -422,6 +447,149 @@ def main() -> int:
                       "elapsed_s": metrics["elapsed_s"],
                       "severities": [g["severity"] for g in grad_splits]},
                      indent=1))
+    return 0
+
+
+def _retrain(args) -> int:
+    """Execute one v5 C5 tiny retrain (control only, exactly 300 steps).
+
+    Fail-closed gates (in order): variant must be a v5 knob (present);
+    checkpoint must be control (v5 §2 budget accounting); output dir must
+    not exist (one-shot, no replacement). Inits EXACTLY from the accepted
+    checkpoint weights; AdamW lr 1e-3; criterion rebuilt from the checkpoint
+    config with ONLY the variant knob zeroed; Fit-healthy compatible files
+    in deterministic manifest order; corruption every 4th valid patch at
+    severity 2.0, generator seed frozen. Asserts step count == RETRAIN_STEPS
+    and loss finiteness every step.
+    """
+    import numpy as np
+    import torch
+
+    from representation.v2_inference import V2InferencePipeline, patch_regime_ids
+    from representation.v2_objectives import (
+        CounterfactualCriterion, synthesize_corrupted_patches)
+    from representation.v2_config import V2Config
+    from synth import balanced as B
+    from synth.chronicle import load_chronological
+    from synth.config import PatchConfig
+    from synth.patchify import Patchifier
+
+    check_c5_knob(args.variant)
+    if args.checkpoint != "control":
+        raise ValueError("v5 retrains execute on control only (budget cap)")
+    if not args.data_root or not args.out:
+        raise ValueError("--data-root and --out are required for retrain")
+    outdir = Path(args.out) / f"retrain-{args.variant}"
+    if outdir.exists() and any(outdir.iterdir()):
+        raise ValueError(f"refusing to replace existing output: {outdir}")
+    outdir.mkdir(parents=True, exist_ok=True)
+    spec = CHECKPOINTS[args.checkpoint]
+    ck_path = Path(spec["path"])
+    if not ck_path.is_file():
+        raise FileNotFoundError(f"checkpoint missing: {ck_path}")
+    digest = sha256_file(ck_path)
+    if digest != spec["sha256"]:
+        raise ValueError(f"checkpoint hash mismatch: {digest}")
+    device = args.device
+    if device == "cuda" and not torch.cuda.is_available():
+        raise ValueError("cuda requested but unavailable")
+    pipe = V2InferencePipeline.load(str(ck_path), device=device)
+    model = pipe.model.train()
+    cfg = pipe.config
+    assert isinstance(cfg, V2Config)
+    knob = {"nobackground": "background_weight",
+            "nocovariance": "covariance_weight"}[args.variant]
+    criterion = CounterfactualCriterion(
+        boundary_margin=cfg.boundary_margin,
+        background_weight=0.0 if knob == "background_weight" else cfg.background_weight,
+        variance_weight=cfg.variance_weight,
+        covariance_weight=0.0 if knob == "covariance_weight" else cfg.covariance_weight)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=RETRAIN_LR)
+    patchifier = Patchifier(PatchConfig())
+    data_root = Path(args.data_root)
+    gen = torch.Generator().manual_seed(RETRAIN_GEN_SEED)
+
+    def file_batches():
+        for role, seed in FIT:
+            root = data_root / "FIT" / role
+            manifest = json.loads((root / "manifest.json").read_text())
+            assert manifest["seeds"]["health"] == seed, f"seed-match:{role}"
+            samples, _ = load_chronological(root)
+            by_id = {s.file_id: s for s in samples}
+            for row in manifest["files"]:
+                if row["file_label"] != "normal" or row["is_quarantined"]:
+                    continue
+                if (row["program_id"] == B.PROGRAM_RESERVE
+                        or row["robot_id"] == B.ROBOT_RESERVE):
+                    continue
+                sample = by_id[row["file_id"]]
+                if sample.robot_idx > 2 or sample.program_idx > 2:
+                    continue
+                x = np.asarray(sample.x, dtype=np.float64)
+                batch = patchifier.patchify(_wrap(x))
+                patches = np.asarray(batch.patches, dtype=np.float64)
+                valid = np.asarray(batch.valid_len, dtype=int)
+                pad = np.asarray(batch.pad_mask, dtype=bool)
+                keep = np.flatnonzero(valid > 0)
+                if keep.size == 0:
+                    continue
+                starts = np.asarray(batch.starts, dtype=int)[keep]
+                regs = patch_regime_ids([sample], starts.reshape(1, -1),
+                                        int(keep.size))
+                cmask = np.zeros(keep.size, dtype=bool)
+                cmask[::CORRUPT_EVERY] = True
+                yield {
+                    "patches": torch.asarray(patches[keep], dtype=torch.float32).unsqueeze(0),
+                    "patch_pad_mask": torch.asarray(pad[keep], dtype=torch.bool).unsqueeze(0),
+                    "patch_valid_mask": torch.ones((1, int(keep.size)), dtype=torch.bool),
+                    "robot_idx": torch.tensor([int(sample.robot_idx)], dtype=torch.long),
+                    "program_idx": torch.tensor([int(sample.program_idx)], dtype=torch.long),
+                    "regime_ids": torch.asarray(np.asarray(regs[0]), dtype=torch.long).unsqueeze(0),
+                    "corruption_mask": torch.asarray(cmask, dtype=torch.bool).unsqueeze(0),
+                    "severity": float(RETRAIN_SEVERITY),
+                }
+
+    history = []
+    steps = 0
+    for batch in file_batches():
+        if steps >= RETRAIN_STEPS:
+            break
+        ten = {k: (v.to(device) if isinstance(v, torch.Tensor) else v)
+               for k, v in batch.items() if k not in ("corruption_mask", "severity")}
+        cm = batch["corruption_mask"].to(device)
+        clean = model(**ten)
+        corrupt_pw = synthesize_corrupted_patches(
+            ten["patches"], ten["patch_pad_mask"], ten["patch_valid_mask"],
+            cm, float(batch["severity"]), generator=gen)
+        corrupt = model(patches=corrupt_pw,
+                        patch_pad_mask=ten["patch_pad_mask"],
+                        patch_valid_mask=ten["patch_valid_mask"],
+                        robot_idx=ten["robot_idx"],
+                        program_idx=ten["program_idx"],
+                        regime_ids=ten["regime_ids"])
+        terms = criterion(
+            clean["patch_latents"], corrupt["patch_latents"],
+            clean["context_energy"], corrupt["context_energy"],
+            ten["patch_valid_mask"], cm, step=steps)
+        loss = terms["loss"]
+        if not torch.isfinite(loss).all():
+            raise ValueError(f"non-finite loss at step {steps}")
+        optimizer.zero_grad()
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+        optimizer.step()
+        history.append({k: float(v.detach().cpu().item()) for k, v in terms.items()})
+        steps += 1
+    if steps != RETRAIN_STEPS:
+        raise ValueError(f"ran {steps} steps, frozen count is {RETRAIN_STEPS}")
+    torch.save({"variant": args.variant, "knob_zeroed": knob,
+                "init_sha256": digest, "steps": steps,
+                "model_state": {k: v.detach().cpu() for k, v in model.state_dict().items()},
+                "history": history},
+               outdir / "retrained.pt")
+    (outdir / "history.json").write_text(json.dumps(history, indent=1))
+    print(json.dumps({"retrain": args.variant, "steps": steps,
+                       "final_loss": history[-1]["loss"]}))
     return 0
 
 
