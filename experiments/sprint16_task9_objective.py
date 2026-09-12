@@ -594,10 +594,10 @@ def _retrain(args) -> int:
         raise ValueError(f"ran {steps} steps, frozen count is {RETRAIN_STEPS}")
     torch.save({"variant": args.variant, "knob_zeroed": knob,
                 "init_sha256": digest, "steps": steps,
+                "config": pipe.config.model_dump(mode="json"),
                 "model_state": {k: v.detach().cpu() for k, v in model.state_dict().items()},
                 "history": history},
                outdir / "retrained.pt")
-    (outdir / "history.json").write_text(json.dumps(history, indent=1))
     print(json.dumps({"retrain": args.variant, "steps": steps,
                        "final_loss": history[-1]["loss"]}))
     return 0
@@ -609,7 +609,6 @@ def _eval_retrain(args) -> int:
     import torch
 
     from representation import attribution_metrics as M
-    from representation.v2_inference import V2InferencePipeline
     from synth import balanced as B
     from synth import events as E
     from synth.chronicle import load_chronological
@@ -620,10 +619,18 @@ def _eval_retrain(args) -> int:
     if not ck_path.is_file():
         raise FileNotFoundError(f"retrained checkpoint missing: {ck_path}")
     digest = sha256_file(ck_path)
-    outdir = Path(args.out) / "eval-retrain"
-    outdir.mkdir(parents=True, exist_ok=True)
-    pipe = V2InferencePipeline.load(str(ck_path), device=args.device)
-    local_enc = pipe.model.local.eval()
+    payload = torch.load(str(ck_path), map_location="cpu", weights_only=False)
+    cfg = payload["config"]
+    from representation.v2_patch import ContextConditionedPatchEncoder
+
+    _model = ContextConditionedPatchEncoder(
+        n_channels=cfg["n_channels"], d_model=cfg["d_model"],
+        n_robots=cfg["n_robots"], n_programs=cfg["n_programs"],
+        n_regimes=cfg["n_regimes"], n_prototypes=cfg["n_prototypes"],
+        sequence_layers=cfg["sequence_layers"],
+        attention_heads=cfg["attention_heads"], dropout=0.0).eval()
+    _model.load_state_dict(payload["model_state"])
+    local_enc = _model.local
     patchifier = Patchifier(PatchConfig())
     data_root = Path(args.data_root)
 
