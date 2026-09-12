@@ -498,7 +498,7 @@ def main() -> int:
                "G-hier": e_h.numpy().astype(np.float64),
                "G-mix": e_m.numpy().astype(np.float64)}
         if fam != "oracle":
-            e_p, _ = batched_mixture_energy(prod_geo, rows_t, rb, pr, rg)
+            e_p, _ = batched_mixture_energy(prod_geo, rows_t, rb, pr)
             out["G-prod"] = e_p.numpy().astype(np.float64)
         return out
 
