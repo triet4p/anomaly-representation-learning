@@ -112,6 +112,13 @@ def main():
     prod_cfg = PatchConfig()
     assert (prod_cfg.patch_size, prod_cfg.stride, prod_cfg.pad_end,
             prod_cfg.pad_value) == (32, 16, True, 0.0), "production geometry"
+    patchifiers = {}
+    for name, (w, s) in GEOMS.items():
+        if name == "prod":
+            patchifiers[name] = Patchifier(prod_cfg)
+        else:
+            patchifiers[name] = Patchifier(PatchConfig(patch_size=w,
+                                                       stride=s))
     outdir = Path(args.out)
     outdir.mkdir(parents=True, exist_ok=True)
     log = {"geometries": {k: list(v) for k, v in GEOMS.items()},
