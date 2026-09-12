@@ -165,3 +165,10 @@
 **Alternatives considered:** Recomputing event scores under Task 15; promoting non-recovery arms as replication targets; treating Task 14 tallies as self-sufficient replication without nuisance quantification.
 **Reason:** Recomputing identical event scores manufactures outcomes without information (protocol double-credit rule); non-recovery arms cannot replicate by definition; §10 and the brief require nuisance/background/severity guardrails that Task 14 records only partially (no FAR/exceedance cells), so a minimal nuisance-only execution is the smallest compliant step.
 **Consequences:** Task 15 claims new evidence only for R3 nuisance cells; replication tallies cite Task 14 JSONs; Task 16 applies vetoes and verdicts; the R1-R5 rule text in the committed driver is the freeze record for any resumed execution.
+
+## [2026-09-12] Apply §10 verdicts mechanically: six SUSPECTs, one HEALTHY, overall UNRESOLVED
+
+**Decision:** Verdict C1 UNRESOLVED/NOT PRESENT, C4 HEALTHY (R1, movement zero by unexecuted-but-unmotivated bypass), C2/C3/C5/C6/C7/C8/C9 SUSPECT (R4 for C2/C3/C7 where a measurable gap exists without restoration/replication; R2 for C5/C6/C8/C9 where movement exists without production-side loss, with P3 caps on C3/C5), overall state UNRESOLVED with zero BOTTLENECKs.
+**Alternatives considered:** Promoting C7 bank-swap to BOTTLENECK on directional replication; calling C4/C6/C8/C9 HEALTHY despite measured movement; leaving mixed R0/R4 cells unaggregated without a stated rule.
+**Reason:** Full up+gap+post audit peaks at 1/4 replication for C7 (macro and subtype), so no R3 path exists and P4/P5 forbid promotion; movement ≥0.05 mechanically fires R2 for C5/C6/C8/C9 with direction notes preventing misread as production fault; the least-favorable-firing-row aggregation is declared explicitly so mixed R0/R4 cells resolve deterministically.
+**Consequences:** Task 17 may scope only SUSPECT-bounded diagnostics, never a C7 production bank rewrite as a proven fix; future agents must not upgrade any verdict without new replicated intervention evidence under the same R0-R4 mechanics.
