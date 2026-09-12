@@ -41,6 +41,18 @@ from types import SimpleNamespace
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
+CHECKPOINTS = {
+    "control": {
+        "path": ("/tmp/sprint11-task30-corrected-control/full/"
+                 "control-normal-only/default/v2_checkpoint.pt"),
+        "sha256": "8bdb845b17a788ad39101e0f98c0654edb55727f0eec540ca44046b63dba2b7c",
+    },
+    "hybrid": {
+        "path": ("/tmp/sprint11-task31-corrected-hybrid/full/"
+                 "hybrid-boundary/default/v2_checkpoint.pt"),
+        "sha256": "76be843b0a5fa94c8cdd646e2734c804498f9c38088ed71c3f16f9aa97e2cc94",
+    },
+}
 FIT = (("H-FIT-28", 1604), ("H-FIT-29", 1605), ("H-FIT-30", 1606))
 CONF = (("H-CONF-34", 1608), ("H-CONF-35", 1609), ("H-CONF-36", 1610),
         ("H-CONF-37", 1611))
