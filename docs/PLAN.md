@@ -17,7 +17,7 @@ it does not claim that Sprint 16 identified a causal bottleneck.
 
 ## Current Sprint
 
- [Sprint 17 — Controlled Suspect-Component Architecture Ablation](sprint-plans/sprint-17.md) is **ACTIVE for Batch C / Tasks 10–18 only**. Tasks 1–9 are complete: Batch A and Batch B evidence reviews both passed with zero actionable findings. Execute all 14 registered individual alternatives and deterministic Development-only selection under protocol-v4 `MEASURABLE_WITH_USER_WAIVER`; Confirmation and Sprint 15 Sealed histories remain untouched. Stop before Batch D / Task 19 unless explicitly resumed.
+ [Sprint 17 — Controlled Suspect-Component Architecture Ablation](sprint-plans/sprint-17.md) is **PAUSED before Batch D / Task 19**. Tasks 1–18 are complete; Batch A, B, and C evidence reviews passed with zero actionable findings. All 14 individual alternatives were `VALID_NEGATIVE`; deterministic Development selection froze `{C2-A, C3-A, C5-A, C6-A, C7-A, C8-A, C9-B}` with no recovery claim under protocol-v4 `MEASURABLE_WITH_USER_WAIVER`. Confirmation and Sprint 15 Sealed histories remain untouched. Resume requires new explicit user instruction.
 
 ## Paused Sprints
 
@@ -62,7 +62,7 @@ it does not claim that Sprint 16 identified a causal bottleneck.
 | 20 | Benchmark measurability recovery with independent confirmation and sealed generalization | Complete — Sprint 14 (`NOT_MEASURABLE`) |
 | 21 | Balanced causal benchmark recovery and measurability certification | Complete — Sprint 15 (final `MEASURABLE`; Task 22 DONE; post-final evidence review R2 PASS with 0 actionable findings) |
 | 22 | Causal localization of representation-to-score bottlenecks | Complete — Sprint 16 (`UNRESOLVED`; R1→R7 lineage recorded; zero valid bottleneck paths) |
-| 23 | Controlled single-component and interaction ablation of provisional representation-to-score suspects | Active — Sprint 17 Batch C only (Tasks 1–17 complete; Task 18 next; execute 14 individual alternatives plus deterministic Development-only selection; Confirmation and Sealed untouched; stop before Batch D) |
+| 23 | Controlled single-component and interaction ablation of provisional representation-to-score suspects | Paused — Sprint 17 before Batch D / Task 19 (Tasks 1–18 complete; Batch A/B/C reviews PASS with zero actionable findings; 14/14 singles `VALID_NEGATIVE`; selected C2-A/C3-A/C5-A/C6-A/C7-A/C8-A/C9-B; Confirmation and Sealed untouched) |
 
 ## High-Level Design Decisions
 
