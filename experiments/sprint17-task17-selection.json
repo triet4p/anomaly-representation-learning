@@ -1,0 +1,497 @@
+{
+ "components": {
+  "C2": {
+   "arms": {
+    "C2-A": {
+     "abs_flop_delta": 0.0,
+     "abs_param_delta": 0.0,
+     "delta_p": 2.0350020350020277e-05,
+     "delta_pw": -1.0312510312360246e-07,
+     "delta_w": -2.564102564102851e-05,
+     "gates": {
+      "P_noninferiority": true,
+      "W_noninferiority": true,
+      "background_stability": true,
+      "compute_envelope": true,
+      "eligible": true,
+      "finite_and_support": true,
+      "minimum_effect": false,
+      "nuisance": true,
+      "score_separation": true
+     },
+     "lcb_pw": 0.630059138216432,
+     "min_delta_p_w": -2.564102564102851e-05,
+     "rankable": true,
+     "spop_delta_pw": -2.2515803598318247e-05,
+     "status": "VALID_NEGATIVE",
+     "support_match_B0": true
+    },
+    "C2-B": {
+     "abs_flop_delta": 0.033086165732180116,
+     "abs_param_delta": 0.0,
+     "delta_p": -0.004107355148283827,
+     "delta_pw": -0.0044133930934630765,
+     "delta_w": -0.0058722558393022135,
+     "gates": {
+      "P_noninferiority": true,
+      "W_noninferiority": true,
+      "background_stability": false,
+      "compute_envelope": true,
+      "eligible": true,
+      "finite_and_support": true,
+      "minimum_effect": false,
+      "nuisance": true,
+      "score_separation": true
+     },
+     "lcb_pw": 0.6390372981295047,
+     "min_delta_p_w": -0.0058722558393022135,
+     "rankable": true,
+     "spop_delta_pw": 0.004745934799032847,
+     "status": "VALID_NEGATIVE",
+     "support_match_B0": true
+    }
+   },
+   "ranking": [
+    "C2-A",
+    "C2-B"
+   ],
+   "selected": "C2-A",
+   "tie_note": null,
+   "unresolved": false
+  },
+  "C3": {
+   "arms": {
+    "C3-A": {
+     "abs_flop_delta": 0.02511382622570107,
+     "abs_param_delta": 0.00056211292980505,
+     "delta_p": -0.018421006422263592,
+     "delta_pw": -0.01007096548106882,
+     "delta_w": -0.00032594619278392134,
+     "gates": {
+      "P_noninferiority": true,
+      "W_noninferiority": true,
+      "background_stability": true,
+      "compute_envelope": true,
+      "eligible": true,
+      "finite_and_support": true,
+      "minimum_effect": false,
+      "nuisance": true,
+      "score_separation": true
+     },
+     "lcb_pw": 0.613961215263199,
+     "min_delta_p_w": -0.018421006422263592,
+     "rankable": true,
+     "spop_delta_pw": -0.00860868757255743,
+     "status": "VALID_NEGATIVE",
+     "support_match_B0": true
+    },
+    "C3-B": {
+     "abs_flop_delta": 0.01116170054475603,
+     "abs_param_delta": 6.58726089615293e-06,
+     "delta_p": -0.019568264682659525,
+     "delta_pw": -0.015301104035036225,
+     "delta_w": -0.0100495802651267,
+     "gates": {
+      "P_noninferiority": true,
+      "W_noninferiority": true,
+      "background_stability": false,
+      "compute_envelope": true,
+      "eligible": true,
+      "finite_and_support": true,
+      "minimum_effect": false,
+      "nuisance": true,
+      "score_separation": true
+     },
+     "lcb_pw": 0.6111653315996022,
+     "min_delta_p_w": -0.019568264682659525,
+     "rankable": true,
+     "spop_delta_pw": -0.0033444538095369625,
+     "status": "VALID_NEGATIVE",
+     "support_match_B0": true
+    }
+   },
+   "ranking": [
+    "C3-A",
+    "C3-B"
+   ],
+   "selected": "C3-A",
+   "tie_note": null,
+   "unresolved": false
+  },
+  "C5": {
+   "arms": {
+    "C5-A": {
+     "abs_flop_delta": 0.0,
+     "abs_param_delta": 0.0,
+     "delta_p": 0.028696335214799012,
+     "delta_pw": 0.032334926203523996,
+     "delta_w": 0.03700705296918668,
+     "gates": {
+      "P_noninferiority": true,
+      "W_noninferiority": true,
+      "background_stability": false,
+      "compute_envelope": true,
+      "eligible": true,
+      "finite_and_support": true,
+      "minimum_effect": false,
+      "nuisance": true,
+      "score_separation": true
+     },
+     "lcb_pw": 0.6826334818305313,
+     "min_delta_p_w": 0.028696335214799012,
+     "rankable": true,
+     "spop_delta_pw": 0.0022749039623895704,
+     "status": "VALID_NEGATIVE",
+     "support_match_B0": true
+    },
+    "C5-B": {
+     "abs_flop_delta": 0.0,
+     "abs_param_delta": 0.0,
+     "delta_p": 2.0350020350020277e-05,
+     "delta_pw": 1.1446886446867902e-05,
+     "delta_w": 0.0,
+     "gates": {
+      "P_noninferiority": true,
+      "W_noninferiority": true,
+      "background_stability": true,
+      "compute_envelope": true,
+      "eligible": true,
+      "finite_and_support": true,
+      "minimum_effect": false,
+      "nuisance": true,
+      "score_separation": true
+     },
+     "lcb_pw": 0.630059138216432,
+     "min_delta_p_w": 0.0,
+     "rankable": true,
+     "spop_delta_pw": 4.810943985781672e-07,
+     "status": "VALID_NEGATIVE",
+     "support_match_B0": true
+    }
+   },
+   "ranking": [
+    "C5-A",
+    "C5-B"
+   ],
+   "selected": "C5-A",
+   "tie_note": null,
+   "unresolved": false
+  },
+  "C6": {
+   "arms": {
+    "C6-A": {
+     "abs_flop_delta": 0.0003600548562824526,
+     "abs_param_delta": 0.01805787786998723,
+     "delta_p": 0.00810936290541775,
+     "delta_pw": 0.008968441594149187,
+     "delta_w": 0.010271381101613297,
+     "gates": {
+      "P_noninferiority": true,
+      "W_noninferiority": true,
+      "background_stability": false,
+      "compute_envelope": true,
+      "eligible": true,
+      "finite_and_support": true,
+      "minimum_effect": false,
+      "nuisance": true,
+      "score_separation": true
+     },
+     "lcb_pw": 0.646096946353061,
+     "min_delta_p_w": 0.00810936290541775,
+     "rankable": true,
+     "spop_delta_pw": 0.016848281019405942,
+     "status": "VALID_NEGATIVE",
+     "support_match_B0": true
+    },
+    "C6-B": {
+     "abs_flop_delta": 0.0028013252343772463,
+     "abs_param_delta": 0.004550150464017636,
+     "delta_p": -0.01728902910368239,
+     "delta_pw": -0.015497267681295224,
+     "delta_w": -0.012435697386049585,
+     "gates": {
+      "P_noninferiority": true,
+      "W_noninferiority": true,
+      "background_stability": false,
+      "compute_envelope": true,
+      "eligible": true,
+      "finite_and_support": true,
+      "minimum_effect": false,
+      "nuisance": true,
+      "score_separation": true
+     },
+     "lcb_pw": 0.6150386656415182,
+     "min_delta_p_w": -0.01728902910368239,
+     "rankable": true,
+     "spop_delta_pw": -0.004063905203039934,
+     "status": "VALID_NEGATIVE",
+     "support_match_B0": true
+    }
+   },
+   "ranking": [
+    "C6-A",
+    "C6-B"
+   ],
+   "selected": "C6-A",
+   "tie_note": null,
+   "unresolved": false
+  },
+  "C7": {
+   "arms": {
+    "C7-A": {
+     "abs_flop_delta": 0.0,
+     "abs_param_delta": 0.0,
+     "delta_p": 0.0,
+     "delta_pw": 0.0,
+     "delta_w": 0.0,
+     "gates": {
+      "P_noninferiority": true,
+      "W_noninferiority": true,
+      "background_stability": true,
+      "compute_envelope": true,
+      "eligible": true,
+      "finite_and_support": true,
+      "minimum_effect": false,
+      "nuisance": true,
+      "score_separation": true
+     },
+     "lcb_pw": 0.6300476913299852,
+     "min_delta_p_w": 0.0,
+     "rankable": true,
+     "spop_delta_pw": -0.012823271190627428,
+     "status": "VALID_NEGATIVE",
+     "support_match_B0": true
+    },
+    "C7-B": {
+     "abs_flop_delta": 0.0,
+     "abs_param_delta": 0.0,
+     "delta_p": 0.0,
+     "delta_pw": 0.0,
+     "delta_w": 0.0,
+     "gates": {
+      "P_noninferiority": true,
+      "W_noninferiority": true,
+      "background_stability": true,
+      "compute_envelope": true,
+      "eligible": true,
+      "finite_and_support": true,
+      "minimum_effect": false,
+      "nuisance": true,
+      "score_separation": true
+     },
+     "lcb_pw": 0.6300476913299852,
+     "min_delta_p_w": 0.0,
+     "rankable": true,
+     "spop_delta_pw": -0.0016012398291704126,
+     "status": "VALID_NEGATIVE",
+     "support_match_B0": true
+    }
+   },
+   "ranking": [
+    "C7-A",
+    "C7-B"
+   ],
+   "selected": "C7-A",
+   "tie_note": "exact tie through levels 1-4 (\u0394PW=0.0, min(\u0394P,\u0394W)=0.0, LCB=0.6300476913299852, |\u0394params|=0.0, |\u0394flops|=0.0); level-5 lexical decides",
+   "unresolved": false
+  },
+  "C8": {
+   "arms": {
+    "C8-A": {
+     "abs_flop_delta": 0.0,
+     "abs_param_delta": 0.0,
+     "delta_p": 0.0017125682337261194,
+     "delta_pw": 0.004356175642764877,
+     "delta_w": 0.006890218036640102,
+     "gates": {
+      "P_noninferiority": true,
+      "W_noninferiority": true,
+      "background_stability": false,
+      "compute_envelope": true,
+      "eligible": true,
+      "finite_and_support": true,
+      "minimum_effect": false,
+      "nuisance": true,
+      "score_separation": true
+     },
+     "lcb_pw": 0.6393186149323745,
+     "min_delta_p_w": 0.0017125682337261194,
+     "rankable": true,
+     "spop_delta_pw": 0.0,
+     "status": "VALID_NEGATIVE",
+     "support_match_B0": true
+    },
+    "C8-B": {
+     "abs_flop_delta": 0.0,
+     "abs_param_delta": 0.0,
+     "delta_p": -0.00033741971520728775,
+     "delta_pw": -0.0003840809543401713,
+     "delta_w": -0.0004450716306207229,
+     "gates": {
+      "P_noninferiority": true,
+      "W_noninferiority": true,
+      "background_stability": false,
+      "compute_envelope": true,
+      "eligible": true,
+      "finite_and_support": true,
+      "minimum_effect": false,
+      "nuisance": true,
+      "score_separation": true
+     },
+     "lcb_pw": 0.629627620484514,
+     "min_delta_p_w": -0.0004450716306207229,
+     "rankable": true,
+     "spop_delta_pw": 0.0,
+     "status": "VALID_NEGATIVE",
+     "support_match_B0": true
+    }
+   },
+   "ranking": [
+    "C8-A",
+    "C8-B"
+   ],
+   "selected": "C8-A",
+   "tie_note": null,
+   "unresolved": false
+  },
+  "C9": {
+   "arms": {
+    "C9-A": {
+     "abs_flop_delta": 0.0,
+     "abs_param_delta": 0.0,
+     "delta_p": -0.0066647772496229996,
+     "delta_pw": -0.008666080208195074,
+     "delta_w": -0.010602421505560308,
+     "gates": {
+      "P_noninferiority": true,
+      "W_noninferiority": true,
+      "background_stability": false,
+      "compute_envelope": true,
+      "eligible": true,
+      "finite_and_support": true,
+      "minimum_effect": false,
+      "nuisance": true,
+      "score_separation": true
+     },
+     "lcb_pw": 0.6087903101632405,
+     "min_delta_p_w": -0.010602421505560308,
+     "rankable": true,
+     "spop_delta_pw": 0.0,
+     "status": "VALID_NEGATIVE",
+     "support_match_B0": true
+    },
+    "C9-B": {
+     "abs_flop_delta": 0.0,
+     "abs_param_delta": 0.0,
+     "delta_p": -0.007089590091994687,
+     "delta_pw": -0.007333795257505475,
+     "delta_w": -0.006565142554360914,
+     "gates": {
+      "P_noninferiority": true,
+      "W_noninferiority": true,
+      "background_stability": false,
+      "compute_envelope": true,
+      "eligible": true,
+      "finite_and_support": true,
+      "minimum_effect": false,
+      "nuisance": true,
+      "score_separation": true
+     },
+     "lcb_pw": 0.6431000730404813,
+     "min_delta_p_w": -0.007089590091994687,
+     "rankable": true,
+     "spop_delta_pw": 0.0,
+     "status": "VALID_NEGATIVE",
+     "support_match_B0": true
+    }
+   },
+   "ranking": [
+    "C9-B",
+    "C9-A"
+   ],
+   "selected": "C9-B",
+   "tie_note": null,
+   "unresolved": false
+  }
+ },
+ "confirmation_sealed_access": false,
+ "inputs": {
+  "binding_sha256": "e73fee24cf84b60d17cbe4013ecc77ddace6e9132286ca8b65155039dd47a679",
+  "reviews": {
+   "artifacts/sprint-17/review-batch-a.md": {
+    "sha256": "a11e56be226f77310b08cd0c6003e274d83843e204a16b83548cc04760aeb9f4",
+    "verdict": "PASS"
+   },
+   "artifacts/sprint-17/review-batch-b.md": {
+    "sha256": "67fc2481b371318e8600285198fe2d148739b619fa051707e03b9e66ed3005e3",
+    "verdict": "PASS"
+   },
+   "artifacts/sprint-17/review-task10.md": {
+    "sha256": "6d0e0ae3024214aaa4aeaedbf53e28c04f67180a81e7aa3a9957b4013de779ce",
+    "verdict": "PASS"
+   },
+   "artifacts/sprint-17/review-task11.md": {
+    "sha256": "b35e4cd8c6804223bd26bac879aebb7ed5924aa56bb6791acea76ed9d24177c4",
+    "verdict": "PASS"
+   },
+   "artifacts/sprint-17/review-task12.md": {
+    "sha256": "a3a7457c99a8bb570e97a195da8951edde342736f7b5f8d3695b5293ed0a6cbf",
+    "verdict": "PASS"
+   },
+   "artifacts/sprint-17/review-task13.md": {
+    "sha256": "d1bdda991a4d59642fe5fb13affa65d98e36e930bd83249153d87ff221020e02",
+    "verdict": "PASS"
+   },
+   "artifacts/sprint-17/review-task14.md": {
+    "sha256": "1b0f3fe220a6897993756cb58eff69963e83b0c9ae0e049515073d64bc02866c",
+    "verdict": "PASS"
+   },
+   "artifacts/sprint-17/review-task15.md": {
+    "sha256": "ecb8d443615e2f97e8c7eaf098123483949791ab5a48ccef3e4bc77f5f9dab66",
+    "verdict": "PASS"
+   },
+   "artifacts/sprint-17/review-task16.md": {
+    "sha256": "25b183394b2f7277ae0a2146a8e3f771a340f4c3221cdc545c3313ad27c753b6",
+    "verdict": "PASS"
+   }
+  },
+  "rule_sha256": "35a0526b4b26b6003589fa2498b075abd9c3172a1dedf443ebdb396cc6df4482",
+  "summaries": {
+   "C2": "7be59de042e81e1d4b61fa1e796690558b3b834dee595a02578f1b12532cd69a",
+   "C3": "177816890cff7180184ef41d8edbaf63d300954a6ccbe115b4dc056659a95957",
+   "C5": "3f0a656fbcd049f47c5849ce54dd3a6498e6428c8f87c1fe75d281f313df48f3",
+   "C6": "cfdde3d085ad254bbf2eda08a90d870547893ac1b0d550e43bbca7bcd4dbad73",
+   "C7": "255d9299a497c881f348454b4b5d717bdf61afcedb3b5e3dc722c3e619ff8a45",
+   "C8": "10ae92ed5887973b3f0630c3956ef880c1d310548e07fdd2768321ffdd091117",
+   "C9": "7353a3f636fc3029d2d2d787a3d1e670a92958bf5c5863363af96a642d28f12a"
+  }
+ },
+ "no_new_execution": true,
+ "phase": "development",
+ "protocol_id": "sprint17-ablation-v4",
+ "qualification": "MEASURABLE_WITH_USER_WAIVER",
+ "recovery": false,
+ "rule": {
+  "citation": "experiments/sprint17-ablation-protocol-v4.md \u00a75 (validity) and \u00a75.1 (promotion rule)",
+  "primary_readout": "S_pred paired Development Delta_PW macro (schema primary_PW; uniform across all 14 arms)",
+  "tie_breaks": [
+   "larger min(Delta_P, Delta_W)",
+   "larger history-block P+W LCB",
+   "smaller absolute parameter delta",
+   "smaller absolute FLOP delta",
+   "lexical arm ID"
+  ]
+ },
+ "schema_id": "sprint17-ablation-result-v4",
+ "selected": {
+  "C2": "C2-A",
+  "C3": "C3-A",
+  "C5": "C5-A",
+  "C6": "C6-A",
+  "C7": "C7-A",
+  "C8": "C8-A",
+  "C9": "C9-B"
+ },
+ "task": "Task 17 \u2014 deterministic Development-only per-component selection",
+ "unresolved_components": []
+}
