@@ -31,13 +31,17 @@ def apply_batched_masking(
     *,
     seed: int | None = None,
     rng: np.random.Generator | None = None,
+    policy=None,
 ) -> RepresentationBatch:
     """Apply the existing NumPy policy independently to each batch row.
 
     ``synth.masking.apply_masking`` remains the source of truth for strategy
     composition and exact valid-patch counts. This bridge only converts one
     padded torch row to ``PatchBatch`` and restores the resulting boolean mask
-    to the original device.
+    to the original device. An optional ``policy`` callable
+    ``(n_patches, valid_indices, target, rng) -> (mask, composition)`` may
+    replace the strategy composition for registered alternatives while the
+    frozen total-count rule stays in this bridge; ``None`` is the B0 path.
     """
     validate_batch(batch)
     if rng is not None and seed is not None:
@@ -65,10 +69,27 @@ def apply_batched_masking(
             pad_mask=pad_mask[index].detach().cpu().numpy().astype(bool, copy=False),
             file_sample=sample,
         )
-        result = apply_masking(patch_batch, synth_config, rng)
-        masks[index] = torch.from_numpy(result.mask).to(device=masks.device)
-        compositions.append(dict(result.composition))
-        ratios.append(float(result.total_ratio))
+        if policy is None:
+            result = apply_masking(patch_batch, synth_config, rng)
+            masks[index] = torch.from_numpy(result.mask).to(device=masks.device)
+            compositions.append(dict(result.composition))
+            ratios.append(float(result.total_ratio))
+        else:
+            valid_indices = np.flatnonzero(
+                ~patch_batch.pad_mask.all(axis=1)).astype(np.int64)
+            n_valid = int(valid_indices.size)
+            ratio = float(np.clip(synth_config.total_mask_ratio, 0.0, 1.0))
+            target = min(n_valid, int(round(ratio * n_valid)))
+            pmask, composition = policy(patch_batch.N, valid_indices,
+                                        target, rng)
+            pmask = np.asarray(pmask, dtype=bool).reshape(-1)
+            if pmask.shape[0] != patch_batch.N:
+                raise ValueError("masking policy must return one flag per patch")
+            if bool((pmask & patch_batch.pad_mask.all(axis=1)).any()):
+                raise ValueError("masking policy must mask valid patches only")
+            masks[index] = torch.from_numpy(pmask).to(device=masks.device)
+            compositions.append(dict(composition))
+            ratios.append(float(pmask.sum()) / n_valid if n_valid else 0.0)
 
     output: RepresentationBatch = dict(batch)
     output["mask"] = masks

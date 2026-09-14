@@ -52,13 +52,13 @@ class FileDataset(IterableDataset):
                 continue
             yield sample
 
-
 def collate_variable_files(
     samples: Sequence[FileSample],
     patchifier: Patchifier,
     *,
     masking_config: V1Config | MaskingConfig | None = None,
     masking_seed: int | None = None,
+    masking_policy=None,
 ) -> RepresentationBatch:
     """Pad complete files only within a minibatch and attach patch metadata.
 
@@ -160,5 +160,6 @@ def collate_variable_files(
             batch,
             masking_config,
             seed=masking_seed,
+            policy=masking_policy,
         )
     return batch
