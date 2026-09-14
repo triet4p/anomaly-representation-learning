@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable, Iterator, Sequence
 from pathlib import Path
 
+import numpy as np
 import torch
 from torch.utils.data import IterableDataset, get_worker_info
 
@@ -127,6 +128,26 @@ def collate_variable_files(
             [getattr(sample, "program_idx", 0) for sample in samples], dtype=torch.long
         ),
     }
+    # Optional C2 support weights (duck-typed hook): when the patchifier emits
+    # per-patch weights for every file, attach the zero-padded float32 tensor
+    # for unit-mass file pooling; otherwise omit the key (B0 path unchanged).
+    weights_hook = getattr(patchifier, "support_weights_for", None)
+    if weights_hook is not None:
+        weight_rows = [weights_hook(pb.starts, pb.valid_len, int(pb.file_sample.T))
+                       for pb in patch_batches]
+        if any(row is not None for row in weight_rows):
+            support = torch.zeros((batch_size, max_patches), dtype=torch.float32)
+            for batch_index, (patch_batch, row) in enumerate(
+                    zip(patch_batches, weight_rows)):
+                if row is None:
+                    continue
+                w = torch.from_numpy(
+                    np.asarray(row, dtype=np.float32).reshape(-1))
+                if w.shape[0] != patch_batch.N:
+                    raise ValueError(
+                        "support weights must match the patch count")
+                support[batch_index, :w.shape[0]] = w
+            batch["patch_support_weights"] = support
     validate_batch(batch)
     batch["file_labels"] = [sample.file_label for sample in samples]
     batch["anomaly_meta"] = [sample.anomaly_meta for sample in samples]

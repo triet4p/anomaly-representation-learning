@@ -88,9 +88,18 @@ class V1RepresentationModel(nn.Module):
         return context, target.detach(), predicted, prediction_mask
 
     @staticmethod
-    def _pool_file(latents: torch.Tensor, valid: torch.Tensor) -> torch.Tensor:
-        weights = valid.to(latents.dtype).unsqueeze(-1)
-        return (latents * weights).sum(dim=1) / weights.sum(dim=1).clamp_min(1.0)
+    def _pool_file(latents: torch.Tensor, valid: torch.Tensor,
+                   weights: torch.Tensor | None = None) -> torch.Tensor:
+        if weights is None:
+            w = valid.to(latents.dtype).unsqueeze(-1)
+            return (latents * w).sum(dim=1) / w.sum(dim=1).clamp_min(1.0)
+        if tuple(weights.shape) != tuple(valid.shape):
+            raise ValueError(
+                f"support weights shape {tuple(weights.shape)} != valid shape "
+                f"{tuple(valid.shape)}")
+        w = weights.to(device=latents.device, dtype=latents.dtype).unsqueeze(-1)
+        w = w * valid.to(latents.dtype).unsqueeze(-1)
+        return (latents * w).sum(dim=1) / w.sum(dim=1).clamp_min(1e-6)
 
     def get_extra_state(self) -> dict[str, object]:
         """Serialize augmentation RNG state with model checkpoints."""
@@ -173,7 +182,22 @@ class V1RepresentationModel(nn.Module):
                 patches = patches.masked_fill(pad_mask.unsqueeze(2), 0.0)
             local = self.patch_encoder(patches, pad_mask)
             contextual = self.context_encoder(local, valid)
-            pooled = self._pool_file(contextual, valid)
+            view_weights = None
+            hook = getattr(self.patchifier, "support_weights_for", None)
+            if hook is not None:
+                rows = [hook(pb.starts, pb.valid_len, int(pb.file_sample.T))
+                        for pb in patch_batches]
+                if any(r is not None for r in rows):
+                    view_weights = torch.zeros(
+                        (len(patch_batches), max_patches),
+                        device=device, dtype=dtype)
+                    for index, (pb, row) in enumerate(zip(patch_batches, rows)):
+                        if row is None:
+                            continue
+                        view_weights[index, :pb.N] = torch.from_numpy(
+                            np.asarray(row, dtype=np.float32)).to(
+                                device=device, dtype=dtype)
+            pooled = self._pool_file(contextual, valid, view_weights)
             embeddings[view_index].append(self.project_contrastive(pooled))
         return torch.cat(embeddings[0], dim=0), torch.cat(embeddings[1], dim=0)
     def forward(self, batch: RepresentationBatch) -> RepresentationOutput:
@@ -202,7 +226,10 @@ class V1RepresentationModel(nn.Module):
             batch["patch_valid_mask"],
             batch["mask"],
         )
-        file_embedding = self._pool_file(context, batch["patch_valid_mask"])
+        weights = batch.get("patch_support_weights")
+        file_embedding = self._pool_file(
+            context, batch["patch_valid_mask"],
+            weights if isinstance(weights, torch.Tensor) else None)
         output: RepresentationOutput = {
             "context_latents": context,
             "target_latents": target,

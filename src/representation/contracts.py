@@ -35,7 +35,7 @@ class RepresentationBatch(TypedDict):
     file_samples: NotRequired[Sequence[FileSample]]
     mask_composition: NotRequired[Sequence[Mapping[str, int]]]
     mask_ratio: NotRequired[torch.Tensor]  # float [B]
-
+    patch_support_weights: NotRequired[torch.Tensor]  # float [B, N], unit-mass C2 support
 
 class RepresentationOutput(TypedDict):
     """Outputs consumed by V1 criteria and inference."""
@@ -127,6 +127,15 @@ def validate_batch(batch: Mapping[str, object]) -> None:
         raise ValueError("valid_len must be within [0, patch_size]")
     if torch.any(pad_mask[:, :, :].sum(dim=-1) != (w - valid_len)):
         raise ValueError("patch_pad_mask must agree with valid_len")
+    weights = batch.get("patch_support_weights")
+    if weights is not None:
+        if not isinstance(weights, torch.Tensor):
+            raise ValueError("patch_support_weights must be a torch tensor")
+        if tuple(weights.shape) != (b, n):
+            raise ValueError(
+                f"patch_support_weights shape {tuple(weights.shape)} != ({b}, {n})")
+        if not weights.is_floating_point():
+            raise ValueError("patch_support_weights must be floating point")
 
 
 def validate_output(output: Mapping[str, object]) -> None:
