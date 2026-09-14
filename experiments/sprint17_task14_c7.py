@@ -139,7 +139,10 @@ B0_CACHE_SHA256 = {
     },
 }
 #: Fidelity gate: reloaded-forward vs hash-verified B0 cache, max abs diff.
-FIDELITY_ATOL = 1e-4
+#: 1e-3 bounds the known GPU-train -> CPU-forward float wobble (Task 8
+#: measured 9.37e-06 S_pred / 5.53e-04 S_pop abs on the same rescore path);
+#: a wrong checkpoint/code path differs by orders of magnitude more.
+FIDELITY_ATOL = 1e-3
 
 #: Reference input length for the frozen FLOP count (near the Fit T median).
 FLOP_REFERENCE_T = 512
