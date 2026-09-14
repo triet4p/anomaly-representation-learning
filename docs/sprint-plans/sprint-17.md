@@ -108,7 +108,7 @@ Status legend: [ ] pending / [~] in progress / [x] done.
 
 ### Batch B — Unchanged architecture baseline
 
-- [ ] **Task 7 — Train and evaluate `B0` on Development.** Retrain the unchanged architecture on frozen Fit across all model seeds, refit its healthy bank on Fit, calibrate by the frozen rule, and produce Development metrics/caches. Evidence: `artifacts/sprint-17/task-7.md`.
+- [x] **Task 7 — Train and evaluate `B0` on Development.** Retrain the unchanged architecture on frozen Fit across all model seeds, refit its healthy bank on Fit, calibrate by the frozen rule, and produce Development metrics/caches. Evidence: `artifacts/sprint-17/task-7.md`. (Done: 3 seeds × 300 steps @ `8c15f02` on RTX 4060 Ti; Fit bank 5040 rows; q95 calibration; S_pred P+W 0.668/0.666/0.682, S_pop 0.688/0.663/0.691; schema-validated `VALID_NEGATIVE`; Task 8/9 and Batch C remain pending.)
 - [ ] **Task 8 — Audit baseline reproducibility and support.** Confirm deterministic config identity, seed-complete runs, finite outputs, common event support, score separation, parameter/compute accounting, and measurable oracle ceiling. Evidence: `artifacts/sprint-17/task-8.md`.
 - [ ] **Task 9 — Pass Batch B evidence review.** Require an eligible, reproducible `B0` before any alternative comparison. Evidence: `artifacts/sprint-17/review-batch-b.md`.
 
