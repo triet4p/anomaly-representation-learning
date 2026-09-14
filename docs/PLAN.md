@@ -11,17 +11,19 @@ coverage for identifiable early-warning evaluation. Sprint 13 and Sprint 14 both
 reviewed `NOT_MEASURABLE` verdicts. Sprint 15 recovered a balanced causal benchmark and
 closed `MEASURABLE`; its mandatory post-final evidence review passed with zero actionable
 findings. Sprint 16 representation attribution is complete with Deep Review R7 PASS; its
-accepted scientific state remains `UNRESOLVED`.
+accepted scientific state remains `UNRESOLVED`. Sprint 17 is now active as an explicitly
+user-authorized controlled diagnostic ablation over the seven provisional SUSPECT components;
+it does not claim that Sprint 16 identified a causal bottleneck.
 
 ## Current Sprint
 
-No sprint is active. [Sprint 16 — Representation Failure Localization and Component Attribution](sprint-plans/sprint-16.md) is **COMPLETE**. Deep Review R7 under the updated provider PASSED with zero actionable findings (`history://Sprint16DeepReviewR7:270-272`); Task 19 is finalized. Attribution remains `UNRESOLVED` with zero valid bottleneck paths, and Sprint 17 recovery scope is empty/not authorized. This is not a production-recovery, independent sealed-performance, early-warning utility, or calibrated-risk claim. Sealed H-SEAL-37..40 remain forbidden to open/score/probe.
+ [Sprint 17 — Controlled Suspect-Component Architecture Ablation](sprint-plans/sprint-17.md) is **ACTIVE for Batch B only** by explicit user instruction. Tasks 1–6 are accepted with Batch A PASS and zero actionable findings. Protocol v4 retains the exact post-observation one-cell waiver and qualified `MEASURABLE_WITH_USER_WAIVER`. Execute Tasks 7–9, including the Batch B zero-actionable evidence gate, then pause before Batch C / Task 10; Sprint 15 Sealed histories and Confirmation remain prohibited.
 
 ## Paused Sprints
 
 - [Sprint 4 — Joint Training Stabilization and Rerun Export](sprint-plans/sprint-4.md) — **Paused with Tasks 15–22 pending**
 ## Completed Sprints
-- [Sprint 16 — Representation Failure Localization and Component Attribution](sprint-plans/sprint-16.md) — **Complete (`UNRESOLVED`; Task 19 DONE; Deep Review R7 PASS with zero actionable findings; Sprint 17 recovery scope empty/not authorized).**
+- [Sprint 16 — Representation Failure Localization and Component Attribution](sprint-plans/sprint-16.md) — **Complete (`UNRESOLVED`; Task 19 DONE; Deep Review R7 PASS with zero actionable findings; its empty Sprint 17 production-recovery scope is superseded only by the explicit user authorization for a new diagnostic ablation).**
 - [Sprint 15 — Balanced Causal Benchmark Recovery and Measurability Certification](sprint-plans/sprint-15.md) — **Complete (`MEASURABLE`; Task 22 DONE; post-final evidence review R2 PASS with 0 actionable findings; Sprint 16 authorized).**
 - [Sprint 14 — Benchmark Measurability Recovery](sprint-plans/sprint-14.md) — **Complete (negative closeout review PASS, zero findings; Tasks 1–19 complete on the negative branch with Tasks 10–15 truthfully NOT_RUN; final verdict `NOT_MEASURABLE` — EG2 0/4 abrupt count/share shortfall, 3/3 cycles exhausted, EG4–EG7 NOT_RUN, no deep review; no attribution handoff)**
 - [Sprint 13 — Measurable Early-Warning Benchmark](sprint-plans/sprint-13.md) — **Complete (final differential deep review PASS, Deep Review 7, 0.995, zero findings; Tasks 1–17 accepted; verdict `NOT_MEASURABLE` — 0/13 STRUCT-PASS, all four sealed histories STRUCT-FAIL, zero UNAVAILABLE; no representation, warning-usefulness, or calibrated-risk success)**
@@ -59,7 +61,8 @@ No sprint is active. [Sprint 16 — Representation Failure Localization and Comp
 | 19 | Measurable multi-category early-warning benchmark with independent event controls | Complete — Sprint 13 (final deep review PASS; verdict `NOT_MEASURABLE` — 0/13 STRUCT-PASS, four sealed STRUCT-FAIL, zero UNAVAILABLE) |
 | 20 | Benchmark measurability recovery with independent confirmation and sealed generalization | Complete — Sprint 14 (`NOT_MEASURABLE`) |
 | 21 | Balanced causal benchmark recovery and measurability certification | Complete — Sprint 15 (final `MEASURABLE`; Task 22 DONE; post-final evidence review R2 PASS with 0 actionable findings) |
-| 22 | Causal localization of representation-to-score bottlenecks | Complete — Sprint 16 (`UNRESOLVED`; R1→R7 lineage recorded; Sprint 17 empty/not authorized) |
+| 22 | Causal localization of representation-to-score bottlenecks | Complete — Sprint 16 (`UNRESOLVED`; R1→R7 lineage recorded; zero valid bottleneck paths) |
+| 23 | Controlled single-component and interaction ablation of provisional representation-to-score suspects | Active — Sprint 17 Batch B only (Tasks 1–6 accepted; execute Tasks 7–9; protocol-v4 qualified `MEASURABLE_WITH_USER_WAIVER`; pause before Batch C / Task 10; Sealed and Confirmation prohibited) |
 
 ## High-Level Design Decisions
 
@@ -116,6 +119,7 @@ No sprint is active. [Sprint 16 — Representation Failure Localization and Comp
   and contextual encoders, objective, pooling, conditional geometry, scorer, and aggregation.
   A bottleneck claim requires both stagewise loss and replicated recovery under a bounded
   component bypass/replacement; ambiguous evidence remains `UNRESOLVED`.
+- **Prospective ablation after unresolved attribution:** Sprint 17 may test C2/C3/C5/C6/C7/C8/C9 only as provisional hypotheses. Compare an unchanged architecture retrained on the same fresh roles against one-principal-component alternatives, then predeclared adjacent-pair and stack combinations selected on Development and locked before Confirmation. Use the accepted Sprint 15 Candidate 7 generation methodology unchanged, keep C1/C4 fixed, preserve independent `S_pred`/`S_pop`, and treat any recovery as diagnostic ablation evidence rather than retroactive causal proof or production authorization.
 
 ## Verification Gates
 
@@ -142,7 +146,7 @@ static inference, and chronological early-warning analysis. Every batch requires
 fresh `evidence-reviewer` PASS with zero actionable findings; sprint completion also
 requires a sprint-wide differential `deep-reviewer` PASS.
 
-## Sprint 13–16 Verification Gates
+## Sprint 13–17 Verification Gates
 
 Sprint 13 and Sprint 14 remain immutable negative benchmark records. Sprint 14 followed
 [`Benchmark Measurability Exit Gates`](BENCHMARK_MEASURABILITY_EXIT_GATES.md), exhausted
@@ -165,6 +169,16 @@ Sprint 16 starts benchmark-dependent attribution only after Sprint 15 returns fi
 metrics, a frozen component-substitution matrix, and bounded one-component interventions.
 It closes as `IDENTIFIED`, `MULTIPLE BOTTLENECKS`, or `UNRESOLVED`; production recovery
 and calibrated risk remain future gated work.
+
+Sprint 17 is a newly authorized diagnostic ablation, not the production-recovery continuation
+that Sprint 16 declined to authorize. Before outcomes it freezes the unchanged architecture
+baseline, 14 single-component alternatives, nine bounded combinations, fresh disjoint roles
+generated by the accepted Sprint 15 Candidate 7 methodology, common seeds/budgets/metrics, and
+selection/stop rules. Development selects at most one alternative per suspect; Confirmation
+stays untouched until the full matrix is locked. Every batch requires a zero-actionable
+evidence review and completion requires a zero-actionable sprint-wide differential deep review.
+Sprint 15 Sealed H-SEAL-37..40 remain forbidden, and no result authorizes calibrated risk,
+production recovery, or independent sealed-performance claims.
 
 ## Out of Scope for V1
 

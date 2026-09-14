@@ -53,3 +53,10 @@
 **Root cause:** The frozen 128-d embeddings carry a small stable prediction-loss normal/abnormal gap (+13–18%) but the contrastive loss never separates (≤0.5%); no scoring, threshold, fusion, probe, or cheap hyperparameter change creates separability that is not in the representation.
 **Fix / workaround:** Retrain at the representation level (objective/architecture/signal) instead of further scoring or λ/τ/aug tuning; keep the per-cell ablation table as the baseline that a new run must beat.
 **Watch out for:** Any proposal to fix detection with thresholds, fusion, or bank size on these embeddings — Tasks 3–7 closed those axes with numbers. Demand a probe-ceiling lift on frozen embeddings before accepting a scoring-side fix.
+
+## [2026-09-13] Preflight assertion before diagnostic persistence lost a long failure
+
+**Symptom:** A 16-binding rejection-only preflight ran for 1107.67 seconds, then an assertion expecting `PREFLIGHT-PASS` / `16/16` failed before the result was written, losing the per-binding failure reasons.
+**Root cause:** The wrapper asserted the unanimous-pass contract before persisting the deterministic raw `run_preflight` result; a failed assertion discarded the in-memory result even though the expensive computation had completed.
+**Fix / workaround:** For the one authorized diagnostic replay, write the complete raw result and per-binding gate reasons first, hash the persisted record, then perform any pass assertion. This captured the deterministic `PREFLIGHT-FAIL` / `15/16` result and sole failing seed.
+**Watch out for:** Any expensive preflight, audit, or batch command whose evidence is printed or persisted only after a success assertion. Persist raw deterministic outputs before assertions so fail-closed decisions retain exact rejection evidence.

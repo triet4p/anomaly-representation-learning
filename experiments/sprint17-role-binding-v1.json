@@ -1,0 +1,59 @@
+{
+  "schema_id": "sprint17-role-binding-v1",
+  "protocol_id": "sprint17-ablation-v2",
+  "profile_id": "sprint15-v7",
+  "method_id": "sprint15-candidate-7-exact-generation",
+  "status": "FROZEN_PROSPECTIVELY",
+  "role_binding": [
+    {"role": "DESIGN", "history_id": "H-S17-DESIGN-01", "data_seed": 2700, "directory": "data/generated/sprint17-ablation-v2/DESIGN/H-S17-DESIGN-01", "permitted_use": "structural_observable_certification_only"},
+    {"role": "DESIGN", "history_id": "H-S17-DESIGN-02", "data_seed": 2701, "directory": "data/generated/sprint17-ablation-v2/DESIGN/H-S17-DESIGN-02", "permitted_use": "structural_observable_certification_only"},
+    {"role": "DESIGN", "history_id": "H-S17-DESIGN-03", "data_seed": 2702, "directory": "data/generated/sprint17-ablation-v2/DESIGN/H-S17-DESIGN-03", "permitted_use": "structural_observable_certification_only"},
+    {"role": "DESIGN", "history_id": "H-S17-DESIGN-04", "data_seed": 2703, "directory": "data/generated/sprint17-ablation-v2/DESIGN/H-S17-DESIGN-04", "permitted_use": "structural_observable_certification_only"},
+    {"role": "FIT", "history_id": "H-S17-FIT-01", "data_seed": 2704, "directory": "data/generated/sprint17-ablation-v2/FIT/H-S17-FIT-01", "permitted_use": "representation_fit_and_healthy_reference_only"},
+    {"role": "FIT", "history_id": "H-S17-FIT-02", "data_seed": 2705, "directory": "data/generated/sprint17-ablation-v2/FIT/H-S17-FIT-02", "permitted_use": "representation_fit_and_healthy_reference_only"},
+    {"role": "FIT", "history_id": "H-S17-FIT-03", "data_seed": 2706, "directory": "data/generated/sprint17-ablation-v2/FIT/H-S17-FIT-03", "permitted_use": "representation_fit_and_healthy_reference_only"},
+    {"role": "CALIBRATION", "history_id": "H-S17-CAL-01", "data_seed": 2707, "directory": "data/generated/sprint17-ablation-v2/CALIBRATION/H-S17-CAL-01", "permitted_use": "quantile_threshold_only"},
+    {"role": "DEVELOPMENT", "history_id": "H-S17-DEV-01", "data_seed": 2708, "directory": "data/generated/sprint17-ablation-v2/DEVELOPMENT/H-S17-DEV-01", "permitted_use": "paired_arm_comparison_and_selection_only"},
+    {"role": "DEVELOPMENT", "history_id": "H-S17-DEV-02", "data_seed": 2709, "directory": "data/generated/sprint17-ablation-v2/DEVELOPMENT/H-S17-DEV-02", "permitted_use": "paired_arm_comparison_and_selection_only"},
+    {"role": "DEVELOPMENT", "history_id": "H-S17-DEV-03", "data_seed": 2710, "directory": "data/generated/sprint17-ablation-v2/DEVELOPMENT/H-S17-DEV-03", "permitted_use": "paired_arm_comparison_and_selection_only"},
+    {"role": "DEVELOPMENT", "history_id": "H-S17-DEV-04", "data_seed": 2711, "directory": "data/generated/sprint17-ablation-v2/DEVELOPMENT/H-S17-DEV-04", "permitted_use": "paired_arm_comparison_and_selection_only"},
+    {"role": "CONFIRMATION", "history_id": "H-S17-CONF-01", "data_seed": 2712, "directory": "data/generated/sprint17-ablation-v2/CONFIRMATION/H-S17-CONF-01", "permitted_use": "untouched_one_shot_final_comparison_only"},
+    {"role": "CONFIRMATION", "history_id": "H-S17-CONF-02", "data_seed": 2713, "directory": "data/generated/sprint17-ablation-v2/CONFIRMATION/H-S17-CONF-02", "permitted_use": "untouched_one_shot_final_comparison_only"},
+    {"role": "CONFIRMATION", "history_id": "H-S17-CONF-03", "data_seed": 2714, "directory": "data/generated/sprint17-ablation-v2/CONFIRMATION/H-S17-CONF-03", "permitted_use": "untouched_one_shot_final_comparison_only"},
+    {"role": "CONFIRMATION", "history_id": "H-S17-CONF-04", "data_seed": 2715, "directory": "data/generated/sprint17-ablation-v2/CONFIRMATION/H-S17-CONF-04", "permitted_use": "untouched_one_shot_final_comparison_only"}
+  ],
+  "model_seeds": [171701, 171702, 171703],
+  "prior_seed_ranges": [
+    {"source": "Sprint14 accepted/test bands", "min": 742, "max": 797},
+    {"source": "Sprint15 accepted candidates 1-7", "min": 1000, "max": 1617}
+  ],
+  "generator_digest_expectations": {
+    "src/synth/config.py": "55fed2ef5b253d48c1b0c7f1dd5f7f966cdd03ad250cb86a988ac8de23d5c056",
+    "src/synth/health.py": "e5854641fb85eb9b88e05ee9d8e503c69a9432b13177d8c62ad38c3494e7fc6d",
+    "src/synth/events.py": "85100f5e0aca47dd2e8b01a08c58f39d32be4f1eab469cdc38e4a4b57768169d",
+    "src/synth/chronicle.py": "b5992d6af3c4387d18df746b43be17b4bfc1fac6938e8b44be35b6fb7c65dafd",
+    "src/synth/balanced.py": "d62de3422bd51f870d39d18b1a8bb942f9ca73fc0044d8f23cc2d0948bd35a43",
+    "src/synth/cli.py": "3c264a33c7e74dd2b1ab2c9cfbb7a7e2e524f1b39a1228f734460edb0d900a37",
+    "src/synth/__init__.py": "5c979561a2f01581e2943f23e30061788d10dabc2ec1172cbd9f25275032b168",
+    "src/synth/preflight15.py": "19f0300e97d55609c27f51403de9cc0f7a898684df7050424972fc4e4fb21dd1",
+    "src/synth/probe15.py": "a08b3d5fb83001e1f5c43f4c56ff536bae85e41d494db289304aeb33a339242b",
+    "docs/BENCHMARK_MEASURABILITY_EXIT_GATES_V2.md": "d294762331ded4fd213f6870e563e32e17e12c632d7cb11a80373478ede34e1c",
+    "experiments/sprint15-benchmark-protocol-v7.md": "a1fc09db2e246ed79d0595aec953a7788fd1b47c4981fbe1d92017d944b8d7b6"
+  },
+  "generation_contract": {
+    "exact_method": "sprint15-v7",
+    "one_root_per_binding": true,
+    "retry": false,
+    "replacement": false,
+    "omission": false,
+    "pooling_for_rescue": false,
+    "outcome_selected_seed": false,
+    "preflight_before_materialization": true,
+    "confirmation_status": "UNTOUCHED",
+    "task23_lock_status": "REQUIRED_BEFORE_CONFIRMATION_ACCESS",
+    "confirmation_before_task23_lock": false,
+    "sealed_access": false
+  },
+  "binding_digest_algorithm": "sha256(canonical_json_utf8_without_binding_digest)",
+  "binding_sha256": "7cb47d3bf441108626f99b3abc78783788ef1faac63d9ba31a6958a6f82710fa"
+}
