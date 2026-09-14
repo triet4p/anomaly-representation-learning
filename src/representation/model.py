@@ -25,6 +25,7 @@ class V1RepresentationModel(nn.Module):
         *,
         patchifier: Patchifier | None = None,
         contrastive_config: ContrastiveConfig | None = None,
+        patch_encoder: nn.Module | None = None,
     ) -> None:
         super().__init__()
         self.config = config
@@ -37,7 +38,7 @@ class V1RepresentationModel(nn.Module):
             noise_std=config.contrastive_noise_std,
             max_shift=config.contrastive_max_shift,
         )
-        self.patch_encoder = LocalPatchEncoder(
+        self.patch_encoder = patch_encoder or LocalPatchEncoder(
             config.n_channels, config.d_model, dropout=config.dropout
         )
         self.context_encoder = SequenceContextEncoder(
