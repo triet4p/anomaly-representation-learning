@@ -114,7 +114,7 @@ Status legend: [ ] pending / [~] in progress / [x] done.
 
 ### Batch C — Individual suspect replacements on Development
 
-- [ ] **Task 10 — Execute C2 patchification alternatives.** Compare `C2-A` and `C2-B` individually against `B0`; keep every downstream mechanism unchanged and preserve timestep-to-patch localization. Evidence: `artifacts/sprint-17/task-10.md`.
+- [x] **Task 10 — Execute C2 patchification alternatives.** Compare `C2-A` and `C2-B` individually against `B0`; keep every downstream mechanism unchanged and preserve timestep-to-patch localization. Evidence: `artifacts/sprint-17/task-10.md`. (Done: both arms 3 seeds × 300 steps @ `5e6582c` on RTX 4060 Ti; paired Development deltas vs hash-verified B0; C2-A VALID_NEGATIVE parity control ΔP+W −0.000000 S_pred; C2-B VALID_NEGATIVE ΔP+W −0.0044 S_pred / +0.0047 S_pop with background-stability fail on DEV-01/03/04; support `800fc825…` exact match; Task 11 next.)
 - [ ] **Task 11 — Execute C3 local-encoder alternatives.** Compare `C3-A` and `C3-B` individually with parameter/compute accounting and identical training/evaluation support. Evidence: `artifacts/sprint-17/task-11.md`.
 - [ ] **Task 12 — Execute C5 objective/masking alternatives.** Compare `C5-A` and `C5-B` individually while keeping architecture, total mask ratio, inputs, and model-selection basis frozen except for the declared objective mechanism. Evidence: `artifacts/sprint-17/task-12.md`.
 - [ ] **Task 13 — Execute C6 pooling alternatives.** Compare `C6-A` and `C6-B` individually over valid patches while holding learned patch representations and downstream evaluation fixed. Evidence: `artifacts/sprint-17/task-13.md`.
