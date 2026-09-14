@@ -976,8 +976,10 @@ def main() -> int:
             z = b0_dev[role]
             pos = {str(fid): i for i, fid in enumerate(list(z["file_ids"]))}
             want_ids = [fid for fid, _ in items]
-            if set(want_ids) != set(pos):
+            if not set(want_ids) <= set(pos):
                 raise ValueError(f"B0 cache file-id mismatch: seed {model_seed}/{role}")
+            if not args.smoke and set(want_ids) != set(pos):
+                raise ValueError(f"B0 cache coverage mismatch: seed {model_seed}/{role}")
             idx = [pos[fid] for fid in want_ids]
             c_pred = np.asarray(z["S_pred"])[idx]
             c_pop = np.asarray(z["S_pop"])[idx]
