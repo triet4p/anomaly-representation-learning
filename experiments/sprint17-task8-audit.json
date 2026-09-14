@@ -1,0 +1,373 @@
+{
+ "arm": "B0",
+ "b0_primary_PW": 0.6720422259995316,
+ "checks": [
+  {
+   "check": "config_keys_identical",
+   "detail": null,
+   "pass": true
+  },
+  {
+   "check": "config_identical_except_seed",
+   "detail": null,
+   "pass": true
+  },
+  {
+   "check": "config_hash_matches_manifest",
+   "detail": "1ff67f95428ef29a",
+   "pass": true
+  },
+  {
+   "check": "wd_zero_parity",
+   "detail": null,
+   "pass": true
+  },
+  {
+   "check": "steps_checkpoint_300",
+   "detail": null,
+   "pass": true
+  },
+  {
+   "check": "three_seeds_present",
+   "detail": null,
+   "pass": true
+  },
+  {
+   "check": "all_steps_300",
+   "detail": null,
+   "pass": true
+  },
+  {
+   "check": "distinct_checkpoints",
+   "detail": null,
+   "pass": true
+  },
+  {
+   "check": "bank_rows_5040_each",
+   "detail": null,
+   "pass": true
+  },
+  {
+   "check": "metrics_present_171701_S_pred",
+   "detail": null,
+   "pass": true
+  },
+  {
+   "check": "metrics_present_171701_S_pop",
+   "detail": null,
+   "pass": true
+  },
+  {
+   "check": "metrics_present_171702_S_pred",
+   "detail": null,
+   "pass": true
+  },
+  {
+   "check": "metrics_present_171702_S_pop",
+   "detail": null,
+   "pass": true
+  },
+  {
+   "check": "metrics_present_171703_S_pred",
+   "detail": null,
+   "pass": true
+  },
+  {
+   "check": "metrics_present_171703_S_pop",
+   "detail": null,
+   "pass": true
+  },
+  {
+   "check": "finite_doc",
+   "detail": [],
+   "pass": true
+  },
+  {
+   "check": "finite_spop",
+   "detail": [],
+   "pass": true
+  },
+  {
+   "check": "finite_perseed",
+   "detail": [],
+   "pass": true
+  },
+  {
+   "check": "support_counts_H-S17-V3-DEV-01",
+   "detail": {
+    "a": 30,
+    "controls": 65,
+    "history_id": "H-S17-V3-DEV-01",
+    "p": 63,
+    "robot_days": 1450.0,
+    "w": 49
+   },
+   "pass": true
+  },
+  {
+   "check": "support_counts_H-S17-V3-DEV-02",
+   "detail": {
+    "a": 29,
+    "controls": 65,
+    "history_id": "H-S17-V3-DEV-02",
+    "p": 61,
+    "robot_days": 1448.0,
+    "w": 50
+   },
+   "pass": true
+  },
+  {
+   "check": "support_counts_H-S17-V3-DEV-03",
+   "detail": {
+    "a": 27,
+    "controls": 62,
+    "history_id": "H-S17-V3-DEV-03",
+    "p": 63,
+    "robot_days": 1454.0,
+    "w": 50
+   },
+   "pass": true
+  },
+  {
+   "check": "support_counts_H-S17-V3-DEV-04",
+   "detail": {
+    "a": 33,
+    "controls": 63,
+    "history_id": "H-S17-V3-DEV-04",
+    "p": 53,
+    "robot_days": 1378.0,
+    "w": 53
+   },
+   "pass": true
+  },
+  {
+   "check": "excluded_total_131",
+   "detail": 131,
+   "pass": true
+  },
+  {
+   "check": "common_support_hash_reproduced",
+   "detail": null,
+   "pass": true
+  },
+  {
+   "check": "probe_support_parity_H-S17-V3-DEV-01",
+   "detail": null,
+   "pass": true
+  },
+  {
+   "check": "probe_support_parity_H-S17-V3-DEV-02",
+   "detail": null,
+   "pass": true
+  },
+  {
+   "check": "probe_support_parity_H-S17-V3-DEV-03",
+   "detail": null,
+   "pass": true
+  },
+  {
+   "check": "probe_support_parity_H-S17-V3-DEV-04",
+   "detail": null,
+   "pass": true
+  },
+  {
+   "check": "branches_not_aliased",
+   "detail": {
+    "171701": 0.035134892259213825,
+    "171702": -0.0015763012173402955,
+    "171703": 0.3867262650393417
+   },
+   "pass": true
+  },
+  {
+   "check": "thresholds_separated",
+   "detail": null,
+   "pass": true
+  },
+  {
+   "check": "params_identical_1821698",
+   "detail": {
+    "171701": 1821698,
+    "171702": 1821698,
+    "171703": 1821698
+   },
+   "pass": true
+  },
+  {
+   "check": "flops_identical_182016709",
+   "detail": {
+    "171701": 182016709,
+    "171702": 182016709,
+    "171703": 182016709
+   },
+   "pass": true
+  },
+  {
+   "check": "envelope_zero_delta",
+   "detail": null,
+   "pass": true
+  },
+  {
+   "check": "oracle_ceiling_measurable",
+   "detail": 0.7981,
+   "pass": true
+  },
+  {
+   "check": "b0_below_ceiling_gap_recorded",
+   "detail": {
+    "b0": 0.672,
+    "ceiling": 0.7981,
+    "gap": 0.1261
+   },
+   "pass": true
+  },
+  {
+   "check": "checkpoint_aggregate_hash",
+   "detail": null,
+   "pass": true
+  },
+  {
+   "check": "twelve_caches_present",
+   "detail": 12,
+   "pass": true
+  },
+  {
+   "check": "cache_aggregate_hash",
+   "detail": null,
+   "pass": true
+  },
+  {
+   "check": "binding_digest",
+   "detail": null,
+   "pass": true
+  },
+  {
+   "check": "metric_code_hash",
+   "detail": null,
+   "pass": true
+  },
+  {
+   "check": "manifest_bytes_H-S17-V3-FIT-01",
+   "detail": null,
+   "pass": true
+  },
+  {
+   "check": "manifest_bytes_H-S17-V3-FIT-02",
+   "detail": null,
+   "pass": true
+  },
+  {
+   "check": "manifest_bytes_H-S17-V3-FIT-03",
+   "detail": null,
+   "pass": true
+  },
+  {
+   "check": "manifest_bytes_H-S17-V3-CAL-01",
+   "detail": null,
+   "pass": true
+  },
+  {
+   "check": "manifest_bytes_H-S17-V3-DEV-01",
+   "detail": null,
+   "pass": true
+  },
+  {
+   "check": "manifest_bytes_H-S17-V3-DEV-02",
+   "detail": null,
+   "pass": true
+  },
+  {
+   "check": "manifest_bytes_H-S17-V3-DEV-03",
+   "detail": null,
+   "pass": true
+  },
+  {
+   "check": "manifest_bytes_H-S17-V3-DEV-04",
+   "detail": null,
+   "pass": true
+  },
+  {
+   "check": "no_confirmation_roles",
+   "detail": null,
+   "pass": true
+  },
+  {
+   "check": "execution_commit_lineage",
+   "detail": null,
+   "pass": true
+  },
+  {
+   "check": "fit_pool_recount_5040",
+   "detail": 5040,
+   "pass": true
+  },
+  {
+   "check": "cal_recount_1621",
+   "detail": 1621,
+   "pass": true
+  },
+  {
+   "check": "runlog_fit_cal_match",
+   "detail": null,
+   "pass": true
+  },
+  {
+   "check": "gates_true_set",
+   "detail": {
+    "P_noninferiority": true,
+    "W_noninferiority": true,
+    "background_stability": true,
+    "compute_envelope": true,
+    "eligible": true,
+    "finite_and_support": true,
+    "minimum_effect": false,
+    "nuisance": true,
+    "observable": true,
+    "recovery": false,
+    "score_separation": true,
+    "structural": true
+   },
+   "pass": true
+  },
+  {
+   "check": "baseline_negative_by_construction",
+   "detail": null,
+   "pass": true
+  },
+  {
+   "check": "dev04_p_recall_negative_recorded",
+   "detail": [
+    0.5026455026455027,
+    0.5901639344262296,
+    0.5925925925925926,
+    0.3962264150943396
+   ],
+   "pass": true
+  },
+  {
+   "check": "headline_mean_seed_consistent_h0",
+   "detail": null,
+   "pass": true
+  },
+  {
+   "check": "headline_mean_seed_consistent_h1",
+   "detail": null,
+   "pass": true
+  },
+  {
+   "check": "headline_mean_seed_consistent_h2",
+   "detail": null,
+   "pass": true
+  },
+  {
+   "check": "headline_mean_seed_consistent_h3",
+   "detail": null,
+   "pass": true
+  }
+ ],
+ "n_checks": 60,
+ "n_pass": 60,
+ "oracle_ceiling_PW": 0.7981315339254154,
+ "phase": "development",
+ "protocol": "sprint17-ablation-v4"
+}
