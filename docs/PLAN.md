@@ -62,7 +62,7 @@ it does not claim that Sprint 16 identified a causal bottleneck.
 | 20 | Benchmark measurability recovery with independent confirmation and sealed generalization | Complete — Sprint 14 (`NOT_MEASURABLE`) |
 | 21 | Balanced causal benchmark recovery and measurability certification | Complete — Sprint 15 (final `MEASURABLE`; Task 22 DONE; post-final evidence review R2 PASS with 0 actionable findings) |
 | 22 | Causal localization of representation-to-score bottlenecks | Complete — Sprint 16 (`UNRESOLVED`; R1→R7 lineage recorded; zero valid bottleneck paths) |
-| 23 | Controlled single-component and interaction ablation of provisional representation-to-score suspects | Active — Sprint 17 Batch C only (Tasks 1–9 complete; Task 10 next; execute 14 individual alternatives plus deterministic Development-only selection; Confirmation and Sealed untouched; stop before Batch D) |
+| 23 | Controlled single-component and interaction ablation of provisional representation-to-score suspects | Active — Sprint 17 Batch C only (Tasks 1–11 complete; Task 12 next; execute 14 individual alternatives plus deterministic Development-only selection; Confirmation and Sealed untouched; stop before Batch D) |
 
 ## High-Level Design Decisions
 

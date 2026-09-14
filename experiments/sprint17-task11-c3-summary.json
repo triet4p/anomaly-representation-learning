@@ -1,0 +1,470 @@
+{
+ "arms": {
+  "C3-A": {
+   "S_pop": {
+    "delta_p": -0.006243930532267572,
+    "delta_vs_B0": -0.00860868757255743,
+    "delta_w": -0.011695524166874508,
+    "directional": 4,
+    "lcb95": 0.6409655249277891,
+    "macro_p": 0.68392999890261,
+    "macro_pw": 0.6721083706553035,
+    "macro_w": 0.6577866720159564,
+    "per_history": [
+     0.7106227106227107,
+     0.6348810348810349,
+     0.6958797221429252,
+     0.6470500149745434
+    ],
+    "per_history_delta_pw": [
+     0.008195970695970778,
+     -0.011596211596211603,
+     0.0038062612998382983,
+     -0.03484077068982716
+    ],
+    "per_seed_delta_pw": {
+     "171701": -0.012418088994635257,
+     "171702": 0.00143343820579378,
+     "171703": -0.014841411928830817
+    }
+   },
+   "S_pred": {
+    "delta_p": -0.018421006422263592,
+    "delta_vs_B0": -0.01007096548106882,
+    "delta_w": -0.00032594619278392134,
+    "directional": 4,
+    "lcb95": 0.613961215263199,
+    "lead_p": [
+     4.754581066085588,
+     4.860772006289191,
+     4.388740619186139,
+     4.051245618628598
+    ],
+    "lead_w": [
+     3.0644717240493597,
+     4.128338085156586,
+     4.472446240108405,
+     4.728355934971156
+    ],
+    "macro_p": 0.6604095133826334,
+    "macro_pw": 0.6619712605184627,
+    "macro_w": 0.6641725463910926,
+    "per_history": [
+     0.698901098901099,
+     0.666990066990067,
+     0.5869254924350557,
+     0.6950683837476289
+    ],
+    "per_history_delta_pw": [
+     0.009569597069597147,
+     -0.032432432432432434,
+     -0.02336092872775719,
+     0.005939902166317013
+    ],
+    "per_seed_delta_pw": {
+     "171701": 0.0046606199552090555,
+     "171702": -0.0074914858338702706,
+     "171703": -0.027382030564545246
+    },
+    "recall_p": [
+     0.6137566137566138,
+     0.5846994535519126,
+     0.634920634920635,
+     0.43396226415094336
+    ],
+    "recall_w": [
+     0.6462585034013605,
+     0.54,
+     0.68,
+     0.42767295597484284
+    ]
+   },
+   "adapter_description": "residual depthwise-separable dilated-1D-conv patch encoder (in-proj k1, depthwise k3/dilation-2, pointwise k1, residual); unchanged output head and masked pooling; no other adapter",
+   "arm_fit_patches": 154129,
+   "background_ratio_per_history": [
+    0.0640355340056885,
+    0.06086169738812599,
+    0.06668389221051198,
+    0.06763089206023037
+   ],
+   "categories": {
+    "H-S17-V3-DEV-01": {
+     "A1": 0.6811412665274877,
+     "A2": 0.6069125492925075,
+     "P1": 0.9230298812762278,
+     "P2": 0.9134075620505683,
+     "W1": 0.9211219025142962,
+     "W2": 0.9362721481719394
+    },
+    "H-S17-V3-DEV-02": {
+     "A1": 0.5216112242588821,
+     "A2": 0.706958587915818,
+     "P1": 0.9118617880469134,
+     "P2": 0.9181729463679567,
+     "W1": 0.8809523809523809,
+     "W2": 0.91550947355428
+    },
+    "H-S17-V3-DEV-03": {
+     "A1": 0.6572739541160594,
+     "A2": 0.6483208020050125,
+     "P1": 0.9080701754385965,
+     "P2": 0.8732088285229201,
+     "W1": 0.9099155295646524,
+     "W2": 0.872829900839054
+    },
+    "H-S17-V3-DEV-04": {
+     "A1": 0.6210441210441211,
+     "A2": 0.6519144144144144,
+     "P1": 0.8844620482551518,
+     "P2": 0.90503003003003,
+     "W1": 0.8978078078078079,
+     "W2": 0.8883794508794508
+    }
+   },
+   "component_set": [
+    "C3"
+   ],
+   "compute": {
+    "b0_flops_per_reference_sample": 182016709,
+    "b0_params": 1821698,
+    "envelope_pass": true,
+    "flops_delta_fraction": -0.02511382622570107,
+    "flops_per_reference_sample": 177445573,
+    "params_delta_fraction": -0.00056211292980505,
+    "params_total": 1820674
+   },
+   "delta_far_per_history": [
+    0.0034482758620689724,
+    0.0029926335174953952,
+    0.008940852819807422,
+    0.0009675858732462531
+   ],
+   "elapsed_s": 1063.6,
+   "evidence_doc_sha256": "6646e5bbf4799ecaa7ffaef0829d7572d4ae7a7760caa8195b8cd02a97d89e6f",
+   "excluded_rows": 131,
+   "far_per_history": [
+    0.03770114942528736,
+    0.03798342541436464,
+    0.048601558917927556,
+    0.02902757619738752
+   ],
+   "gates": {
+    "P_noninferiority": true,
+    "W_noninferiority": true,
+    "background_stability": true,
+    "compute_envelope": true,
+    "eligible": true,
+    "finite_and_support": true,
+    "minimum_effect": false,
+    "nuisance": true,
+    "observable": true,
+    "recovery": false,
+    "score_separation": true,
+    "structural": true
+   },
+   "local_encoder": "ResidualDilatedPatchEncoder",
+   "local_encoder_params": 34688,
+   "localization_per_history": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "metric_code_sha256": "09d79910a413a5a61630db63084223e08499449f04b24330bd28a4a6ce2dbd93",
+   "one_principal_change": "C3",
+   "provenance": {
+    "cache_sha256": "0883cef9eade1e5602e447d0de0cbdb52d395e06e4ce5718dd19eda60b3f4725",
+    "checkpoint_sha256": "2c678402c0dc52e6a48ff78ee4a36ab59555055407dc709c98b806c89673c156",
+    "parent_arm_ids": [
+     "B0"
+    ]
+   },
+   "seeds": {
+    "171701": {
+     "ckpt_sha256": "51ee0cdfc9ddce8ca861998bb78dbcc3fbe11e5387ec9a6f588c720d9c5eb051",
+     "corr": 0.18868282600197941,
+     "steps": 300,
+     "thr_pop": 2.603564739227295,
+     "thr_pred": 0.09604647010564804
+    },
+    "171702": {
+     "ckpt_sha256": "d402624d27f199f579a73710b5546cf3303d9d73c60e1db8e7991308dbd1ba60",
+     "corr": 0.33911867387017036,
+     "steps": 300,
+     "thr_pop": 1.9344221353530884,
+     "thr_pred": 0.04596254974603653
+    },
+    "171703": {
+     "ckpt_sha256": "3d15ac7f2dd150673dbaae773e776e3ca09751f903a80b2129f6e7c7251783f8",
+     "corr": 0.21498474304382964,
+     "steps": 300,
+     "thr_pop": 2.3485665321350098,
+     "thr_pred": 0.07409504055976868
+    }
+   },
+   "severity_p": [
+    0.020652284407494347,
+    0.02330549799444305,
+    -0.08458975180388008,
+    0.01501894888517212
+   ],
+   "severity_w": [
+    -0.0062170927696309835,
+    0.013142917492562647,
+    -0.07562765890977362,
+    -0.03324643955218879
+   ],
+   "status": "VALID_NEGATIVE",
+   "support_match_B0": true,
+   "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+  },
+  "C3-B": {
+   "S_pop": {
+    "delta_p": -0.006218048282245259,
+    "delta_vs_B0": -0.0033444538095369625,
+    "delta_w": -8.444644458904804e-05,
+    "directional": 4,
+    "lcb95": 0.6610278936570686,
+    "macro_p": 0.6839558811526324,
+    "macro_pw": 0.677372604418324,
+    "macro_w": 0.669397749738242,
+    "per_history": [
+     0.7165750915750916,
+     0.6603372603372604,
+     0.6617185269768769,
+     0.6708595387840671
+    ],
+    "per_history_delta_pw": [
+     0.014148351648351709,
+     0.013860013860013898,
+     -0.03035493386620991,
+     -0.011031246880303436
+    ],
+    "per_seed_delta_pw": {
+     "171701": -0.005466301695022713,
+     "171702": 0.019068686400444457,
+     "171703": -0.02363574613403263
+    }
+   },
+   "S_pred": {
+    "delta_p": -0.019568264682659525,
+    "delta_vs_B0": -0.015301104035036225,
+    "delta_w": -0.0100495802651267,
+    "directional": 4,
+    "lcb95": 0.6111653315996022,
+    "lead_p": [
+     4.101865990633171,
+     4.324466013759065,
+     4.501600920961611,
+     3.8974621909023592
+    ],
+    "lead_w": [
+     3.2602562844531136,
+     3.7956517259100884,
+     4.72911215922987,
+     3.9986118723580653
+    ],
+    "macro_p": 0.6592622551222375,
+    "macro_pw": 0.6567411219644952,
+    "macro_w": 0.6544489123187497,
+    "per_history": [
+     0.6777472527472529,
+     0.674012474012474,
+     0.5889713578837187,
+     0.6862334032145352
+    ],
+    "per_history_delta_pw": [
+     -0.011584249084248932,
+     -0.02541002541002546,
+     -0.02131506327909416,
+     -0.0028950783667767155
+    ],
+    "per_seed_delta_pw": {
+     "171701": 0.011441287381839027,
+     "171702": -0.005454603517685563,
+     "171703": -0.05188999596926214
+    },
+    "recall_p": [
+     0.4973544973544974,
+     0.5136612021857924,
+     0.6243386243386243,
+     0.4402515723270441
+    ],
+    "recall_w": [
+     0.6190476190476191,
+     0.44,
+     0.6066666666666668,
+     0.38993710691823896
+    ]
+   },
+   "adapter_description": "lightweight within-patch Transformer (d=32, 2 heads, ff=140, 1 layer) with learned absolute positions and explicit padding masks; unchanged output head and masked pooling; no other adapter",
+   "arm_fit_patches": 154129,
+   "background_ratio_per_history": [
+    0.08239114992920177,
+    0.09451219733198013,
+    0.11735249735899221,
+    0.1269239721610026
+   ],
+   "categories": {
+    "H-S17-V3-DEV-01": {
+     "A1": 0.675342147993505,
+     "A2": 0.6231036882393876,
+     "P1": 0.9100187680563464,
+     "P2": 0.9024356297842728,
+     "W1": 0.9141629602735167,
+     "W2": 0.9250575450992988
+    },
+    "H-S17-V3-DEV-02": {
+     "A1": 0.5968167760428452,
+     "A2": 0.7149015614392397,
+     "P1": 0.9199147880235036,
+     "P2": 0.9146512219959266,
+     "W1": 0.8930026185626999,
+     "W2": 0.9279145837190644
+    },
+    "H-S17-V3-DEV-03": {
+     "A1": 0.6384885290148449,
+     "A2": 0.5890225563909774,
+     "P1": 0.8938157894736842,
+     "P2": 0.8781211092246747,
+     "W1": 0.8777907732293698,
+     "W2": 0.8731350114416476
+    },
+    "H-S17-V3-DEV-04": {
+     "A1": 0.6325941325941326,
+     "A2": 0.6402402402402402,
+     "P1": 0.8844620482551516,
+     "P2": 0.9114114114114115,
+     "W1": 0.8784384384384385,
+     "W2": 0.8850010725010725
+    }
+   },
+   "component_set": [
+    "C3"
+   ],
+   "compute": {
+    "b0_flops_per_reference_sample": 182016709,
+    "b0_params": 1821698,
+    "envelope_pass": true,
+    "flops_delta_fraction": -0.01116170054475603,
+    "flops_per_reference_sample": 179985093,
+    "params_delta_fraction": 6.58726089615293e-06,
+    "params_total": 1821710
+   },
+   "delta_far_per_history": [
+    0.0029885057471264465,
+    0.0006906077348066281,
+    0.008482347546996782,
+    -0.0024189646831156222
+   ],
+   "elapsed_s": 1170.4,
+   "evidence_doc_sha256": "0e96eed7a19dacc00f1ca085a446c29de29974782e782a0a3a1d982896df55ff",
+   "excluded_rows": 131,
+   "far_per_history": [
+    0.03724137931034483,
+    0.035681399631675874,
+    0.048143053645116916,
+    0.025641025641025644
+   ],
+   "gates": {
+    "P_noninferiority": true,
+    "W_noninferiority": true,
+    "background_stability": false,
+    "compute_envelope": true,
+    "eligible": true,
+    "finite_and_support": true,
+    "minimum_effect": false,
+    "nuisance": true,
+    "observable": true,
+    "recovery": false,
+    "score_separation": true,
+    "structural": true
+   },
+   "local_encoder": "WithinPatchTransformerEncoder",
+   "local_encoder_params": 35724,
+   "localization_per_history": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "metric_code_sha256": "09d79910a413a5a61630db63084223e08499449f04b24330bd28a4a6ce2dbd93",
+   "one_principal_change": "C3",
+   "provenance": {
+    "cache_sha256": "7ac7576da9ca774cfa3058dc9a14f45283e6e9aaf127ad632b326904ac2a204a",
+    "checkpoint_sha256": "f4aa3ab542d0c5c36234bb590e39c80a128778233a7d538544b528c1395ca088",
+    "parent_arm_ids": [
+     "B0"
+    ]
+   },
+   "seeds": {
+    "171701": {
+     "ckpt_sha256": "42be4e94299fadcdd144945596e66071e14890784ed6dbd89365069e2a01a260",
+     "corr": 0.3311589579444146,
+     "steps": 300,
+     "thr_pop": 2.2824137210845947,
+     "thr_pred": 0.07410472631454468
+    },
+    "171702": {
+     "ckpt_sha256": "faccb0ea1b13e1efdc180e81de849064ad5db57bf69dee16b9cb82932d6df166",
+     "corr": 0.07500332277649659,
+     "steps": 300,
+     "thr_pop": 2.4718501567840576,
+     "thr_pred": 0.10459671914577484
+    },
+    "171703": {
+     "ckpt_sha256": "9cf34238c41491f61ead101d18016069bd09f6fd0f51b2ca8da2b3fa34c34003",
+     "corr": 0.2036969720540591,
+     "steps": 300,
+     "thr_pop": 2.044173002243042,
+     "thr_pred": 0.07035274803638458
+    }
+   },
+   "severity_p": [
+    -0.03986011261995994,
+    -0.013628276468494955,
+    -0.02708128887687718,
+    0.021157872859149326
+   ],
+   "severity_w": [
+    0.03643252614273552,
+    0.034295607768928225,
+    0.0002907440527965058,
+    0.06486483180671886
+   ],
+   "status": "VALID_NEGATIVE",
+   "support_match_B0": true,
+   "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+  }
+ },
+ "b0_baseline": {
+  "checkpoints": {
+   "171701": "45f9e151c5d3946804ea531eb2bcace26b1f62e634671f51b8741ac6b411a619",
+   "171702": "64ed2cedec210e4692f60bb4dd3430a57cf94abfcd50551abd97c9265ea785f8",
+   "171703": "9edb2122e357376a9ff1e065d73d5ab7704f8d2005991552332f1ced01b0e906"
+  },
+  "commit": "8c15f0204a3e495569b7f143dc109943e8b808de",
+  "evidence_doc_sha256": "79865bcb2eac0f1b0436182b4f442c3c227394b3e542de9cae613a92a81eac18",
+  "metric_code_sha256": "b2d6af7505abe459a84f76f5279a6a5c4298e7c142901edd4596fcfe3ddeb88f",
+  "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+ },
+ "commit": "7eb63e75711533f4537351da92d3f9204c8afa4e",
+ "flop_methodology_note": "Conv1d hook counts 2 FLOPs per true MAC (divides by groups for grouped/depthwise convs); B0 count reproduces committed 182016709 exactly, proving no drift.",
+ "phase": "development",
+ "protocol_id": "sprint17-ablation-v4",
+ "qualification": "MEASURABLE_WITH_USER_WAIVER",
+ "remote": {
+  "device": "NVIDIA GeForce RTX 4060 Ti",
+  "host": "192.168.30.244",
+  "out": "/tmp/sprint17-task11-out",
+  "python": "3.12.13",
+  "torch": "2.14.0+cu130",
+  "worktree": "/tmp/sprint17-task11"
+ },
+ "schema_id": "sprint17-ablation-result-v4",
+ "task": "Task 11 \u2014 C3 local-encoder alternatives",
+ "window_utc": {
+  "end": "2026-09-14T05:33:39Z",
+  "start": "2026-09-14T04:56:21Z"
+ }
+}
