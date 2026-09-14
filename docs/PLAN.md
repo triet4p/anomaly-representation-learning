@@ -17,7 +17,7 @@ it does not claim that Sprint 16 identified a causal bottleneck.
 
 ## Current Sprint
 
- [Sprint 17 — Controlled Suspect-Component Architecture Ablation](sprint-plans/sprint-17.md) is **ACTIVE for Batch B only** by explicit user instruction. Tasks 1–6 are accepted with Batch A PASS and zero actionable findings. Protocol v4 retains the exact post-observation one-cell waiver and qualified `MEASURABLE_WITH_USER_WAIVER`. Execute Tasks 7–9, including the Batch B zero-actionable evidence gate, then pause before Batch C / Task 10; Sprint 15 Sealed histories and Confirmation remain prohibited.
+ [Sprint 17 — Controlled Suspect-Component Architecture Ablation](sprint-plans/sprint-17.md) is **PAUSED before Batch C / Task 10**. Tasks 1–9 are complete: Batch A and Batch B evidence reviews both passed with zero actionable findings. The unchanged `B0` baseline is eligible and reproducible but remains `VALID_NEGATIVE`; protocol v4 retains qualified `MEASURABLE_WITH_USER_WAIVER`. No alternative arm, Confirmation role, or Sprint 15 Sealed history was opened. Resume requires new explicit user instruction.
 
 ## Paused Sprints
 
@@ -62,7 +62,7 @@ it does not claim that Sprint 16 identified a causal bottleneck.
 | 20 | Benchmark measurability recovery with independent confirmation and sealed generalization | Complete — Sprint 14 (`NOT_MEASURABLE`) |
 | 21 | Balanced causal benchmark recovery and measurability certification | Complete — Sprint 15 (final `MEASURABLE`; Task 22 DONE; post-final evidence review R2 PASS with 0 actionable findings) |
 | 22 | Causal localization of representation-to-score bottlenecks | Complete — Sprint 16 (`UNRESOLVED`; R1→R7 lineage recorded; zero valid bottleneck paths) |
-| 23 | Controlled single-component and interaction ablation of provisional representation-to-score suspects | Active — Sprint 17 Batch B only (Tasks 1–6 accepted; execute Tasks 7–9; protocol-v4 qualified `MEASURABLE_WITH_USER_WAIVER`; pause before Batch C / Task 10; Sealed and Confirmation prohibited) |
+| 23 | Controlled single-component and interaction ablation of provisional representation-to-score suspects | Paused — Sprint 17 (Tasks 1–9 complete; Batch A/B evidence reviews PASS with zero actionable findings; eligible reproducible `B0` remains `VALID_NEGATIVE`; protocol-v4 qualified `MEASURABLE_WITH_USER_WAIVER`; Task 10 next; alternatives, Confirmation, and Sealed untouched) |
 
 ## High-Level Design Decisions
 
