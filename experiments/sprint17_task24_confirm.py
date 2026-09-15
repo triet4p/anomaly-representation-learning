@@ -1389,6 +1389,10 @@ def main() -> int:
                 st, cfg_dict, conf_out, fit_pred_c9, fit_pop_b0, fidelity)
             continue
         raise ValueError(f"unhandled arm in Task 24: {arm_id!r}")
+    return _main_metrics_and_evidence(args, arm_id, prefix, seeds, seed_records,
+        conf_supports, conf_rows, conf_ledgers, conf_wins, conf_roles,
+        metric_code_sha, git, runtime, t0, fit_items, fit_patches,
+        arm_fit_patches, b0_pred, b0_pop, lock, outdir)
 
 
 
@@ -1487,10 +1491,6 @@ def _main_metrics_and_evidence(args, arm_id: str, prefix: str, seeds: tuple, see
         "elapsed_s": round(time.time() - t0, 1), "smoke": args.smoke}), indent=1, sort_keys=True))
     return 0
 
-    return _main_metrics_and_evidence(args, arm_id, prefix, seeds, seed_records,
-        conf_supports, conf_rows, conf_ledgers, conf_wins, conf_roles,
-        metric_code_sha, git, runtime, t0, fit_items, fit_patches,
-        arm_fit_patches, b0_pred, b0_pop, lock, outdir)
 
 
 def assemble_confirmation_evidence(outdir: Path, arm_id: str, seeds: tuple, seed_records: dict,
