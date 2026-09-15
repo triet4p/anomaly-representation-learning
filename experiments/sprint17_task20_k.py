@@ -135,7 +135,7 @@ ARM_FILE_PREFIX = {"K1": "k1", "K2": "k2", "K3": "k3",
 #: Task 19 freeze identity: the driver refuses to execute unless the
 #: committed freeze bytes hash exactly (no execution-dependent mutation).
 TASK19_FREEZE_PATH = "experiments/sprint17-task19-combinations.json"
-TASK19_FREEZE_SHA256 = ("69bc2052d3872fd621295a9389ede0d8c83506bd8d930daf06519251feb440d0")
+TASK19_FREEZE_SHA256 = ("0801108c0e5c7fe7f1b0233737e7c2747b5a8c814e7d41f23728508437168d8e")
 #: Frozen B0 step-300 checkpoint hashes (Task 7 record; train-free reload).
 B0_CKPT_SHA256 = {
     171701: "45f9e151c5d3946804ea531eb2bcace26b1f62e634671f51b8741ac6b411a619",
@@ -346,14 +346,19 @@ def b0_config_dict(model_seed: int) -> dict:
     }
 
 def check_task19_freeze() -> dict:
-    """Refuse execution unless the committed Task 19 freeze bytes are exact."""
-    freeze_path = REPO_ROOT / TASK19_FREEZE_PATH
-    digest = sha256_file(freeze_path)
+    """Refuse execution unless the committed Task 19 freeze bytes are exact.
+
+    The digest is over CRLF-normalized bytes: Windows checkouts materialize
+    CRLF while Linux checkouts materialize LF for the identical blob, so a
+    raw byte hash is platform-dependent and must not gate execution.
+    """
+    data = (REPO_ROOT / TASK19_FREEZE_PATH).read_bytes().replace(b"\r\n", b"\n")
+    digest = hashlib.sha256(data).hexdigest()
     if digest != TASK19_FREEZE_SHA256:
         raise ValueError(
             f"Task 19 freeze mismatch: {digest} != {TASK19_FREEZE_SHA256} "
             "(no execution-dependent config mutation)")
-    freeze = json.loads(freeze_path.read_text(encoding="utf-8"))
+    freeze = json.loads(data.decode("utf-8"))
     for k_id, members in K_MEMBERS.items():
         if tuple(freeze["combinations"][k_id]["member_arm_ids"]) != members:
             raise ValueError(f"Task 19 freeze member mismatch for {k_id}")
