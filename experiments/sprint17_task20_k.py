@@ -1277,6 +1277,10 @@ def main() -> int:
         st = time.time()
         model, b0_bank, cfg, patchifier, cfg_dict, ckpt_path = reload_b0(
             model_seed, ckpt_dir_arg, device)
+        # K identity for the record: K5/K6 reload the B0 graph, so the K
+        # config is B0 values plus arm/member/description only (asserted by
+        # the union test); the reloaded graph bytes are untouched.
+        cfg_dict = k_config_dict(arm_id, model_seed)
         params = count_parameters(model)
         if params != B0_PARAMS:
             raise ValueError(f"{arm_id} parameter identity breach: {params}")
@@ -1385,8 +1389,8 @@ def main() -> int:
         else:
             # K6: C9-B window aggregation over C8-A Huber patch energies;
             # S_pop reused bitwise from B0.
-            cal_pred_k, cal_win = k6_aggregate(cal_lat, standardizer)
-            fit_pred_k, fit_win = k6_aggregate(fit_lat, standardizer)
+            cal_pred_k, _, cal_win = k6_aggregate(cal_lat, standardizer)
+            fit_pred_k, _, fit_win = k6_aggregate(fit_lat, standardizer)
             win_spans = ([w.get("covered_span", 0) for w in list(cal_win)]
                          + [w.get("covered_span", 0) for w in list(fit_win)])
             cal_emb = torch.stack([r["file_embedding"] for r in cal_lat])
