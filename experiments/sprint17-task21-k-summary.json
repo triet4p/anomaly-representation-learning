@@ -1,0 +1,911 @@
+{
+ "arms": {
+  "K7": {
+   "S_pop": {
+    "delta_p": 0.0196500694375434,
+    "delta_vs_B0": 0.02037277543428943,
+    "delta_w": 0.02072747534437828,
+    "directional": 4,
+    "lcb95": 0.6934452698603641,
+    "macro_p": 0.7098239988724209,
+    "macro_pw": 0.7010898336621504,
+    "macro_w": 0.6902096715272091,
+    "per_history": [
+     0.7072344322344323,
+     0.689027489027489,
+     0.7013988010276906,
+     0.7066986123589897
+    ],
+    "per_history_delta_pw": [
+     0.004808,
+     0.04255,
+     0.009325,
+     0.024808
+    ],
+    "per_seed_delta_pw": {
+     "171701": 0.014479069187146254,
+     "171702": 0.03186550001922883,
+     "171703": 0.0147737570964932
+    }
+   },
+   "S_pred": {
+    "delta_p": 0.031162492481002262,
+    "delta_vs_B0": 0.03539233094829649,
+    "delta_w": 0.04063616929206874,
+    "directional": 4,
+    "lcb95": 0.6935398419617305,
+    "lead_p": [
+     4.681466666572537,
+     4.681692152346044,
+     4.247177351494364,
+     4.696044414463736
+    ],
+    "lead_w": [
+     4.122656424446685,
+     3.922164571469999,
+     5.73146498462658,
+     3.966956276967881
+    ],
+    "macro_p": 0.7099930122858992,
+    "macro_pw": 0.707434556947828,
+    "macro_w": 0.7051346618759452,
+    "per_history": [
+     0.7186355311355311,
+     0.7045045045045045,
+     0.6851746122371302,
+     0.7214235799141461
+    ],
+    "per_history_delta_pw": [
+     0.029304,
+     0.005082,
+     0.074888,
+     0.032295
+    ],
+    "per_seed_delta_pw": {
+     "171701": 0.04530515583368189,
+     "171702": 0.06508096061649216,
+     "171703": -0.0042091236052845815
+    },
+    "recall_p": [
+     0.693121693121693,
+     0.6885245901639344,
+     0.7671957671957671,
+     0.4465408805031446
+    ],
+    "recall_w": [
+     0.7278911564625851,
+     0.6066666666666667,
+     0.7333333333333334,
+     0.4150943396226415
+    ]
+   },
+   "adapter_description": "K7 (C2-A+C3-A+C5-A+C6-A): C2-A: overlap-explicit single-grid patchifier (W=32, stride 16, pad_end); no geometry adapter, no support weights; downstream pooling, masking, scoring, and metric code unchanged | C3-A: residual depthwise-separable dilated-1D-conv patch encoder (in-proj k1, depthwise k3/dilation-2, pointwise k1, residual); unchanged output head and masked pooling; no other adapter | C5-A: seeded contiguous channel-time block masking at the frozen 0.40 ratio plus shared-head multi-horizon (0/+1/+2) EMA latent prediction; no new parameters; scoring/inference code unchanged | C6-A: valid-patch mean-plus-population-std concatenated to 2D and linearly projected to D (one Linear(256,128) + bias, 32,896 params); invalid patches masked to zero before statistics; no other adapter",
+   "arm_fit_patches": 154129,
+   "background_ratio_per_history": [
+    0.05231339994666989,
+    0.08102520683161715,
+    0.05353207788396308,
+    0.19081945754938148
+   ],
+   "categories": {
+    "H-S17-V3-DEV-01": {
+     "A1": 0.6790999768035259,
+     "A2": 0.6403154720482487,
+     "P1": 0.9374327829442652,
+     "P2": 0.9118533982834608,
+     "W1": 0.9275664881546701,
+     "W2": 0.9395107328301483
+    },
+    "H-S17-V3-DEV-02": {
+     "A1": 0.5251565210832013,
+     "A2": 0.7412423625254583,
+     "P1": 0.9353419013507502,
+     "P2": 0.9201883910386965,
+     "W1": 0.9090291921249151,
+     "W2": 0.9234709621674999
+    },
+    "H-S17-V3-DEV-03": {
+     "A1": 0.46580296896086376,
+     "A2": 0.6916290726817044,
+     "P1": 0.9144517543859649,
+     "P2": 0.9034748160724392,
+     "W1": 0.9179987004548408,
+     "W2": 0.9151792524790237
+    },
+    "H-S17-V3-DEV-04": {
+     "A1": 0.667128667128667,
+     "A2": 0.6309684684684685,
+     "P1": 0.9072434503468987,
+     "P2": 0.9113175675675675,
+     "W1": 0.9071471471471472,
+     "W2": 0.8979783354783355
+    }
+   },
+   "component_set": [
+    "C2",
+    "C3",
+    "C5",
+    "C6"
+   ],
+   "compute": {
+    "b0_flops_per_reference_sample": 182016709,
+    "b0_params": 1821698,
+    "envelope_pass": true,
+    "flops_delta_fraction": 0.0003600548562824526,
+    "flops_per_reference_sample": 182082245,
+    "params_delta_fraction": 0.01805787786998723,
+    "params_total": 1854594
+   },
+   "delta_far_per_history": [
+    0.01011494252873564,
+    0.005064456721915286,
+    0.005960568546538272,
+    -0.0009675858732462496
+   ],
+   "elapsed_s": 1025.2,
+   "evidence_doc_sha256": "55f8a42cfda4bd891f9ba66c2f778f953d0645054de2da54a0800ef109327542",
+   "excluded_rows": 131,
+   "far_per_history": [
+    0.044367816091954025,
+    0.04005524861878453,
+    0.045621274644658406,
+    0.027092404450895016
+   ],
+   "gates": {
+    "P_noninferiority": true,
+    "W_noninferiority": true,
+    "background_stability": false,
+    "compute_envelope": true,
+    "eligible": true,
+    "finite_and_support": true,
+    "minimum_effect": false,
+    "nuisance": true,
+    "observable": true,
+    "recovery": false,
+    "score_separation": true,
+    "structural": true
+   },
+   "localization_per_history": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "metric_code_sha256": "bc0384e88c6bd0835abbab9a3c7656f60a747c098e4015f33e2b0d49f2d2bfd3",
+   "one_principal_change": "none",
+   "provenance": {
+    "cache_sha256": "59e562c48078e961df7096377d0e837d5808504d0817fd4dd3b78cf2c69a781e",
+    "calibration_root_sha256": "e6bcdba617dabae52aba57905ba3f471768073c725df9afbc1c3f97919e0f101",
+    "checkpoint_sha256": "19c9415f77e469417595542136131bf403b5369f4359fab4f629905c5bbb4c37",
+    "data_protocol": "sprint15-benchmark-protocol-v7",
+    "data_roles": [
+     "H-S17-V3-FIT-01",
+     "H-S17-V3-FIT-02",
+     "H-S17-V3-FIT-03",
+     "H-S17-V3-CAL-01",
+     "H-S17-V3-DEV-01",
+     "H-S17-V3-DEV-02",
+     "H-S17-V3-DEV-03",
+     "H-S17-V3-DEV-04"
+    ],
+    "data_seeds": [
+     2804,
+     2805,
+     2806,
+     2807,
+     2808,
+     2809,
+     2810,
+     2811
+    ],
+    "evaluation_root_sha256": "d4cccfc743a5237b4fe9be44dc64521ba728227cacd38f91103fc066dbd0d3bd",
+    "fit_root_sha256": "800f879375deabeffb75ec8ab10a6fac6ffeadf8e23ae8720ac505b45b473373",
+    "metric_code_sha256": "bc0384e88c6bd0835abbab9a3c7656f60a747c098e4015f33e2b0d49f2d2bfd3",
+    "model_seeds": [
+     171701,
+     171702,
+     171703
+    ],
+    "parent_arm_ids": [
+     "C2-A",
+     "C3-A",
+     "C5-A",
+     "C6-A"
+    ],
+    "role_binding_sha256": "075868b22c028a981cc63ffe37b8d29720cd324c3e2c7254ce688678758230ba"
+   },
+   "seeds": {
+    "171701": {
+     "ckpt_sha256": "5e39a1faa882faa2b434c3ff20bb9e1d3c9548cb2bd31b4b710dc631e44fb3b4",
+     "corr": 0.16161605712083146,
+     "steps": 300,
+     "thr_pop": 1.1064798831939697,
+     "thr_pred": 0.1297171711921692
+    },
+    "171702": {
+     "ckpt_sha256": "0b45b7260389434ec34359b57321b2b3401cb56c25aaff310dfc6ba6c99f42f8",
+     "corr": 0.05704186975443554,
+     "steps": 300,
+     "thr_pop": 0.945238471031189,
+     "thr_pred": 0.07913845777511597
+    },
+    "171703": {
+     "ckpt_sha256": "64777b46482824c6c19871f452546c8bb2b2b581eaebadb21e5008d21250ea09",
+     "corr": 0.19528773169971636,
+     "steps": 300,
+     "thr_pop": 1.0507923364639282,
+     "thr_pred": 0.20570848882198334
+    }
+   },
+   "severity_p": [
+    -0.07513751600212036,
+    -0.018781826393556075,
+    0.037178389057061244,
+    0.03907496492273394
+   ],
+   "severity_w": [
+    -0.11953856214494563,
+    0.04931608490328554,
+    -0.028783661226854138,
+    -0.023421031299651906
+   ],
+   "status": "VALID_NEGATIVE",
+   "support_match_B0": true,
+   "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+  },
+  "K8": {
+   "S_pop": {
+    "delta_p": -0.012118394986100048,
+    "delta_vs_B0": -0.012823271190627428,
+    "delta_w": -0.014077803112234869,
+    "directional": 4,
+    "lcb95": 0.6494310588060588,
+    "macro_p": 0.6780555344487774,
+    "macro_pw": 0.6678937870372335,
+    "macro_w": 0.6554043930705961,
+    "per_history": [
+     0.6782509157509158,
+     0.6398244398244398,
+     0.678846702826149,
+     0.6746530897474293
+    ],
+    "per_history_delta_pw": [
+     -0.024176,
+     -0.006653,
+     -0.013227,
+     -0.007238
+    ],
+    "per_seed_delta_pw": {
+     "171701": -0.028697421836557324,
+     "171702": -0.0030268841127053525,
+     "171703": -0.0067455076226196065
+    }
+   },
+   "S_pred": {
+    "delta_p": -0.006440208339472934,
+    "delta_vs_B0": -0.006201958313356089,
+    "delta_w": -0.005059403675219658,
+    "directional": 4,
+    "lcb95": 0.6516143442982938,
+    "lead_p": [
+     5.156420237335968,
+     4.418981859628461,
+     4.500305972783374,
+     3.9372589931660116
+    ],
+    "lead_w": [
+     3.010984328416813,
+     3.629132978411486,
+     4.4645139704575625,
+     4.762560707108451
+    ],
+    "macro_p": 0.6723903114654239,
+    "macro_pw": 0.6658402676861754,
+    "macro_w": 0.6594390889086568,
+    "per_history": [
+     0.6721153846153847,
+     0.6610302610302611,
+     0.6447806641925968,
+     0.685434760906459
+    ],
+    "per_history_delta_pw": [
+     -0.017216,
+     -0.038392,
+     0.034494,
+     -0.003694
+    ],
+    "per_seed_delta_pw": {
+     "171701": -0.011698709361948945,
+     "171702": -0.017482799270478577,
+     "171703": 0.010575633692359254
+    },
+    "recall_p": [
+     0.4761904761904762,
+     0.5846994535519126,
+     0.6878306878306878,
+     0.5471698113207547
+    ],
+    "recall_w": [
+     0.5986394557823129,
+     0.5866666666666667,
+     0.6866666666666666,
+     0.38993710691823896
+    ]
+   },
+   "adapter_description": "K8 (C7-A+C8-A+C9-B): C7-A: per-condition robust location (coordinate-wise median) plus Ledoit-Wolf-style covariance shrinkage to scaled identity (floor 0.05), squared-Mahalanobis energy over the frozen (robot,program)->robot->program->global hierarchy with fallback below 8 rows; fitted statistics only, no trainable parameters; no other adapter | C8-A: non-query-conditioned standardized Huber prediction-residual energy (Fit-fitted per-dimension median/MAD, floor 1e-6, Huber delta 1.0, file-mean over valid masked patches); fitted statistics only (256 floats), no trainable parameters; no other adapter | C9-B: maximum fixed-duration contiguous-window mean using patch starts/valid lengths (duration=64 timesteps, earliest-window tie-break)",
+   "arm_fit_patches": 154129,
+   "background_ratio_per_history": [
+    0.09022745611155335,
+    0.04025055958274735,
+    0.10085642397220541,
+    0.2097469072363289
+   ],
+   "categories": {
+    "H-S17-V3-DEV-01": {
+     "A1": 0.6694038506147065,
+     "A2": 0.6509394572025052,
+     "P1": 0.8962063220935872,
+     "P2": 0.9110183252145673,
+     "W1": 0.8971286799189132,
+     "W2": 0.924067234088111
+    },
+    "H-S17-V3-DEV-02": {
+     "A1": 0.6063211888059139,
+     "A2": 0.7003394433129667,
+     "P1": 0.9241987967319801,
+     "P2": 0.9069501018329938,
+     "W1": 0.9091746678304723,
+     "W2": 0.9176078503980745
+    },
+    "H-S17-V3-DEV-03": {
+     "A1": 0.6455060728744939,
+     "A2": 0.6692230576441104,
+     "P1": 0.9104824561403508,
+     "P2": 0.911262026032824,
+     "W1": 0.9233788174139052,
+     "W2": 0.89348588863463
+    },
+    "H-S17-V3-DEV-04": {
+     "A1": 0.6992954492954494,
+     "A2": 0.6657282282282282,
+     "P1": 0.9098840219529875,
+     "P2": 0.9218906406406407,
+     "W1": 0.9018318318318319,
+     "W2": 0.8907389532389532
+    }
+   },
+   "component_set": [
+    "C7",
+    "C8",
+    "C9"
+   ],
+   "compute": {
+    "b0_flops_per_reference_sample": 182016709,
+    "b0_params": 1821698,
+    "envelope_pass": true,
+    "flops_delta_fraction": 0.0,
+    "flops_per_reference_sample": 182016709,
+    "params_delta_fraction": 0.0,
+    "params_total": 1821698
+   },
+   "delta_far_per_history": [
+    0.0032183908045977094,
+    0.00483425414364641,
+    0.004585052728106366,
+    0.0033865505563618788
+   ],
+   "elapsed_s": 722.8,
+   "evidence_doc_sha256": "f1e24804deafd80a378a09d230b9a1a648c0d1f233a9936feec9d2831a315a5c",
+   "excluded_rows": 131,
+   "far_per_history": [
+    0.037471264367816094,
+    0.039825046040515656,
+    0.0442457588262265,
+    0.031446540880503145
+   ],
+   "gates": {
+    "P_noninferiority": true,
+    "W_noninferiority": true,
+    "background_stability": false,
+    "compute_envelope": true,
+    "eligible": true,
+    "finite_and_support": true,
+    "minimum_effect": false,
+    "nuisance": true,
+    "observable": true,
+    "recovery": false,
+    "score_separation": true,
+    "structural": true
+   },
+   "localization_per_history": [
+    1.0,
+    1.0,
+    0.9941002949852508,
+    1.0
+   ],
+   "metric_code_sha256": "bc0384e88c6bd0835abbab9a3c7656f60a747c098e4015f33e2b0d49f2d2bfd3",
+   "one_principal_change": "none",
+   "provenance": {
+    "cache_sha256": "dbafb8de11bae6d8d7c2752c576acb7122be95d13e6559e716e001c50902c248",
+    "calibration_root_sha256": "e6bcdba617dabae52aba57905ba3f471768073c725df9afbc1c3f97919e0f101",
+    "checkpoint_sha256": "a052648e3df97f79b4852c2d6381000ead0605351ca1c8c9acd2e3c2c1d7fce9",
+    "data_protocol": "sprint15-benchmark-protocol-v7",
+    "data_roles": [
+     "H-S17-V3-FIT-01",
+     "H-S17-V3-FIT-02",
+     "H-S17-V3-FIT-03",
+     "H-S17-V3-CAL-01",
+     "H-S17-V3-DEV-01",
+     "H-S17-V3-DEV-02",
+     "H-S17-V3-DEV-03",
+     "H-S17-V3-DEV-04"
+    ],
+    "data_seeds": [
+     2804,
+     2805,
+     2806,
+     2807,
+     2808,
+     2809,
+     2810,
+     2811
+    ],
+    "evaluation_root_sha256": "d4cccfc743a5237b4fe9be44dc64521ba728227cacd38f91103fc066dbd0d3bd",
+    "fit_root_sha256": "800f879375deabeffb75ec8ab10a6fac6ffeadf8e23ae8720ac505b45b473373",
+    "metric_code_sha256": "bc0384e88c6bd0835abbab9a3c7656f60a747c098e4015f33e2b0d49f2d2bfd3",
+    "model_seeds": [
+     171701,
+     171702,
+     171703
+    ],
+    "parent_arm_ids": [
+     "C7-A",
+     "C8-A",
+     "C9-B"
+    ],
+    "role_binding_sha256": "075868b22c028a981cc63ffe37b8d29720cd324c3e2c7254ce688678758230ba"
+   },
+   "seeds": {
+    "171701": {
+     "ckpt_sha256": "45f9e151c5d3946804ea531eb2bcace26b1f62e634671f51b8741ac6b411a619",
+     "corr": -0.09213273475152288,
+     "steps": 300,
+     "thr_pop": 39.88631009371126,
+     "thr_pred": 2.405964084134403
+    },
+    "171702": {
+     "ckpt_sha256": "64ed2cedec210e4692f60bb4dd3430a57cf94abfcd50551abd97c9265ea785f8",
+     "corr": -0.13898655891119258,
+     "steps": 300,
+     "thr_pop": 63.952352261812564,
+     "thr_pred": 2.7934244786564206
+    },
+    "171703": {
+     "ckpt_sha256": "9edb2122e357376a9ff1e065d73d5ab7704f8d2005991552332f1ced01b0e906",
+     "corr": 0.24649306059554754,
+     "steps": 300,
+     "thr_pop": 123.82702144472155,
+     "thr_pred": 2.969790788685183
+    }
+   },
+   "severity_p": [
+    0.06398597025835676,
+    -0.0020041583041904335,
+    -0.022376668607893186,
+    0.2065248237384981
+   ],
+   "severity_w": [
+    -0.0670104722137777,
+    0.1478276774851542,
+    0.07538822263100002,
+    -0.009254163586691727
+   ],
+   "status": "VALID_NEGATIVE",
+   "support_match_B0": true,
+   "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+  },
+  "K9": {
+   "S_pop": {
+    "delta_p": 0.00748810941181947,
+    "delta_vs_B0": 0.008612354560302182,
+    "delta_w": 0.010375532810103727,
+    "directional": 4,
+    "lcb95": 0.6828607610282615,
+    "macro_p": 0.697662038846697,
+    "macro_pw": 0.6893294127881631,
+    "macro_w": 0.6798577289929346,
+    "per_history": [
+     0.6969322344322344,
+     0.6946638946638947,
+     0.6840803121134265,
+     0.6816412099430966
+    ],
+    "per_history_delta_pw": [
+     -0.005495,
+     0.048187,
+     -0.007993,
+     -0.00025
+    ],
+    "per_seed_delta_pw": {
+     "171701": 0.015319473552275364,
+     "171702": 0.03635929428476192,
+     "171703": -0.02584170415613074
+    }
+   },
+   "S_pred": {
+    "delta_p": 0.03929977379584756,
+    "delta_vs_B0": 0.043167331992156686,
+    "delta_w": 0.04840647591756194,
+    "directional": 4,
+    "lcb95": 0.7012093375745959,
+    "lead_p": [
+     4.549366112958034,
+     4.590542701589363,
+     4.620341051531608,
+     4.701229123603341
+    ],
+    "lead_w": [
+     3.77674981819178,
+     4.018985440254652,
+     5.188730632999609,
+     4.95210222186867
+    ],
+    "macro_p": 0.7181302936007445,
+    "macro_pw": 0.7152095579916881,
+    "macro_w": 0.7129049685014385,
+    "per_history": [
+     0.7261904761904762,
+     0.7155001155001154,
+     0.6928822913693026,
+     0.7262653489068583
+    ],
+    "per_history_delta_pw": [
+     0.036859,
+     0.016078,
+     0.082596,
+     0.037137
+    ],
+    "per_seed_delta_pw": {
+     "171701": 0.04606471254751843,
+     "171702": 0.07046001722116602,
+     "171703": 0.01297726620778561
+    },
+    "recall_p": [
+     0.6984126984126985,
+     0.6721311475409837,
+     0.7248677248677248,
+     0.4842767295597484
+    ],
+    "recall_w": [
+     0.6802721088435374,
+     0.5466666666666667,
+     0.7799999999999999,
+     0.36477987421383645
+    ]
+   },
+   "adapter_description": "K9 (C2-A+C3-A+C5-A+C6-A+C7-A+C8-A+C9-B): C2-A: overlap-explicit single-grid patchifier (W=32, stride 16, pad_end); no geometry adapter, no support weights; downstream pooling, masking, scoring, and metric code unchanged | C3-A: residual depthwise-separable dilated-1D-conv patch encoder (in-proj k1, depthwise k3/dilation-2, pointwise k1, residual); unchanged output head and masked pooling; no other adapter | C5-A: seeded contiguous channel-time block masking at the frozen 0.40 ratio plus shared-head multi-horizon (0/+1/+2) EMA latent prediction; no new parameters; scoring/inference code unchanged | C6-A: valid-patch mean-plus-population-std concatenated to 2D and linearly projected to D (one Linear(256,128) + bias, 32,896 params); invalid patches masked to zero before statistics; no other adapter | C7-A: per-condition robust location (coordinate-wise median) plus Ledoit-Wolf-style covariance shrinkage to scaled identity (floor 0.05), squared-Mahalanobis energy over the frozen (robot,program)->robot->program->global hierarchy with fallback below 8 rows; fitted statistics only, no trainable parameters; no other adapter | C8-A: non-query-conditioned standardized Huber prediction-residual energy (Fit-fitted per-dimension median/MAD, floor 1e-6, Huber delta 1.0, file-mean over valid masked patches); fitted statistics only (256 floats), no trainable parameters; no other adapter | C9-B: maximum fixed-duration contiguous-window mean using patch starts/valid lengths (duration=64 timesteps, earliest-window tie-break)",
+   "arm_fit_patches": 154129,
+   "background_ratio_per_history": [
+    0.07851624250457241,
+    0.10420550874655259,
+    0.07505791319246653,
+    0.2861687264711152
+   ],
+   "categories": {
+    "H-S17-V3-DEV-01": {
+     "A1": 0.669543029459522,
+     "A2": 0.6531199257712826,
+     "P1": 0.9330254528584382,
+     "P2": 0.9217582927395037,
+     "W1": 0.9304710901334302,
+     "W2": 0.937797762432418
+    },
+    "H-S17-V3-DEV-02": {
+     "A1": 0.5080334917402127,
+     "A2": 0.7295315682281059,
+     "P1": 0.9315260903153311,
+     "P2": 0.9215461642905636,
+     "W1": 0.9112355736591988,
+     "W2": 0.9240572733444424
+    },
+    "H-S17-V3-DEV-03": {
+     "A1": 0.48097165991902835,
+     "A2": 0.7198496240601503,
+     "P1": 0.9153070175438596,
+     "P2": 0.9039954725523486,
+     "W1": 0.9237426900584795,
+     "W2": 0.9197559115179251
+    },
+    "H-S17-V3-DEV-04": {
+     "A1": 0.6540771540771542,
+     "A2": 0.6364489489489489,
+     "P1": 0.9145956301128715,
+     "P2": 0.9226413913913913,
+     "W1": 0.9109609609609611,
+     "W2": 0.8983537108537109
+    }
+   },
+   "component_set": [
+    "C2",
+    "C3",
+    "C5",
+    "C6",
+    "C7",
+    "C8",
+    "C9"
+   ],
+   "compute": {
+    "b0_flops_per_reference_sample": 182016709,
+    "b0_params": 1821698,
+    "envelope_pass": true,
+    "flops_delta_fraction": 0.0003600548562824526,
+    "flops_per_reference_sample": 182082245,
+    "params_delta_fraction": 0.01805787786998723,
+    "params_total": 1854594
+   },
+   "delta_far_per_history": [
+    0.007126436781609201,
+    0.0055248618784530384,
+    0.005502063273727639,
+    -0.0012094823415578111
+   ],
+   "elapsed_s": 2870.6,
+   "evidence_doc_sha256": "66be9230d6bf3018112262d50b1191bb2df14ae36e623d1720d68b42245ef61b",
+   "excluded_rows": 131,
+   "far_per_history": [
+    0.041379310344827586,
+    0.040515653775322284,
+    0.04516276937184777,
+    0.026850507982583455
+   ],
+   "gates": {
+    "P_noninferiority": true,
+    "W_noninferiority": true,
+    "background_stability": false,
+    "compute_envelope": true,
+    "eligible": true,
+    "finite_and_support": true,
+    "minimum_effect": false,
+    "nuisance": true,
+    "observable": true,
+    "recovery": false,
+    "score_separation": true,
+    "structural": true
+   },
+   "localization_per_history": [
+    1.0,
+    1.0,
+    1.0,
+    1.0
+   ],
+   "metric_code_sha256": "bc0384e88c6bd0835abbab9a3c7656f60a747c098e4015f33e2b0d49f2d2bfd3",
+   "one_principal_change": "none",
+   "provenance": {
+    "cache_sha256": "998b7f8cb05c709290e688e55c0b987dee0e38daf14561bbef58fac40781ef91",
+    "calibration_root_sha256": "e6bcdba617dabae52aba57905ba3f471768073c725df9afbc1c3f97919e0f101",
+    "checkpoint_sha256": "258603eccfb8307257aebfbf147c68daebf617479a2dea316284c644fef80bd5",
+    "data_protocol": "sprint15-benchmark-protocol-v7",
+    "data_roles": [
+     "H-S17-V3-FIT-01",
+     "H-S17-V3-FIT-02",
+     "H-S17-V3-FIT-03",
+     "H-S17-V3-CAL-01",
+     "H-S17-V3-DEV-01",
+     "H-S17-V3-DEV-02",
+     "H-S17-V3-DEV-03",
+     "H-S17-V3-DEV-04"
+    ],
+    "data_seeds": [
+     2804,
+     2805,
+     2806,
+     2807,
+     2808,
+     2809,
+     2810,
+     2811
+    ],
+    "evaluation_root_sha256": "d4cccfc743a5237b4fe9be44dc64521ba728227cacd38f91103fc066dbd0d3bd",
+    "fit_root_sha256": "800f879375deabeffb75ec8ab10a6fac6ffeadf8e23ae8720ac505b45b473373",
+    "metric_code_sha256": "bc0384e88c6bd0835abbab9a3c7656f60a747c098e4015f33e2b0d49f2d2bfd3",
+    "model_seeds": [
+     171701,
+     171702,
+     171703
+    ],
+    "parent_arm_ids": [
+     "C2-A",
+     "C3-A",
+     "C5-A",
+     "C6-A",
+     "C7-A",
+     "C8-A",
+     "C9-B"
+    ],
+    "role_binding_sha256": "075868b22c028a981cc63ffe37b8d29720cd324c3e2c7254ce688678758230ba"
+   },
+   "seeds": {
+    "171701": {
+     "ckpt_sha256": "bbcfc36332d5a0144ef2b2ade8d558d97568b50a02e66be12563d77052069eb3",
+     "corr": 0.0401924804411787,
+     "steps": 300,
+     "thr_pop": 71.02805734261742,
+     "thr_pred": 2.3243869657485083
+    },
+    "171702": {
+     "ckpt_sha256": "ced00b91a341a8f644600f9d1eed2976fa4885810b5312f0be3d855dfc733630",
+     "corr": 0.040549933367559195,
+     "steps": 300,
+     "thr_pop": 86.82833012200732,
+     "thr_pred": 2.080016467716798
+    },
+    "171703": {
+     "ckpt_sha256": "69b98deb9a540f663ee4ebb40ccd99c2ff7a0b4b741c8bab0cd0b03fbe72d626",
+     "corr": 0.036683312689874396,
+     "steps": 300,
+     "thr_pop": 54.6191457672574,
+     "thr_pred": 2.967528958141837
+    }
+   },
+   "severity_p": [
+    -0.09775873177069555,
+    0.10982787506963582,
+    -0.05495234252815059,
+    0.06954115971451846
+   ],
+   "severity_w": [
+    -0.15022526202536912,
+    0.1169426826435227,
+    -0.07119808775246213,
+    -0.05441105442175229
+   ],
+   "status": "VALID_NEGATIVE",
+   "support_match_B0": true,
+   "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+  }
+ },
+ "b0_baseline": {
+  "checkpoints": {
+   "171701": "45f9e151c5d3946804ea531eb2bcace26b1f62e634671f51b8741ac6b411a619",
+   "171702": "64ed2cedec210e4692f60bb4dd3430a57cf94abfcd50551abd97c9265ea785f8",
+   "171703": "9edb2122e357376a9ff1e065d73d5ab7704f8d2005991552332f1ced01b0e906"
+  },
+  "commit": "8c15f0204a3e495569b7f143dc109943e8b808de",
+  "evidence_doc_sha256": "79865bcb2eac0f1b0436182b4f442c3c227394b3e542de9cae613a92a81eac18",
+  "macro_PW_per_seed": {
+   "171701": 0.6679282581030039,
+   "171702": 0.6662107935384817,
+   "171703": 0.6819876263571087
+  },
+  "metric_code_sha256": "b2d6af7505abe459a84f76f5279a6a5c4298e7c142901edd4596fcfe3ddeb88f",
+  "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+ },
+ "driver": {
+  "path": "experiments/sprint17_task20_k.py",
+  "sha256": "8f512e68d09db5a23f7a339af59e84d257c2eea8e3c2721d664256788cfb47c2"
+ },
+ "execution_commits": {
+  "K7": "ddc77c1f1f4b737298a0e920789e778fb28d370f",
+  "K8": "ddc77c1f1f4b737298a0e920789e778fb28d370f",
+  "K9": "ddc77c1f1f4b737298a0e920789e778fb28d370f"
+ },
+ "interactions": {
+  "K7": {
+   "S_pop": {
+    "interaction_macro": 0.009880793828649667,
+    "interaction_per_seed": {
+     "171701": 0.03434052820288133,
+     "171702": -0.038805484896049625,
+     "171703": 0.034107338179117416
+    },
+    "k_delta_vs_B0": 0.02037277543428943,
+    "single_deltas_vs_B0": {
+     "C2-A": -2.2515803598318247e-05,
+     "C3-A": -0.00860868757255743,
+     "C5-A": 0.0022749039623895704,
+     "C6-A": 0.016848281019405942
+    }
+   },
+   "S_pred": {
+    "interaction_macro": 0.0041600317567952495,
+    "interaction_per_seed": {
+     "171701": 0.018530254680973433,
+     "171702": 0.009379172499361876,
+     "171703": -0.015429331909949615
+    },
+    "k_delta_vs_B0": 0.03539233094829649,
+    "single_deltas_vs_B0": {
+     "C2-A": -1.0312510312360246e-07,
+     "C3-A": -0.01007096548106882,
+     "C5-A": 0.032334926203523996,
+     "C6-A": 0.008968441594149187
+    }
+   }
+  },
+  "K8": {
+   "S_pop": {
+    "interaction_macro": 0.0,
+    "interaction_per_seed": {
+     "171701": 7.632783294297951e-17,
+     "171702": -5.2475385148298415e-17,
+     "171703": -6.071532165918825e-18
+    },
+    "k_delta_vs_B0": -0.012823271190627428,
+    "single_deltas_vs_B0": {
+     "C7-A": -0.012823271190627428,
+     "C8-A": 0.0,
+     "C9-B": 0.0
+    }
+   },
+   "S_pred": {
+    "interaction_macro": -0.003224338698615491,
+    "interaction_per_seed": {
+     "171701": -0.006292819235398159,
+     "171702": -0.006684103462185054,
+     "171703": 0.0033039066017366706
+    },
+    "k_delta_vs_B0": -0.006201958313356089,
+    "single_deltas_vs_B0": {
+     "C7-A": 0.0,
+     "C8-A": 0.004356175642764877,
+     "C9-B": -0.007333795257505475
+    }
+   }
+  },
+  "K9": {
+   "S_pop": {
+    "interaction_macro": 0.010943644145289847,
+    "interaction_per_seed": {
+     "171701": 0.06387835440456785,
+     "171702": -0.03128480651781124,
+     "171703": 0.00023738454911307813
+    },
+    "k_delta_vs_B0": 0.008612354560302182,
+    "single_deltas_vs_B0": {
+     "C2-A": -2.2515803598318247e-05,
+     "C3-A": -0.00860868757255743,
+     "C5-A": 0.0022749039623895704,
+     "C6-A": 0.016848281019405942,
+     "C7-A": -0.012823271190627428,
+     "C8-A": 0.0,
+     "C9-B": 0.0
+    }
+   },
+   "S_pred": {
+    "interaction_macro": 0.014912652415396042,
+    "interaction_per_seed": {
+     "171701": 0.02469570152136076,
+     "171702": 0.025556924912329262,
+     "171703": -0.005514669187502007
+    },
+    "k_delta_vs_B0": 0.043167331992156686,
+    "single_deltas_vs_B0": {
+     "C2-A": -1.0312510312360246e-07,
+     "C3-A": -0.01007096548106882,
+     "C5-A": 0.032334926203523996,
+     "C6-A": 0.008968441594149187,
+     "C7-A": 0.0,
+     "C8-A": 0.004356175642764877,
+     "C9-B": -0.007333795257505475
+    }
+   }
+  }
+ },
+ "phase": "development",
+ "protocol_id": "sprint17-ablation-v4",
+ "qualification": "MEASURABLE_WITH_USER_WAIVER",
+ "remote": {
+  "device": "NVIDIA GeForce RTX 4060 Ti",
+  "host": "192.168.30.244",
+  "out": "/tmp/sprint17-task21-out",
+  "python": "3.12.13",
+  "torch": "2.14.0+cu130",
+  "worktree": "/tmp/sprint17-task20"
+ },
+ "schema_id": "sprint17-ablation-result-v4",
+ "task": "Task 21 \u2014 Stack combinations K7\u2013K9",
+ "window_utc": {
+  "end": "2026-09-15T05:47:35Z",
+  "start": "2026-09-15T04:30:33Z"
+ }
+}
