@@ -886,7 +886,10 @@ def load_arm_checkpoint(lock: dict, arm_id: str, model_seed: int, ckpt_dir, devi
     from representation.checkpoint import load_checkpoint
     from representation.inference import NormalReferenceBank
 
-    if arm_id in TRAINABLE_ARMS:
+    if arm_id == "B0":
+        want = lock["arms"]["B0"]["checkpoints"][str(model_seed)]
+        prefix = ARM_FILE_PREFIX[arm_id]
+    elif arm_id in TRAINABLE_ARMS:
         want = lock["arms"][arm_id]["seeds"][str(model_seed)]["ckpt_sha256"]
         prefix = ARM_FILE_PREFIX[arm_id]
     else:
