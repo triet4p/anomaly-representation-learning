@@ -1,0 +1,2053 @@
+"""Sprint 17 Task 23 - immutable Confirmation matrix lock.
+
+Execution-free composition surface for the one-shot Confirmation comparison.
+It binds the exact 24-arm matrix (B0 + 14 singles + K1-K9), metric code,
+threshold rule and per-arm frozen Calibration thresholds, model seeds,
+checkpoint/bank hashes, and the untouched Confirmation roots.
+
+Non-touch guarantees (fail-closed, asserted in focused tests):
+- No Confirmation score is computed and no Confirmation outcome is parsed.
+  Confirmation enters only as manifest raw-byte SHA-256 plus structural
+  identity (history ID, role, data seed, protocol, config hash,
+  manifest/file/shard counts). Anomaly-outcome fields (counts values,
+  episodes, failure events, scores, metrics) are never read and never
+  stored: the lock carries zero AUROC/delta/per-history/per-seed outcome
+  values (Development outcomes stay in their frozen summaries by hash).
+- Sprint 15 Sealed histories are never opened, enumerated, hashed, probed,
+  scored, or used; no sealed identifier appears in this module or lock.
+- Development selection and all prior configs are immutable: no
+  arm/config substitution, refit, regeneration, pooling, or favorable
+  omission is expressible - any edit changes the lock digest.
+
+Qualification is exactly MEASURABLE_WITH_USER_WAIVER (protocol v4 waiver
+S17-V4-WAIVER-H-S17-V3-DESIGN-03-COHORT_MIX_15_60-P-91-149); unqualified
+MEASURABLE appears nowhere.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+
+__all__ = [
+    "PROTOCOL_ID",
+    "SCHEMA_ID",
+    "MODEL_SEEDS",
+    "OPTIMIZER_STEPS",
+    "CHECKPOINT_STEP",
+    "CALIBRATION_QUANTILE",
+    "BOOTSTRAP_B",
+    "BOOTSTRAP_SEED",
+    "BOOTSTRAP_LCB_PERCENTILE",
+    "QUALIFICATION",
+    "WAIVER_ID",
+    "WAIVER_SCOPE",
+    "DATA_PROTOCOL",
+    "BINDING_SHA256",
+    "SUPPORT_SHA256",
+    "B0_PARAMS",
+    "B0_FLOPS_REFERENCE",
+    "FIT_ROWS",
+    "FIT_PATCHES",
+    "CAL_ROWS",
+    "EFFECT_GATES",
+    "CONFIRMATION_GATES",
+    "ARM_IDS",
+    "SINGLE_IDS",
+    "K_IDS",
+    "TRAIN_FREE_IDS",
+    "SELECTED_ARMS",
+    "K_MEMBERS",
+    "B0_RECORD",
+    "SINGLE_RECORDS",
+    "K_RECORDS",
+    "SHARED_METRIC_FILES",
+    "SHARED_METRIC_DIGESTS",
+    "FLIGHT_DRIVERS",
+    "CONFIRMATION_ROOTS",
+    "CONFIRMATION_ROOT_SHA256",
+    "ALL_MANIFEST_SHA256",
+    "FIT_ROOT_SHA256",
+    "CALIBRATION_ROOT_SHA256",
+    "EVALUATION_ROOT_SHA256",
+    "PROVENANCE_INPUTS",
+    "FORBIDDEN_SUBSTRINGS",
+    "materialize_lock",
+    "validate_lock",
+    "canonical_hash",
+    "lock_sha256",
+    "check_no_sealed_contact",
+    "check_confirmation_path_allowed",
+    "EXECUTION_COMMITS",
+    "FLIGHT_DRIVERS",
+    "UNSELECTED_SINGLES",
+]
+
+PROTOCOL_ID = "sprint17-ablation-v4"
+SCHEMA_ID = "sprint17-confirmation-lock-v1"
+MODEL_SEEDS = (171701, 171702, 171703)
+OPTIMIZER_STEPS = 300
+CHECKPOINT_STEP = 300
+CALIBRATION_QUANTILE = 0.95
+BOOTSTRAP_B = 2000
+BOOTSTRAP_SEED = 20260202
+BOOTSTRAP_LCB_PERCENTILE = 2.5
+QUALIFICATION = "MEASURABLE_WITH_USER_WAIVER"
+WAIVER_ID = "S17-V4-WAIVER-H-S17-V3-DESIGN-03-COHORT_MIX_15_60-P-91-149"
+WAIVER_SCOPE = {
+    "history_id": "H-S17-V3-DESIGN-03",
+    "role": "DESIGN",
+    "gate": "cohort_mix_15_60",
+    "cohort": "P",
+    "observed_numerator": 91,
+    "observed_denominator": 149,
+    "observed_share": 0.610738255033557,
+    "original_upper_bound": 0.6,
+}
+DATA_PROTOCOL = "sprint15-benchmark-protocol-v7"
+BINDING_SHA256 = "075868b22c028a981cc63ffe37b8d29720cd324c3e2c7254ce688678758230ba"
+SUPPORT_SHA256 = "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+B0_PARAMS = 1821698
+B0_FLOPS_REFERENCE = 182016709
+FIT_ROWS = 5040
+FIT_PATCHES = 154129
+CAL_ROWS = 1621
+EFFECT_GATES = {
+    "min_delta_pw": 0.05,
+    "noninferiority_delta_p": -0.02,
+    "noninferiority_delta_w": -0.02,
+}
+CONFIRMATION_GATES = {
+    "min_delta_pw": 0.05,
+    "noninferiority_delta_p": -0.02,
+    "noninferiority_delta_w": -0.02,
+    "min_histories_positive": 3,
+    "histories_total": 4,
+    "primary_lcb_min": 0.55,
+    "directional_min": "3/4",
+    "false_alert_max_per_robot_day": 0.05,
+    "false_alert_delta_max": 0.02,
+    "background_stability_max": 0.10,
+}
+ARM_IDS = ("B0", "C2-A", "C2-B", "C3-A", "C3-B", "C5-A", "C5-B", "C6-A", "C6-B", "C7-A", "C7-B", "C8-A", "C8-B", "C9-A", "C9-B", "K1", "K2", "K3", "K4", "K5", "K6", "K7", "K8", "K9")
+SINGLE_IDS = ("C2-A", "C2-B", "C3-A", "C3-B", "C5-A", "C5-B", "C6-A", "C6-B", "C7-A", "C7-B", "C8-A", "C8-B", "C9-A", "C9-B")
+K_IDS = ("K1", "K2", "K3", "K4", "K5", "K6", "K7", "K8", "K9")
+TRAIN_FREE_IDS = ("C7-A", "C7-B", "C8-A", "C8-B", "C9-A", "C9-B", "K5", "K6", "K8")
+SELECTED_ARMS = {'C2': 'C2-A', 'C3': 'C3-A', 'C5': 'C5-A', 'C6': 'C6-A', 'C7': 'C7-A', 'C8': 'C8-A', 'C9': 'C9-B'}
+K_MEMBERS = {
+    "K1": ('C2-A', 'C3-A'),
+    "K2": ('C3-A', 'C5-A'),
+    "K3": ('C5-A', 'C6-A'),
+    "K4": ('C6-A', 'C7-A'),
+    "K5": ('C7-A', 'C8-A'),
+    "K6": ('C8-A', 'C9-B'),
+    "K7": ('C2-A', 'C3-A', 'C5-A', 'C6-A'),
+    "K8": ('C7-A', 'C8-A', 'C9-B'),
+    "K9": ('C2-A', 'C3-A', 'C5-A', 'C6-A', 'C7-A', 'C8-A', 'C9-B'),
+}
+B0_RECORD = {
+    "arm_id": "B0",
+    "arm_kind": "baseline",
+    "component_set": [],
+    "one_principal_change": "none",
+    "status": "VALID_NEGATIVE",
+    "commit": "8c15f0204a3e495569b7f143dc109943e8b808de",
+    "config_sha256": "1ff67f95428ef29aab05d9f6394a305b75c8c2a9e12431f3cda09b6958596144",
+    "checkpoints": {
+        "171701": "45f9e151c5d3946804ea531eb2bcace26b1f62e634671f51b8741ac6b411a619",
+        "171702": "64ed2cedec210e4692f60bb4dd3430a57cf94abfcd50551abd97c9265ea785f8",
+        "171703": "9edb2122e357376a9ff1e065d73d5ab7704f8d2005991552332f1ced01b0e906",
+    },
+    "thresholds": {
+        "171701": {"pred": 0.09334097802639008, "pop": 2.2176554203033447},
+        "171702": {"pred": 0.11303385347127914, "pop": 2.0839240550994873},
+        "171703": {"pred": 0.09313471615314484, "pop": 2.583014488220215},
+    },
+    "metric_code_sha256": "b2d6af7505abe459a84f76f5279a6a5c4298e7c142901edd4596fcfe3ddeb88f",
+    "support_sha256": SUPPORT_SHA256,
+    "params_total": B0_PARAMS,
+    "flops_per_reference_sample": B0_FLOPS_REFERENCE,
+    "fit": {"histories": ["H-S17-V3-FIT-01", "H-S17-V3-FIT-02", "H-S17-V3-FIT-03"], "rows": FIT_ROWS, "patches": FIT_PATCHES},
+    "calibration": {"quantile": CALIBRATION_QUANTILE, "rows": CAL_ROWS, "scope": "Calibration only (H-S17-V3-CAL-01)"},
+    "evidence_doc_sha256": "79865bcb2eac0f1b0436182b4f442c3c227394b3e542de9cae613a92a81eac18",
+    "summary_file": "experiments/sprint17-task7-b0-summary.json",
+}
+SINGLE_RECORDS = {
+    "C2-A": {
+        "arm_fit_patches": 154129,
+        "cache_sha256": "df9429e41f425038b493fd859d3d2ca93dbbfac607924ce05ed00a404dacab98",
+        "component_set": [
+            "C2"
+        ],
+        "compute": {
+            "envelope_pass": True,
+            "flops_per_reference_sample": 182016709,
+            "params_total": 1821698
+        },
+        "evidence_commit": "5e6582c63b366a57323b71bf530e08b4cdac56da",
+        "metric_code_sha256": "e042491dac18c3d98aba5242ece61850c7c683ac2a92ce9af1a3a5f30343c99e",
+        "one_principal_change": "C2",
+        "parent_arm_ids": [
+            "B0"
+        ],
+        "provenance": {
+            "cache_sha256": "df9429e41f425038b493fd859d3d2ca93dbbfac607924ce05ed00a404dacab98",
+            "checkpoint_sha256": "1cc225420057ea59a1be9eaa8fde21ccb185ef6d946d181f1ce749a663da4ad4",
+            "parent_arm_ids": [
+                "B0"
+            ]
+        },
+        "seeds": {
+            "171701": {
+                "ckpt_sha256": "2431cdd22b11d1a490a28bb4b43571acb2785b16e229be4e7cf391d86f5fa64b",
+                "steps": 300,
+                "thr_pop": 2.2177093029022217,
+                "thr_pred": 0.09338772296905518
+            },
+            "171702": {
+                "ckpt_sha256": "e90fc75ef41b34aeff160884a11918d01646cbb0b811e2ffedc388ee24558eba",
+                "steps": 300,
+                "thr_pop": 2.0839099884033203,
+                "thr_pred": 0.11303446441888809
+            },
+            "171703": {
+                "ckpt_sha256": "ea82f97aae592802752f8a4848f1274add6e6bf829187f82e6d0d25f63475854",
+                "steps": 300,
+                "thr_pop": 2.583052635192871,
+                "thr_pred": 0.09313151240348816
+            }
+        },
+        "status": "VALID_NEGATIVE",
+        "summary_file": "experiments/sprint17-task10-c2-summary.json",
+        "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+    },
+    "C2-B": {
+        "arm_fit_patches": 159169,
+        "cache_sha256": "e782cc51868b9615deeaad98a1afea69ccd8fe109f88c5ee92f2671866251bd0",
+        "component_set": [
+            "C2"
+        ],
+        "compute": {
+            "envelope_pass": True,
+            "flops_per_reference_sample": 188038944,
+            "params_total": 1821698
+        },
+        "evidence_commit": "5e6582c63b366a57323b71bf530e08b4cdac56da",
+        "metric_code_sha256": "e042491dac18c3d98aba5242ece61850c7c683ac2a92ce9af1a3a5f30343c99e",
+        "one_principal_change": "C2",
+        "parent_arm_ids": [
+            "B0"
+        ],
+        "provenance": {
+            "cache_sha256": "e782cc51868b9615deeaad98a1afea69ccd8fe109f88c5ee92f2671866251bd0",
+            "checkpoint_sha256": "f492b6b74d15c8f4e31de7315e54156ae94238910c0ae8bbc2a7c54df5cca4fc",
+            "parent_arm_ids": [
+                "B0"
+            ]
+        },
+        "seeds": {
+            "171701": {
+                "ckpt_sha256": "86ee30812718fb19870dc496a3933fc9077517524b3451f09ae6562601337452",
+                "steps": 300,
+                "thr_pop": 2.219442129135132,
+                "thr_pred": 0.0927724689245224
+            },
+            "171702": {
+                "ckpt_sha256": "b12950d5bb00d6b9edc8896f13be56f5c24c39688db82846fbfc96f10257a8ab",
+                "steps": 300,
+                "thr_pop": 2.2018980979919434,
+                "thr_pred": 0.09003093093633652
+            },
+            "171703": {
+                "ckpt_sha256": "4a53056844a732dc7a942a996733e023a0fb29a9915c7d01eca596d5a53c90f7",
+                "steps": 300,
+                "thr_pop": 2.4973623752593994,
+                "thr_pred": 0.08454429358243942
+            }
+        },
+        "status": "VALID_NEGATIVE",
+        "summary_file": "experiments/sprint17-task10-c2-summary.json",
+        "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+    },
+    "C3-A": {
+        "arm_fit_patches": 154129,
+        "cache_sha256": "0883cef9eade1e5602e447d0de0cbdb52d395e06e4ce5718dd19eda60b3f4725",
+        "component_set": [
+            "C3"
+        ],
+        "compute": {
+            "envelope_pass": True,
+            "flops_per_reference_sample": 177445573,
+            "params_total": 1820674
+        },
+        "evidence_commit": "7eb63e75711533f4537351da92d3f9204c8afa4e",
+        "metric_code_sha256": "09d79910a413a5a61630db63084223e08499449f04b24330bd28a4a6ce2dbd93",
+        "one_principal_change": "C3",
+        "parent_arm_ids": [
+            "B0"
+        ],
+        "provenance": {
+            "cache_sha256": "0883cef9eade1e5602e447d0de0cbdb52d395e06e4ce5718dd19eda60b3f4725",
+            "checkpoint_sha256": "2c678402c0dc52e6a48ff78ee4a36ab59555055407dc709c98b806c89673c156",
+            "parent_arm_ids": [
+                "B0"
+            ]
+        },
+        "seeds": {
+            "171701": {
+                "ckpt_sha256": "51ee0cdfc9ddce8ca861998bb78dbcc3fbe11e5387ec9a6f588c720d9c5eb051",
+                "steps": 300,
+                "thr_pop": 2.603564739227295,
+                "thr_pred": 0.09604647010564804
+            },
+            "171702": {
+                "ckpt_sha256": "d402624d27f199f579a73710b5546cf3303d9d73c60e1db8e7991308dbd1ba60",
+                "steps": 300,
+                "thr_pop": 1.9344221353530884,
+                "thr_pred": 0.04596254974603653
+            },
+            "171703": {
+                "ckpt_sha256": "3d15ac7f2dd150673dbaae773e776e3ca09751f903a80b2129f6e7c7251783f8",
+                "steps": 300,
+                "thr_pop": 2.3485665321350098,
+                "thr_pred": 0.07409504055976868
+            }
+        },
+        "status": "VALID_NEGATIVE",
+        "summary_file": "experiments/sprint17-task11-c3-summary.json",
+        "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+    },
+    "C3-B": {
+        "arm_fit_patches": 154129,
+        "cache_sha256": "7ac7576da9ca774cfa3058dc9a14f45283e6e9aaf127ad632b326904ac2a204a",
+        "component_set": [
+            "C3"
+        ],
+        "compute": {
+            "envelope_pass": True,
+            "flops_per_reference_sample": 179985093,
+            "params_total": 1821710
+        },
+        "evidence_commit": "7eb63e75711533f4537351da92d3f9204c8afa4e",
+        "metric_code_sha256": "09d79910a413a5a61630db63084223e08499449f04b24330bd28a4a6ce2dbd93",
+        "one_principal_change": "C3",
+        "parent_arm_ids": [
+            "B0"
+        ],
+        "provenance": {
+            "cache_sha256": "7ac7576da9ca774cfa3058dc9a14f45283e6e9aaf127ad632b326904ac2a204a",
+            "checkpoint_sha256": "f4aa3ab542d0c5c36234bb590e39c80a128778233a7d538544b528c1395ca088",
+            "parent_arm_ids": [
+                "B0"
+            ]
+        },
+        "seeds": {
+            "171701": {
+                "ckpt_sha256": "42be4e94299fadcdd144945596e66071e14890784ed6dbd89365069e2a01a260",
+                "steps": 300,
+                "thr_pop": 2.2824137210845947,
+                "thr_pred": 0.07410472631454468
+            },
+            "171702": {
+                "ckpt_sha256": "faccb0ea1b13e1efdc180e81de849064ad5db57bf69dee16b9cb82932d6df166",
+                "steps": 300,
+                "thr_pop": 2.4718501567840576,
+                "thr_pred": 0.10459671914577484
+            },
+            "171703": {
+                "ckpt_sha256": "9cf34238c41491f61ead101d18016069bd09f6fd0f51b2ca8da2b3fa34c34003",
+                "steps": 300,
+                "thr_pop": 2.044173002243042,
+                "thr_pred": 0.07035274803638458
+            }
+        },
+        "status": "VALID_NEGATIVE",
+        "summary_file": "experiments/sprint17-task11-c3-summary.json",
+        "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+    },
+    "C5-A": {
+        "arm_fit_patches": 154129,
+        "cache_sha256": "c1821797a2414f32e933d3783789e06590327d082992f77ebd9b497f990e27ac",
+        "component_set": [
+            "C5"
+        ],
+        "compute": {
+            "envelope_pass": True,
+            "flops_per_reference_sample": 182016709,
+            "params_total": 1821698
+        },
+        "evidence_commit": "8dea7fd975b224c6d6f4a96774af40caf9ad6c97",
+        "metric_code_sha256": "91c00e7d84872532fbde077873976124348f9901e86ef386b9811e5f5471861e",
+        "one_principal_change": "C5",
+        "parent_arm_ids": [
+            "B0"
+        ],
+        "provenance": {
+            "cache_sha256": "c1821797a2414f32e933d3783789e06590327d082992f77ebd9b497f990e27ac",
+            "checkpoint_sha256": "f59022e88cca01ca197411b9cbf9c4eb9692428e6280f468dbfee86238326bed",
+            "parent_arm_ids": [
+                "B0"
+            ]
+        },
+        "seeds": {
+            "171701": {
+                "ckpt_sha256": "8f756e21ad29b3f5d2cf06684fb6b02cc82bcf080dab9e103b81cda38dce7266",
+                "steps": 300,
+                "thr_pop": 1.8421481847763062,
+                "thr_pred": 0.10054062306880951
+            },
+            "171702": {
+                "ckpt_sha256": "9f852b0f7f66d77631eacef7966a391c9907439a24d5f46c15d98324a29ce3c7",
+                "steps": 300,
+                "thr_pop": 2.002983570098877,
+                "thr_pred": 0.13332799077033997
+            },
+            "171703": {
+                "ckpt_sha256": "8413019580b08a71ae7a3fdb6c2f025a6aacb6ee8e3d716d20ed1da4bf03cd8e",
+                "steps": 300,
+                "thr_pop": 2.3993144035339355,
+                "thr_pred": 0.12599113583564758
+            }
+        },
+        "status": "VALID_NEGATIVE",
+        "summary_file": "experiments/sprint17-task12-c5-summary.json",
+        "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+    },
+    "C5-B": {
+        "arm_fit_patches": 154129,
+        "cache_sha256": "a5a445ca99bbd0ed83e669ed42e480bb2a336883161988f5eac7f49065b79a39",
+        "component_set": [
+            "C5"
+        ],
+        "compute": {
+            "envelope_pass": True,
+            "flops_per_reference_sample": 182016709,
+            "params_total": 1821698
+        },
+        "evidence_commit": "8dea7fd975b224c6d6f4a96774af40caf9ad6c97",
+        "metric_code_sha256": "91c00e7d84872532fbde077873976124348f9901e86ef386b9811e5f5471861e",
+        "one_principal_change": "C5",
+        "parent_arm_ids": [
+            "B0"
+        ],
+        "provenance": {
+            "cache_sha256": "a5a445ca99bbd0ed83e669ed42e480bb2a336883161988f5eac7f49065b79a39",
+            "checkpoint_sha256": "219a0db7b0c0744642a7906ae0c790bb2cdf8497c1902de804086bca62142c6f",
+            "parent_arm_ids": [
+                "B0"
+            ]
+        },
+        "seeds": {
+            "171701": {
+                "ckpt_sha256": "911452b9e29af93b39a7df004a1743f55c77ba492aa2f80857f971f069fbe510",
+                "steps": 300,
+                "thr_pop": 2.217801570892334,
+                "thr_pred": 0.0933365598320961
+            },
+            "171702": {
+                "ckpt_sha256": "191155b31aa4fad9bc7a2f00883f3f5ad1489951b8c5107f05bc506d90bf70e1",
+                "steps": 300,
+                "thr_pop": 2.083909749984741,
+                "thr_pred": 0.11303587257862091
+            },
+            "171703": {
+                "ckpt_sha256": "af747dec18b8bccbb57b305ad546ab7a6f34988397fafca4257c01be6065c6a5",
+                "steps": 300,
+                "thr_pop": 2.5831260681152344,
+                "thr_pred": 0.09313270449638367
+            }
+        },
+        "status": "VALID_NEGATIVE",
+        "summary_file": "experiments/sprint17-task12-c5-summary.json",
+        "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+    },
+    "C6-A": {
+        "arm_fit_patches": 154129,
+        "cache_sha256": "1b7075a4c30aca995f99d9a0ad368f83b85603a1b3d0fff120d3426081e0689c",
+        "component_set": [
+            "C6"
+        ],
+        "compute": {
+            "envelope_pass": True,
+            "flops_per_reference_sample": 182082245,
+            "params_total": 1854594
+        },
+        "evidence_commit": "5ee3e04e05d3e4cb112167389af845595951e144",
+        "metric_code_sha256": "f8c2c4f47daa25b422e485d620d86bf6c5a47334f5cfc086790d450695b3b030",
+        "one_principal_change": "C6",
+        "parent_arm_ids": [
+            "B0"
+        ],
+        "provenance": {
+            "cache_sha256": "1b7075a4c30aca995f99d9a0ad368f83b85603a1b3d0fff120d3426081e0689c",
+            "checkpoint_sha256": "5ba47edb4d0deb7600fac6ba69da3d26b7f72d2708a5362c483d36fa0585996a",
+            "parent_arm_ids": [
+                "B0"
+            ]
+        },
+        "seeds": {
+            "171701": {
+                "ckpt_sha256": "98ba1e917686e55e555bac056a0b9ca8e1527263d93b81c18296bda64f2ee98d",
+                "steps": 300,
+                "thr_pop": 1.0356556177139282,
+                "thr_pred": 0.08578012138605118
+            },
+            "171702": {
+                "ckpt_sha256": "0014a986b63765430caaccac7679b996b7f916eba96e6c8b67c3bbec7060ad4c",
+                "steps": 300,
+                "thr_pop": 1.2418659925460815,
+                "thr_pred": 0.18859551846981049
+            },
+            "171703": {
+                "ckpt_sha256": "d210f0f67a4ef9e164a81f15d169e4d336671a862b6ce61253120f3d87d1e2c4",
+                "steps": 300,
+                "thr_pop": 1.034572958946228,
+                "thr_pred": 0.12426264584064484
+            }
+        },
+        "status": "VALID_NEGATIVE",
+        "summary_file": "experiments/sprint17-task13-c6-summary.json",
+        "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+    },
+    "C6-B": {
+        "arm_fit_patches": 154129,
+        "cache_sha256": "ea039b3bb995482eb69258982ad868e83a4c69556af11a6408831f5e0accaf56",
+        "component_set": [
+            "C6"
+        ],
+        "compute": {
+            "envelope_pass": True,
+            "flops_per_reference_sample": 182526597,
+            "params_total": 1829987
+        },
+        "evidence_commit": "5ee3e04e05d3e4cb112167389af845595951e144",
+        "metric_code_sha256": "f8c2c4f47daa25b422e485d620d86bf6c5a47334f5cfc086790d450695b3b030",
+        "one_principal_change": "C6",
+        "parent_arm_ids": [
+            "B0"
+        ],
+        "provenance": {
+            "cache_sha256": "ea039b3bb995482eb69258982ad868e83a4c69556af11a6408831f5e0accaf56",
+            "checkpoint_sha256": "43466926cd320b7f9e834d3d95594ef9623e6f03c23b39ca16e61867ef127a98",
+            "parent_arm_ids": [
+                "B0"
+            ]
+        },
+        "seeds": {
+            "171701": {
+                "ckpt_sha256": "2ce7630e37ccb6b48a8ff5b289aa60367efa76c56a3766aad75c87307f3826f6",
+                "steps": 300,
+                "thr_pop": 1.546664834022522,
+                "thr_pred": 0.08817742019891739
+            },
+            "171702": {
+                "ckpt_sha256": "50333014d28a2e3da25d10e712fc90b0ded9a7df340f52befe04a54f06124357",
+                "steps": 300,
+                "thr_pop": 2.5571188926696777,
+                "thr_pred": 0.10660697519779205
+            },
+            "171703": {
+                "ckpt_sha256": "6de3f2be9e12fc52d257af76387c9307e1381d0b185ae4158021e2b922e5979f",
+                "steps": 300,
+                "thr_pop": 2.5081801414489746,
+                "thr_pred": 0.0780370905995369
+            }
+        },
+        "status": "VALID_NEGATIVE",
+        "summary_file": "experiments/sprint17-task13-c6-summary.json",
+        "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+    },
+    "C7-A": {
+        "arm_fit_patches": 154129,
+        "cache_sha256": "ed9b1abe",
+        "component_set": [
+            "C7"
+        ],
+        "compute": {
+            "envelope_pass": True,
+            "flops_per_reference_sample": 182016709,
+            "params_total": 1821698
+        },
+        "evidence_commit": "5eee50e22cf2386ee2f549bace9ba2d2c87ea0b",
+        "fidelity_max_abs_diff": 0.0,
+        "metric_code_sha256": "ba9a6d8c62b1",
+        "one_principal_change": "C7",
+        "optimizer_steps_executed": 0,
+        "parent_arm_ids": [
+            "B0"
+        ],
+        "provenance": {
+            "cache_sha256": "ed9b1abe",
+            "checkpoint_sha256": "a052648e",
+            "parent_arm_ids": [
+                "B0"
+            ]
+        },
+        "reference": "RobustShrinkageReference",
+        "seeds": {
+            "171701": {
+                "ckpt_sha256": "45f9e151c5d3946804ea531eb2bcace26b1f62e634671f51b8741ac6b411a619",
+                "steps": 300,
+                "thr_pop": 39.8863,
+                "thr_pred": 0.09334097802639008
+            },
+            "171702": {
+                "ckpt_sha256": "64ed2cedec210e4692f60bb4dd3430a57cf94abfcd50551abd97c9265ea785f8",
+                "steps": 300,
+                "thr_pop": 63.9524,
+                "thr_pred": 0.11303385347127914
+            },
+            "171703": {
+                "ckpt_sha256": "9edb2122e357376a9ff1e065d73d5ab7704f8d2005991552332f1ced01b0e906",
+                "steps": 300,
+                "thr_pop": 123.827,
+                "thr_pred": 0.09313471615314484
+            }
+        },
+        "status": "VALID_NEGATIVE",
+        "summary_file": "experiments/sprint17-task14-c7-summary.json",
+        "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+    },
+    "C7-B": {
+        "arm_fit_patches": 154129,
+        "cache_sha256": "590343f6",
+        "component_set": [
+            "C7"
+        ],
+        "compute": {
+            "envelope_pass": True,
+            "flops_per_reference_sample": 182016709,
+            "params_total": 1821698
+        },
+        "evidence_commit": "5eee50e22cf2386ee2f549bace9ba2d2c87ea0b",
+        "fidelity_max_abs_diff": 0.0,
+        "metric_code_sha256": "ba9a6d8c62b1",
+        "one_principal_change": "C7",
+        "optimizer_steps_executed": 0,
+        "parent_arm_ids": [
+            "B0"
+        ],
+        "provenance": {
+            "cache_sha256": "590343f6",
+            "checkpoint_sha256": "a052648e",
+            "parent_arm_ids": [
+                "B0"
+            ]
+        },
+        "reference": "LocalDensityReference",
+        "seeds": {
+            "171701": {
+                "ckpt_sha256": "45f9e151c5d3946804ea531eb2bcace26b1f62e634671f51b8741ac6b411a619",
+                "steps": 300,
+                "thr_pop": 2.0725,
+                "thr_pred": 0.09334097802639008
+            },
+            "171702": {
+                "ckpt_sha256": "64ed2cedec210e4692f60bb4dd3430a57cf94abfcd50551abd97c9265ea785f8",
+                "steps": 300,
+                "thr_pop": 2.1175,
+                "thr_pred": 0.11303385347127914
+            },
+            "171703": {
+                "ckpt_sha256": "9edb2122e357376a9ff1e065d73d5ab7704f8d2005991552332f1ced01b0e906",
+                "steps": 300,
+                "thr_pop": 3.5118,
+                "thr_pred": 0.09313471615314484
+            }
+        },
+        "status": "VALID_NEGATIVE",
+        "summary_file": "experiments/sprint17-task14-c7-summary.json",
+        "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+    },
+    "C8-A": {
+        "arm_fit_patches": 154129,
+        "cache_sha256": "b6fa09c0",
+        "component_set": [
+            "C8"
+        ],
+        "compute": {
+            "envelope_pass": True,
+            "flops_per_reference_sample": 182016709,
+            "params_total": 1821698
+        },
+        "evidence_commit": "9d5c8e3184df95b81752be81bb6106f9a9ea14b7",
+        "fidelity_max_abs_diff": 4.1e-05,
+        "metric_code_sha256": "0c22748ad5bf",
+        "one_principal_change": "C8",
+        "optimizer_steps_executed": 0,
+        "parent_arm_ids": [
+            "B0"
+        ],
+        "provenance": {
+            "cache_sha256": "b6fa09c0",
+            "checkpoint_sha256": "a052648e",
+            "parent_arm_ids": [
+                "B0"
+            ]
+        },
+        "scorer": "HuberStandardizer+huber-mean",
+        "seeds": {
+            "171701": {
+                "ckpt_sha256": "45f9e151c5d3946804ea531eb2bcace26b1f62e634671f51b8741ac6b411a619",
+                "steps": 300,
+                "thr_pop": 2.2177,
+                "thr_pred": 1.335253462645711
+            },
+            "171702": {
+                "ckpt_sha256": "64ed2cedec210e4692f60bb4dd3430a57cf94abfcd50551abd97c9265ea785f8",
+                "steps": 300,
+                "thr_pop": 2.0839,
+                "thr_pred": 1.439913471782079
+            },
+            "171703": {
+                "ckpt_sha256": "9edb2122e357376a9ff1e065d73d5ab7704f8d2005991552332f1ced01b0e906",
+                "steps": 300,
+                "thr_pop": 2.583,
+                "thr_pred": 1.6364756702297483
+            }
+        },
+        "status": "VALID_NEGATIVE",
+        "summary_file": "experiments/sprint17-task15-c8-summary.json",
+        "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+    },
+    "C8-B": {
+        "arm_fit_patches": 154129,
+        "cache_sha256": "04c1c04e",
+        "component_set": [
+            "C8"
+        ],
+        "compute": {
+            "envelope_pass": True,
+            "flops_per_reference_sample": 182016709,
+            "params_total": 1821698
+        },
+        "evidence_commit": "9d5c8e3184df95b81752be81bb6106f9a9ea14b7",
+        "fidelity_max_abs_diff": 4.1e-05,
+        "metric_code_sha256": "0c22748ad5bf",
+        "one_principal_change": "C8",
+        "optimizer_steps_executed": 0,
+        "parent_arm_ids": [
+            "B0"
+        ],
+        "provenance": {
+            "cache_sha256": "04c1c04e",
+            "checkpoint_sha256": "a052648e",
+            "parent_arm_ids": [
+                "B0"
+            ]
+        },
+        "scorer": "cosine-distance-mean",
+        "seeds": {
+            "171701": {
+                "ckpt_sha256": "45f9e151c5d3946804ea531eb2bcace26b1f62e634671f51b8741ac6b411a619",
+                "steps": 300,
+                "thr_pop": 2.2177,
+                "thr_pred": 0.047603350495064464
+            },
+            "171702": {
+                "ckpt_sha256": "64ed2cedec210e4692f60bb4dd3430a57cf94abfcd50551abd97c9265ea785f8",
+                "steps": 300,
+                "thr_pop": 2.0839,
+                "thr_pred": 0.057903222379447436
+            },
+            "171703": {
+                "ckpt_sha256": "9edb2122e357376a9ff1e065d73d5ab7704f8d2005991552332f1ced01b0e906",
+                "steps": 300,
+                "thr_pop": 2.583,
+                "thr_pred": 0.04737747692319502
+            }
+        },
+        "status": "VALID_NEGATIVE",
+        "summary_file": "experiments/sprint17-task15-c8-summary.json",
+        "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+    },
+    "C9-A": {
+        "aggregation": "top-k-mean-fraction-0.25",
+        "arm_fit_patches": 154129,
+        "cache_sha256": "1494621972f67a153b0542fef4c92ad343b696389c41a5476eaca0e631981d75",
+        "component_set": [
+            "C9"
+        ],
+        "compute": {
+            "envelope_pass": True,
+            "flops_per_reference_sample": 182016709,
+            "params_total": 1821698
+        },
+        "evidence_commit": "55af8f2fc8cefbe5a40424dbb2cb52310d112d4f",
+        "fidelity_max_abs_diff": {
+            "171701": 3.0934810638427734e-05,
+            "171702": 2.872943878173828e-05,
+            "171703": 4.100799560546875e-05
+        },
+        "metric_code_sha256": "e7d70d53bd8368df9636b889183e766b6b1754b34500e5934672ec21530c62b2",
+        "one_principal_change": "C9",
+        "optimizer_steps_executed": 0,
+        "parent_arm_ids": [
+            "B0"
+        ],
+        "provenance": {
+            "cache_sha256": "1494621972f67a153b0542fef4c92ad343b696389c41a5476eaca0e631981d75",
+            "calibration_root_sha256": "e6bcdba617dabae52aba57905ba3f471768073c725df9afbc1c3f97919e0f101",
+            "checkpoint_sha256": "a052648e3df97f79b4852c2d6381000ead0605351ca1c8c9acd2e3c2c1d7fce9",
+            "data_protocol": "sprint15-benchmark-protocol-v7",
+            "data_roles": [
+                "H-S17-V3-FIT-01",
+                "H-S17-V3-FIT-02",
+                "H-S17-V3-FIT-03",
+                "H-S17-V3-CAL-01",
+                "H-S17-V3-DEV-01",
+                "H-S17-V3-DEV-02",
+                "H-S17-V3-DEV-03",
+                "H-S17-V3-DEV-04"
+            ],
+            "data_seeds": [
+                2804,
+                2805,
+                2806,
+                2807,
+                2808,
+                2809,
+                2810,
+                2811
+            ],
+            "evaluation_root_sha256": "d4cccfc743a5237b4fe9be44dc64521ba728227cacd38f91103fc066dbd0d3bd",
+            "fit_root_sha256": "800f879375deabeffb75ec8ab10a6fac6ffeadf8e23ae8720ac505b45b473373",
+            "metric_code_sha256": "e7d70d53bd8368df9636b889183e766b6b1754b34500e5934672ec21530c62b2",
+            "model_seeds": [
+                171701,
+                171702,
+                171703
+            ],
+            "parent_arm_ids": [
+                "B0"
+            ],
+            "role_binding_sha256": "075868b22c028a981cc63ffe37b8d29720cd324c3e2c7254ce688678758230ba"
+        },
+        "seeds": {
+            "model_seeds": [
+                171701,
+                171702,
+                171703
+            ],
+            "reuses_b0_checkpoints": True
+        },
+        "spop_reuses_b0": True,
+        "status": "VALID_NEGATIVE",
+        "summary_file": "experiments/sprint17-task16-c9-summary.json",
+        "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a",
+        "thresholds_pred": {
+            "171701": 0.19459104537963867,
+            "171702": 0.26785002946853637,
+            "171703": 0.1972459852695465
+        }
+    },
+    "C9-B": {
+        "aggregation": "contiguous-window-mean-duration-64",
+        "arm_fit_patches": 154129,
+        "cache_sha256": "1a06ad54e3057a2ca59406225611ed6d64098ed79543221b5c134616543831c7",
+        "component_set": [
+            "C9"
+        ],
+        "compute": {
+            "envelope_pass": True,
+            "flops_per_reference_sample": 182016709,
+            "params_total": 1821698
+        },
+        "evidence_commit": "55af8f2fc8cefbe5a40424dbb2cb52310d112d4f",
+        "fidelity_max_abs_diff": {
+            "171701": 3.0934810638427734e-05,
+            "171702": 2.872943878173828e-05,
+            "171703": 4.100799560546875e-05
+        },
+        "metric_code_sha256": "e7d70d53bd8368df9636b889183e766b6b1754b34500e5934672ec21530c62b2",
+        "one_principal_change": "C9",
+        "optimizer_steps_executed": 0,
+        "parent_arm_ids": [
+            "B0"
+        ],
+        "provenance": {
+            "cache_sha256": "1a06ad54e3057a2ca59406225611ed6d64098ed79543221b5c134616543831c7",
+            "calibration_root_sha256": "e6bcdba617dabae52aba57905ba3f471768073c725df9afbc1c3f97919e0f101",
+            "checkpoint_sha256": "a052648e3df97f79b4852c2d6381000ead0605351ca1c8c9acd2e3c2c1d7fce9",
+            "data_protocol": "sprint15-benchmark-protocol-v7",
+            "data_roles": [
+                "H-S17-V3-FIT-01",
+                "H-S17-V3-FIT-02",
+                "H-S17-V3-FIT-03",
+                "H-S17-V3-CAL-01",
+                "H-S17-V3-DEV-01",
+                "H-S17-V3-DEV-02",
+                "H-S17-V3-DEV-03",
+                "H-S17-V3-DEV-04"
+            ],
+            "data_seeds": [
+                2804,
+                2805,
+                2806,
+                2807,
+                2808,
+                2809,
+                2810,
+                2811
+            ],
+            "evaluation_root_sha256": "d4cccfc743a5237b4fe9be44dc64521ba728227cacd38f91103fc066dbd0d3bd",
+            "fit_root_sha256": "800f879375deabeffb75ec8ab10a6fac6ffeadf8e23ae8720ac505b45b473373",
+            "metric_code_sha256": "e7d70d53bd8368df9636b889183e766b6b1754b34500e5934672ec21530c62b2",
+            "model_seeds": [
+                171701,
+                171702,
+                171703
+            ],
+            "parent_arm_ids": [
+                "B0"
+            ],
+            "role_binding_sha256": "075868b22c028a981cc63ffe37b8d29720cd324c3e2c7254ce688678758230ba"
+        },
+        "seeds": {
+            "model_seeds": [
+                171701,
+                171702,
+                171703
+            ],
+            "reuses_b0_checkpoints": True
+        },
+        "spop_reuses_b0": True,
+        "status": "VALID_NEGATIVE",
+        "summary_file": "experiments/sprint17-task16-c9-summary.json",
+        "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a",
+        "thresholds_pred": {
+            "171701": 0.21479544043540955,
+            "171702": 0.2950628399848938,
+            "171703": 0.23448112607002258
+        }
+    }
+}
+K_RECORDS = {
+    "K1": {
+        "arm_fit_patches": 154129,
+        "cache_sha256": "18fac3b22b3a8b3185955b66766fa795f45151ef675c36f7e2f1f657de9c2fa9",
+        "combination_sha256": "80013183fa7fb8b18e52643f166d96212e165286cc404b607320b8dc12155a73",
+        "component_set": [
+            "C2",
+            "C3"
+        ],
+        "compute": {
+            "envelope_pass": True,
+            "flops_per_reference_sample": 177445573,
+            "params_total": 1820674
+        },
+        "metric_code_sha256": "6913e42c28e7e965985b950e4c53a8af5d9e4bef7dbf8af935bd2b1025f9c674",
+        "one_principal_change": "none",
+        "parent_arm_ids": [
+            "C2-A",
+            "C3-A"
+        ],
+        "provenance": {
+            "cache_sha256": "18fac3b22b3a8b3185955b66766fa795f45151ef675c36f7e2f1f657de9c2fa9",
+            "calibration_root_sha256": "e6bcdba617dabae52aba57905ba3f471768073c725df9afbc1c3f97919e0f101",
+            "checkpoint_sha256": "142d484411be67c39a7a2bd05ed282ebf18d082a4497da93b115f98686e9e092",
+            "data_protocol": "sprint15-benchmark-protocol-v7",
+            "data_roles": [
+                "H-S17-V3-FIT-01",
+                "H-S17-V3-FIT-02",
+                "H-S17-V3-FIT-03",
+                "H-S17-V3-CAL-01",
+                "H-S17-V3-DEV-01",
+                "H-S17-V3-DEV-02",
+                "H-S17-V3-DEV-03",
+                "H-S17-V3-DEV-04"
+            ],
+            "data_seeds": [
+                2804,
+                2805,
+                2806,
+                2807,
+                2808,
+                2809,
+                2810,
+                2811
+            ],
+            "evaluation_root_sha256": "d4cccfc743a5237b4fe9be44dc64521ba728227cacd38f91103fc066dbd0d3bd",
+            "fit_root_sha256": "800f879375deabeffb75ec8ab10a6fac6ffeadf8e23ae8720ac505b45b473373",
+            "metric_code_sha256": "6913e42c28e7e965985b950e4c53a8af5d9e4bef7dbf8af935bd2b1025f9c674",
+            "model_seeds": [
+                171701,
+                171702,
+                171703
+            ],
+            "parent_arm_ids": [
+                "C2-A",
+                "C3-A"
+            ],
+            "role_binding_sha256": "075868b22c028a981cc63ffe37b8d29720cd324c3e2c7254ce688678758230ba"
+        },
+        "seeds": {
+            "171701": {
+                "ckpt_sha256": "dbac01b31baaafe60ecb61bdad5c2b5adbd77eb660ed5e94039b747dd185b6b9",
+                "steps": 300,
+                "thr_pop": 2.7064929008483887,
+                "thr_pred": 0.09605330973863602
+            },
+            "171702": {
+                "ckpt_sha256": "12efabc806b304925e9ac25a1e1fdbccdb4e236654f044e46d3ca32a4e62882d",
+                "steps": 300,
+                "thr_pop": 1.9757347106933594,
+                "thr_pred": 0.04596121981739998
+            },
+            "171703": {
+                "ckpt_sha256": "bb04e29f109fac5d5bc621fa2f8a4b7153726f654d1398ed97708a64c17372c4",
+                "steps": 300,
+                "thr_pop": 2.406977653503418,
+                "thr_pred": 0.07407686114311218
+            }
+        },
+        "status": "VALID_NEGATIVE",
+        "summary_file": "experiments/sprint17-task20-k-summary.json",
+        "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+    },
+    "K2": {
+        "arm_fit_patches": 154129,
+        "cache_sha256": "5ce18db15c1f9674032c28bc678215d7a63ed4d7023b18d322fab34719ffe1f4",
+        "combination_sha256": "95005d80dc033c0dbb04207623f109ba1aa24b76b87757c0ecf7650de5832ee1",
+        "component_set": [
+            "C3",
+            "C5"
+        ],
+        "compute": {
+            "envelope_pass": True,
+            "flops_per_reference_sample": 177445573,
+            "params_total": 1820674
+        },
+        "metric_code_sha256": "6913e42c28e7e965985b950e4c53a8af5d9e4bef7dbf8af935bd2b1025f9c674",
+        "one_principal_change": "none",
+        "parent_arm_ids": [
+            "C3-A",
+            "C5-A"
+        ],
+        "provenance": {
+            "cache_sha256": "5ce18db15c1f9674032c28bc678215d7a63ed4d7023b18d322fab34719ffe1f4",
+            "calibration_root_sha256": "e6bcdba617dabae52aba57905ba3f471768073c725df9afbc1c3f97919e0f101",
+            "checkpoint_sha256": "4310c311ca865d768de47e3c37f96b1d1b60d7d97cca47c78f2fea8f6d1609af",
+            "data_protocol": "sprint15-benchmark-protocol-v7",
+            "data_roles": [
+                "H-S17-V3-FIT-01",
+                "H-S17-V3-FIT-02",
+                "H-S17-V3-FIT-03",
+                "H-S17-V3-CAL-01",
+                "H-S17-V3-DEV-01",
+                "H-S17-V3-DEV-02",
+                "H-S17-V3-DEV-03",
+                "H-S17-V3-DEV-04"
+            ],
+            "data_seeds": [
+                2804,
+                2805,
+                2806,
+                2807,
+                2808,
+                2809,
+                2810,
+                2811
+            ],
+            "evaluation_root_sha256": "d4cccfc743a5237b4fe9be44dc64521ba728227cacd38f91103fc066dbd0d3bd",
+            "fit_root_sha256": "800f879375deabeffb75ec8ab10a6fac6ffeadf8e23ae8720ac505b45b473373",
+            "metric_code_sha256": "6913e42c28e7e965985b950e4c53a8af5d9e4bef7dbf8af935bd2b1025f9c674",
+            "model_seeds": [
+                171701,
+                171702,
+                171703
+            ],
+            "parent_arm_ids": [
+                "C3-A",
+                "C5-A"
+            ],
+            "role_binding_sha256": "075868b22c028a981cc63ffe37b8d29720cd324c3e2c7254ce688678758230ba"
+        },
+        "seeds": {
+            "171701": {
+                "ckpt_sha256": "f475aa65f903d8532997fa3ade21c6abc7f1199ffcb333cafc5b11e365b684b4",
+                "steps": 300,
+                "thr_pop": 2.2351479530334473,
+                "thr_pred": 0.13353917002677917
+            },
+            "171702": {
+                "ckpt_sha256": "691b332162862deae851c4da7d3d5ec4ce5d57b4fd6a1390149d345cfe359db7",
+                "steps": 300,
+                "thr_pop": 2.0901150703430176,
+                "thr_pred": 0.05113429203629494
+            },
+            "171703": {
+                "ckpt_sha256": "399e9c363cd040bd8eff3b47183a359e3487fc510cb2d819726e55de8dae8c89",
+                "steps": 300,
+                "thr_pop": 2.331125259399414,
+                "thr_pred": 0.0930093377828598
+            }
+        },
+        "status": "VALID_NEGATIVE",
+        "summary_file": "experiments/sprint17-task20-k-summary.json",
+        "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+    },
+    "K3": {
+        "arm_fit_patches": 154129,
+        "cache_sha256": "80f04047501c90fa21f31da476149f715fd43b376721c1243779132ac196b52b",
+        "combination_sha256": "7e1d30c14ccce2d9b9abc0d38ebdeed4f547a741fb4484a22a6dbf1258a02a62",
+        "component_set": [
+            "C5",
+            "C6"
+        ],
+        "compute": {
+            "envelope_pass": True,
+            "flops_per_reference_sample": 182082245,
+            "params_total": 1854594
+        },
+        "metric_code_sha256": "6913e42c28e7e965985b950e4c53a8af5d9e4bef7dbf8af935bd2b1025f9c674",
+        "one_principal_change": "none",
+        "parent_arm_ids": [
+            "C5-A",
+            "C6-A"
+        ],
+        "provenance": {
+            "cache_sha256": "80f04047501c90fa21f31da476149f715fd43b376721c1243779132ac196b52b",
+            "calibration_root_sha256": "e6bcdba617dabae52aba57905ba3f471768073c725df9afbc1c3f97919e0f101",
+            "checkpoint_sha256": "6055a6163c3ce9e82c52799521e5190c4b2da7f319322637cef9a8da8db54519",
+            "data_protocol": "sprint15-benchmark-protocol-v7",
+            "data_roles": [
+                "H-S17-V3-FIT-01",
+                "H-S17-V3-FIT-02",
+                "H-S17-V3-FIT-03",
+                "H-S17-V3-CAL-01",
+                "H-S17-V3-DEV-01",
+                "H-S17-V3-DEV-02",
+                "H-S17-V3-DEV-03",
+                "H-S17-V3-DEV-04"
+            ],
+            "data_seeds": [
+                2804,
+                2805,
+                2806,
+                2807,
+                2808,
+                2809,
+                2810,
+                2811
+            ],
+            "evaluation_root_sha256": "d4cccfc743a5237b4fe9be44dc64521ba728227cacd38f91103fc066dbd0d3bd",
+            "fit_root_sha256": "800f879375deabeffb75ec8ab10a6fac6ffeadf8e23ae8720ac505b45b473373",
+            "metric_code_sha256": "6913e42c28e7e965985b950e4c53a8af5d9e4bef7dbf8af935bd2b1025f9c674",
+            "model_seeds": [
+                171701,
+                171702,
+                171703
+            ],
+            "parent_arm_ids": [
+                "C5-A",
+                "C6-A"
+            ],
+            "role_binding_sha256": "075868b22c028a981cc63ffe37b8d29720cd324c3e2c7254ce688678758230ba"
+        },
+        "seeds": {
+            "171701": {
+                "ckpt_sha256": "ca91f8f1f3c35c147941e64e65ce30cb725e3f9e7e0184714fe6467b73ecb2c7",
+                "steps": 300,
+                "thr_pop": 0.8624407052993774,
+                "thr_pred": 0.07601799815893173
+            },
+            "171702": {
+                "ckpt_sha256": "a2c640ac9b64b828ea680aed79e0c7e6b3d2a03347dbe217d6d8870d503f5fe5",
+                "steps": 300,
+                "thr_pop": 0.916282057762146,
+                "thr_pred": 0.12337382882833481
+            },
+            "171703": {
+                "ckpt_sha256": "3bb87f6d3b33666d1d5ce6a70eabe2de349f3100c8e4b6885dbef16039acabfc",
+                "steps": 300,
+                "thr_pop": 1.0757577419281006,
+                "thr_pred": 0.12097016721963882
+            }
+        },
+        "status": "VALID_NEGATIVE",
+        "summary_file": "experiments/sprint17-task20-k-summary.json",
+        "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+    },
+    "K4": {
+        "arm_fit_patches": 154129,
+        "cache_sha256": "55f44d38d03f6d954f3bf7a05cc6cf64b7dbf9a3956a130b57e379c91082255c",
+        "combination_sha256": "5f38a47c93009502d943da4b8969b68fc5bd11a6e61075b8e2ab0fd7c9624c13",
+        "component_set": [
+            "C6",
+            "C7"
+        ],
+        "compute": {
+            "envelope_pass": True,
+            "flops_per_reference_sample": 182082245,
+            "params_total": 1854594
+        },
+        "metric_code_sha256": "6913e42c28e7e965985b950e4c53a8af5d9e4bef7dbf8af935bd2b1025f9c674",
+        "one_principal_change": "none",
+        "parent_arm_ids": [
+            "C6-A",
+            "C7-A"
+        ],
+        "provenance": {
+            "cache_sha256": "55f44d38d03f6d954f3bf7a05cc6cf64b7dbf9a3956a130b57e379c91082255c",
+            "calibration_root_sha256": "e6bcdba617dabae52aba57905ba3f471768073c725df9afbc1c3f97919e0f101",
+            "checkpoint_sha256": "2247d64b86de00afb1b0b6fe88c1867054ec054476bf3629d8d6369984a2ba1f",
+            "data_protocol": "sprint15-benchmark-protocol-v7",
+            "data_roles": [
+                "H-S17-V3-FIT-01",
+                "H-S17-V3-FIT-02",
+                "H-S17-V3-FIT-03",
+                "H-S17-V3-CAL-01",
+                "H-S17-V3-DEV-01",
+                "H-S17-V3-DEV-02",
+                "H-S17-V3-DEV-03",
+                "H-S17-V3-DEV-04"
+            ],
+            "data_seeds": [
+                2804,
+                2805,
+                2806,
+                2807,
+                2808,
+                2809,
+                2810,
+                2811
+            ],
+            "evaluation_root_sha256": "d4cccfc743a5237b4fe9be44dc64521ba728227cacd38f91103fc066dbd0d3bd",
+            "fit_root_sha256": "800f879375deabeffb75ec8ab10a6fac6ffeadf8e23ae8720ac505b45b473373",
+            "metric_code_sha256": "6913e42c28e7e965985b950e4c53a8af5d9e4bef7dbf8af935bd2b1025f9c674",
+            "model_seeds": [
+                171701,
+                171702,
+                171703
+            ],
+            "parent_arm_ids": [
+                "C6-A",
+                "C7-A"
+            ],
+            "role_binding_sha256": "075868b22c028a981cc63ffe37b8d29720cd324c3e2c7254ce688678758230ba"
+        },
+        "seeds": {
+            "171701": {
+                "ckpt_sha256": "26306aa7683f72722d94471c5259846fc39427f365e2db5d1136480561e0ba7f",
+                "steps": 300,
+                "thr_pop": 90.19439241494418,
+                "thr_pred": 0.0857917070388794
+            },
+            "171702": {
+                "ckpt_sha256": "c6102181ff648e553e9462a9a6c4c06283ee9c0395898d51029a4b0f68fa8991",
+                "steps": 300,
+                "thr_pop": 82.56098006299194,
+                "thr_pred": 0.18859612941741943
+            },
+            "171703": {
+                "ckpt_sha256": "27335acce333bc0f20596ef5535d742295e78a813084bb851d939af153731780",
+                "steps": 300,
+                "thr_pop": 81.13575159328138,
+                "thr_pred": 0.12426116317510605
+            }
+        },
+        "status": "VALID_NEGATIVE",
+        "summary_file": "experiments/sprint17-task20-k-summary.json",
+        "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+    },
+    "K5": {
+        "arm_fit_patches": 154129,
+        "cache_sha256": "8bb0b5a1673bd08dffdacd16e9e35784e7cf2f129e3357151366a4dad89e4474",
+        "combination_sha256": "ae1906f12192786f6d3d76099c6dff0691987c32daa9da3cd2b55b9f5ae1453c",
+        "component_set": [
+            "C7",
+            "C8"
+        ],
+        "compute": {
+            "envelope_pass": True,
+            "flops_per_reference_sample": 182016709,
+            "params_total": 1821698
+        },
+        "metric_code_sha256": "0b1c7c4c5e50f137183a00a0eb943d95313b5e0d9bd2ae7b520396ad03cbfcd9",
+        "one_principal_change": "none",
+        "parent_arm_ids": [
+            "C7-A",
+            "C8-A"
+        ],
+        "provenance": {
+            "cache_sha256": "8bb0b5a1673bd08dffdacd16e9e35784e7cf2f129e3357151366a4dad89e4474",
+            "calibration_root_sha256": "e6bcdba617dabae52aba57905ba3f471768073c725df9afbc1c3f97919e0f101",
+            "checkpoint_sha256": "a052648e3df97f79b4852c2d6381000ead0605351ca1c8c9acd2e3c2c1d7fce9",
+            "data_protocol": "sprint15-benchmark-protocol-v7",
+            "data_roles": [
+                "H-S17-V3-FIT-01",
+                "H-S17-V3-FIT-02",
+                "H-S17-V3-FIT-03",
+                "H-S17-V3-CAL-01",
+                "H-S17-V3-DEV-01",
+                "H-S17-V3-DEV-02",
+                "H-S17-V3-DEV-03",
+                "H-S17-V3-DEV-04"
+            ],
+            "data_seeds": [
+                2804,
+                2805,
+                2806,
+                2807,
+                2808,
+                2809,
+                2810,
+                2811
+            ],
+            "evaluation_root_sha256": "d4cccfc743a5237b4fe9be44dc64521ba728227cacd38f91103fc066dbd0d3bd",
+            "fit_root_sha256": "800f879375deabeffb75ec8ab10a6fac6ffeadf8e23ae8720ac505b45b473373",
+            "metric_code_sha256": "0b1c7c4c5e50f137183a00a0eb943d95313b5e0d9bd2ae7b520396ad03cbfcd9",
+            "model_seeds": [
+                171701,
+                171702,
+                171703
+            ],
+            "parent_arm_ids": [
+                "C7-A",
+                "C8-A"
+            ],
+            "role_binding_sha256": "075868b22c028a981cc63ffe37b8d29720cd324c3e2c7254ce688678758230ba"
+        },
+        "seeds": {
+            "171701": {
+                "ckpt_sha256": "45f9e151c5d3946804ea531eb2bcace26b1f62e634671f51b8741ac6b411a619",
+                "steps": 300,
+                "thr_pop": 39.88631009371126,
+                "thr_pred": 1.335253462645711
+            },
+            "171702": {
+                "ckpt_sha256": "64ed2cedec210e4692f60bb4dd3430a57cf94abfcd50551abd97c9265ea785f8",
+                "steps": 300,
+                "thr_pop": 63.952352261812564,
+                "thr_pred": 1.439913471782079
+            },
+            "171703": {
+                "ckpt_sha256": "9edb2122e357376a9ff1e065d73d5ab7704f8d2005991552332f1ced01b0e906",
+                "steps": 300,
+                "thr_pop": 123.82702144472155,
+                "thr_pred": 1.6364756702297483
+            }
+        },
+        "status": "VALID_NEGATIVE",
+        "summary_file": "experiments/sprint17-task20-k-summary.json",
+        "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+    },
+    "K6": {
+        "arm_fit_patches": 154129,
+        "cache_sha256": "cc93af95e9c045bd58085c5f74624364e24491d233f7adf4f41ceb9d6a7acfdf",
+        "combination_sha256": "16dc4a6d437e99307c6820bb46d2281374abcbce7b3ef3936798c7bdc60898fa",
+        "component_set": [
+            "C8",
+            "C9"
+        ],
+        "compute": {
+            "envelope_pass": True,
+            "flops_per_reference_sample": 182016709,
+            "params_total": 1821698
+        },
+        "metric_code_sha256": "0b1c7c4c5e50f137183a00a0eb943d95313b5e0d9bd2ae7b520396ad03cbfcd9",
+        "one_principal_change": "none",
+        "parent_arm_ids": [
+            "C8-A",
+            "C9-B"
+        ],
+        "provenance": {
+            "cache_sha256": "cc93af95e9c045bd58085c5f74624364e24491d233f7adf4f41ceb9d6a7acfdf",
+            "calibration_root_sha256": "e6bcdba617dabae52aba57905ba3f471768073c725df9afbc1c3f97919e0f101",
+            "checkpoint_sha256": "a052648e3df97f79b4852c2d6381000ead0605351ca1c8c9acd2e3c2c1d7fce9",
+            "data_protocol": "sprint15-benchmark-protocol-v7",
+            "data_roles": [
+                "H-S17-V3-FIT-01",
+                "H-S17-V3-FIT-02",
+                "H-S17-V3-FIT-03",
+                "H-S17-V3-CAL-01",
+                "H-S17-V3-DEV-01",
+                "H-S17-V3-DEV-02",
+                "H-S17-V3-DEV-03",
+                "H-S17-V3-DEV-04"
+            ],
+            "data_seeds": [
+                2804,
+                2805,
+                2806,
+                2807,
+                2808,
+                2809,
+                2810,
+                2811
+            ],
+            "evaluation_root_sha256": "d4cccfc743a5237b4fe9be44dc64521ba728227cacd38f91103fc066dbd0d3bd",
+            "fit_root_sha256": "800f879375deabeffb75ec8ab10a6fac6ffeadf8e23ae8720ac505b45b473373",
+            "metric_code_sha256": "0b1c7c4c5e50f137183a00a0eb943d95313b5e0d9bd2ae7b520396ad03cbfcd9",
+            "model_seeds": [
+                171701,
+                171702,
+                171703
+            ],
+            "parent_arm_ids": [
+                "C8-A",
+                "C9-B"
+            ],
+            "role_binding_sha256": "075868b22c028a981cc63ffe37b8d29720cd324c3e2c7254ce688678758230ba"
+        },
+        "seeds": {
+            "171701": {
+                "ckpt_sha256": "45f9e151c5d3946804ea531eb2bcace26b1f62e634671f51b8741ac6b411a619",
+                "steps": 300,
+                "thr_pop": 2.2176554203033447,
+                "thr_pred": 2.405964084134403
+            },
+            "171702": {
+                "ckpt_sha256": "64ed2cedec210e4692f60bb4dd3430a57cf94abfcd50551abd97c9265ea785f8",
+                "steps": 300,
+                "thr_pop": 2.0839240550994873,
+                "thr_pred": 2.7934244786564206
+            },
+            "171703": {
+                "ckpt_sha256": "9edb2122e357376a9ff1e065d73d5ab7704f8d2005991552332f1ced01b0e906",
+                "steps": 300,
+                "thr_pop": 2.583014488220215,
+                "thr_pred": 2.969790788685183
+            }
+        },
+        "status": "VALID_NEGATIVE",
+        "summary_file": "experiments/sprint17-task20-k-summary.json",
+        "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+    },
+    "K7": {
+        "arm_fit_patches": 154129,
+        "cache_sha256": "59e562c48078e961df7096377d0e837d5808504d0817fd4dd3b78cf2c69a781e",
+        "combination_sha256": "d905cfefb62adbe60b941c652838a4801a605e1c9143cbf1031b47f3d4cd495f",
+        "component_set": [
+            "C2",
+            "C3",
+            "C5",
+            "C6"
+        ],
+        "compute": {
+            "envelope_pass": True,
+            "flops_per_reference_sample": 182082245,
+            "params_total": 1854594
+        },
+        "metric_code_sha256": "bc0384e88c6bd0835abbab9a3c7656f60a747c098e4015f33e2b0d49f2d2bfd3",
+        "one_principal_change": "none",
+        "parent_arm_ids": [
+            "C2-A",
+            "C3-A",
+            "C5-A",
+            "C6-A"
+        ],
+        "provenance": {
+            "cache_sha256": "59e562c48078e961df7096377d0e837d5808504d0817fd4dd3b78cf2c69a781e",
+            "calibration_root_sha256": "e6bcdba617dabae52aba57905ba3f471768073c725df9afbc1c3f97919e0f101",
+            "checkpoint_sha256": "19c9415f77e469417595542136131bf403b5369f4359fab4f629905c5bbb4c37",
+            "data_protocol": "sprint15-benchmark-protocol-v7",
+            "data_roles": [
+                "H-S17-V3-FIT-01",
+                "H-S17-V3-FIT-02",
+                "H-S17-V3-FIT-03",
+                "H-S17-V3-CAL-01",
+                "H-S17-V3-DEV-01",
+                "H-S17-V3-DEV-02",
+                "H-S17-V3-DEV-03",
+                "H-S17-V3-DEV-04"
+            ],
+            "data_seeds": [
+                2804,
+                2805,
+                2806,
+                2807,
+                2808,
+                2809,
+                2810,
+                2811
+            ],
+            "evaluation_root_sha256": "d4cccfc743a5237b4fe9be44dc64521ba728227cacd38f91103fc066dbd0d3bd",
+            "fit_root_sha256": "800f879375deabeffb75ec8ab10a6fac6ffeadf8e23ae8720ac505b45b473373",
+            "metric_code_sha256": "bc0384e88c6bd0835abbab9a3c7656f60a747c098e4015f33e2b0d49f2d2bfd3",
+            "model_seeds": [
+                171701,
+                171702,
+                171703
+            ],
+            "parent_arm_ids": [
+                "C2-A",
+                "C3-A",
+                "C5-A",
+                "C6-A"
+            ],
+            "role_binding_sha256": "075868b22c028a981cc63ffe37b8d29720cd324c3e2c7254ce688678758230ba"
+        },
+        "seeds": {
+            "171701": {
+                "ckpt_sha256": "5e39a1faa882faa2b434c3ff20bb9e1d3c9548cb2bd31b4b710dc631e44fb3b4",
+                "steps": 300,
+                "thr_pop": 1.1064798831939697,
+                "thr_pred": 0.1297171711921692
+            },
+            "171702": {
+                "ckpt_sha256": "0b45b7260389434ec34359b57321b2b3401cb56c25aaff310dfc6ba6c99f42f8",
+                "steps": 300,
+                "thr_pop": 0.945238471031189,
+                "thr_pred": 0.07913845777511597
+            },
+            "171703": {
+                "ckpt_sha256": "64777b46482824c6c19871f452546c8bb2b2b581eaebadb21e5008d21250ea09",
+                "steps": 300,
+                "thr_pop": 1.0507923364639282,
+                "thr_pred": 0.20570848882198334
+            }
+        },
+        "status": "VALID_NEGATIVE",
+        "summary_file": "experiments/sprint17-task21-k-summary.json",
+        "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+    },
+    "K8": {
+        "arm_fit_patches": 154129,
+        "cache_sha256": "dbafb8de11bae6d8d7c2752c576acb7122be95d13e6559e716e001c50902c248",
+        "combination_sha256": "d53b599494144fdc4ac49f24b656d0b8dc8465a6e033ed9cc84989c84777d494",
+        "component_set": [
+            "C7",
+            "C8",
+            "C9"
+        ],
+        "compute": {
+            "envelope_pass": True,
+            "flops_per_reference_sample": 182016709,
+            "params_total": 1821698
+        },
+        "metric_code_sha256": "bc0384e88c6bd0835abbab9a3c7656f60a747c098e4015f33e2b0d49f2d2bfd3",
+        "one_principal_change": "none",
+        "parent_arm_ids": [
+            "C7-A",
+            "C8-A",
+            "C9-B"
+        ],
+        "provenance": {
+            "cache_sha256": "dbafb8de11bae6d8d7c2752c576acb7122be95d13e6559e716e001c50902c248",
+            "calibration_root_sha256": "e6bcdba617dabae52aba57905ba3f471768073c725df9afbc1c3f97919e0f101",
+            "checkpoint_sha256": "a052648e3df97f79b4852c2d6381000ead0605351ca1c8c9acd2e3c2c1d7fce9",
+            "data_protocol": "sprint15-benchmark-protocol-v7",
+            "data_roles": [
+                "H-S17-V3-FIT-01",
+                "H-S17-V3-FIT-02",
+                "H-S17-V3-FIT-03",
+                "H-S17-V3-CAL-01",
+                "H-S17-V3-DEV-01",
+                "H-S17-V3-DEV-02",
+                "H-S17-V3-DEV-03",
+                "H-S17-V3-DEV-04"
+            ],
+            "data_seeds": [
+                2804,
+                2805,
+                2806,
+                2807,
+                2808,
+                2809,
+                2810,
+                2811
+            ],
+            "evaluation_root_sha256": "d4cccfc743a5237b4fe9be44dc64521ba728227cacd38f91103fc066dbd0d3bd",
+            "fit_root_sha256": "800f879375deabeffb75ec8ab10a6fac6ffeadf8e23ae8720ac505b45b473373",
+            "metric_code_sha256": "bc0384e88c6bd0835abbab9a3c7656f60a747c098e4015f33e2b0d49f2d2bfd3",
+            "model_seeds": [
+                171701,
+                171702,
+                171703
+            ],
+            "parent_arm_ids": [
+                "C7-A",
+                "C8-A",
+                "C9-B"
+            ],
+            "role_binding_sha256": "075868b22c028a981cc63ffe37b8d29720cd324c3e2c7254ce688678758230ba"
+        },
+        "seeds": {
+            "171701": {
+                "ckpt_sha256": "45f9e151c5d3946804ea531eb2bcace26b1f62e634671f51b8741ac6b411a619",
+                "steps": 300,
+                "thr_pop": 39.88631009371126,
+                "thr_pred": 2.405964084134403
+            },
+            "171702": {
+                "ckpt_sha256": "64ed2cedec210e4692f60bb4dd3430a57cf94abfcd50551abd97c9265ea785f8",
+                "steps": 300,
+                "thr_pop": 63.952352261812564,
+                "thr_pred": 2.7934244786564206
+            },
+            "171703": {
+                "ckpt_sha256": "9edb2122e357376a9ff1e065d73d5ab7704f8d2005991552332f1ced01b0e906",
+                "steps": 300,
+                "thr_pop": 123.82702144472155,
+                "thr_pred": 2.969790788685183
+            }
+        },
+        "status": "VALID_NEGATIVE",
+        "summary_file": "experiments/sprint17-task21-k-summary.json",
+        "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+    },
+    "K9": {
+        "arm_fit_patches": 154129,
+        "cache_sha256": "998b7f8cb05c709290e688e55c0b987dee0e38daf14561bbef58fac40781ef91",
+        "combination_sha256": "043217b7f0bcc5c6df3292807c346e791240341b2f762e5514bfd92556afabcb",
+        "component_set": [
+            "C2",
+            "C3",
+            "C5",
+            "C6",
+            "C7",
+            "C8",
+            "C9"
+        ],
+        "compute": {
+            "envelope_pass": True,
+            "flops_per_reference_sample": 182082245,
+            "params_total": 1854594
+        },
+        "metric_code_sha256": "bc0384e88c6bd0835abbab9a3c7656f60a747c098e4015f33e2b0d49f2d2bfd3",
+        "one_principal_change": "none",
+        "parent_arm_ids": [
+            "C2-A",
+            "C3-A",
+            "C5-A",
+            "C6-A",
+            "C7-A",
+            "C8-A",
+            "C9-B"
+        ],
+        "provenance": {
+            "cache_sha256": "998b7f8cb05c709290e688e55c0b987dee0e38daf14561bbef58fac40781ef91",
+            "calibration_root_sha256": "e6bcdba617dabae52aba57905ba3f471768073c725df9afbc1c3f97919e0f101",
+            "checkpoint_sha256": "258603eccfb8307257aebfbf147c68daebf617479a2dea316284c644fef80bd5",
+            "data_protocol": "sprint15-benchmark-protocol-v7",
+            "data_roles": [
+                "H-S17-V3-FIT-01",
+                "H-S17-V3-FIT-02",
+                "H-S17-V3-FIT-03",
+                "H-S17-V3-CAL-01",
+                "H-S17-V3-DEV-01",
+                "H-S17-V3-DEV-02",
+                "H-S17-V3-DEV-03",
+                "H-S17-V3-DEV-04"
+            ],
+            "data_seeds": [
+                2804,
+                2805,
+                2806,
+                2807,
+                2808,
+                2809,
+                2810,
+                2811
+            ],
+            "evaluation_root_sha256": "d4cccfc743a5237b4fe9be44dc64521ba728227cacd38f91103fc066dbd0d3bd",
+            "fit_root_sha256": "800f879375deabeffb75ec8ab10a6fac6ffeadf8e23ae8720ac505b45b473373",
+            "metric_code_sha256": "bc0384e88c6bd0835abbab9a3c7656f60a747c098e4015f33e2b0d49f2d2bfd3",
+            "model_seeds": [
+                171701,
+                171702,
+                171703
+            ],
+            "parent_arm_ids": [
+                "C2-A",
+                "C3-A",
+                "C5-A",
+                "C6-A",
+                "C7-A",
+                "C8-A",
+                "C9-B"
+            ],
+            "role_binding_sha256": "075868b22c028a981cc63ffe37b8d29720cd324c3e2c7254ce688678758230ba"
+        },
+        "seeds": {
+            "171701": {
+                "ckpt_sha256": "bbcfc36332d5a0144ef2b2ade8d558d97568b50a02e66be12563d77052069eb3",
+                "steps": 300,
+                "thr_pop": 71.02805734261742,
+                "thr_pred": 2.3243869657485083
+            },
+            "171702": {
+                "ckpt_sha256": "ced00b91a341a8f644600f9d1eed2976fa4885810b5312f0be3d855dfc733630",
+                "steps": 300,
+                "thr_pop": 86.82833012200732,
+                "thr_pred": 2.080016467716798
+            },
+            "171703": {
+                "ckpt_sha256": "69b98deb9a540f663ee4ebb40ccd99c2ff7a0b4b741c8bab0cd0b03fbe72d626",
+                "steps": 300,
+                "thr_pop": 54.6191457672574,
+                "thr_pred": 2.967528958141837
+            }
+        },
+        "status": "VALID_NEGATIVE",
+        "summary_file": "experiments/sprint17-task21-k-summary.json",
+        "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+    }
+}
+EXECUTION_COMMITS = {
+    "B0": "8c15f0204a3e495569b7f143dc109943e8b808de",
+    "C2-A": "5e6582c63b366a57323b71bf530e08b4cdac56da",
+    "C2-B": "5e6582c63b366a57323b71bf530e08b4cdac56da",
+    "C3-A": "7eb63e75711533f4537351da92d3f9204c8afa4e",
+    "C3-B": "7eb63e75711533f4537351da92d3f9204c8afa4e",
+    "C5-A": "8dea7fd975b224c6d6f4a96774af40caf9ad6c97",
+    "C5-B": "8dea7fd975b224c6d6f4a96774af40caf9ad6c97",
+    "C6-A": "5ee3e04e05d3e4cb112167389af845595951e144",
+    "C6-B": "5ee3e04e05d3e4cb112167389af845595951e144",
+    "C7-A": "5eee50e22cf2386ee2f549bace9ba2d2c87ea0b",
+    "C7-B": "5eee50e22cf2386ee2f549bace9ba2d2c87ea0b",
+    "C8-A": "9d5c8e3184df95b81752be81bb6106f9a9ea14b7",
+    "C8-B": "9d5c8e3184df95b81752be81bb6106f9a9ea14b7",
+    "C9-A": "55af8f2fc8cefbe5a40424dbb2cb52310d112d4f",
+    "C9-B": "55af8f2fc8cefbe5a40424dbb2cb52310d112d4f",
+    "K1": "6a86a02d4b92fb277b9534c3672a111c8c98fa3c",
+    "K2": "6a86a02d4b92fb277b9534c3672a111c8c98fa3c",
+    "K3": "6a86a02d4b92fb277b9534c3672a111c8c98fa3c",
+    "K4": "6a86a02d4b92fb277b9534c3672a111c8c98fa3c",
+    "K5": "1886729b431b2a9bace8d208b9d579e7f274a610",
+    "K6": "1886729b431b2a9bace8d208b9d579e7f274a610",
+    "K7": "ddc77c1f1f4b737298a0e920789e778fb28d370f",
+    "K8": "ddc77c1f1f4b737298a0e920789e778fb28d370f",
+    "K9": "ddc77c1f1f4b737298a0e920789e778fb28d370f",
+}
+SHARED_METRIC_FILES = (
+    "src/synth/probe15.py",
+    "src/synth/events.py",
+    "src/representation/attribution_metrics.py",
+    "src/representation/sprint17_ablation.py",
+)
+SHARED_METRIC_DIGESTS = {
+    "src/synth/probe15.py": "a08b3d5fb83001e1f5c43f4c56ff536bae85e41d494db289304aeb33a339242b",
+    "src/synth/events.py": "85100f5e0aca47dd2e8b01a08c58f39d32be4f1eab469cdc38e4a4b57768169d",
+    "src/representation/attribution_metrics.py": "c14f815c19d8e5791bce09cc0f07986e3a0f4c90c5c70cbf20f1c29f5a8d0488",
+    "src/representation/sprint17_ablation.py": "52162995189985a30372e75c12538cfb15f93a2d36fe460551838c1c11e994af",
+}
+FLIGHT_DRIVERS = {
+    "b0": {"file": "experiments/sprint17_task7_b0.py", "sha256": "7969f3cacb77b4e9d0476250ba49ffe12f74a50f62157afc861179d9c141e825"},
+    "c2": {"file": "experiments/sprint17_task10_c2.py", "sha256": "43dbaffaaaa6c08a486ac9675da8e6315269611d330998a4b8d1c49f4e18348a"},
+    "c3": {"file": "experiments/sprint17_task11_c3.py", "sha256": "0e1251bf45a47c5753ff7328b44bb9b5461a24bad60d1eeec294a57d6858d4a2"},
+    "c5": {"file": "experiments/sprint17_task12_c5.py", "sha256": "b3a5f5adc492d80420c5fa1c5f2990cc40f51bb6a592eee8426df886fe3d4f6e"},
+    "c6": {"file": "experiments/sprint17_task13_c6.py", "sha256": "7cb87969a4aa8cc28cfb1de9fe20467690be27a6dc4fc853b43e1553afae48ad"},
+    "c7": {"file": "experiments/sprint17_task14_c7.py", "sha256": "d90f0abe085185b318d636b35d9ec3d86073be5c1099355d6bf7a88ae2858af0"},
+    "c8": {"file": "experiments/sprint17_task15_c8.py", "sha256": "bba4b7432635541d31d6b551d65cbaa7fd2f4234e3ca1f5ceb830ed0a9885909"},
+    "c9": {"file": "experiments/sprint17_task16_c9.py", "sha256": "2b239f2de24d42b477ab76c1645fa6b6c31086ad60e25da2290ed04aaec61fd9"},
+    "k20": {"file": "experiments/sprint17_task20_k.py", "sha256": "b3cd883ef733b2aaac89dd5cd709fdf9debcb30d65beb42cbab80a899d20b529", "execution": "K1-K4 at 6a86a02; K5-K6 at 1886729 (train-free path only differs)"},
+    "k21": {"file": "experiments/sprint17_task20_k.py", "sha256": "8f512e68d09db5a23f7a339af59e84d257c2eea8e3c2721d664256788cfb47c2", "execution": "K7-K9 at ddc77c1 (current working-tree bytes)"},
+}
+CONFIRMATION_ROOTS = {
+    "H-S17-V3-CONF-01": {
+        "config_hash": "32c2c9bfc20c",
+        "data_seed": 2812,
+        "directory": "data/generated/sprint17-ablation-v3/CONFIRMATION/H-S17-V3-CONF-01",
+        "history_id": "H-S17-V3-CONF-01",
+        "manifest_bytes": 5880575,
+        "manifest_file_entries": 5177,
+        "manifest_sha256": "141d79d3e30636fc7b04123f32a74111f1118ab879f2ac913cb7f5182db5b919",
+        "protocol": "sprint15-benchmark-protocol-v7",
+        "role": "CONFIRMATION",
+        "shard_files": 81
+    },
+    "H-S17-V3-CONF-02": {
+        "config_hash": "d88230a3a1c9",
+        "data_seed": 2813,
+        "directory": "data/generated/sprint17-ablation-v3/CONFIRMATION/H-S17-V3-CONF-02",
+        "history_id": "H-S17-V3-CONF-02",
+        "manifest_bytes": 5881797,
+        "manifest_file_entries": 5172,
+        "manifest_sha256": "b8cc1f74dbf30b052849f1dad47a1a75c2506e070565ed000a3a18bd5d13da85",
+        "protocol": "sprint15-benchmark-protocol-v7",
+        "role": "CONFIRMATION",
+        "shard_files": 81
+    },
+    "H-S17-V3-CONF-03": {
+        "config_hash": "bd77fe80be54",
+        "data_seed": 2814,
+        "directory": "data/generated/sprint17-ablation-v3/CONFIRMATION/H-S17-V3-CONF-03",
+        "history_id": "H-S17-V3-CONF-03",
+        "manifest_bytes": 5891336,
+        "manifest_file_entries": 5179,
+        "manifest_sha256": "8826fb4d4b9a8b9d25bed56c4f8d818cc9e82edcb2ca52a910c24437d0bfa7e7",
+        "protocol": "sprint15-benchmark-protocol-v7",
+        "role": "CONFIRMATION",
+        "shard_files": 81
+    },
+    "H-S17-V3-CONF-04": {
+        "config_hash": "6fca2b1b581b",
+        "data_seed": 2815,
+        "directory": "data/generated/sprint17-ablation-v3/CONFIRMATION/H-S17-V3-CONF-04",
+        "history_id": "H-S17-V3-CONF-04",
+        "manifest_bytes": 5896986,
+        "manifest_file_entries": 5189,
+        "manifest_sha256": "f5042b59c34997aa4effc9974eb92b30c79f4d9a0a5a8c9a84403ff437bfe452",
+        "protocol": "sprint15-benchmark-protocol-v7",
+        "role": "CONFIRMATION",
+        "shard_files": 82
+    }
+}
+CONFIRMATION_ROOT_SHA256 = "42d2154264bc38ce19df566a612b577360efe7c00601cf0b8c68e6cf2b5c4031"
+ALL_MANIFEST_SHA256 = {
+    "H-S17-V3-DESIGN-01": "7c33c1cb3bc3337aa2601102b10686b13e6435a8a029d13f15c286dc73848600",
+    "H-S17-V3-DESIGN-02": "7906acd3d6f8a0c7c3b1a7d2a59a1cfc126ea524b483649f1cf67f55a67782d0",
+    "H-S17-V3-DESIGN-03": "e7d69f6f72f99eb9c6e7a059bca720364244008f4cd2e6ba8e7e5fd8b7d3539c",
+    "H-S17-V3-DESIGN-04": "4caaa1acf00620881e10ad9db13bb6d049aeccf867ac0f3f0190087a8e8614d4",
+    "H-S17-V3-FIT-01": "46afe203c29a211a3ca9c8b21291fcaf1271d325c0ec7b6849b1d6fc5e11db13",
+    "H-S17-V3-FIT-02": "136476984c0d1ee69e2aad01f6f1efc91750d8e98dd9d872b09c80d6a2a96669",
+    "H-S17-V3-FIT-03": "07a223ca5714943a3973b01f4d851c639e54f9d2109cfdc8ceaa952c2637d305",
+    "H-S17-V3-CAL-01": "e6bcdba617dabae52aba57905ba3f471768073c725df9afbc1c3f97919e0f101",
+    "H-S17-V3-DEV-01": "83a3559794ac73bc673105e84c436267f699f2be1b3bfb684b7de952b9a3f438",
+    "H-S17-V3-DEV-02": "75eb035f41387827ae39c5d2f82ed383e9aaa0d92b7caec57cedd118e2bd4073",
+    "H-S17-V3-DEV-03": "f94e1130bfd88cc6548616d5eec5dbf216f14713b0145696a8aac868899744ed",
+    "H-S17-V3-DEV-04": "ae2c87c21ce2d2f344538d21b5b5da06189cf8cb279afa332b6576c0e489ac8c",
+    "H-S17-V3-CONF-01": "141d79d3e30636fc7b04123f32a74111f1118ab879f2ac913cb7f5182db5b919",
+    "H-S17-V3-CONF-02": "b8cc1f74dbf30b052849f1dad47a1a75c2506e070565ed000a3a18bd5d13da85",
+    "H-S17-V3-CONF-03": "8826fb4d4b9a8b9d25bed56c4f8d818cc9e82edcb2ca52a910c24437d0bfa7e7",
+    "H-S17-V3-CONF-04": "f5042b59c34997aa4effc9974eb92b30c79f4d9a0a5a8c9a84403ff437bfe452",
+}
+FIT_ROOT_SHA256 = "800f879375deabeffb75ec8ab10a6fac6ffeadf8e23ae8720ac505b45b473373"
+CALIBRATION_ROOT_SHA256 = "e6bcdba617dabae52aba57905ba3f471768073c725df9afbc1c3f97919e0f101"
+EVALUATION_ROOT_SHA256 = "d4cccfc743a5237b4fe9be44dc64521ba728227cacd38f91103fc066dbd0d3bd"
+PROVENANCE_INPUTS = {
+    "experiments/sprint17-ablation-protocol-v4.md": "35a0526b4b26b6003589fa2498b075abd9c3172a1dedf443ebdb396cc6df4482",
+    "experiments/sprint17-role-binding-v3.json": "e73fee24cf84b60d17cbe4013ecc77ddace6e9132286ca8b65155039dd47a679",
+    "experiments/sprint17-task7-b0-summary.json": "540b7835a8ea31505cdac76fa5cf355dd6bd46194c2e3f6ff7acf39f6d1bd1f8",
+    "experiments/sprint17-task10-c2-summary.json": "7be59de042e81e1d4b61fa1e796690558b3b834dee595a02578f1b12532cd69a",
+    "experiments/sprint17-task11-c3-summary.json": "177816890cff7180184ef41d8edbaf63d300954a6ccbe115b4dc056659a95957",
+    "experiments/sprint17-task12-c5-summary.json": "3f0a656fbcd049f47c5849ce54dd3a6498e6428c8f87c1fe75d281f313df48f3",
+    "experiments/sprint17-task13-c6-summary.json": "cfdde3d085ad254bbf2eda08a90d870547893ac1b0d550e43bbca7bcd4dbad73",
+    "experiments/sprint17-task14-c7-summary.json": "255d9299a497c881f348454b4b5d717bdf61afcedb3b5e3dc722c3e619ff8a45",
+    "experiments/sprint17-task15-c8-summary.json": "10ae92ed5887973b3f0630c3956ef880c1d310548e07fdd2768321ffdd091117",
+    "experiments/sprint17-task16-c9-summary.json": "7353a3f636fc3029d2d2d787a3d1e670a92958bf5c5863363af96a642d28f12a",
+    "experiments/sprint17-task17-selection.json": "b7b269e66046ea1c6d3c7101e2198d723db4030b671504da80d865f2f670271b",
+    "experiments/sprint17-task19-combinations.json": "69bc2052d3872fd621295a9389ede0d8c83506bd8d930daf06519251feb440d0",
+    "experiments/sprint17-task20-k-summary.json": "b6ad250e6af86b6ec4ab95bd0ec3946c3a15fc89f3e17823f01b03b5cf9354d9",
+    "experiments/sprint17-task21-k-summary.json": "1701421d1a21aef9e0671929ab12a166d17ea55830b461dbd6335079e9fa1ea9",
+}
+FORBIDDEN_SUBSTRINGS = ("AUROC", "macro_pw", "delta_vs_B0", "per_history", "per_seed", "recall", "H-SEAL", "failure_events", "episodes")
+
+
+def canonical_hash(obj: object) -> str:
+    """sha256 of canonical JSON (sorted keys, compact separators, UTF-8)."""
+    return hashlib.sha256(
+        json.dumps(obj, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+
+
+def materialize_lock() -> dict:
+    """Build the deterministic Confirmation lock view from frozen literals.
+
+    Pure: no file, data-root, checkpoint, Confirmation, or Sealed access.
+    """
+    arms: dict = {"B0": B0_RECORD}
+    arms.update(SINGLE_RECORDS)
+    arms.update(K_RECORDS)
+    return {
+        "schema_id": SCHEMA_ID,
+        "protocol_id": PROTOCOL_ID,
+        "task": "Task 23 - Lock the Confirmation matrix",
+        "qualification": QUALIFICATION,
+        "waiver_id": WAIVER_ID,
+        "waiver_scope": dict(WAIVER_SCOPE),
+        "model_seeds": list(MODEL_SEEDS),
+        "optimizer_steps": OPTIMIZER_STEPS,
+        "checkpoint_step": CHECKPOINT_STEP,
+        "calibration_quantile": CALIBRATION_QUANTILE,
+        "bootstrap": {"b": BOOTSTRAP_B, "seed": BOOTSTRAP_SEED, "lcb_percentile": BOOTSTRAP_LCB_PERCENTILE},
+        "effect_gates": dict(EFFECT_GATES),
+        "confirmation_gates": dict(CONFIRMATION_GATES),
+        "support_sha256": SUPPORT_SHA256,
+        "binding_sha256": BINDING_SHA256,
+        "data_protocol": DATA_PROTOCOL,
+        "b0_params": B0_PARAMS,
+        "b0_flops_reference": B0_FLOPS_REFERENCE,
+        "fit": {"rows": FIT_ROWS, "patches": FIT_PATCHES},
+        "calibration_rows": CAL_ROWS,
+        "arms": arms,
+        "selected": dict(SELECTED_ARMS),
+        "k_members": {k: list(v) for k, v in K_MEMBERS.items()},
+        "execution_commits": dict(EXECUTION_COMMITS),
+        "shared_metric_files": list(SHARED_METRIC_FILES),
+        "shared_metric_digests": dict(SHARED_METRIC_DIGESTS),
+        "flight_drivers": {k: dict(v) for k, v in FLIGHT_DRIVERS.items()},
+        "confirmation_roots": {k: dict(v) for k, v in CONFIRMATION_ROOTS.items()},
+        "confirmation_root_sha256": CONFIRMATION_ROOT_SHA256,
+        "all_manifest_sha256": dict(ALL_MANIFEST_SHA256),
+        "fit_root_sha256": FIT_ROOT_SHA256,
+        "calibration_root_sha256": CALIBRATION_ROOT_SHA256,
+        "evaluation_root_sha256": EVALUATION_ROOT_SHA256,
+        "provenance_inputs": dict(PROVENANCE_INPUTS),
+        "no_confirmation_scoring": True,
+        "confirmation_access": "manifest_bytes_only",
+        "sealed_contact": False,
+        "confirmation_scoring_started": False,
+        "task24_started": False,
+    }
+
+
+def lock_sha256(lock: dict | None = None) -> str:
+    """Canonical digest of the lock payload (excludes the digest field itself)."""
+    payload = materialize_lock() if lock is None else dict(lock)
+    payload.pop("lock_sha256", None)
+    return canonical_hash(payload)
+
+
+def check_no_sealed_contact(paths) -> bool:
+    """Fail closed on any sealed path. Uppercase convention (Task 19 style)."""
+    for path in paths:
+        if "H-SEAL" in path or "SEALED" in path:
+            raise ValueError(f"sealed contact refused: {path}")
+    return True
+
+
+def check_confirmation_path_allowed(path: str) -> bool:
+    """Allowlist: Confirmation contact is manifest raw bytes only."""
+    check_no_sealed_contact([path])
+    if "CONFIRMATION" not in path and "H-S17-V3-CONF" not in path:
+        raise ValueError(f"not a Confirmation path: {path}")
+    if not path.endswith("manifest.json"):
+        raise ValueError(f"confirmation contact beyond manifest raw bytes refused: {path}")
+    return True
+
+
+def _is_finite_number(value: object) -> bool:
+    return isinstance(value, float) and value == value and value not in (float("inf"), float("-inf"))
+
+
+def validate_lock(lock: dict) -> bool:
+    """Fail-closed validation of the full Confirmation matrix lock."""
+    payload = dict(lock)
+    digest = payload.pop("lock_sha256", None)
+    if digest is not None and digest != canonical_hash(payload):
+        raise ValueError("lock_sha256 mismatch")
+    lock = payload
+    expected_top = {"schema_id", "protocol_id", "task", "qualification", "waiver_id", "waiver_scope", "model_seeds", "optimizer_steps", "checkpoint_step", "calibration_quantile", "bootstrap", "effect_gates", "confirmation_gates", "support_sha256", "binding_sha256", "data_protocol", "b0_params", "b0_flops_reference", "fit", "calibration_rows", "arms", "selected", "k_members", "execution_commits", "shared_metric_files", "shared_metric_digests", "flight_drivers", "confirmation_roots", "confirmation_root_sha256", "all_manifest_sha256", "fit_root_sha256", "calibration_root_sha256", "evaluation_root_sha256", "provenance_inputs", "no_confirmation_scoring", "confirmation_access", "sealed_contact", "confirmation_scoring_started", "task24_started"}
+    if set(lock) != expected_top:
+        raise ValueError(f"top-level key mismatch: {sorted(set(lock) ^ expected_top)}")
+    if lock["schema_id"] != SCHEMA_ID or lock["protocol_id"] != PROTOCOL_ID:
+        raise ValueError("schema/protocol identity mismatch")
+    if lock["qualification"] != QUALIFICATION or lock["waiver_id"] != WAIVER_ID or lock["waiver_scope"] != WAIVER_SCOPE:
+        raise ValueError("waiver identity mismatch")
+    if QUALIFICATION == "MEASURABLE" or lock["qualification"] == "MEASURABLE":
+        raise ValueError("unqualified MEASURABLE forbidden")
+    if list(lock["model_seeds"]) != [171701, 171702, 171703]:
+        raise ValueError("model seed mismatch")
+    if lock["optimizer_steps"] != 300 or lock["checkpoint_step"] != 300:
+        raise ValueError("checkpoint rule mismatch")
+    if lock["calibration_quantile"] != 0.95:
+        raise ValueError("threshold rule mismatch")
+    if lock["bootstrap"] != {"b": 2000, "seed": 20260202, "lcb_percentile": 2.5}:
+        raise ValueError("bootstrap contract mismatch")
+    if lock["effect_gates"] != EFFECT_GATES or lock["confirmation_gates"] != CONFIRMATION_GATES:
+        raise ValueError("gate mismatch")
+    if lock["support_sha256"] != SUPPORT_SHA256 or lock["binding_sha256"] != BINDING_SHA256:
+        raise ValueError("support/binding mismatch")
+    arms = lock["arms"]
+    if len(arms) != 24 or set(arms) != set(ARM_IDS):
+        raise ValueError(f"arm set mismatch: {len(arms)} arms")
+    if len(set(arms)) != 24:
+        raise ValueError("duplicate arm IDs")
+    b0 = arms["B0"]
+    if b0["component_set"] != [] or b0["one_principal_change"] != "none" or b0.get("arm_kind") != "baseline":
+        raise ValueError("B0 identity mismatch")
+    for aid in SINGLE_IDS:
+        rec = arms[aid]
+        if rec["component_set"] != [rec["one_principal_change"]]:
+            raise ValueError(f"single-arm isolation breach: {aid}")
+        if rec["parent_arm_ids"] != ["B0"]:
+            raise ValueError(f"single-arm parent breach: {aid}")
+        if rec["status"] != "VALID_NEGATIVE":
+            raise ValueError(f"unexpected single status: {aid}")
+        if rec["support_sha256"] != SUPPORT_SHA256:
+            raise ValueError(f"support drift: {aid}")
+    if dict(lock["selected"]) != SELECTED_ARMS:
+        raise ValueError("selection mismatch")
+    if {k: tuple(v) for k, v in lock["k_members"].items()} != K_MEMBERS:
+        raise ValueError("K membership mismatch")
+    for k, members in K_MEMBERS.items():
+        rec = arms[k]
+        if tuple(rec["parent_arm_ids"]) != members:
+            raise ValueError(f"K parent breach: {k}")
+        if set(members) != set(SELECTED_ARMS.values()) & set(members):
+            raise ValueError(f"K member not selected: {k}")
+        for m in members:
+            if m in UNSELECTED_SINGLES:
+                raise ValueError(f"K uses unselected arm: {k} -> {m}")
+        if rec["status"] != "VALID_NEGATIVE":
+            raise ValueError(f"unexpected K status: {k}")
+        if rec["support_sha256"] != SUPPORT_SHA256:
+            raise ValueError(f"support drift: {k}")
+        if len(rec["combination_sha256"]) != 64:
+            raise ValueError(f"K digest malformed: {k}")
+    for aid, rec in arms.items():
+        seeds = rec.get("seeds", {})
+        if aid == "B0":
+            ckpts = rec["checkpoints"]
+            if set(ckpts) != {"171701", "171702", "171703"}:
+                raise ValueError("B0 seed mismatch")
+            for s, h in ckpts.items():
+                if len(h) != 64:
+                    raise ValueError(f"B0 checkpoint malformed: {s}")
+            for s, th in rec["thresholds"].items():
+                if not (_is_finite_number(th["pred"]) and _is_finite_number(th["pop"])):
+                    raise ValueError(f"B0 threshold non-finite: {s}")
+            continue
+        if "reuses_b0_checkpoints" in seeds:
+            if sorted(seeds["model_seeds"]) != [171701, 171702, 171703]:
+                raise ValueError(f"C9 seed mismatch: {aid}")
+            for s, th in rec["thresholds_pred"].items():
+                if not _is_finite_number(th):
+                    raise ValueError(f"C9 threshold non-finite: {aid}/{s}")
+            continue
+        if set(seeds) != {"171701", "171702", "171703"}:
+            raise ValueError(f"seed mismatch: {aid}")
+        for s, v in seeds.items():
+            if v["steps"] != 300:
+                raise ValueError(f"step breach: {aid}/{s}")
+            if len(v["ckpt_sha256"]) != 64:
+                raise ValueError(f"checkpoint malformed: {aid}/{s}")
+            if not (_is_finite_number(v["thr_pred"]) and _is_finite_number(v["thr_pop"])):
+                raise ValueError(f"threshold non-finite: {aid}/{s}")
+            if v["thr_pred"] <= 0 or v["thr_pop"] <= 0:
+                raise ValueError(f"threshold non-positive: {aid}/{s}")
+        if aid in TRAIN_FREE_IDS:
+            for s in ("171701", "171702", "171703"):
+                if seeds[s]["ckpt_sha256"] != b0["checkpoints"][s]:
+                    raise ValueError(f"train-free identity breach: {aid}/{s}")
+        else:
+            for s in ("171701", "171702", "171703"):
+                if seeds[s]["ckpt_sha256"] == b0["checkpoints"][s]:
+                    raise ValueError(f"trainable freshness breach: {aid}/{s}")
+            if len({seeds[s]["ckpt_sha256"] for s in seeds}) != 3:
+                raise ValueError(f"checkpoint collision: {aid}")
+        if rec["compute"]["envelope_pass"] is not True:
+            raise ValueError(f"compute envelope breach: {aid}")
+    if set(lock["confirmation_roots"]) != {"H-S17-V3-CONF-01", "H-S17-V3-CONF-02", "H-S17-V3-CONF-03", "H-S17-V3-CONF-04"}:
+        raise ValueError("confirmation root set mismatch")
+    for hid, rec in lock["confirmation_roots"].items():
+        if len(rec["manifest_sha256"]) != 64:
+            raise ValueError(f"confirmation manifest malformed: {hid}")
+        if rec["manifest_sha256"] != ALL_MANIFEST_SHA256[hid]:
+            raise ValueError(f"confirmation manifest drift: {hid}")
+        check_confirmation_path_allowed(rec["directory"] + "/manifest.json")
+    if canonical_hash(sorted(ALL_MANIFEST_SHA256[h] for h in lock["confirmation_roots"])) != CONFIRMATION_ROOT_SHA256:
+        raise ValueError("confirmation aggregate mismatch")
+    if canonical_hash(sorted(ALL_MANIFEST_SHA256[h] for h in ("H-S17-V3-FIT-01", "H-S17-V3-FIT-02", "H-S17-V3-FIT-03"))) != FIT_ROOT_SHA256:
+        raise ValueError("fit aggregate mismatch")
+    if ALL_MANIFEST_SHA256["H-S17-V3-CAL-01"] != CALIBRATION_ROOT_SHA256:
+        raise ValueError("calibration root mismatch")
+    if canonical_hash(sorted(ALL_MANIFEST_SHA256[h] for h in ("H-S17-V3-DEV-01", "H-S17-V3-DEV-02", "H-S17-V3-DEV-03", "H-S17-V3-DEV-04"))) != EVALUATION_ROOT_SHA256:
+        raise ValueError("evaluation aggregate mismatch")
+    if lock["no_confirmation_scoring"] is not True or lock["sealed_contact"] is not False:
+        raise ValueError("scoring/sealed flag breach")
+    if lock["confirmation_scoring_started"] is not False or lock["task24_started"] is not False:
+        raise ValueError("Task 24 must not be started")
+    raw = json.dumps(lock, sort_keys=True, separators=(",", ":"))
+    for bad in FORBIDDEN_SUBSTRINGS:
+        if bad in raw:
+            raise ValueError(f"forbidden content in lock: {bad}")
+    check_no_sealed_contact(list(lock["provenance_inputs"]) + list(lock["shared_metric_files"]) + [v["file"] for v in lock["flight_drivers"].values()])
+    return True
+
+
+UNSELECTED_SINGLES = ("C2-B", "C3-B", "C5-B", "C6-B", "C7-B", "C8-B", "C9-A")
