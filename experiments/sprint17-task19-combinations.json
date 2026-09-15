@@ -1,0 +1,1242 @@
+{
+  "combinations": {
+    "K1": {
+      "arm_id": "K1",
+      "arm_kind": "combination",
+      "combination_sha256": "80013183fa7fb8b18e52643f166d96212e165286cc404b607320b8dc12155a73",
+      "component_set": [
+        "C2",
+        "C3"
+      ],
+      "confirmation_sealed_access": false,
+      "eligibility": {
+        "qualification": "MEASURABLE_WITH_USER_WAIVER",
+        "waiver_id": "S17-V4-WAIVER-H-S17-V3-DESIGN-03-COHORT_MIX_15_60-P-91-149",
+        "waiver_scope": {
+          "cohort": "P",
+          "gate": "cohort_mix_15_60",
+          "history_id": "H-S17-V3-DESIGN-03",
+          "observed_denominator": 149,
+          "observed_numerator": 91,
+          "observed_share": 0.610738255033557,
+          "original_upper_bound": 0.6,
+          "role": "DESIGN"
+        }
+      },
+      "global": {
+        "b0_flops_per_reference_sample": 182016709,
+        "b0_params": 1821698,
+        "calibration_quantile": 0.95,
+        "checkpoint_step": 300,
+        "data_protocol": "sprint15-benchmark-protocol-v7",
+        "model_seeds": [
+          171701,
+          171702,
+          171703
+        ],
+        "no_combination_tuning": true,
+        "optimizer_steps": 300,
+        "protocol_id": "sprint17-ablation-v4",
+        "role_binding_sha256": "075868b22c028a981cc63ffe37b8d29720cd324c3e2c7254ce688678758230ba",
+        "schema_id": "sprint17-ablation-result-v4",
+        "score_branches": [
+          "S_pred",
+          "S_pop"
+        ],
+        "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+      },
+      "member_arm_ids": [
+        "C2-A",
+        "C3-A"
+      ],
+      "members": {
+        "C2-A": {
+          "adapter_description": "overlap-explicit single-grid patchifier (W=32, stride 16, pad_end); no geometry adapter, no support weights; downstream pooling, masking, scoring, and metric code unchanged",
+          "builder": "arm_patchifier",
+          "component": "C2",
+          "driver": "experiments/sprint17_task10_c2.py",
+          "frozen_numerics": {
+            "grids": [
+              [
+                0,
+                16
+              ]
+            ],
+            "pad_end": true,
+            "patch_size": 32,
+            "stride": 16
+          },
+          "impl_module": "src/representation/sprint17_c2.py",
+          "summary": "experiments/sprint17-task10-c2-summary.json"
+        },
+        "C3-A": {
+          "adapter_description": "residual depthwise-separable dilated-1D-conv patch encoder (in-proj k1, depthwise k3/dilation-2, pointwise k1, residual); unchanged output head and masked pooling; no other adapter",
+          "builder": "ResidualDilatedPatchEncoder",
+          "component": "C3",
+          "driver": "experiments/sprint17_task11_c3.py",
+          "frozen_numerics": {
+            "b0_local_encoder_params": 35712,
+            "local_encoder_params_at_6_128": 34688
+          },
+          "impl_module": "src/representation/sprint17_c3.py",
+          "summary": "experiments/sprint17-task11-c3-summary.json"
+        }
+      },
+      "no_execution": true,
+      "phase": "development",
+      "protocol_id": "sprint17-ablation-v4",
+      "provenance_inputs": {
+        "experiments/sprint17-ablation-protocol-v4.md": "35a0526b4b26b6003589fa2498b075abd9c3172a1dedf443ebdb396cc6df4482",
+        "experiments/sprint17-role-binding-v3.json": "e73fee24cf84b60d17cbe4013ecc77ddace6e9132286ca8b65155039dd47a679",
+        "experiments/sprint17-task10-c2-summary.json": "7be59de042e81e1d4b61fa1e796690558b3b834dee595a02578f1b12532cd69a",
+        "experiments/sprint17-task11-c3-summary.json": "177816890cff7180184ef41d8edbaf63d300954a6ccbe115b4dc056659a95957",
+        "experiments/sprint17-task12-c5-summary.json": "3f0a656fbcd049f47c5849ce54dd3a6498e6428c8f87c1fe75d281f313df48f3",
+        "experiments/sprint17-task13-c6-summary.json": "cfdde3d085ad254bbf2eda08a90d870547893ac1b0d550e43bbca7bcd4dbad73",
+        "experiments/sprint17-task14-c7-summary.json": "255d9299a497c881f348454b4b5d717bdf61afcedb3b5e3dc722c3e619ff8a45",
+        "experiments/sprint17-task15-c8-summary.json": "10ae92ed5887973b3f0630c3956ef880c1d310548e07fdd2768321ffdd091117",
+        "experiments/sprint17-task16-c9-summary.json": "7353a3f636fc3029d2d2d787a3d1e670a92958bf5c5863363af96a642d28f12a",
+        "experiments/sprint17-task17-selection.json": "b7b269e66046ea1c6d3c7101e2198d723db4030b671504da80d865f2f670271b",
+        "experiments/sprint17-task7-b0-summary.json": "540b7835a8ea31505cdac76fa5cf355dd6bd46194c2e3f6ff7acf39f6d1bd1f8",
+        "experiments/sprint17_task10_c2.py": "43dbaffaaaa6c08a486ac9675da8e6315269611d330998a4b8d1c49f4e18348a",
+        "experiments/sprint17_task11_c3.py": "0e1251bf45a47c5753ff7328b44bb9b5461a24bad60d1eeec294a57d6858d4a2",
+        "experiments/sprint17_task12_c5.py": "b3a5f5adc492d80420c5fa1c5f2990cc40f51bb6a592eee8426df886fe3d4f6e",
+        "experiments/sprint17_task13_c6.py": "7cb87969a4aa8cc28cfb1de9fe20467690be27a6dc4fc853b43e1553afae48ad",
+        "experiments/sprint17_task14_c7.py": "d90f0abe085185b318d636b35d9ec3d86073be5c1099355d6bf7a88ae2858af0",
+        "experiments/sprint17_task15_c8.py": "bba4b7432635541d31d6b551d65cbaa7fd2f4234e3ca1f5ceb830ed0a9885909",
+        "experiments/sprint17_task16_c9.py": "2b239f2de24d42b477ab76c1645fa6b6c31086ad60e25da2290ed04aaec61fd9",
+        "src/representation/attribution_metrics.py": "c14f815c19d8e5791bce09cc0f07986e3a0f4c90c5c70cbf20f1c29f5a8d0488",
+        "src/representation/sprint17_ablation.py": "52162995189985a30372e75c12538cfb15f93a2d36fe460551838c1c11e994af",
+        "src/representation/sprint17_c2.py": "a73278f98dd09c70b0ae719d20a510c9f0b8d17ef96b529d345d27e7af5fa52a",
+        "src/representation/sprint17_c3.py": "c527f3e175e46133646eef42878ce18998e36da483549e0ad1db6fdcb4cce9ca",
+        "src/representation/sprint17_c5.py": "ab0596f1082387ea376727d9d088f9b19d4d81ae46734cc4a75af18ec29dab7b",
+        "src/representation/sprint17_c6.py": "ccff8868c92c5c753b5617e65b63dc7ccc9387506fe5b9ba06e75e08a2561d33",
+        "src/representation/sprint17_c7.py": "42b1f5922c9f8d03dc3da5949773fe03c93952bbdf569ceb4505817ea6416c25",
+        "src/representation/sprint17_c8.py": "3366b2fa080ea6cede40d6b6d417b40f8847a2c853627d195cc8a28dd45b8ea2",
+        "src/representation/sprint17_c9.py": "c55c1eb6362780de16f878ac42908c04e1dd119290273a311101b0040fd13c86",
+        "src/synth/events.py": "85100f5e0aca47dd2e8b01a08c58f39d32be4f1eab469cdc38e4a4b57768169d",
+        "src/synth/probe15.py": "a08b3d5fb83001e1f5c43f4c56ff536bae85e41d494db289304aeb33a339242b"
+      },
+      "schema_id": "sprint17-ablation-result-v4",
+      "task": "Task 19 — frozen selected combination configs"
+    },
+    "K2": {
+      "arm_id": "K2",
+      "arm_kind": "combination",
+      "combination_sha256": "95005d80dc033c0dbb04207623f109ba1aa24b76b87757c0ecf7650de5832ee1",
+      "component_set": [
+        "C3",
+        "C5"
+      ],
+      "confirmation_sealed_access": false,
+      "eligibility": {
+        "qualification": "MEASURABLE_WITH_USER_WAIVER",
+        "waiver_id": "S17-V4-WAIVER-H-S17-V3-DESIGN-03-COHORT_MIX_15_60-P-91-149",
+        "waiver_scope": {
+          "cohort": "P",
+          "gate": "cohort_mix_15_60",
+          "history_id": "H-S17-V3-DESIGN-03",
+          "observed_denominator": 149,
+          "observed_numerator": 91,
+          "observed_share": 0.610738255033557,
+          "original_upper_bound": 0.6,
+          "role": "DESIGN"
+        }
+      },
+      "global": {
+        "b0_flops_per_reference_sample": 182016709,
+        "b0_params": 1821698,
+        "calibration_quantile": 0.95,
+        "checkpoint_step": 300,
+        "data_protocol": "sprint15-benchmark-protocol-v7",
+        "model_seeds": [
+          171701,
+          171702,
+          171703
+        ],
+        "no_combination_tuning": true,
+        "optimizer_steps": 300,
+        "protocol_id": "sprint17-ablation-v4",
+        "role_binding_sha256": "075868b22c028a981cc63ffe37b8d29720cd324c3e2c7254ce688678758230ba",
+        "schema_id": "sprint17-ablation-result-v4",
+        "score_branches": [
+          "S_pred",
+          "S_pop"
+        ],
+        "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+      },
+      "member_arm_ids": [
+        "C3-A",
+        "C5-A"
+      ],
+      "members": {
+        "C3-A": {
+          "adapter_description": "residual depthwise-separable dilated-1D-conv patch encoder (in-proj k1, depthwise k3/dilation-2, pointwise k1, residual); unchanged output head and masked pooling; no other adapter",
+          "builder": "ResidualDilatedPatchEncoder",
+          "component": "C3",
+          "driver": "experiments/sprint17_task11_c3.py",
+          "frozen_numerics": {
+            "b0_local_encoder_params": 35712,
+            "local_encoder_params_at_6_128": 34688
+          },
+          "impl_module": "src/representation/sprint17_c3.py",
+          "summary": "experiments/sprint17-task11-c3-summary.json"
+        },
+        "C5-A": {
+          "adapter_description": "seeded contiguous channel-time block masking at the frozen 0.40 ratio plus shared-head multi-horizon (0/+1/+2) EMA latent prediction; no new parameters; scoring/inference code unchanged",
+          "builder": "channel_time_block_mask",
+          "component": "C5",
+          "driver": "experiments/sprint17_task12_c5.py",
+          "frozen_numerics": {
+            "horizons": [
+              0,
+              1,
+              2
+            ],
+            "n_blocks": 2,
+            "total_mask_ratio": 0.4
+          },
+          "impl_module": "src/representation/sprint17_c5.py",
+          "summary": "experiments/sprint17-task12-c5-summary.json"
+        }
+      },
+      "no_execution": true,
+      "phase": "development",
+      "protocol_id": "sprint17-ablation-v4",
+      "provenance_inputs": {
+        "experiments/sprint17-ablation-protocol-v4.md": "35a0526b4b26b6003589fa2498b075abd9c3172a1dedf443ebdb396cc6df4482",
+        "experiments/sprint17-role-binding-v3.json": "e73fee24cf84b60d17cbe4013ecc77ddace6e9132286ca8b65155039dd47a679",
+        "experiments/sprint17-task10-c2-summary.json": "7be59de042e81e1d4b61fa1e796690558b3b834dee595a02578f1b12532cd69a",
+        "experiments/sprint17-task11-c3-summary.json": "177816890cff7180184ef41d8edbaf63d300954a6ccbe115b4dc056659a95957",
+        "experiments/sprint17-task12-c5-summary.json": "3f0a656fbcd049f47c5849ce54dd3a6498e6428c8f87c1fe75d281f313df48f3",
+        "experiments/sprint17-task13-c6-summary.json": "cfdde3d085ad254bbf2eda08a90d870547893ac1b0d550e43bbca7bcd4dbad73",
+        "experiments/sprint17-task14-c7-summary.json": "255d9299a497c881f348454b4b5d717bdf61afcedb3b5e3dc722c3e619ff8a45",
+        "experiments/sprint17-task15-c8-summary.json": "10ae92ed5887973b3f0630c3956ef880c1d310548e07fdd2768321ffdd091117",
+        "experiments/sprint17-task16-c9-summary.json": "7353a3f636fc3029d2d2d787a3d1e670a92958bf5c5863363af96a642d28f12a",
+        "experiments/sprint17-task17-selection.json": "b7b269e66046ea1c6d3c7101e2198d723db4030b671504da80d865f2f670271b",
+        "experiments/sprint17-task7-b0-summary.json": "540b7835a8ea31505cdac76fa5cf355dd6bd46194c2e3f6ff7acf39f6d1bd1f8",
+        "experiments/sprint17_task10_c2.py": "43dbaffaaaa6c08a486ac9675da8e6315269611d330998a4b8d1c49f4e18348a",
+        "experiments/sprint17_task11_c3.py": "0e1251bf45a47c5753ff7328b44bb9b5461a24bad60d1eeec294a57d6858d4a2",
+        "experiments/sprint17_task12_c5.py": "b3a5f5adc492d80420c5fa1c5f2990cc40f51bb6a592eee8426df886fe3d4f6e",
+        "experiments/sprint17_task13_c6.py": "7cb87969a4aa8cc28cfb1de9fe20467690be27a6dc4fc853b43e1553afae48ad",
+        "experiments/sprint17_task14_c7.py": "d90f0abe085185b318d636b35d9ec3d86073be5c1099355d6bf7a88ae2858af0",
+        "experiments/sprint17_task15_c8.py": "bba4b7432635541d31d6b551d65cbaa7fd2f4234e3ca1f5ceb830ed0a9885909",
+        "experiments/sprint17_task16_c9.py": "2b239f2de24d42b477ab76c1645fa6b6c31086ad60e25da2290ed04aaec61fd9",
+        "src/representation/attribution_metrics.py": "c14f815c19d8e5791bce09cc0f07986e3a0f4c90c5c70cbf20f1c29f5a8d0488",
+        "src/representation/sprint17_ablation.py": "52162995189985a30372e75c12538cfb15f93a2d36fe460551838c1c11e994af",
+        "src/representation/sprint17_c2.py": "a73278f98dd09c70b0ae719d20a510c9f0b8d17ef96b529d345d27e7af5fa52a",
+        "src/representation/sprint17_c3.py": "c527f3e175e46133646eef42878ce18998e36da483549e0ad1db6fdcb4cce9ca",
+        "src/representation/sprint17_c5.py": "ab0596f1082387ea376727d9d088f9b19d4d81ae46734cc4a75af18ec29dab7b",
+        "src/representation/sprint17_c6.py": "ccff8868c92c5c753b5617e65b63dc7ccc9387506fe5b9ba06e75e08a2561d33",
+        "src/representation/sprint17_c7.py": "42b1f5922c9f8d03dc3da5949773fe03c93952bbdf569ceb4505817ea6416c25",
+        "src/representation/sprint17_c8.py": "3366b2fa080ea6cede40d6b6d417b40f8847a2c853627d195cc8a28dd45b8ea2",
+        "src/representation/sprint17_c9.py": "c55c1eb6362780de16f878ac42908c04e1dd119290273a311101b0040fd13c86",
+        "src/synth/events.py": "85100f5e0aca47dd2e8b01a08c58f39d32be4f1eab469cdc38e4a4b57768169d",
+        "src/synth/probe15.py": "a08b3d5fb83001e1f5c43f4c56ff536bae85e41d494db289304aeb33a339242b"
+      },
+      "schema_id": "sprint17-ablation-result-v4",
+      "task": "Task 19 — frozen selected combination configs"
+    },
+    "K3": {
+      "arm_id": "K3",
+      "arm_kind": "combination",
+      "combination_sha256": "7e1d30c14ccce2d9b9abc0d38ebdeed4f547a741fb4484a22a6dbf1258a02a62",
+      "component_set": [
+        "C5",
+        "C6"
+      ],
+      "confirmation_sealed_access": false,
+      "eligibility": {
+        "qualification": "MEASURABLE_WITH_USER_WAIVER",
+        "waiver_id": "S17-V4-WAIVER-H-S17-V3-DESIGN-03-COHORT_MIX_15_60-P-91-149",
+        "waiver_scope": {
+          "cohort": "P",
+          "gate": "cohort_mix_15_60",
+          "history_id": "H-S17-V3-DESIGN-03",
+          "observed_denominator": 149,
+          "observed_numerator": 91,
+          "observed_share": 0.610738255033557,
+          "original_upper_bound": 0.6,
+          "role": "DESIGN"
+        }
+      },
+      "global": {
+        "b0_flops_per_reference_sample": 182016709,
+        "b0_params": 1821698,
+        "calibration_quantile": 0.95,
+        "checkpoint_step": 300,
+        "data_protocol": "sprint15-benchmark-protocol-v7",
+        "model_seeds": [
+          171701,
+          171702,
+          171703
+        ],
+        "no_combination_tuning": true,
+        "optimizer_steps": 300,
+        "protocol_id": "sprint17-ablation-v4",
+        "role_binding_sha256": "075868b22c028a981cc63ffe37b8d29720cd324c3e2c7254ce688678758230ba",
+        "schema_id": "sprint17-ablation-result-v4",
+        "score_branches": [
+          "S_pred",
+          "S_pop"
+        ],
+        "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+      },
+      "member_arm_ids": [
+        "C5-A",
+        "C6-A"
+      ],
+      "members": {
+        "C5-A": {
+          "adapter_description": "seeded contiguous channel-time block masking at the frozen 0.40 ratio plus shared-head multi-horizon (0/+1/+2) EMA latent prediction; no new parameters; scoring/inference code unchanged",
+          "builder": "channel_time_block_mask",
+          "component": "C5",
+          "driver": "experiments/sprint17_task12_c5.py",
+          "frozen_numerics": {
+            "horizons": [
+              0,
+              1,
+              2
+            ],
+            "n_blocks": 2,
+            "total_mask_ratio": 0.4
+          },
+          "impl_module": "src/representation/sprint17_c5.py",
+          "summary": "experiments/sprint17-task12-c5-summary.json"
+        },
+        "C6-A": {
+          "adapter_description": "valid-patch mean-plus-population-std concatenated to 2D and linearly projected to D (one Linear(256,128) + bias, 32,896 params); invalid patches masked to zero before statistics; no other adapter",
+          "builder": "MeanStdProjectionPooling",
+          "component": "C6",
+          "driver": "experiments/sprint17_task13_c6.py",
+          "frozen_numerics": {
+            "pooling_params_at_128": 32896
+          },
+          "impl_module": "src/representation/sprint17_c6.py",
+          "summary": "experiments/sprint17-task13-c6-summary.json"
+        }
+      },
+      "no_execution": true,
+      "phase": "development",
+      "protocol_id": "sprint17-ablation-v4",
+      "provenance_inputs": {
+        "experiments/sprint17-ablation-protocol-v4.md": "35a0526b4b26b6003589fa2498b075abd9c3172a1dedf443ebdb396cc6df4482",
+        "experiments/sprint17-role-binding-v3.json": "e73fee24cf84b60d17cbe4013ecc77ddace6e9132286ca8b65155039dd47a679",
+        "experiments/sprint17-task10-c2-summary.json": "7be59de042e81e1d4b61fa1e796690558b3b834dee595a02578f1b12532cd69a",
+        "experiments/sprint17-task11-c3-summary.json": "177816890cff7180184ef41d8edbaf63d300954a6ccbe115b4dc056659a95957",
+        "experiments/sprint17-task12-c5-summary.json": "3f0a656fbcd049f47c5849ce54dd3a6498e6428c8f87c1fe75d281f313df48f3",
+        "experiments/sprint17-task13-c6-summary.json": "cfdde3d085ad254bbf2eda08a90d870547893ac1b0d550e43bbca7bcd4dbad73",
+        "experiments/sprint17-task14-c7-summary.json": "255d9299a497c881f348454b4b5d717bdf61afcedb3b5e3dc722c3e619ff8a45",
+        "experiments/sprint17-task15-c8-summary.json": "10ae92ed5887973b3f0630c3956ef880c1d310548e07fdd2768321ffdd091117",
+        "experiments/sprint17-task16-c9-summary.json": "7353a3f636fc3029d2d2d787a3d1e670a92958bf5c5863363af96a642d28f12a",
+        "experiments/sprint17-task17-selection.json": "b7b269e66046ea1c6d3c7101e2198d723db4030b671504da80d865f2f670271b",
+        "experiments/sprint17-task7-b0-summary.json": "540b7835a8ea31505cdac76fa5cf355dd6bd46194c2e3f6ff7acf39f6d1bd1f8",
+        "experiments/sprint17_task10_c2.py": "43dbaffaaaa6c08a486ac9675da8e6315269611d330998a4b8d1c49f4e18348a",
+        "experiments/sprint17_task11_c3.py": "0e1251bf45a47c5753ff7328b44bb9b5461a24bad60d1eeec294a57d6858d4a2",
+        "experiments/sprint17_task12_c5.py": "b3a5f5adc492d80420c5fa1c5f2990cc40f51bb6a592eee8426df886fe3d4f6e",
+        "experiments/sprint17_task13_c6.py": "7cb87969a4aa8cc28cfb1de9fe20467690be27a6dc4fc853b43e1553afae48ad",
+        "experiments/sprint17_task14_c7.py": "d90f0abe085185b318d636b35d9ec3d86073be5c1099355d6bf7a88ae2858af0",
+        "experiments/sprint17_task15_c8.py": "bba4b7432635541d31d6b551d65cbaa7fd2f4234e3ca1f5ceb830ed0a9885909",
+        "experiments/sprint17_task16_c9.py": "2b239f2de24d42b477ab76c1645fa6b6c31086ad60e25da2290ed04aaec61fd9",
+        "src/representation/attribution_metrics.py": "c14f815c19d8e5791bce09cc0f07986e3a0f4c90c5c70cbf20f1c29f5a8d0488",
+        "src/representation/sprint17_ablation.py": "52162995189985a30372e75c12538cfb15f93a2d36fe460551838c1c11e994af",
+        "src/representation/sprint17_c2.py": "a73278f98dd09c70b0ae719d20a510c9f0b8d17ef96b529d345d27e7af5fa52a",
+        "src/representation/sprint17_c3.py": "c527f3e175e46133646eef42878ce18998e36da483549e0ad1db6fdcb4cce9ca",
+        "src/representation/sprint17_c5.py": "ab0596f1082387ea376727d9d088f9b19d4d81ae46734cc4a75af18ec29dab7b",
+        "src/representation/sprint17_c6.py": "ccff8868c92c5c753b5617e65b63dc7ccc9387506fe5b9ba06e75e08a2561d33",
+        "src/representation/sprint17_c7.py": "42b1f5922c9f8d03dc3da5949773fe03c93952bbdf569ceb4505817ea6416c25",
+        "src/representation/sprint17_c8.py": "3366b2fa080ea6cede40d6b6d417b40f8847a2c853627d195cc8a28dd45b8ea2",
+        "src/representation/sprint17_c9.py": "c55c1eb6362780de16f878ac42908c04e1dd119290273a311101b0040fd13c86",
+        "src/synth/events.py": "85100f5e0aca47dd2e8b01a08c58f39d32be4f1eab469cdc38e4a4b57768169d",
+        "src/synth/probe15.py": "a08b3d5fb83001e1f5c43f4c56ff536bae85e41d494db289304aeb33a339242b"
+      },
+      "schema_id": "sprint17-ablation-result-v4",
+      "task": "Task 19 — frozen selected combination configs"
+    },
+    "K4": {
+      "arm_id": "K4",
+      "arm_kind": "combination",
+      "combination_sha256": "5f38a47c93009502d943da4b8969b68fc5bd11a6e61075b8e2ab0fd7c9624c13",
+      "component_set": [
+        "C6",
+        "C7"
+      ],
+      "confirmation_sealed_access": false,
+      "eligibility": {
+        "qualification": "MEASURABLE_WITH_USER_WAIVER",
+        "waiver_id": "S17-V4-WAIVER-H-S17-V3-DESIGN-03-COHORT_MIX_15_60-P-91-149",
+        "waiver_scope": {
+          "cohort": "P",
+          "gate": "cohort_mix_15_60",
+          "history_id": "H-S17-V3-DESIGN-03",
+          "observed_denominator": 149,
+          "observed_numerator": 91,
+          "observed_share": 0.610738255033557,
+          "original_upper_bound": 0.6,
+          "role": "DESIGN"
+        }
+      },
+      "global": {
+        "b0_flops_per_reference_sample": 182016709,
+        "b0_params": 1821698,
+        "calibration_quantile": 0.95,
+        "checkpoint_step": 300,
+        "data_protocol": "sprint15-benchmark-protocol-v7",
+        "model_seeds": [
+          171701,
+          171702,
+          171703
+        ],
+        "no_combination_tuning": true,
+        "optimizer_steps": 300,
+        "protocol_id": "sprint17-ablation-v4",
+        "role_binding_sha256": "075868b22c028a981cc63ffe37b8d29720cd324c3e2c7254ce688678758230ba",
+        "schema_id": "sprint17-ablation-result-v4",
+        "score_branches": [
+          "S_pred",
+          "S_pop"
+        ],
+        "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+      },
+      "member_arm_ids": [
+        "C6-A",
+        "C7-A"
+      ],
+      "members": {
+        "C6-A": {
+          "adapter_description": "valid-patch mean-plus-population-std concatenated to 2D and linearly projected to D (one Linear(256,128) + bias, 32,896 params); invalid patches masked to zero before statistics; no other adapter",
+          "builder": "MeanStdProjectionPooling",
+          "component": "C6",
+          "driver": "experiments/sprint17_task13_c6.py",
+          "frozen_numerics": {
+            "pooling_params_at_128": 32896
+          },
+          "impl_module": "src/representation/sprint17_c6.py",
+          "summary": "experiments/sprint17-task13-c6-summary.json"
+        },
+        "C7-A": {
+          "adapter_description": "per-condition robust location (coordinate-wise median) plus Ledoit-Wolf-style covariance shrinkage to scaled identity (floor 0.05), squared-Mahalanobis energy over the frozen (robot,program)->robot->program->global hierarchy with fallback below 8 rows; fitted statistics only, no trainable parameters; no other adapter",
+          "builder": "RobustShrinkageReference",
+          "component": "C7",
+          "driver": "experiments/sprint17_task14_c7.py",
+          "frozen_numerics": {
+            "knn_k": 5,
+            "min_cell_rows": 8,
+            "shrinkage_floor": 0.05
+          },
+          "impl_module": "src/representation/sprint17_c7.py",
+          "summary": "experiments/sprint17-task14-c7-summary.json"
+        }
+      },
+      "no_execution": true,
+      "phase": "development",
+      "protocol_id": "sprint17-ablation-v4",
+      "provenance_inputs": {
+        "experiments/sprint17-ablation-protocol-v4.md": "35a0526b4b26b6003589fa2498b075abd9c3172a1dedf443ebdb396cc6df4482",
+        "experiments/sprint17-role-binding-v3.json": "e73fee24cf84b60d17cbe4013ecc77ddace6e9132286ca8b65155039dd47a679",
+        "experiments/sprint17-task10-c2-summary.json": "7be59de042e81e1d4b61fa1e796690558b3b834dee595a02578f1b12532cd69a",
+        "experiments/sprint17-task11-c3-summary.json": "177816890cff7180184ef41d8edbaf63d300954a6ccbe115b4dc056659a95957",
+        "experiments/sprint17-task12-c5-summary.json": "3f0a656fbcd049f47c5849ce54dd3a6498e6428c8f87c1fe75d281f313df48f3",
+        "experiments/sprint17-task13-c6-summary.json": "cfdde3d085ad254bbf2eda08a90d870547893ac1b0d550e43bbca7bcd4dbad73",
+        "experiments/sprint17-task14-c7-summary.json": "255d9299a497c881f348454b4b5d717bdf61afcedb3b5e3dc722c3e619ff8a45",
+        "experiments/sprint17-task15-c8-summary.json": "10ae92ed5887973b3f0630c3956ef880c1d310548e07fdd2768321ffdd091117",
+        "experiments/sprint17-task16-c9-summary.json": "7353a3f636fc3029d2d2d787a3d1e670a92958bf5c5863363af96a642d28f12a",
+        "experiments/sprint17-task17-selection.json": "b7b269e66046ea1c6d3c7101e2198d723db4030b671504da80d865f2f670271b",
+        "experiments/sprint17-task7-b0-summary.json": "540b7835a8ea31505cdac76fa5cf355dd6bd46194c2e3f6ff7acf39f6d1bd1f8",
+        "experiments/sprint17_task10_c2.py": "43dbaffaaaa6c08a486ac9675da8e6315269611d330998a4b8d1c49f4e18348a",
+        "experiments/sprint17_task11_c3.py": "0e1251bf45a47c5753ff7328b44bb9b5461a24bad60d1eeec294a57d6858d4a2",
+        "experiments/sprint17_task12_c5.py": "b3a5f5adc492d80420c5fa1c5f2990cc40f51bb6a592eee8426df886fe3d4f6e",
+        "experiments/sprint17_task13_c6.py": "7cb87969a4aa8cc28cfb1de9fe20467690be27a6dc4fc853b43e1553afae48ad",
+        "experiments/sprint17_task14_c7.py": "d90f0abe085185b318d636b35d9ec3d86073be5c1099355d6bf7a88ae2858af0",
+        "experiments/sprint17_task15_c8.py": "bba4b7432635541d31d6b551d65cbaa7fd2f4234e3ca1f5ceb830ed0a9885909",
+        "experiments/sprint17_task16_c9.py": "2b239f2de24d42b477ab76c1645fa6b6c31086ad60e25da2290ed04aaec61fd9",
+        "src/representation/attribution_metrics.py": "c14f815c19d8e5791bce09cc0f07986e3a0f4c90c5c70cbf20f1c29f5a8d0488",
+        "src/representation/sprint17_ablation.py": "52162995189985a30372e75c12538cfb15f93a2d36fe460551838c1c11e994af",
+        "src/representation/sprint17_c2.py": "a73278f98dd09c70b0ae719d20a510c9f0b8d17ef96b529d345d27e7af5fa52a",
+        "src/representation/sprint17_c3.py": "c527f3e175e46133646eef42878ce18998e36da483549e0ad1db6fdcb4cce9ca",
+        "src/representation/sprint17_c5.py": "ab0596f1082387ea376727d9d088f9b19d4d81ae46734cc4a75af18ec29dab7b",
+        "src/representation/sprint17_c6.py": "ccff8868c92c5c753b5617e65b63dc7ccc9387506fe5b9ba06e75e08a2561d33",
+        "src/representation/sprint17_c7.py": "42b1f5922c9f8d03dc3da5949773fe03c93952bbdf569ceb4505817ea6416c25",
+        "src/representation/sprint17_c8.py": "3366b2fa080ea6cede40d6b6d417b40f8847a2c853627d195cc8a28dd45b8ea2",
+        "src/representation/sprint17_c9.py": "c55c1eb6362780de16f878ac42908c04e1dd119290273a311101b0040fd13c86",
+        "src/synth/events.py": "85100f5e0aca47dd2e8b01a08c58f39d32be4f1eab469cdc38e4a4b57768169d",
+        "src/synth/probe15.py": "a08b3d5fb83001e1f5c43f4c56ff536bae85e41d494db289304aeb33a339242b"
+      },
+      "schema_id": "sprint17-ablation-result-v4",
+      "task": "Task 19 — frozen selected combination configs"
+    },
+    "K5": {
+      "arm_id": "K5",
+      "arm_kind": "combination",
+      "combination_sha256": "ae1906f12192786f6d3d76099c6dff0691987c32daa9da3cd2b55b9f5ae1453c",
+      "component_set": [
+        "C7",
+        "C8"
+      ],
+      "confirmation_sealed_access": false,
+      "eligibility": {
+        "qualification": "MEASURABLE_WITH_USER_WAIVER",
+        "waiver_id": "S17-V4-WAIVER-H-S17-V3-DESIGN-03-COHORT_MIX_15_60-P-91-149",
+        "waiver_scope": {
+          "cohort": "P",
+          "gate": "cohort_mix_15_60",
+          "history_id": "H-S17-V3-DESIGN-03",
+          "observed_denominator": 149,
+          "observed_numerator": 91,
+          "observed_share": 0.610738255033557,
+          "original_upper_bound": 0.6,
+          "role": "DESIGN"
+        }
+      },
+      "global": {
+        "b0_flops_per_reference_sample": 182016709,
+        "b0_params": 1821698,
+        "calibration_quantile": 0.95,
+        "checkpoint_step": 300,
+        "data_protocol": "sprint15-benchmark-protocol-v7",
+        "model_seeds": [
+          171701,
+          171702,
+          171703
+        ],
+        "no_combination_tuning": true,
+        "optimizer_steps": 300,
+        "protocol_id": "sprint17-ablation-v4",
+        "role_binding_sha256": "075868b22c028a981cc63ffe37b8d29720cd324c3e2c7254ce688678758230ba",
+        "schema_id": "sprint17-ablation-result-v4",
+        "score_branches": [
+          "S_pred",
+          "S_pop"
+        ],
+        "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+      },
+      "member_arm_ids": [
+        "C7-A",
+        "C8-A"
+      ],
+      "members": {
+        "C7-A": {
+          "adapter_description": "per-condition robust location (coordinate-wise median) plus Ledoit-Wolf-style covariance shrinkage to scaled identity (floor 0.05), squared-Mahalanobis energy over the frozen (robot,program)->robot->program->global hierarchy with fallback below 8 rows; fitted statistics only, no trainable parameters; no other adapter",
+          "builder": "RobustShrinkageReference",
+          "component": "C7",
+          "driver": "experiments/sprint17_task14_c7.py",
+          "frozen_numerics": {
+            "knn_k": 5,
+            "min_cell_rows": 8,
+            "shrinkage_floor": 0.05
+          },
+          "impl_module": "src/representation/sprint17_c7.py",
+          "summary": "experiments/sprint17-task14-c7-summary.json"
+        },
+        "C8-A": {
+          "adapter_description": "non-query-conditioned standardized Huber prediction-residual energy (Fit-fitted per-dimension median/MAD, floor 1e-6, Huber delta 1.0, file-mean over valid masked patches); fitted statistics only (256 floats), no trainable parameters; no other adapter",
+          "builder": "HuberStandardizer",
+          "component": "C8",
+          "driver": "experiments/sprint17_task15_c8.py",
+          "frozen_numerics": {
+            "huber_delta": 1.0,
+            "mad_floor": 1e-06
+          },
+          "impl_module": "src/representation/sprint17_c8.py",
+          "summary": "experiments/sprint17-task15-c8-summary.json"
+        }
+      },
+      "no_execution": true,
+      "phase": "development",
+      "protocol_id": "sprint17-ablation-v4",
+      "provenance_inputs": {
+        "experiments/sprint17-ablation-protocol-v4.md": "35a0526b4b26b6003589fa2498b075abd9c3172a1dedf443ebdb396cc6df4482",
+        "experiments/sprint17-role-binding-v3.json": "e73fee24cf84b60d17cbe4013ecc77ddace6e9132286ca8b65155039dd47a679",
+        "experiments/sprint17-task10-c2-summary.json": "7be59de042e81e1d4b61fa1e796690558b3b834dee595a02578f1b12532cd69a",
+        "experiments/sprint17-task11-c3-summary.json": "177816890cff7180184ef41d8edbaf63d300954a6ccbe115b4dc056659a95957",
+        "experiments/sprint17-task12-c5-summary.json": "3f0a656fbcd049f47c5849ce54dd3a6498e6428c8f87c1fe75d281f313df48f3",
+        "experiments/sprint17-task13-c6-summary.json": "cfdde3d085ad254bbf2eda08a90d870547893ac1b0d550e43bbca7bcd4dbad73",
+        "experiments/sprint17-task14-c7-summary.json": "255d9299a497c881f348454b4b5d717bdf61afcedb3b5e3dc722c3e619ff8a45",
+        "experiments/sprint17-task15-c8-summary.json": "10ae92ed5887973b3f0630c3956ef880c1d310548e07fdd2768321ffdd091117",
+        "experiments/sprint17-task16-c9-summary.json": "7353a3f636fc3029d2d2d787a3d1e670a92958bf5c5863363af96a642d28f12a",
+        "experiments/sprint17-task17-selection.json": "b7b269e66046ea1c6d3c7101e2198d723db4030b671504da80d865f2f670271b",
+        "experiments/sprint17-task7-b0-summary.json": "540b7835a8ea31505cdac76fa5cf355dd6bd46194c2e3f6ff7acf39f6d1bd1f8",
+        "experiments/sprint17_task10_c2.py": "43dbaffaaaa6c08a486ac9675da8e6315269611d330998a4b8d1c49f4e18348a",
+        "experiments/sprint17_task11_c3.py": "0e1251bf45a47c5753ff7328b44bb9b5461a24bad60d1eeec294a57d6858d4a2",
+        "experiments/sprint17_task12_c5.py": "b3a5f5adc492d80420c5fa1c5f2990cc40f51bb6a592eee8426df886fe3d4f6e",
+        "experiments/sprint17_task13_c6.py": "7cb87969a4aa8cc28cfb1de9fe20467690be27a6dc4fc853b43e1553afae48ad",
+        "experiments/sprint17_task14_c7.py": "d90f0abe085185b318d636b35d9ec3d86073be5c1099355d6bf7a88ae2858af0",
+        "experiments/sprint17_task15_c8.py": "bba4b7432635541d31d6b551d65cbaa7fd2f4234e3ca1f5ceb830ed0a9885909",
+        "experiments/sprint17_task16_c9.py": "2b239f2de24d42b477ab76c1645fa6b6c31086ad60e25da2290ed04aaec61fd9",
+        "src/representation/attribution_metrics.py": "c14f815c19d8e5791bce09cc0f07986e3a0f4c90c5c70cbf20f1c29f5a8d0488",
+        "src/representation/sprint17_ablation.py": "52162995189985a30372e75c12538cfb15f93a2d36fe460551838c1c11e994af",
+        "src/representation/sprint17_c2.py": "a73278f98dd09c70b0ae719d20a510c9f0b8d17ef96b529d345d27e7af5fa52a",
+        "src/representation/sprint17_c3.py": "c527f3e175e46133646eef42878ce18998e36da483549e0ad1db6fdcb4cce9ca",
+        "src/representation/sprint17_c5.py": "ab0596f1082387ea376727d9d088f9b19d4d81ae46734cc4a75af18ec29dab7b",
+        "src/representation/sprint17_c6.py": "ccff8868c92c5c753b5617e65b63dc7ccc9387506fe5b9ba06e75e08a2561d33",
+        "src/representation/sprint17_c7.py": "42b1f5922c9f8d03dc3da5949773fe03c93952bbdf569ceb4505817ea6416c25",
+        "src/representation/sprint17_c8.py": "3366b2fa080ea6cede40d6b6d417b40f8847a2c853627d195cc8a28dd45b8ea2",
+        "src/representation/sprint17_c9.py": "c55c1eb6362780de16f878ac42908c04e1dd119290273a311101b0040fd13c86",
+        "src/synth/events.py": "85100f5e0aca47dd2e8b01a08c58f39d32be4f1eab469cdc38e4a4b57768169d",
+        "src/synth/probe15.py": "a08b3d5fb83001e1f5c43f4c56ff536bae85e41d494db289304aeb33a339242b"
+      },
+      "schema_id": "sprint17-ablation-result-v4",
+      "task": "Task 19 — frozen selected combination configs"
+    },
+    "K6": {
+      "arm_id": "K6",
+      "arm_kind": "combination",
+      "combination_sha256": "16dc4a6d437e99307c6820bb46d2281374abcbce7b3ef3936798c7bdc60898fa",
+      "component_set": [
+        "C8",
+        "C9"
+      ],
+      "confirmation_sealed_access": false,
+      "eligibility": {
+        "qualification": "MEASURABLE_WITH_USER_WAIVER",
+        "waiver_id": "S17-V4-WAIVER-H-S17-V3-DESIGN-03-COHORT_MIX_15_60-P-91-149",
+        "waiver_scope": {
+          "cohort": "P",
+          "gate": "cohort_mix_15_60",
+          "history_id": "H-S17-V3-DESIGN-03",
+          "observed_denominator": 149,
+          "observed_numerator": 91,
+          "observed_share": 0.610738255033557,
+          "original_upper_bound": 0.6,
+          "role": "DESIGN"
+        }
+      },
+      "global": {
+        "b0_flops_per_reference_sample": 182016709,
+        "b0_params": 1821698,
+        "calibration_quantile": 0.95,
+        "checkpoint_step": 300,
+        "data_protocol": "sprint15-benchmark-protocol-v7",
+        "model_seeds": [
+          171701,
+          171702,
+          171703
+        ],
+        "no_combination_tuning": true,
+        "optimizer_steps": 300,
+        "protocol_id": "sprint17-ablation-v4",
+        "role_binding_sha256": "075868b22c028a981cc63ffe37b8d29720cd324c3e2c7254ce688678758230ba",
+        "schema_id": "sprint17-ablation-result-v4",
+        "score_branches": [
+          "S_pred",
+          "S_pop"
+        ],
+        "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+      },
+      "member_arm_ids": [
+        "C8-A",
+        "C9-B"
+      ],
+      "members": {
+        "C8-A": {
+          "adapter_description": "non-query-conditioned standardized Huber prediction-residual energy (Fit-fitted per-dimension median/MAD, floor 1e-6, Huber delta 1.0, file-mean over valid masked patches); fitted statistics only (256 floats), no trainable parameters; no other adapter",
+          "builder": "HuberStandardizer",
+          "component": "C8",
+          "driver": "experiments/sprint17_task15_c8.py",
+          "frozen_numerics": {
+            "huber_delta": 1.0,
+            "mad_floor": 1e-06
+          },
+          "impl_module": "src/representation/sprint17_c8.py",
+          "summary": "experiments/sprint17-task15-c8-summary.json"
+        },
+        "C9-B": {
+          "adapter_description": "maximum fixed-duration contiguous-window mean using patch starts/valid lengths (duration=64 timesteps, earliest-window tie-break)",
+          "builder": "window_max_mean",
+          "component": "C9",
+          "driver": "experiments/sprint17_task16_c9.py",
+          "frozen_numerics": {
+            "window_duration_timesteps": 64
+          },
+          "impl_module": "src/representation/sprint17_c9.py",
+          "summary": "experiments/sprint17-task16-c9-summary.json"
+        }
+      },
+      "no_execution": true,
+      "phase": "development",
+      "protocol_id": "sprint17-ablation-v4",
+      "provenance_inputs": {
+        "experiments/sprint17-ablation-protocol-v4.md": "35a0526b4b26b6003589fa2498b075abd9c3172a1dedf443ebdb396cc6df4482",
+        "experiments/sprint17-role-binding-v3.json": "e73fee24cf84b60d17cbe4013ecc77ddace6e9132286ca8b65155039dd47a679",
+        "experiments/sprint17-task10-c2-summary.json": "7be59de042e81e1d4b61fa1e796690558b3b834dee595a02578f1b12532cd69a",
+        "experiments/sprint17-task11-c3-summary.json": "177816890cff7180184ef41d8edbaf63d300954a6ccbe115b4dc056659a95957",
+        "experiments/sprint17-task12-c5-summary.json": "3f0a656fbcd049f47c5849ce54dd3a6498e6428c8f87c1fe75d281f313df48f3",
+        "experiments/sprint17-task13-c6-summary.json": "cfdde3d085ad254bbf2eda08a90d870547893ac1b0d550e43bbca7bcd4dbad73",
+        "experiments/sprint17-task14-c7-summary.json": "255d9299a497c881f348454b4b5d717bdf61afcedb3b5e3dc722c3e619ff8a45",
+        "experiments/sprint17-task15-c8-summary.json": "10ae92ed5887973b3f0630c3956ef880c1d310548e07fdd2768321ffdd091117",
+        "experiments/sprint17-task16-c9-summary.json": "7353a3f636fc3029d2d2d787a3d1e670a92958bf5c5863363af96a642d28f12a",
+        "experiments/sprint17-task17-selection.json": "b7b269e66046ea1c6d3c7101e2198d723db4030b671504da80d865f2f670271b",
+        "experiments/sprint17-task7-b0-summary.json": "540b7835a8ea31505cdac76fa5cf355dd6bd46194c2e3f6ff7acf39f6d1bd1f8",
+        "experiments/sprint17_task10_c2.py": "43dbaffaaaa6c08a486ac9675da8e6315269611d330998a4b8d1c49f4e18348a",
+        "experiments/sprint17_task11_c3.py": "0e1251bf45a47c5753ff7328b44bb9b5461a24bad60d1eeec294a57d6858d4a2",
+        "experiments/sprint17_task12_c5.py": "b3a5f5adc492d80420c5fa1c5f2990cc40f51bb6a592eee8426df886fe3d4f6e",
+        "experiments/sprint17_task13_c6.py": "7cb87969a4aa8cc28cfb1de9fe20467690be27a6dc4fc853b43e1553afae48ad",
+        "experiments/sprint17_task14_c7.py": "d90f0abe085185b318d636b35d9ec3d86073be5c1099355d6bf7a88ae2858af0",
+        "experiments/sprint17_task15_c8.py": "bba4b7432635541d31d6b551d65cbaa7fd2f4234e3ca1f5ceb830ed0a9885909",
+        "experiments/sprint17_task16_c9.py": "2b239f2de24d42b477ab76c1645fa6b6c31086ad60e25da2290ed04aaec61fd9",
+        "src/representation/attribution_metrics.py": "c14f815c19d8e5791bce09cc0f07986e3a0f4c90c5c70cbf20f1c29f5a8d0488",
+        "src/representation/sprint17_ablation.py": "52162995189985a30372e75c12538cfb15f93a2d36fe460551838c1c11e994af",
+        "src/representation/sprint17_c2.py": "a73278f98dd09c70b0ae719d20a510c9f0b8d17ef96b529d345d27e7af5fa52a",
+        "src/representation/sprint17_c3.py": "c527f3e175e46133646eef42878ce18998e36da483549e0ad1db6fdcb4cce9ca",
+        "src/representation/sprint17_c5.py": "ab0596f1082387ea376727d9d088f9b19d4d81ae46734cc4a75af18ec29dab7b",
+        "src/representation/sprint17_c6.py": "ccff8868c92c5c753b5617e65b63dc7ccc9387506fe5b9ba06e75e08a2561d33",
+        "src/representation/sprint17_c7.py": "42b1f5922c9f8d03dc3da5949773fe03c93952bbdf569ceb4505817ea6416c25",
+        "src/representation/sprint17_c8.py": "3366b2fa080ea6cede40d6b6d417b40f8847a2c853627d195cc8a28dd45b8ea2",
+        "src/representation/sprint17_c9.py": "c55c1eb6362780de16f878ac42908c04e1dd119290273a311101b0040fd13c86",
+        "src/synth/events.py": "85100f5e0aca47dd2e8b01a08c58f39d32be4f1eab469cdc38e4a4b57768169d",
+        "src/synth/probe15.py": "a08b3d5fb83001e1f5c43f4c56ff536bae85e41d494db289304aeb33a339242b"
+      },
+      "schema_id": "sprint17-ablation-result-v4",
+      "task": "Task 19 — frozen selected combination configs"
+    },
+    "K7": {
+      "arm_id": "K7",
+      "arm_kind": "combination",
+      "combination_sha256": "d905cfefb62adbe60b941c652838a4801a605e1c9143cbf1031b47f3d4cd495f",
+      "component_set": [
+        "C2",
+        "C3",
+        "C5",
+        "C6"
+      ],
+      "confirmation_sealed_access": false,
+      "eligibility": {
+        "qualification": "MEASURABLE_WITH_USER_WAIVER",
+        "waiver_id": "S17-V4-WAIVER-H-S17-V3-DESIGN-03-COHORT_MIX_15_60-P-91-149",
+        "waiver_scope": {
+          "cohort": "P",
+          "gate": "cohort_mix_15_60",
+          "history_id": "H-S17-V3-DESIGN-03",
+          "observed_denominator": 149,
+          "observed_numerator": 91,
+          "observed_share": 0.610738255033557,
+          "original_upper_bound": 0.6,
+          "role": "DESIGN"
+        }
+      },
+      "global": {
+        "b0_flops_per_reference_sample": 182016709,
+        "b0_params": 1821698,
+        "calibration_quantile": 0.95,
+        "checkpoint_step": 300,
+        "data_protocol": "sprint15-benchmark-protocol-v7",
+        "model_seeds": [
+          171701,
+          171702,
+          171703
+        ],
+        "no_combination_tuning": true,
+        "optimizer_steps": 300,
+        "protocol_id": "sprint17-ablation-v4",
+        "role_binding_sha256": "075868b22c028a981cc63ffe37b8d29720cd324c3e2c7254ce688678758230ba",
+        "schema_id": "sprint17-ablation-result-v4",
+        "score_branches": [
+          "S_pred",
+          "S_pop"
+        ],
+        "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+      },
+      "member_arm_ids": [
+        "C2-A",
+        "C3-A",
+        "C5-A",
+        "C6-A"
+      ],
+      "members": {
+        "C2-A": {
+          "adapter_description": "overlap-explicit single-grid patchifier (W=32, stride 16, pad_end); no geometry adapter, no support weights; downstream pooling, masking, scoring, and metric code unchanged",
+          "builder": "arm_patchifier",
+          "component": "C2",
+          "driver": "experiments/sprint17_task10_c2.py",
+          "frozen_numerics": {
+            "grids": [
+              [
+                0,
+                16
+              ]
+            ],
+            "pad_end": true,
+            "patch_size": 32,
+            "stride": 16
+          },
+          "impl_module": "src/representation/sprint17_c2.py",
+          "summary": "experiments/sprint17-task10-c2-summary.json"
+        },
+        "C3-A": {
+          "adapter_description": "residual depthwise-separable dilated-1D-conv patch encoder (in-proj k1, depthwise k3/dilation-2, pointwise k1, residual); unchanged output head and masked pooling; no other adapter",
+          "builder": "ResidualDilatedPatchEncoder",
+          "component": "C3",
+          "driver": "experiments/sprint17_task11_c3.py",
+          "frozen_numerics": {
+            "b0_local_encoder_params": 35712,
+            "local_encoder_params_at_6_128": 34688
+          },
+          "impl_module": "src/representation/sprint17_c3.py",
+          "summary": "experiments/sprint17-task11-c3-summary.json"
+        },
+        "C5-A": {
+          "adapter_description": "seeded contiguous channel-time block masking at the frozen 0.40 ratio plus shared-head multi-horizon (0/+1/+2) EMA latent prediction; no new parameters; scoring/inference code unchanged",
+          "builder": "channel_time_block_mask",
+          "component": "C5",
+          "driver": "experiments/sprint17_task12_c5.py",
+          "frozen_numerics": {
+            "horizons": [
+              0,
+              1,
+              2
+            ],
+            "n_blocks": 2,
+            "total_mask_ratio": 0.4
+          },
+          "impl_module": "src/representation/sprint17_c5.py",
+          "summary": "experiments/sprint17-task12-c5-summary.json"
+        },
+        "C6-A": {
+          "adapter_description": "valid-patch mean-plus-population-std concatenated to 2D and linearly projected to D (one Linear(256,128) + bias, 32,896 params); invalid patches masked to zero before statistics; no other adapter",
+          "builder": "MeanStdProjectionPooling",
+          "component": "C6",
+          "driver": "experiments/sprint17_task13_c6.py",
+          "frozen_numerics": {
+            "pooling_params_at_128": 32896
+          },
+          "impl_module": "src/representation/sprint17_c6.py",
+          "summary": "experiments/sprint17-task13-c6-summary.json"
+        }
+      },
+      "no_execution": true,
+      "phase": "development",
+      "protocol_id": "sprint17-ablation-v4",
+      "provenance_inputs": {
+        "experiments/sprint17-ablation-protocol-v4.md": "35a0526b4b26b6003589fa2498b075abd9c3172a1dedf443ebdb396cc6df4482",
+        "experiments/sprint17-role-binding-v3.json": "e73fee24cf84b60d17cbe4013ecc77ddace6e9132286ca8b65155039dd47a679",
+        "experiments/sprint17-task10-c2-summary.json": "7be59de042e81e1d4b61fa1e796690558b3b834dee595a02578f1b12532cd69a",
+        "experiments/sprint17-task11-c3-summary.json": "177816890cff7180184ef41d8edbaf63d300954a6ccbe115b4dc056659a95957",
+        "experiments/sprint17-task12-c5-summary.json": "3f0a656fbcd049f47c5849ce54dd3a6498e6428c8f87c1fe75d281f313df48f3",
+        "experiments/sprint17-task13-c6-summary.json": "cfdde3d085ad254bbf2eda08a90d870547893ac1b0d550e43bbca7bcd4dbad73",
+        "experiments/sprint17-task14-c7-summary.json": "255d9299a497c881f348454b4b5d717bdf61afcedb3b5e3dc722c3e619ff8a45",
+        "experiments/sprint17-task15-c8-summary.json": "10ae92ed5887973b3f0630c3956ef880c1d310548e07fdd2768321ffdd091117",
+        "experiments/sprint17-task16-c9-summary.json": "7353a3f636fc3029d2d2d787a3d1e670a92958bf5c5863363af96a642d28f12a",
+        "experiments/sprint17-task17-selection.json": "b7b269e66046ea1c6d3c7101e2198d723db4030b671504da80d865f2f670271b",
+        "experiments/sprint17-task7-b0-summary.json": "540b7835a8ea31505cdac76fa5cf355dd6bd46194c2e3f6ff7acf39f6d1bd1f8",
+        "experiments/sprint17_task10_c2.py": "43dbaffaaaa6c08a486ac9675da8e6315269611d330998a4b8d1c49f4e18348a",
+        "experiments/sprint17_task11_c3.py": "0e1251bf45a47c5753ff7328b44bb9b5461a24bad60d1eeec294a57d6858d4a2",
+        "experiments/sprint17_task12_c5.py": "b3a5f5adc492d80420c5fa1c5f2990cc40f51bb6a592eee8426df886fe3d4f6e",
+        "experiments/sprint17_task13_c6.py": "7cb87969a4aa8cc28cfb1de9fe20467690be27a6dc4fc853b43e1553afae48ad",
+        "experiments/sprint17_task14_c7.py": "d90f0abe085185b318d636b35d9ec3d86073be5c1099355d6bf7a88ae2858af0",
+        "experiments/sprint17_task15_c8.py": "bba4b7432635541d31d6b551d65cbaa7fd2f4234e3ca1f5ceb830ed0a9885909",
+        "experiments/sprint17_task16_c9.py": "2b239f2de24d42b477ab76c1645fa6b6c31086ad60e25da2290ed04aaec61fd9",
+        "src/representation/attribution_metrics.py": "c14f815c19d8e5791bce09cc0f07986e3a0f4c90c5c70cbf20f1c29f5a8d0488",
+        "src/representation/sprint17_ablation.py": "52162995189985a30372e75c12538cfb15f93a2d36fe460551838c1c11e994af",
+        "src/representation/sprint17_c2.py": "a73278f98dd09c70b0ae719d20a510c9f0b8d17ef96b529d345d27e7af5fa52a",
+        "src/representation/sprint17_c3.py": "c527f3e175e46133646eef42878ce18998e36da483549e0ad1db6fdcb4cce9ca",
+        "src/representation/sprint17_c5.py": "ab0596f1082387ea376727d9d088f9b19d4d81ae46734cc4a75af18ec29dab7b",
+        "src/representation/sprint17_c6.py": "ccff8868c92c5c753b5617e65b63dc7ccc9387506fe5b9ba06e75e08a2561d33",
+        "src/representation/sprint17_c7.py": "42b1f5922c9f8d03dc3da5949773fe03c93952bbdf569ceb4505817ea6416c25",
+        "src/representation/sprint17_c8.py": "3366b2fa080ea6cede40d6b6d417b40f8847a2c853627d195cc8a28dd45b8ea2",
+        "src/representation/sprint17_c9.py": "c55c1eb6362780de16f878ac42908c04e1dd119290273a311101b0040fd13c86",
+        "src/synth/events.py": "85100f5e0aca47dd2e8b01a08c58f39d32be4f1eab469cdc38e4a4b57768169d",
+        "src/synth/probe15.py": "a08b3d5fb83001e1f5c43f4c56ff536bae85e41d494db289304aeb33a339242b"
+      },
+      "schema_id": "sprint17-ablation-result-v4",
+      "task": "Task 19 — frozen selected combination configs"
+    },
+    "K8": {
+      "arm_id": "K8",
+      "arm_kind": "combination",
+      "combination_sha256": "d53b599494144fdc4ac49f24b656d0b8dc8465a6e033ed9cc84989c84777d494",
+      "component_set": [
+        "C7",
+        "C8",
+        "C9"
+      ],
+      "confirmation_sealed_access": false,
+      "eligibility": {
+        "qualification": "MEASURABLE_WITH_USER_WAIVER",
+        "waiver_id": "S17-V4-WAIVER-H-S17-V3-DESIGN-03-COHORT_MIX_15_60-P-91-149",
+        "waiver_scope": {
+          "cohort": "P",
+          "gate": "cohort_mix_15_60",
+          "history_id": "H-S17-V3-DESIGN-03",
+          "observed_denominator": 149,
+          "observed_numerator": 91,
+          "observed_share": 0.610738255033557,
+          "original_upper_bound": 0.6,
+          "role": "DESIGN"
+        }
+      },
+      "global": {
+        "b0_flops_per_reference_sample": 182016709,
+        "b0_params": 1821698,
+        "calibration_quantile": 0.95,
+        "checkpoint_step": 300,
+        "data_protocol": "sprint15-benchmark-protocol-v7",
+        "model_seeds": [
+          171701,
+          171702,
+          171703
+        ],
+        "no_combination_tuning": true,
+        "optimizer_steps": 300,
+        "protocol_id": "sprint17-ablation-v4",
+        "role_binding_sha256": "075868b22c028a981cc63ffe37b8d29720cd324c3e2c7254ce688678758230ba",
+        "schema_id": "sprint17-ablation-result-v4",
+        "score_branches": [
+          "S_pred",
+          "S_pop"
+        ],
+        "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+      },
+      "member_arm_ids": [
+        "C7-A",
+        "C8-A",
+        "C9-B"
+      ],
+      "members": {
+        "C7-A": {
+          "adapter_description": "per-condition robust location (coordinate-wise median) plus Ledoit-Wolf-style covariance shrinkage to scaled identity (floor 0.05), squared-Mahalanobis energy over the frozen (robot,program)->robot->program->global hierarchy with fallback below 8 rows; fitted statistics only, no trainable parameters; no other adapter",
+          "builder": "RobustShrinkageReference",
+          "component": "C7",
+          "driver": "experiments/sprint17_task14_c7.py",
+          "frozen_numerics": {
+            "knn_k": 5,
+            "min_cell_rows": 8,
+            "shrinkage_floor": 0.05
+          },
+          "impl_module": "src/representation/sprint17_c7.py",
+          "summary": "experiments/sprint17-task14-c7-summary.json"
+        },
+        "C8-A": {
+          "adapter_description": "non-query-conditioned standardized Huber prediction-residual energy (Fit-fitted per-dimension median/MAD, floor 1e-6, Huber delta 1.0, file-mean over valid masked patches); fitted statistics only (256 floats), no trainable parameters; no other adapter",
+          "builder": "HuberStandardizer",
+          "component": "C8",
+          "driver": "experiments/sprint17_task15_c8.py",
+          "frozen_numerics": {
+            "huber_delta": 1.0,
+            "mad_floor": 1e-06
+          },
+          "impl_module": "src/representation/sprint17_c8.py",
+          "summary": "experiments/sprint17-task15-c8-summary.json"
+        },
+        "C9-B": {
+          "adapter_description": "maximum fixed-duration contiguous-window mean using patch starts/valid lengths (duration=64 timesteps, earliest-window tie-break)",
+          "builder": "window_max_mean",
+          "component": "C9",
+          "driver": "experiments/sprint17_task16_c9.py",
+          "frozen_numerics": {
+            "window_duration_timesteps": 64
+          },
+          "impl_module": "src/representation/sprint17_c9.py",
+          "summary": "experiments/sprint17-task16-c9-summary.json"
+        }
+      },
+      "no_execution": true,
+      "phase": "development",
+      "protocol_id": "sprint17-ablation-v4",
+      "provenance_inputs": {
+        "experiments/sprint17-ablation-protocol-v4.md": "35a0526b4b26b6003589fa2498b075abd9c3172a1dedf443ebdb396cc6df4482",
+        "experiments/sprint17-role-binding-v3.json": "e73fee24cf84b60d17cbe4013ecc77ddace6e9132286ca8b65155039dd47a679",
+        "experiments/sprint17-task10-c2-summary.json": "7be59de042e81e1d4b61fa1e796690558b3b834dee595a02578f1b12532cd69a",
+        "experiments/sprint17-task11-c3-summary.json": "177816890cff7180184ef41d8edbaf63d300954a6ccbe115b4dc056659a95957",
+        "experiments/sprint17-task12-c5-summary.json": "3f0a656fbcd049f47c5849ce54dd3a6498e6428c8f87c1fe75d281f313df48f3",
+        "experiments/sprint17-task13-c6-summary.json": "cfdde3d085ad254bbf2eda08a90d870547893ac1b0d550e43bbca7bcd4dbad73",
+        "experiments/sprint17-task14-c7-summary.json": "255d9299a497c881f348454b4b5d717bdf61afcedb3b5e3dc722c3e619ff8a45",
+        "experiments/sprint17-task15-c8-summary.json": "10ae92ed5887973b3f0630c3956ef880c1d310548e07fdd2768321ffdd091117",
+        "experiments/sprint17-task16-c9-summary.json": "7353a3f636fc3029d2d2d787a3d1e670a92958bf5c5863363af96a642d28f12a",
+        "experiments/sprint17-task17-selection.json": "b7b269e66046ea1c6d3c7101e2198d723db4030b671504da80d865f2f670271b",
+        "experiments/sprint17-task7-b0-summary.json": "540b7835a8ea31505cdac76fa5cf355dd6bd46194c2e3f6ff7acf39f6d1bd1f8",
+        "experiments/sprint17_task10_c2.py": "43dbaffaaaa6c08a486ac9675da8e6315269611d330998a4b8d1c49f4e18348a",
+        "experiments/sprint17_task11_c3.py": "0e1251bf45a47c5753ff7328b44bb9b5461a24bad60d1eeec294a57d6858d4a2",
+        "experiments/sprint17_task12_c5.py": "b3a5f5adc492d80420c5fa1c5f2990cc40f51bb6a592eee8426df886fe3d4f6e",
+        "experiments/sprint17_task13_c6.py": "7cb87969a4aa8cc28cfb1de9fe20467690be27a6dc4fc853b43e1553afae48ad",
+        "experiments/sprint17_task14_c7.py": "d90f0abe085185b318d636b35d9ec3d86073be5c1099355d6bf7a88ae2858af0",
+        "experiments/sprint17_task15_c8.py": "bba4b7432635541d31d6b551d65cbaa7fd2f4234e3ca1f5ceb830ed0a9885909",
+        "experiments/sprint17_task16_c9.py": "2b239f2de24d42b477ab76c1645fa6b6c31086ad60e25da2290ed04aaec61fd9",
+        "src/representation/attribution_metrics.py": "c14f815c19d8e5791bce09cc0f07986e3a0f4c90c5c70cbf20f1c29f5a8d0488",
+        "src/representation/sprint17_ablation.py": "52162995189985a30372e75c12538cfb15f93a2d36fe460551838c1c11e994af",
+        "src/representation/sprint17_c2.py": "a73278f98dd09c70b0ae719d20a510c9f0b8d17ef96b529d345d27e7af5fa52a",
+        "src/representation/sprint17_c3.py": "c527f3e175e46133646eef42878ce18998e36da483549e0ad1db6fdcb4cce9ca",
+        "src/representation/sprint17_c5.py": "ab0596f1082387ea376727d9d088f9b19d4d81ae46734cc4a75af18ec29dab7b",
+        "src/representation/sprint17_c6.py": "ccff8868c92c5c753b5617e65b63dc7ccc9387506fe5b9ba06e75e08a2561d33",
+        "src/representation/sprint17_c7.py": "42b1f5922c9f8d03dc3da5949773fe03c93952bbdf569ceb4505817ea6416c25",
+        "src/representation/sprint17_c8.py": "3366b2fa080ea6cede40d6b6d417b40f8847a2c853627d195cc8a28dd45b8ea2",
+        "src/representation/sprint17_c9.py": "c55c1eb6362780de16f878ac42908c04e1dd119290273a311101b0040fd13c86",
+        "src/synth/events.py": "85100f5e0aca47dd2e8b01a08c58f39d32be4f1eab469cdc38e4a4b57768169d",
+        "src/synth/probe15.py": "a08b3d5fb83001e1f5c43f4c56ff536bae85e41d494db289304aeb33a339242b"
+      },
+      "schema_id": "sprint17-ablation-result-v4",
+      "task": "Task 19 — frozen selected combination configs"
+    },
+    "K9": {
+      "arm_id": "K9",
+      "arm_kind": "combination",
+      "combination_sha256": "043217b7f0bcc5c6df3292807c346e791240341b2f762e5514bfd92556afabcb",
+      "component_set": [
+        "C2",
+        "C3",
+        "C5",
+        "C6",
+        "C7",
+        "C8",
+        "C9"
+      ],
+      "confirmation_sealed_access": false,
+      "eligibility": {
+        "qualification": "MEASURABLE_WITH_USER_WAIVER",
+        "waiver_id": "S17-V4-WAIVER-H-S17-V3-DESIGN-03-COHORT_MIX_15_60-P-91-149",
+        "waiver_scope": {
+          "cohort": "P",
+          "gate": "cohort_mix_15_60",
+          "history_id": "H-S17-V3-DESIGN-03",
+          "observed_denominator": 149,
+          "observed_numerator": 91,
+          "observed_share": 0.610738255033557,
+          "original_upper_bound": 0.6,
+          "role": "DESIGN"
+        }
+      },
+      "global": {
+        "b0_flops_per_reference_sample": 182016709,
+        "b0_params": 1821698,
+        "calibration_quantile": 0.95,
+        "checkpoint_step": 300,
+        "data_protocol": "sprint15-benchmark-protocol-v7",
+        "model_seeds": [
+          171701,
+          171702,
+          171703
+        ],
+        "no_combination_tuning": true,
+        "optimizer_steps": 300,
+        "protocol_id": "sprint17-ablation-v4",
+        "role_binding_sha256": "075868b22c028a981cc63ffe37b8d29720cd324c3e2c7254ce688678758230ba",
+        "schema_id": "sprint17-ablation-result-v4",
+        "score_branches": [
+          "S_pred",
+          "S_pop"
+        ],
+        "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+      },
+      "member_arm_ids": [
+        "C2-A",
+        "C3-A",
+        "C5-A",
+        "C6-A",
+        "C7-A",
+        "C8-A",
+        "C9-B"
+      ],
+      "members": {
+        "C2-A": {
+          "adapter_description": "overlap-explicit single-grid patchifier (W=32, stride 16, pad_end); no geometry adapter, no support weights; downstream pooling, masking, scoring, and metric code unchanged",
+          "builder": "arm_patchifier",
+          "component": "C2",
+          "driver": "experiments/sprint17_task10_c2.py",
+          "frozen_numerics": {
+            "grids": [
+              [
+                0,
+                16
+              ]
+            ],
+            "pad_end": true,
+            "patch_size": 32,
+            "stride": 16
+          },
+          "impl_module": "src/representation/sprint17_c2.py",
+          "summary": "experiments/sprint17-task10-c2-summary.json"
+        },
+        "C3-A": {
+          "adapter_description": "residual depthwise-separable dilated-1D-conv patch encoder (in-proj k1, depthwise k3/dilation-2, pointwise k1, residual); unchanged output head and masked pooling; no other adapter",
+          "builder": "ResidualDilatedPatchEncoder",
+          "component": "C3",
+          "driver": "experiments/sprint17_task11_c3.py",
+          "frozen_numerics": {
+            "b0_local_encoder_params": 35712,
+            "local_encoder_params_at_6_128": 34688
+          },
+          "impl_module": "src/representation/sprint17_c3.py",
+          "summary": "experiments/sprint17-task11-c3-summary.json"
+        },
+        "C5-A": {
+          "adapter_description": "seeded contiguous channel-time block masking at the frozen 0.40 ratio plus shared-head multi-horizon (0/+1/+2) EMA latent prediction; no new parameters; scoring/inference code unchanged",
+          "builder": "channel_time_block_mask",
+          "component": "C5",
+          "driver": "experiments/sprint17_task12_c5.py",
+          "frozen_numerics": {
+            "horizons": [
+              0,
+              1,
+              2
+            ],
+            "n_blocks": 2,
+            "total_mask_ratio": 0.4
+          },
+          "impl_module": "src/representation/sprint17_c5.py",
+          "summary": "experiments/sprint17-task12-c5-summary.json"
+        },
+        "C6-A": {
+          "adapter_description": "valid-patch mean-plus-population-std concatenated to 2D and linearly projected to D (one Linear(256,128) + bias, 32,896 params); invalid patches masked to zero before statistics; no other adapter",
+          "builder": "MeanStdProjectionPooling",
+          "component": "C6",
+          "driver": "experiments/sprint17_task13_c6.py",
+          "frozen_numerics": {
+            "pooling_params_at_128": 32896
+          },
+          "impl_module": "src/representation/sprint17_c6.py",
+          "summary": "experiments/sprint17-task13-c6-summary.json"
+        },
+        "C7-A": {
+          "adapter_description": "per-condition robust location (coordinate-wise median) plus Ledoit-Wolf-style covariance shrinkage to scaled identity (floor 0.05), squared-Mahalanobis energy over the frozen (robot,program)->robot->program->global hierarchy with fallback below 8 rows; fitted statistics only, no trainable parameters; no other adapter",
+          "builder": "RobustShrinkageReference",
+          "component": "C7",
+          "driver": "experiments/sprint17_task14_c7.py",
+          "frozen_numerics": {
+            "knn_k": 5,
+            "min_cell_rows": 8,
+            "shrinkage_floor": 0.05
+          },
+          "impl_module": "src/representation/sprint17_c7.py",
+          "summary": "experiments/sprint17-task14-c7-summary.json"
+        },
+        "C8-A": {
+          "adapter_description": "non-query-conditioned standardized Huber prediction-residual energy (Fit-fitted per-dimension median/MAD, floor 1e-6, Huber delta 1.0, file-mean over valid masked patches); fitted statistics only (256 floats), no trainable parameters; no other adapter",
+          "builder": "HuberStandardizer",
+          "component": "C8",
+          "driver": "experiments/sprint17_task15_c8.py",
+          "frozen_numerics": {
+            "huber_delta": 1.0,
+            "mad_floor": 1e-06
+          },
+          "impl_module": "src/representation/sprint17_c8.py",
+          "summary": "experiments/sprint17-task15-c8-summary.json"
+        },
+        "C9-B": {
+          "adapter_description": "maximum fixed-duration contiguous-window mean using patch starts/valid lengths (duration=64 timesteps, earliest-window tie-break)",
+          "builder": "window_max_mean",
+          "component": "C9",
+          "driver": "experiments/sprint17_task16_c9.py",
+          "frozen_numerics": {
+            "window_duration_timesteps": 64
+          },
+          "impl_module": "src/representation/sprint17_c9.py",
+          "summary": "experiments/sprint17-task16-c9-summary.json"
+        }
+      },
+      "no_execution": true,
+      "phase": "development",
+      "protocol_id": "sprint17-ablation-v4",
+      "provenance_inputs": {
+        "experiments/sprint17-ablation-protocol-v4.md": "35a0526b4b26b6003589fa2498b075abd9c3172a1dedf443ebdb396cc6df4482",
+        "experiments/sprint17-role-binding-v3.json": "e73fee24cf84b60d17cbe4013ecc77ddace6e9132286ca8b65155039dd47a679",
+        "experiments/sprint17-task10-c2-summary.json": "7be59de042e81e1d4b61fa1e796690558b3b834dee595a02578f1b12532cd69a",
+        "experiments/sprint17-task11-c3-summary.json": "177816890cff7180184ef41d8edbaf63d300954a6ccbe115b4dc056659a95957",
+        "experiments/sprint17-task12-c5-summary.json": "3f0a656fbcd049f47c5849ce54dd3a6498e6428c8f87c1fe75d281f313df48f3",
+        "experiments/sprint17-task13-c6-summary.json": "cfdde3d085ad254bbf2eda08a90d870547893ac1b0d550e43bbca7bcd4dbad73",
+        "experiments/sprint17-task14-c7-summary.json": "255d9299a497c881f348454b4b5d717bdf61afcedb3b5e3dc722c3e619ff8a45",
+        "experiments/sprint17-task15-c8-summary.json": "10ae92ed5887973b3f0630c3956ef880c1d310548e07fdd2768321ffdd091117",
+        "experiments/sprint17-task16-c9-summary.json": "7353a3f636fc3029d2d2d787a3d1e670a92958bf5c5863363af96a642d28f12a",
+        "experiments/sprint17-task17-selection.json": "b7b269e66046ea1c6d3c7101e2198d723db4030b671504da80d865f2f670271b",
+        "experiments/sprint17-task7-b0-summary.json": "540b7835a8ea31505cdac76fa5cf355dd6bd46194c2e3f6ff7acf39f6d1bd1f8",
+        "experiments/sprint17_task10_c2.py": "43dbaffaaaa6c08a486ac9675da8e6315269611d330998a4b8d1c49f4e18348a",
+        "experiments/sprint17_task11_c3.py": "0e1251bf45a47c5753ff7328b44bb9b5461a24bad60d1eeec294a57d6858d4a2",
+        "experiments/sprint17_task12_c5.py": "b3a5f5adc492d80420c5fa1c5f2990cc40f51bb6a592eee8426df886fe3d4f6e",
+        "experiments/sprint17_task13_c6.py": "7cb87969a4aa8cc28cfb1de9fe20467690be27a6dc4fc853b43e1553afae48ad",
+        "experiments/sprint17_task14_c7.py": "d90f0abe085185b318d636b35d9ec3d86073be5c1099355d6bf7a88ae2858af0",
+        "experiments/sprint17_task15_c8.py": "bba4b7432635541d31d6b551d65cbaa7fd2f4234e3ca1f5ceb830ed0a9885909",
+        "experiments/sprint17_task16_c9.py": "2b239f2de24d42b477ab76c1645fa6b6c31086ad60e25da2290ed04aaec61fd9",
+        "src/representation/attribution_metrics.py": "c14f815c19d8e5791bce09cc0f07986e3a0f4c90c5c70cbf20f1c29f5a8d0488",
+        "src/representation/sprint17_ablation.py": "52162995189985a30372e75c12538cfb15f93a2d36fe460551838c1c11e994af",
+        "src/representation/sprint17_c2.py": "a73278f98dd09c70b0ae719d20a510c9f0b8d17ef96b529d345d27e7af5fa52a",
+        "src/representation/sprint17_c3.py": "c527f3e175e46133646eef42878ce18998e36da483549e0ad1db6fdcb4cce9ca",
+        "src/representation/sprint17_c5.py": "ab0596f1082387ea376727d9d088f9b19d4d81ae46734cc4a75af18ec29dab7b",
+        "src/representation/sprint17_c6.py": "ccff8868c92c5c753b5617e65b63dc7ccc9387506fe5b9ba06e75e08a2561d33",
+        "src/representation/sprint17_c7.py": "42b1f5922c9f8d03dc3da5949773fe03c93952bbdf569ceb4505817ea6416c25",
+        "src/representation/sprint17_c8.py": "3366b2fa080ea6cede40d6b6d417b40f8847a2c853627d195cc8a28dd45b8ea2",
+        "src/representation/sprint17_c9.py": "c55c1eb6362780de16f878ac42908c04e1dd119290273a311101b0040fd13c86",
+        "src/synth/events.py": "85100f5e0aca47dd2e8b01a08c58f39d32be4f1eab469cdc38e4a4b57768169d",
+        "src/synth/probe15.py": "a08b3d5fb83001e1f5c43f4c56ff536bae85e41d494db289304aeb33a339242b"
+      },
+      "schema_id": "sprint17-ablation-result-v4",
+      "task": "Task 19 — frozen selected combination configs"
+    }
+  },
+  "confirmation_sealed_access": false,
+  "freeze_sha256": "e015187c9fd56226952cbad8b7c1de244deb03aef8fd287e0acbfdb6ea274627",
+  "global": {
+    "b0_flops_per_reference_sample": 182016709,
+    "b0_params": 1821698,
+    "calibration_quantile": 0.95,
+    "checkpoint_step": 300,
+    "data_protocol": "sprint15-benchmark-protocol-v7",
+    "model_seeds": [
+      171701,
+      171702,
+      171703
+    ],
+    "no_combination_tuning": true,
+    "optimizer_steps": 300,
+    "protocol_id": "sprint17-ablation-v4",
+    "role_binding_sha256": "075868b22c028a981cc63ffe37b8d29720cd324c3e2c7254ce688678758230ba",
+    "schema_id": "sprint17-ablation-result-v4",
+    "score_branches": [
+      "S_pred",
+      "S_pop"
+    ],
+    "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+  },
+  "no_k_execution": true,
+  "protocol_id": "sprint17-ablation-v4",
+  "provenance_inputs": {
+    "experiments/sprint17-ablation-protocol-v4.md": "35a0526b4b26b6003589fa2498b075abd9c3172a1dedf443ebdb396cc6df4482",
+    "experiments/sprint17-role-binding-v3.json": "e73fee24cf84b60d17cbe4013ecc77ddace6e9132286ca8b65155039dd47a679",
+    "experiments/sprint17-task10-c2-summary.json": "7be59de042e81e1d4b61fa1e796690558b3b834dee595a02578f1b12532cd69a",
+    "experiments/sprint17-task11-c3-summary.json": "177816890cff7180184ef41d8edbaf63d300954a6ccbe115b4dc056659a95957",
+    "experiments/sprint17-task12-c5-summary.json": "3f0a656fbcd049f47c5849ce54dd3a6498e6428c8f87c1fe75d281f313df48f3",
+    "experiments/sprint17-task13-c6-summary.json": "cfdde3d085ad254bbf2eda08a90d870547893ac1b0d550e43bbca7bcd4dbad73",
+    "experiments/sprint17-task14-c7-summary.json": "255d9299a497c881f348454b4b5d717bdf61afcedb3b5e3dc722c3e619ff8a45",
+    "experiments/sprint17-task15-c8-summary.json": "10ae92ed5887973b3f0630c3956ef880c1d310548e07fdd2768321ffdd091117",
+    "experiments/sprint17-task16-c9-summary.json": "7353a3f636fc3029d2d2d787a3d1e670a92958bf5c5863363af96a642d28f12a",
+    "experiments/sprint17-task17-selection.json": "b7b269e66046ea1c6d3c7101e2198d723db4030b671504da80d865f2f670271b",
+    "experiments/sprint17-task7-b0-summary.json": "540b7835a8ea31505cdac76fa5cf355dd6bd46194c2e3f6ff7acf39f6d1bd1f8",
+    "experiments/sprint17_task10_c2.py": "43dbaffaaaa6c08a486ac9675da8e6315269611d330998a4b8d1c49f4e18348a",
+    "experiments/sprint17_task11_c3.py": "0e1251bf45a47c5753ff7328b44bb9b5461a24bad60d1eeec294a57d6858d4a2",
+    "experiments/sprint17_task12_c5.py": "b3a5f5adc492d80420c5fa1c5f2990cc40f51bb6a592eee8426df886fe3d4f6e",
+    "experiments/sprint17_task13_c6.py": "7cb87969a4aa8cc28cfb1de9fe20467690be27a6dc4fc853b43e1553afae48ad",
+    "experiments/sprint17_task14_c7.py": "d90f0abe085185b318d636b35d9ec3d86073be5c1099355d6bf7a88ae2858af0",
+    "experiments/sprint17_task15_c8.py": "bba4b7432635541d31d6b551d65cbaa7fd2f4234e3ca1f5ceb830ed0a9885909",
+    "experiments/sprint17_task16_c9.py": "2b239f2de24d42b477ab76c1645fa6b6c31086ad60e25da2290ed04aaec61fd9",
+    "src/representation/attribution_metrics.py": "c14f815c19d8e5791bce09cc0f07986e3a0f4c90c5c70cbf20f1c29f5a8d0488",
+    "src/representation/sprint17_ablation.py": "52162995189985a30372e75c12538cfb15f93a2d36fe460551838c1c11e994af",
+    "src/representation/sprint17_c2.py": "a73278f98dd09c70b0ae719d20a510c9f0b8d17ef96b529d345d27e7af5fa52a",
+    "src/representation/sprint17_c3.py": "c527f3e175e46133646eef42878ce18998e36da483549e0ad1db6fdcb4cce9ca",
+    "src/representation/sprint17_c5.py": "ab0596f1082387ea376727d9d088f9b19d4d81ae46734cc4a75af18ec29dab7b",
+    "src/representation/sprint17_c6.py": "ccff8868c92c5c753b5617e65b63dc7ccc9387506fe5b9ba06e75e08a2561d33",
+    "src/representation/sprint17_c7.py": "42b1f5922c9f8d03dc3da5949773fe03c93952bbdf569ceb4505817ea6416c25",
+    "src/representation/sprint17_c8.py": "3366b2fa080ea6cede40d6b6d417b40f8847a2c853627d195cc8a28dd45b8ea2",
+    "src/representation/sprint17_c9.py": "c55c1eb6362780de16f878ac42908c04e1dd119290273a311101b0040fd13c86",
+    "src/synth/events.py": "85100f5e0aca47dd2e8b01a08c58f39d32be4f1eab469cdc38e4a4b57768169d",
+    "src/synth/probe15.py": "a08b3d5fb83001e1f5c43f4c56ff536bae85e41d494db289304aeb33a339242b"
+  },
+  "qualification": "MEASURABLE_WITH_USER_WAIVER",
+  "schema_id": "sprint17-ablation-result-v4",
+  "selected": {
+    "C2": "C2-A",
+    "C3": "C3-A",
+    "C5": "C5-A",
+    "C6": "C6-A",
+    "C7": "C7-A",
+    "C8": "C8-A",
+    "C9": "C9-B"
+  },
+  "task": "Task 19 — frozen selected combination configs (K1–K9)",
+  "waiver_id": "S17-V4-WAIVER-H-S17-V3-DESIGN-03-COHORT_MIX_15_60-P-91-149",
+  "waiver_scope": {
+    "cohort": "P",
+    "gate": "cohort_mix_15_60",
+    "history_id": "H-S17-V3-DESIGN-03",
+    "observed_denominator": 149,
+    "observed_numerator": 91,
+    "observed_share": 0.610738255033557,
+    "original_upper_bound": 0.6,
+    "role": "DESIGN"
+  }
+}
