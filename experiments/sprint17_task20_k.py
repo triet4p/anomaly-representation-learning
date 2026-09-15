@@ -1393,6 +1393,7 @@ def main() -> int:
             fit_pred_k, _, fit_win = k6_aggregate(fit_lat, standardizer)
             win_spans = ([w.get("covered_span", 0) for w in list(cal_win)]
                          + [w.get("covered_span", 0) for w in list(fit_win)])
+            thr_pred = P.select_threshold(cal_pred_k)
             cal_emb = torch.stack([r["file_embedding"] for r in cal_lat])
             cal_pop_b0 = b0_bank.score(cal_emb).cpu().numpy().astype(np.float64)
             b0_thr_pop = float(b0_pred["seed_records"][str(model_seed)]["thr_pop"])
