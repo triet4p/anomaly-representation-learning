@@ -820,6 +820,7 @@ def reload_b0(model_seed: int, ckpt_dir, device):
     patchifier = Patchifier(PatchConfig(patch_size=cfg.patch_size,
                                         stride=cfg.stride, pad_end=True))
     model = V1RepresentationModel(cfg, patchifier=patchifier)
+    model.to(device)
     ckpt_path = Path(ckpt_dir) / f"b0_seed{model_seed}_step300.pt"
     if not ckpt_path.is_file():
         raise FileNotFoundError(f"missing frozen B0 checkpoint (no retraining): {ckpt_path}")
