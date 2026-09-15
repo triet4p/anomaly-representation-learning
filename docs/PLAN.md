@@ -17,7 +17,7 @@ it does not claim that Sprint 16 identified a causal bottleneck.
 
 ## Current Sprint
 
- [Sprint 17 — Controlled Suspect-Component Architecture Ablation](sprint-plans/sprint-17.md) is **ACTIVE at Batch D — Task 21 complete, Task 22 not started**. Tasks 1–21 are complete; Batch A, B, and C evidence reviews passed with zero actionable findings. All 14 individual alternatives were `VALID_NEGATIVE`; deterministic Development selection froze `{C2-A, C3-A, C5-A, C6-A, C7-A, C8-A, C9-B}` with no recovery claim under protocol-v4 `MEASURABLE_WITH_USER_WAIVER`. Task 19 froze K1–K9 from the exact selected implementations with no combination-specific tuning; Tasks 20–21 executed K1–K9 (all `VALID_NEGATIVE`, maximum ΔP+W +0.0432 K9, no recovery). Confirmation and Sprint 15 Sealed histories remain untouched.
+ [Sprint 17 — Controlled Suspect-Component Architecture Ablation](sprint-plans/sprint-17.md) is **PAUSED before Batch E / Task 23**. Tasks 1–22 are complete; Batch A–D evidence reviews passed with zero actionable findings. All 14 individual alternatives and all nine predeclared combinations were `VALID_NEGATIVE`; deterministic Development selection remained `{C2-A, C3-A, C5-A, C6-A, C7-A, C8-A, C9-B}`, and the strongest combination was K9 at ΔP+W +0.0432, below the frozen +0.05 recovery threshold. Results retain protocol-v4 `MEASURABLE_WITH_USER_WAIVER`; no recovery is claimed. Confirmation and Sprint 15 Sealed histories remain untouched. Resume only with new explicit user instruction.
 
 ## Paused Sprints
 
@@ -62,7 +62,7 @@ it does not claim that Sprint 16 identified a causal bottleneck.
 | 20 | Benchmark measurability recovery with independent confirmation and sealed generalization | Complete — Sprint 14 (`NOT_MEASURABLE`) |
 | 21 | Balanced causal benchmark recovery and measurability certification | Complete — Sprint 15 (final `MEASURABLE`; Task 22 DONE; post-final evidence review R2 PASS with 0 actionable findings) |
 | 22 | Causal localization of representation-to-score bottlenecks | Complete — Sprint 16 (`UNRESOLVED`; R1→R7 lineage recorded; zero valid bottleneck paths) |
-| 23 | Controlled single-component and interaction ablation of provisional representation-to-score suspects | Active — Sprint 17 at Batch D (Tasks 1–21 complete; Batch A/B/C reviews PASS with zero actionable findings; 14/14 singles `VALID_NEGATIVE`; selected C2-A/C3-A/C5-A/C6-A/C7-A/C8-A/C9-B; K1–K9 frozen with no tuning; K1–K9 executed, all `VALID_NEGATIVE` (max ΔP+W +0.0432 K9, no recovery); Task 22 evidence review not started; Confirmation and Sealed untouched) |
+| 23 | Controlled single-component and interaction ablation of provisional representation-to-score suspects | Paused — Sprint 17 before Batch E / Task 23 (Tasks 1–22 complete; Batch A–D reviews PASS with zero actionable findings; 14/14 singles and 9/9 combinations `VALID_NEGATIVE`; strongest Development result K9 ΔP+W +0.0432 < +0.05, no recovery; Confirmation and Sealed untouched) |
 
 ## High-Level Design Decisions
 
