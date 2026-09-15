@@ -1,6 +1,6 @@
-"""Sprint 17 Task 20 — train and evaluate K1–K6 adjacent-pair combinations.
+"""Sprint 17 Tasks 20–21 — train and evaluate K1–K9 stack/pair combinations.
 
-Runs exactly one frozen K combination per invocation (``--k K1`` … ``--k K6``)
+Runs exactly one frozen K combination per invocation (``--k K1`` … ``--k K9``)
 under the frozen B0 parity contract: same Fit/Calibration/Development roles,
 model seeds ``[171701, 171702, 171703]``, exactly 300 optimizer steps per
 trainable seed, step-300 checkpoint, q95 Calibration thresholds, and the
@@ -24,6 +24,12 @@ any execution below):
 - ``K6`` (C8-A+C9-B): train-free on hash-verified B0 states — C9-B
   contiguous-window aggregation over C8-A Huber patch energies; S_pop
   bitwise B0.
+- ``K7`` (C2-A+C3-A+C5-A+C6-A): complete upstream stack trained (C2-A
+  patchifier, C3-A encoder, C5-A masking/criterion, C6-A pooling).
+- ``K8`` (C7-A+C8-A+C9-B): train-free on hash-verified B0 states —
+  C9-B windows over C8-A energies (S_pred) plus C7-A S_pop.
+- ``K9`` (all seven): upstream stack trained as K7; S_pred rescored with
+  C8-A+C9-B and S_pop with C7-A on the K9 forward latents.
 
 Frozen contract: protocol ``sprint17-ablation-v4``, role binding
 ``experiments/sprint17-role-binding-v3.json``
@@ -32,7 +38,7 @@ Frozen contract: protocol ``sprint17-ablation-v4``, role binding
 qualification ``MEASURABLE_WITH_USER_WAIVER``.
 
 Explicit non-goals: no Confirmation/Sealed access (refused at the loader),
-no K7–K9 execution, no threshold tuning, no early stopping or best-state
+no threshold tuning, no early stopping or best-state
 selection (final step-300 state is the checkpoint), no extra gradient runs,
 no pooled rescue, no B0 retraining (B0 is reused from hash-verified Task 7
 evidence), no outcome-selected reruns.
@@ -119,7 +125,7 @@ B0_MACRO_PW = {
     171702: (0.6662107935384817, 0.663368934584594),
     171703: (0.6819876263571087, 0.6912224671869538),
 }
-K_ARMS = ("K1", "K2", "K3", "K4", "K5", "K6")
+K_ARMS = ("K1", "K2", "K3", "K4", "K5", "K6", "K7", "K8", "K9")
 K_MEMBERS = {
     "K1": ("C2-A", "C3-A"),
     "K2": ("C3-A", "C5-A"),
@@ -127,11 +133,15 @@ K_MEMBERS = {
     "K4": ("C6-A", "C7-A"),
     "K5": ("C7-A", "C8-A"),
     "K6": ("C8-A", "C9-B"),
+    "K7": ("C2-A", "C3-A", "C5-A", "C6-A"),
+    "K8": ("C7-A", "C8-A", "C9-B"),
+    "K9": ("C2-A", "C3-A", "C5-A", "C6-A", "C7-A", "C8-A", "C9-B"),
 }
-TRAINABLE_K = ("K1", "K2", "K3", "K4")
-TRAIN_FREE_K = ("K5", "K6")
+TRAINABLE_K = ("K1", "K2", "K3", "K4", "K7", "K9")
+TRAIN_FREE_K = ("K5", "K6", "K8")
 ARM_FILE_PREFIX = {"K1": "k1", "K2": "k2", "K3": "k3",
-                   "K4": "k4", "K5": "k5", "K6": "k6"}
+                   "K4": "k4", "K5": "k5", "K6": "k6",
+                   "K7": "k7", "K8": "k8", "K9": "k9"}
 #: Task 19 freeze identity: the driver refuses to execute unless the
 #: committed freeze bytes hash exactly (no execution-dependent mutation).
 TASK19_FREEZE_PATH = "experiments/sprint17-task19-combinations.json"
@@ -397,7 +407,7 @@ def k_config_dict(k_id: str, model_seed: int) -> dict:
     from representation.sprint17_c8 import ARM_ADAPTER_DESCRIPTION as C8_DESC
     from representation.sprint17_c9 import ARM_ADAPTER_DESCRIPTION as C9_DESC
     if k_id not in K_ARMS:
-        raise ValueError(f"Task 20 runs only {K_ARMS}, got {k_id!r}")
+        raise ValueError(f"Tasks 20-21 run only {K_ARMS}, got {k_id!r}")
     members = K_MEMBERS[k_id]
     cfg = b0_config_dict(model_seed)
     cfg["arm_id"] = k_id
@@ -835,11 +845,13 @@ def reload_b0(model_seed: int, ckpt_dir, device):
         raise ValueError("B0 checkpoint carries no reference bank")
     if bank.embeddings.shape[0] < 200:
         raise ValueError("restored B0 bank below the Fit floor")
+    model.to(device)
     model.eval()
     return model, bank, cfg, patchifier, cfg_dict, ckpt_path
 
 
-def latent_items(model, patchifier, cfg, items: list[tuple[str, object]], device):
+def latent_items(model, patchifier, cfg, items: list[tuple[str, object]], device,
+                 masking_policy=None):
     """Frozen forward latents per file (predicted/target/mask/embedding/map)."""
     import numpy as np
     import torch
@@ -851,7 +863,8 @@ def latent_items(model, patchifier, cfg, items: list[tuple[str, object]], device
         for fid, sample in items:
             batch = collate_variable_files([sample], patchifier,
                                            masking_config=cfg,
-                                           masking_seed=file_seed(fid))
+                                           masking_seed=file_seed(fid),
+                                           masking_policy=masking_policy)
             batch = {k: (v.to(device) if isinstance(v, torch.Tensor) else v)
                      for k, v in batch.items()}
             res = model(batch)
@@ -1108,7 +1121,6 @@ def main() -> int:
     if outdir.exists() and any(outdir.iterdir()):
         raise ValueError(f"refusing to mix outputs into non-empty dir: {outdir}")
     outdir.mkdir(parents=True, exist_ok=True)
-
     if args.device == "cuda" and not torch.cuda.is_available():
         raise ValueError("cuda requested but unavailable (device_class parity)")
     device = torch.device(args.device)
@@ -1121,8 +1133,6 @@ def main() -> int:
         [f, sha256_file(REPO_ROOT / f)] for f in METRIC_CODE_FILES])
     freeze = check_task19_freeze()
     members = K_MEMBERS[args.k]
-    if args.k in ("K7", "K8", "K9"):
-        raise ValueError("Task 20 executes K1–K6 only (K7–K9 belong to Task 21)")
 
     arm_id = args.k
     prefix = ARM_FILE_PREFIX[arm_id]
@@ -1387,9 +1397,67 @@ def main() -> int:
                          "robust-shrinkage reference fit on Fit forward "
                          "embeddings + C8-A standardizer fit on Fit residuals")
             bank_rows = int(b0_bank.embeddings.shape[0])
+        elif arm_id == "K8":
+            # K8: C9-B windows over C8-A energies (S_pred) plus C7-A
+            # robust-shrinkage S_pop — the K6 S_pred half and the K5 S_pop
+            # half on the same reloaded B0 states; fresh q95 both branches.
+            from representation.sprint17_c7 import arm_reference
+            cal_pred_k, _, cal_win = k6_aggregate(cal_lat, standardizer)
+            fit_pred_k, _, fit_win = k6_aggregate(fit_lat, standardizer)
+            win_spans = ([w.get("covered_span", 0) for w in list(cal_win)]
+                         + [w.get("covered_span", 0) for w in list(fit_win)])
+            thr_pred = P.select_threshold(cal_pred_k)
+            fit_robots, fit_programs = condition_lists(fit_items)
+            fit_labels_k8 = [sample.file_label for _, sample in fit_items]
+            fit_emb = torch.stack([r["file_embedding"] for r in fit_lat])
+            reference = arm_reference("C7-A").fit(
+                fit_emb, fit_robots, fit_programs, labels=fit_labels_k8)
+            cal_emb = torch.stack([r["file_embedding"] for r in cal_lat])
+            cal_robots, cal_programs = condition_lists(cal_items)
+            cal_pop_k, _ = reference.score(cal_emb, cal_robots, cal_programs)
+            thr_pop = P.select_threshold(
+                np.asarray(cal_pop_k, dtype=np.float64))
+            fit_pop_k, _ = reference.score(fit_emb, fit_robots, fit_programs)
+            fit_pop = np.asarray(fit_pop_k, dtype=np.float64)
+            dev_out = {}
+            win_spans = []
+            for role in dev_roles:
+                z = b0_dev[role]
+                pos = {str(fid): i for i, fid in enumerate(list(z["file_ids"]))}
+                rows = dev_lat[role]
+                ids = [r["file_id"] for r in rows]
+                if not args.smoke and set(ids) != set(pos):
+                    raise ValueError(f"B0 cache coverage mismatch: seed {model_seed}/{role}")
+                if any(fid not in pos for fid in ids):
+                    raise ValueError(f"file missing from B0 cache: seed {model_seed}/{role}")
+                if len(set(ids)) != len(ids):
+                    raise ValueError(f"duplicate file ids scored: {model_seed}/{role}")
+                idx = [pos[fid] for fid in ids]
+                demb = torch.as_tensor(np.asarray(z["file_embedding"])[idx])
+                d_robots, d_programs = condition_lists(
+                    [(fid, dev_by_id[role][fid]) for fid in ids])
+                d_emb_fwd = torch.stack([r["file_embedding"] for r in rows])
+                pop_k, _ = reference.score(d_emb_fwd, d_robots, d_programs)
+                pred_k, patch_k, win_prov = k6_aggregate(rows, standardizer)
+                win_spans += [w.get("covered_span", 0) for w in win_prov]
+                ttime = [patchifier.patch_to_timestep_scores(
+                             patch_k[i].astype(np.float32), rows[i]["starts"],
+                             rows[i]["valid_len"], rows[i]["file_len"])
+                         for i in range(len(ids))]
+                ttime = [np.asarray(t, dtype=np.float64) for t in ttime]
+                if not (np.isfinite(pred_k).all()
+                        and np.isfinite(np.asarray(pop_k)).all()
+                        and torch.isfinite(demb).all()):
+                    raise ValueError(f"non-finite Development outputs: {model_seed}/{role}")
+                dev_out[role] = {"ids": ids, "S_pred": pred_k,
+                                 "S_pop": np.asarray(pop_k, dtype=np.float64),
+                                 "emb": demb, "t": ttime}
+            bank_note = ("B0 checkpoint-restored (fidelity-proven) + C7-A "
+                         "robust-shrinkage reference fit on Fit forward "
+                         "embeddings + C8-A standardizer fit on Fit residuals + "
+                         "C9-B window aggregation over C8-A energies")
+            bank_rows = int(b0_bank.embeddings.shape[0])
         else:
-            # K6: C9-B window aggregation over C8-A Huber patch energies;
-            # S_pop reused bitwise from B0.
             cal_pred_k, _, cal_win = k6_aggregate(cal_lat, standardizer)
             fit_pred_k, _, fit_win = k6_aggregate(fit_lat, standardizer)
             win_spans = ([w.get("covered_span", 0) for w in list(cal_win)]
@@ -1476,7 +1544,7 @@ def main() -> int:
             "scorer_provenance": scorer_prov,
             "fidelity_max_abs_diff": fidelity,
             "window_covered_span_mean": (
-                float(np.mean(win_spans)) if arm_id == "K6" and win_spans else None),
+                float(np.mean(win_spans)) if arm_id in ("K6", "K8") and win_spans else None),
             "thr_pred": float(thr_pred), "thr_pop": float(thr_pop),
             "cal_rows": len(cal_items), "fit_rows": len(fit_items),
             "fit_patches": fit_patches,
@@ -1553,6 +1621,83 @@ def main() -> int:
                     and all(np.isfinite(dev_out[r]["S_pop"]).all()
                             for r in dev_roles)):
                 raise ValueError(f"non-finite K4 C7-A S_pop: seed {model_seed}")
+        # K9 only: rescore S_pred with C8-A+C9-B and S_pop with C7-A on the
+        # K9 forward latents (block masks: K9 contains C5-A, exactly as in
+        # Task 12). The trained upstream stack (C2+C3+C5+C6) is untouched.
+        k9_win_spans: list = []
+        if arm_id == "K9":
+            from representation.sprint17_c7 import arm_reference
+            from representation.sprint17_c8 import HuberStandardizer
+            mpol_k9 = masking_policy_for(arm_id)
+            k9_fit_lat = latent_items(
+                model, patchifier, cfg, fit_items, device,
+                masking_policy=mpol_k9)
+            k9_cal_lat = latent_items(
+                model, patchifier, cfg, cal_items, device,
+                masking_policy=mpol_k9)
+            k9_fit_res = torch.cat(
+                [(r["predicted"] - r["target"])[r["prediction_mask"]]
+                 for r in k9_fit_lat], dim=0)
+            k9_fit_labels = []
+            for r, (_, sample) in zip(k9_fit_lat, fit_items):
+                n = int(r["prediction_mask"].sum().item())
+                k9_fit_labels += [sample.file_label] * n
+            k9_standardizer = HuberStandardizer().fit(
+                k9_fit_res, labels=k9_fit_labels)
+            k9_scorer_prov = k9_standardizer.provenance()
+            k9_cal_pred, _, _ = k6_aggregate(k9_cal_lat, k9_standardizer)
+            k9_fit_pred, _, _ = k6_aggregate(k9_fit_lat, k9_standardizer)
+            thr_pred = P.select_threshold(k9_cal_pred)
+            k9_fit_robots, k9_fit_programs = condition_lists(fit_items)
+            k9_fit_labels_c7 = [sample.file_label for _, sample in fit_items]
+            k9_fit_emb = torch.stack([r["file_embedding"] for r in k9_fit_lat])
+            k9_reference = arm_reference("C7-A").fit(
+                k9_fit_emb, k9_fit_robots, k9_fit_programs,
+                labels=k9_fit_labels_c7)
+            k9_cal_emb = torch.stack([r["file_embedding"] for r in k9_cal_lat])
+            k9_cal_robots, k9_cal_programs = condition_lists(cal_items)
+            k9_cal_pop, _ = k9_reference.score(
+                k9_cal_emb, k9_cal_robots, k9_cal_programs)
+            thr_pop = P.select_threshold(
+                np.asarray(k9_cal_pop, dtype=np.float64))
+            k9_fit_pop, _ = k9_reference.score(
+                k9_fit_emb, k9_fit_robots, k9_fit_programs)
+            fit_pred = k9_fit_pred
+            fit_pop = np.asarray(k9_fit_pop, dtype=np.float64)
+            for role in dev_roles:
+                k9_items = [(r["file_id"], dev_by_id[role][r["file_id"]])
+                            for r in dev_rows[role]
+                            if r["file_id"] in dev_by_id[role]]
+                k9_dev_lat = latent_items(
+                    model, patchifier, cfg, k9_items, device,
+                    masking_policy=mpol_k9)
+                k9_ids = [r["file_id"] for r in k9_dev_lat]
+                k9_pred, k9_patch, k9_prov = k6_aggregate(
+                    k9_dev_lat, k9_standardizer)
+                k9_win_spans += [w.get("covered_span", 0) for w in k9_prov]
+                k9_d_robots, k9_d_programs = condition_lists(
+                    [(fid, dev_by_id[role][fid]) for fid in k9_ids])
+                k9_d_emb = torch.stack(
+                    [r["file_embedding"] for r in k9_dev_lat])
+                k9_pop, _ = k9_reference.score(
+                    k9_d_emb, k9_d_robots, k9_d_programs)
+                k9_ttime = [patchifier.patch_to_timestep_scores(
+                                k9_patch[i].astype(np.float32),
+                                k9_dev_lat[i]["starts"],
+                                k9_dev_lat[i]["valid_len"],
+                                k9_dev_lat[i]["file_len"])
+                            for i in range(len(k9_ids))]
+                k9_ttime = [np.asarray(t, dtype=np.float64) for t in k9_ttime]
+                dev_out[role] = {"ids": k9_ids, "S_pred": k9_pred,
+                                 "S_pop": np.asarray(k9_pop, dtype=np.float64),
+                                 "emb": k9_d_emb, "t": k9_ttime}
+            if not (np.isfinite(thr_pred) and np.isfinite(thr_pop)
+                    and np.isfinite(fit_pred).all()
+                    and np.isfinite(fit_pop).all()
+                    and all(np.isfinite(dev_out[r]["S_pred"]).all()
+                            and np.isfinite(dev_out[r]["S_pop"]).all()
+                            for r in dev_roles)):
+                raise ValueError(f"non-finite K9 rescoring: seed {model_seed}")
         corr = float(np.corrcoef(
             np.concatenate([dev_out[r]["S_pred"] for r in dev_roles]),
             np.concatenate([dev_out[r]["S_pop"] for r in dev_roles]))[0, 1])
@@ -1605,6 +1750,13 @@ def main() -> int:
             "dev_out": dev_out, "fit_pred": fit_pred, "fit_pop": fit_pop,
             "cfg_dict": cfg_dict,
         }
+        if arm_id == "K9":
+            seed_records[model_seed]["bank_source"] += (
+                " + C8-A standardizer fit, C9-B window aggregation (S_pred), "
+                "and C7-A reference fit (S_pop) on K9 block-masked forward "
+                "latents")
+            seed_records[model_seed]["window_covered_span_mean"] = (
+                float(np.mean(k9_win_spans)) if k9_win_spans else None)
 
     branch_records: dict[int, dict[str, dict]] = {}
     # ---- Metrics per seed per branch ----
