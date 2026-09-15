@@ -4,7 +4,7 @@
 
 Run a prospectively frozen, controlled architecture ablation over the seven qualified Sprint 16 SUSPECT components, using the accepted Sprint 15 Candidate 7 `MEASURABLE` data-generation methodology, to determine whether one-component replacements or predeclared multi-component combinations reproducibly improve anomaly-signal retention over the unchanged architecture baseline.
 
-**Status:** ACTIVE at Batch D — Task 19 is complete. K1–K9 configs are frozen from the exact selected single-arm implementations with no combination-specific tuning, and the Task 19 evidence record passed its focused contract checks at `artifacts/sprint-17/task-19.md`. Results retain `MEASURABLE_WITH_USER_WAIVER`; no recovery is claimed and no K arm has executed. Tasks 20–22 are pending. Confirmation and Sprint 15 Sealed histories remain untouched. Stop before Task 20.
+**Status:** ACTIVE at Batch D — Task 20 is complete. K1–K6 executed on Development (3/3 seeds each, all exit 0, schema-valid combination docs); every arm is `VALID_NEGATIVE` with complete paired B0 deltas and interaction arithmetic in `experiments/sprint17-task20-k-summary.json`. Results retain `MEASURABLE_WITH_USER_WAIVER`; no recovery is claimed (maximum ΔP+W +0.0295 K3 < +0.05). K7–K9 remain frozen-but-unexecuted for Task 21. Confirmation and Sprint 15 Sealed histories remain untouched. Stop before Task 21.
 
 ## Decision Context
 
@@ -127,7 +127,7 @@ Status legend: [ ] pending / [~] in progress / [x] done.
 ### Batch D — Predeclared interactions on Development
 
 - [x] **Task 19 — Freeze selected combination configs.** Materialize K1–K9 configs from the exact selected single-arm implementations; no combo-specific hyperparameter change or outcome-selected omission. Evidence: `artifacts/sprint-17/task-19.md`. (Done: K1=C2-A+C3-A, K2=C3-A+C5-A, K3=C5-A+C6-A, K4=C6-A+C7-A, K5=C7-A+C8-A, K6=C8-A+C9-B, K7=C2-A+C3-A+C5-A+C6-A, K8=C7-A+C8-A+C9-B, K9=all seven selected arms frozen in `experiments/sprint17-task19-combinations.json` via `src/representation/sprint17_combinations.py` with provenance hashes and canonical digests; 10 focused contract tests plus 9 adjacent harness tests pass; deterministic rematerialization demonstrated; no K execution, no Confirmation/Sealed contact; Task 20 not started.)
-- [ ] **Task 20 — Execute adjacent-pair combinations.** Run K1–K6 on Development with the common seeds/budgets and paired `B0` comparison. Evidence: `artifacts/sprint-17/task-20.md`.
+- [x] **Task 20 — Execute adjacent-pair combinations.** Run K1–K6 on Development with the common seeds/budgets and paired `B0` comparison. Evidence: `artifacts/sprint-17/task-20.md`. (Done: K1 ΔP+W −0.0101, K2 +0.0141, K3 +0.0295, K4 +0.0090, K5 +0.0044, K6 −0.0062 S_pred (all `VALID_NEGATIVE`, 4/4 directional, support `800fc825…` exact); K1/K5 S_pred and K5 S_pop reproduce contributing singles bitwise per seed; all schema-valid; two verified execution commits `6a86a02` (K1–K4) + `1886729` (K5–K6) with disjoint fix effects; no Confirmation/Sealed contact; Task 21 not started.)
 - [ ] **Task 21 — Execute stack combinations.** Run K7–K9 on Development and report interaction gains relative to `B0` and the contributing single arms. Evidence: `artifacts/sprint-17/task-21.md`.
 - [ ] **Task 22 — Pass Batch D evidence review.** Verify combination provenance, absence of combo-specific tuning, paired interaction arithmetic, complete negative results, and zero actionable findings. Evidence: `artifacts/sprint-17/review-batch-d.md`.
 
