@@ -17,7 +17,7 @@ it does not claim that Sprint 16 identified a causal bottleneck.
 
 ## Current Sprint
 
- [Sprint 17 — Controlled Suspect-Component Architecture Ablation](sprint-plans/sprint-17.md) is **PAUSED after Task 28, before Task 29**. Tasks 1–28 are complete; Batch A–E evidence reviews passed with zero actionable findings. B0, all 14 singles, and K1–K9 were scored once on locked Confirmation, and the 24-row Development+Confirmation matrix is published read-only (`43d919ac…`). The bounded verdict is **`NO_REPRODUCIBLE_RECOVERY`**: no arm met the frozen recovery gates, the strongest Confirmation K7 ΔP+W is +0.04732481569491994 < +0.05, and no eligible replacement configuration exists. Task 29 remains pending, Batch F remains open, and Sealed remained untouched.
+ [Sprint 17 — Controlled Suspect-Component Architecture Ablation](sprint-plans/sprint-17.md) is **FINALIZED after Task 29**. Tasks 1–29 are complete; Batch A–E evidence reviews and the final differential deep review passed with zero actionable findings (final review confidence 0.9). B0, all 14 singles, and K1–K9 were scored once on locked Confirmation, and the 24-row Development+Confirmation matrix is published read-only (`43d919ac…`). The accepted bounded verdict is **`NO_REPRODUCIBLE_RECOVERY`**: no arm met the frozen recovery gates, the strongest Confirmation K7 ΔP+W is +0.04732481569491994 < +0.05, and no eligible replacement configuration exists. Batch F is closed, no pending Sprint 17 work remains, and Sealed remained untouched.
 
 ## Paused Sprints
 
@@ -62,7 +62,7 @@ it does not claim that Sprint 16 identified a causal bottleneck.
 | 20 | Benchmark measurability recovery with independent confirmation and sealed generalization | Complete — Sprint 14 (`NOT_MEASURABLE`) |
 | 21 | Balanced causal benchmark recovery and measurability certification | Complete — Sprint 15 (final `MEASURABLE`; Task 22 DONE; post-final evidence review R2 PASS with 0 actionable findings) |
 | 22 | Causal localization of representation-to-score bottlenecks | Complete — Sprint 16 (`UNRESOLVED`; R1→R7 lineage recorded; zero valid bottleneck paths) |
-| 23 | Controlled single-component and interaction ablation of provisional representation-to-score suspects | Paused — Sprint 17 after bounded Task 28 verdict `NO_REPRODUCIBLE_RECOVERY` and before Task 29 (Tasks 1–28 complete; Batch A–E reviews PASS with zero actionable findings; locked one-shot Confirmation complete for B0+14 singles+K1–K9; 24-row matrix `43d919ac…`; strongest Confirmation K7 ΔP+W +0.04732481569491994 < +0.05; 0 recoveries; no eligible replacement configuration; Task 29 pending; Batch F open; Sealed untouched) |
+| 23 | Controlled single-component and interaction ablation of provisional representation-to-score suspects | Complete — Sprint 17 finalized after Task 29 final differential deep review PASS (confidence 0.9, zero actionable findings) with bounded verdict `NO_REPRODUCIBLE_RECOVERY` (Tasks 1–29 complete; Batch A–E reviews PASS with zero actionable findings; locked one-shot Confirmation complete for B0+14 singles+K1–K9; 24-row matrix `43d919ac…`; strongest Confirmation K7 ΔP+W +0.04732481569491994 < +0.05; 0 recoveries; no eligible replacement configuration; Batch F closed; Sealed untouched) |
 
 ## High-Level Design Decisions
 
