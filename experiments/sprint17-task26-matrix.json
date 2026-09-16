@@ -1,0 +1,5260 @@
+{
+ "classes": {
+  "B0": "baseline",
+  "C2-A": "valid_negative",
+  "C2-B": "valid_negative",
+  "C3-A": "valid_negative",
+  "C3-B": "valid_negative",
+  "C5-A": "valid_negative",
+  "C5-B": "valid_negative",
+  "C6-A": "valid_negative",
+  "C6-B": "valid_negative",
+  "C7-A": "valid_negative",
+  "C7-B": "valid_negative",
+  "C8-A": "valid_negative",
+  "C8-B": "valid_negative",
+  "C9-A": "valid_negative",
+  "C9-B": "valid_negative",
+  "K1": "valid_negative",
+  "K2": "valid_negative",
+  "K3": "valid_negative",
+  "K4": "valid_negative",
+  "K5": "non_replication",
+  "K6": "non_replication",
+  "K7": "valid_negative",
+  "K8": "non_replication",
+  "K9": "valid_negative"
+ },
+ "confirmation24_sha256": "f26b82ff5d4096496b6909f45cbbc2afca64aada880a0a855facb2ae3cccb256",
+ "confirmation25_sha256": "11643fae2f1ff81e90b14fac91cff6e3a2ea881e3b4bcb16de08d4cedb138f96",
+ "confirmation_support_sha256": "6ed3f08cb644c0548cc539a5f257af1eeb7f7cbdca1c0f57f7fdf680642926b3",
+ "development_support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a",
+ "execution": "none (read-only assembly; Tasks 24/25 one-shot provenance carried verbatim)",
+ "invalid": {
+  "arms": [],
+  "count": 0
+ },
+ "lock_sha256": "14fab303d78725af061aaa639a558f84b262c76d5b918042618a109d61afd039",
+ "no_sealed_contact": true,
+ "phase": "matrix",
+ "protocol_id": "sprint17-ablation-v4",
+ "qualification": "MEASURABLE_WITH_USER_WAIVER",
+ "rows": {
+  "B0": {
+   "arm_kind": "baseline",
+   "component_set": [],
+   "confirmation": {
+    "S_pop": {
+     "delta_pw": null,
+     "macro_pw": 0.7007438139857814,
+     "per_seed_pw": {
+      "171701": 0.710410655763342,
+      "171702": 0.682131369700898,
+      "171703": 0.7096894164931045
+     }
+    },
+    "S_pred": {
+     "delta_pw": null,
+     "directional": "4/4",
+     "lcb95": 0.6704403619070802,
+     "macro_p": 0.6704883811710564,
+     "macro_pw": 0.6845009042756333,
+     "macro_w": 0.7044919107042878,
+     "per_history_pw": [
+      0.663026663026663,
+      0.7034942182001004,
+      0.6926814585483316,
+      0.678801277327438
+     ],
+     "per_seed_pw": {
+      "171701": 0.673182219382349,
+      "171702": 0.685834736700218,
+      "171703": 0.6944857567443329
+     }
+    },
+    "compute": {
+     "b0_flops_per_reference_sample": 182016709,
+     "b0_params": 1821698,
+     "envelope_pass": true,
+     "flops_delta_fraction": 0.0,
+     "flops_per_reference_sample": 182016709,
+     "params_delta_fraction": 0.0,
+     "params_total": 1821698
+    },
+    "elapsed_s": 1141.2,
+    "evidence_commit": "86c6d8a1ebce8707ae2a18b678f1da210f43edca",
+    "gates": {
+     "P_noninferiority": true,
+     "W_noninferiority": true,
+     "background_stability": false,
+     "compute_envelope": true,
+     "eligible": true,
+     "finite_and_support": true,
+     "minimum_effect": false,
+     "nuisance": false,
+     "observable": true,
+     "recovery": false,
+     "score_separation": true,
+     "structural": true
+    },
+    "metric_code_sha256": "c67607718e156f6a32736317a33489a6b0f314f22cf20c1b811cbabbbf753516",
+    "support_sha256": "6ed3f08cb644c0548cc539a5f257af1eeb7f7cbdca1c0f57f7fdf680642926b3",
+    "thresholds": {
+     "S_pop": 2.2948646545410156,
+     "S_pred": 0.09983651588360469
+    }
+   },
+   "development": {
+    "S_pop_macro_pw": {
+     "171701": 0.687559772912035,
+     "171702": 0.663368934584594,
+     "171703": 0.6912224671869538
+    },
+    "S_pred_macro_pw": {
+     "171701": 0.6679282581030039,
+     "171702": 0.6662107935384817,
+     "171703": 0.6819876263571087
+    },
+    "commit": "8c15f0204a3e495569b7f143dc109943e8b808de",
+    "compute": {
+     "flops_per_reference_sample": 182016709,
+     "flops_reference_t": 512,
+     "params_total": 1821698
+    },
+    "fit": {
+     "histories": [
+      "H-S17-V3-FIT-01",
+      "H-S17-V3-FIT-02",
+      "H-S17-V3-FIT-03"
+     ],
+     "patches": 154129,
+     "rows": 5040
+    },
+    "metric_code_sha256": "b2d6af7505abe459a84f76f5279a6a5c4298e7c142901edd4596fcfe3ddeb88f",
+    "status": "VALID_NEGATIVE",
+    "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+   },
+   "interaction": null,
+   "invalid_reasons": [],
+   "members": [],
+   "replication": null,
+   "selected": null,
+   "unresolved": false
+  },
+  "C2-A": {
+   "arm_kind": "single",
+   "component_set": [
+    "C2"
+   ],
+   "confirmation": {
+    "S_pop": {
+     "delta_pw": 0.0,
+     "macro_pw": 0.7007438139857814,
+     "per_seed_pw": {
+      "171701": 0.710410655763342,
+      "171702": 0.682131369700898,
+      "171703": 0.7096894164931045
+     }
+    },
+    "S_pred": {
+     "delta_pw": -6.413512605477993e-06,
+     "directional": "4/4",
+     "lcb95": 0.6703954869589545,
+     "macro_p": 0.6704960910491552,
+     "macro_pw": 0.6844944907630278,
+     "macro_w": 0.704469363806741,
+     "per_history_delta_pw": null,
+     "per_history_pw": [
+      0.6629811629811629,
+      0.7035570638511816,
+      0.6926384588923288,
+      0.678801277327438
+     ],
+     "per_seed_delta_pw": {
+      "171701": -6.637477612714271e-05,
+      "171702": 0.0,
+      "171703": 4.713423831070873e-05
+     },
+     "per_seed_pw": {
+      "171701": 0.6731158446062219,
+      "171702": 0.685834736700218,
+      "171703": 0.6945328909826436
+     }
+    },
+    "compute": {
+     "b0_flops_per_reference_sample": 182016709,
+     "b0_params": 1821698,
+     "envelope_pass": true,
+     "flops_delta_fraction": 0.0,
+     "flops_per_reference_sample": 182016709,
+     "params_delta_fraction": 0.0,
+     "params_total": 1821698
+    },
+    "elapsed_s": 907.6,
+    "evidence_commit": "86c6d8a1ebce8707ae2a18b678f1da210f43edca",
+    "gates": {
+     "P_noninferiority": true,
+     "W_noninferiority": true,
+     "background_stability": false,
+     "compute_envelope": true,
+     "eligible": true,
+     "finite_and_support": true,
+     "minimum_effect": false,
+     "nuisance": true,
+     "observable": true,
+     "recovery": false,
+     "score_separation": true,
+     "structural": true
+    },
+    "metric_code_sha256": "c67607718e156f6a32736317a33489a6b0f314f22cf20c1b811cbabbbf753516",
+    "support_sha256": "6ed3f08cb644c0548cc539a5f257af1eeb7f7cbdca1c0f57f7fdf680642926b3",
+    "thresholds": {
+     "S_pop": 2.2948906421661377,
+     "S_pred": 0.09985123326381047
+    }
+   },
+   "development": {
+    "S_pop": {
+     "delta_pw": -2.2515803598318247e-05,
+     "directional": 4,
+     "lcb95": 0.6577951054328445,
+     "macro_pw": 0.6806945424242626,
+     "per_history_delta_pw": [
+      0.0,
+      -9.240009240008007e-05,
+      -4.75782662480162e-05,
+      4.991514425478627e-05
+     ],
+     "per_history_pw": [
+      0.7024267399267399,
+      0.6463848463848464,
+      0.6920258825768388,
+      0.6819407008086253
+     ],
+     "per_seed_delta_pw": {
+      "171701": -6.754741079495474e-05,
+      "171702": 0.0,
+      "171703": 0.0
+     }
+    },
+    "S_pred": {
+     "delta_pw": -1.0312510312360246e-07,
+     "directional": 4,
+     "lcb95": 0.630059138216432,
+     "macro_pw": 0.6720421228744283,
+     "per_history_delta_pw": [
+      4.57875457874346e-05,
+      -4.6200046200040035e-05,
+      0.0,
+      0.0
+     ],
+     "per_history_pw": [
+      0.6893772893772893,
+      0.6993762993762994,
+      0.6102864211628128,
+      0.6891284815813119
+     ],
+     "per_seed_delta_pw": {
+      "171701": -3.0937530937080737e-07,
+      "171702": 0.0,
+      "171703": 0.0
+     }
+    },
+    "S_pred_macro_p": 0.678850869825247,
+    "S_pred_macro_w": 0.6644728515582354,
+    "background_ratio_per_history": [
+     0.0786812679574679,
+     0.03092355745780563,
+     0.09233374105338303,
+     0.0950001422630861
+    ],
+    "commit": "5e6582c63b366a57323b71bf530e08b4cdac56da",
+    "compute": {
+     "b0_flops_per_reference_sample": 182016709,
+     "b0_params": 1821698,
+     "envelope_pass": true,
+     "flops_delta_fraction": 0.0,
+     "flops_per_reference_sample": 182016709,
+     "params_delta_fraction": 0.0,
+     "params_total": 1821698
+    },
+    "excluded_rows": 131,
+    "far_per_history": [
+     0.034252873563218385,
+     0.034990791896869246,
+     0.039660706098120134,
+     0.027818093855829704
+    ],
+    "gates": {
+     "P_noninferiority": true,
+     "W_noninferiority": true,
+     "background_stability": true,
+     "compute_envelope": true,
+     "eligible": true,
+     "finite_and_support": true,
+     "minimum_effect": false,
+     "nuisance": true,
+     "observable": true,
+     "recovery": false,
+     "score_separation": true,
+     "structural": true
+    },
+    "localization_per_history": [
+     1.0,
+     1.0,
+     1.0,
+     1.0
+    ],
+    "metric_code_sha256": "e042491dac18c3d98aba5242ece61850c7c683ac2a92ce9af1a3a5f30343c99e",
+    "per_history_far_delta": [
+     0.0,
+     0.0,
+     0.0,
+     -0.00024189646831156153
+    ],
+    "status": "VALID_NEGATIVE",
+    "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+   },
+   "interaction": null,
+   "invalid_reasons": [],
+   "members": [
+    "B0"
+   ],
+   "replication": {
+    "confirmation_delta_pw": -6.413512605477993e-06,
+    "definition": "sign agreement under (dev >= 0) == (conf >= 0) on exact raw S_pred paired Delta_PW",
+    "development_delta_pw": -1.0312510312360246e-07,
+    "sign_agreement": true
+   },
+   "selected": true,
+   "unresolved": false
+  },
+  "C2-B": {
+   "arm_kind": "single",
+   "component_set": [
+    "C2"
+   ],
+   "confirmation": {
+    "S_pop": {
+     "delta_pw": -0.01026393914354747,
+     "macro_pw": 0.690479874842234,
+     "per_seed_pw": {
+      "171701": 0.715944313514432,
+      "171702": 0.6744246232799025,
+      "171703": 0.6810706877323676
+     }
+    },
+    "S_pred": {
+     "delta_pw": 0.009124263362435622,
+     "directional": "4/4",
+     "lcb95": 0.6732691625101352,
+     "macro_p": 0.6746653125871203,
+     "macro_pw": 0.6936251676380689,
+     "macro_w": 0.7194717979735719,
+     "per_history_delta_pw": null,
+     "per_history_pw": [
+      0.6760396760396761,
+      0.7023001508295627,
+      0.7256621947024424,
+      0.6704986489805944
+     ],
+     "per_seed_delta_pw": {
+      "171701": 0.00396928378618322,
+      "171702": 0.018161609961938496,
+      "171703": 0.005241896339185148
+     },
+     "per_seed_pw": {
+      "171701": 0.6771515031685322,
+      "171702": 0.7039963466621565,
+      "171703": 0.699727653083518
+     }
+    },
+    "compute": {
+     "b0_flops_per_reference_sample": 182016709,
+     "b0_params": 1821698,
+     "envelope_pass": true,
+     "flops_delta_fraction": 0.0,
+     "flops_per_reference_sample": 182016709,
+     "params_delta_fraction": 0.0,
+     "params_total": 1821698
+    },
+    "elapsed_s": 1177.6,
+    "evidence_commit": "86c6d8a1ebce8707ae2a18b678f1da210f43edca",
+    "gates": {
+     "P_noninferiority": true,
+     "W_noninferiority": true,
+     "background_stability": false,
+     "compute_envelope": true,
+     "eligible": true,
+     "finite_and_support": true,
+     "minimum_effect": false,
+     "nuisance": true,
+     "observable": true,
+     "recovery": false,
+     "score_separation": true,
+     "structural": true
+    },
+    "metric_code_sha256": "c67607718e156f6a32736317a33489a6b0f314f22cf20c1b811cbabbbf753516",
+    "support_sha256": "6ed3f08cb644c0548cc539a5f257af1eeb7f7cbdca1c0f57f7fdf680642926b3",
+    "thresholds": {
+     "S_pop": 2.3062342007954917,
+     "S_pred": 0.08911589781443278
+    }
+   },
+   "development": {
+    "S_pop": {
+     "delta_pw": 0.004745934799032847,
+     "directional": 4,
+     "lcb95": 0.6582275269775271,
+     "macro_pw": 0.6854629930268938,
+     "per_history_delta_pw": [
+      -0.0016025641025639858,
+      -0.002448602448602344,
+      -0.002521648111142749,
+      0.02555655385844069
+     ],
+     "per_history_pw": [
+      0.7008241758241759,
+      0.6440286440286441,
+      0.6895518127319441,
+      0.7074473395228112
+     ],
+     "per_seed_delta_pw": {
+      "171701": 0.015315873779138456,
+      "171702": 0.022570485291505515,
+      "171703": -0.02364855467354543
+     }
+    },
+    "S_pred": {
+     "delta_pw": -0.0044133930934630765,
+     "directional": 4,
+     "lcb95": 0.6390372981295047,
+     "macro_pw": 0.6676288329060683,
+     "per_history_delta_pw": [
+      0.024313186813186838,
+      -0.052806652806652865,
+      0.02117232848035011,
+      -0.010332434860736761
+     ],
+     "per_history_pw": [
+      0.7136446886446887,
+      0.6466158466158466,
+      0.631458749643163,
+      0.6787960467205751
+     ],
+     "per_seed_delta_pw": {
+      "171701": -0.015807186157095088,
+      "171702": 0.003364881917514051,
+      "171703": -0.0007978750408081936
+     }
+    },
+    "S_pred_macro_p": 0.6747231646566131,
+    "S_pred_macro_w": 0.6586262367445742,
+    "background_ratio_per_history": [
+     0.17213049729770957,
+     0.027898351724338622,
+     0.11673227245366473,
+     0.10129702014423947
+    ],
+    "commit": "5e6582c63b366a57323b71bf530e08b4cdac56da",
+    "compute": {
+     "b0_flops_per_reference_sample": 182016709,
+     "b0_params": 1821698,
+     "envelope_pass": true,
+     "flops_delta_fraction": 0.033086165732180116,
+     "flops_per_reference_sample": 188038944,
+     "params_delta_fraction": 0.0,
+     "params_total": 1821698
+    },
+    "excluded_rows": 131,
+    "far_per_history": [
+     0.03862068965517241,
+     0.03844383057090239,
+     0.04722604309949565,
+     0.033381712626995644
+    ],
+    "gates": {
+     "P_noninferiority": true,
+     "W_noninferiority": true,
+     "background_stability": false,
+     "compute_envelope": true,
+     "eligible": true,
+     "finite_and_support": true,
+     "minimum_effect": false,
+     "nuisance": true,
+     "observable": true,
+     "recovery": false,
+     "score_separation": true,
+     "structural": true
+    },
+    "localization_per_history": [
+     1.0,
+     1.0,
+     1.0,
+     1.0
+    ],
+    "metric_code_sha256": "e042491dac18c3d98aba5242ece61850c7c683ac2a92ce9af1a3a5f30343c99e",
+    "per_history_far_delta": [
+     0.004367816091954024,
+     0.0034530386740331473,
+     0.007565337001375516,
+     0.005321722302854378
+    ],
+    "status": "VALID_NEGATIVE",
+    "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+   },
+   "interaction": null,
+   "invalid_reasons": [],
+   "members": [
+    "B0"
+   ],
+   "replication": {
+    "confirmation_delta_pw": 0.009124263362435622,
+    "definition": "sign agreement under (dev >= 0) == (conf >= 0) on exact raw S_pred paired Delta_PW",
+    "development_delta_pw": -0.0044133930934630765,
+    "sign_agreement": false
+   },
+   "selected": false,
+   "unresolved": false
+  },
+  "C3-A": {
+   "arm_kind": "single",
+   "component_set": [
+    "C3"
+   ],
+   "confirmation": {
+    "S_pop": {
+     "delta_pw": -0.01832064259719801,
+     "macro_pw": 0.6824231713885834,
+     "per_seed_pw": {
+      "171701": 0.6957830306170012,
+      "171702": 0.6552808295091171,
+      "171703": 0.6962056540396321
+     }
+    },
+    "S_pred": {
+     "delta_pw": -0.010264875170558593,
+     "directional": "4/4",
+     "lcb95": 0.6700179071502601,
+     "macro_p": 0.6625259253180825,
+     "macro_pw": 0.6742360291050747,
+     "macro_w": 0.691675584636018,
+     "per_history_delta_pw": null,
+     "per_history_pw": [
+      0.6700791700791701,
+      0.6699974861739567,
+      0.672858617131063,
+      0.6840088430361092
+     ],
+     "per_seed_delta_pw": {
+      "171701": 0.014210054444571019,
+      "171702": -0.01938957001987296,
+      "171703": -0.025615109936373837
+     },
+     "per_seed_pw": {
+      "171701": 0.68739227382692,
+      "171702": 0.666445166680345,
+      "171703": 0.668870646807959
+     }
+    },
+    "compute": {
+     "b0_flops_per_reference_sample": 182016709,
+     "b0_params": 1821698,
+     "envelope_pass": true,
+     "flops_delta_fraction": -0.02511382622570107,
+     "flops_per_reference_sample": 177445573,
+     "params_delta_fraction": -0.00056211292980505,
+     "params_total": 1820674
+    },
+    "elapsed_s": 1064.9,
+    "evidence_commit": "86c6d8a1ebce8707ae2a18b678f1da210f43edca",
+    "gates": {
+     "P_noninferiority": true,
+     "W_noninferiority": true,
+     "background_stability": false,
+     "compute_envelope": true,
+     "eligible": true,
+     "finite_and_support": true,
+     "minimum_effect": false,
+     "nuisance": true,
+     "observable": true,
+     "recovery": false,
+     "score_separation": true,
+     "structural": true
+    },
+    "metric_code_sha256": "c67607718e156f6a32736317a33489a6b0f314f22cf20c1b811cbabbbf753516",
+    "support_sha256": "6ed3f08cb644c0548cc539a5f257af1eeb7f7cbdca1c0f57f7fdf680642926b3",
+    "thresholds": {
+     "S_pop": 2.2955178022384644,
+     "S_pred": 0.07203468680381775
+    }
+   },
+   "development": {
+    "S_pop": {
+     "delta_pw": -0.00860868757255743,
+     "directional": 4,
+     "lcb95": 0.6409655249277891,
+     "macro_pw": 0.6721083706553035,
+     "per_history_delta_pw": [
+      0.008195970695970778,
+      -0.011596211596211603,
+      0.0038062612998382983,
+      -0.03484077068982716
+     ],
+     "per_history_pw": [
+      0.7106227106227107,
+      0.6348810348810349,
+      0.6958797221429252,
+      0.6470500149745434
+     ],
+     "per_seed_delta_pw": {
+      "171701": -0.012418088994635257,
+      "171702": 0.00143343820579378,
+      "171703": -0.014841411928830817
+     }
+    },
+    "S_pred": {
+     "delta_pw": -0.01007096548106882,
+     "directional": 4,
+     "lcb95": 0.613961215263199,
+     "macro_pw": 0.6619712605184627,
+     "per_history_delta_pw": [
+      0.009569597069597147,
+      -0.032432432432432434,
+      -0.02336092872775719,
+      0.005939902166317013
+     ],
+     "per_history_pw": [
+      0.698901098901099,
+      0.666990066990067,
+      0.5869254924350557,
+      0.6950683837476289
+     ],
+     "per_seed_delta_pw": {
+      "171701": 0.0046606199552090555,
+      "171702": -0.0074914858338702706,
+      "171703": -0.027382030564545246
+     }
+    },
+    "S_pred_macro_p": 0.6604095133826334,
+    "S_pred_macro_w": 0.6641725463910926,
+    "background_ratio_per_history": [
+     0.0640355340056885,
+     0.06086169738812599,
+     0.06668389221051198,
+     0.06763089206023037
+    ],
+    "commit": "7eb63e75711533f4537351da92d3f9204c8afa4e",
+    "compute": {
+     "b0_flops_per_reference_sample": 182016709,
+     "b0_params": 1821698,
+     "envelope_pass": true,
+     "flops_delta_fraction": -0.02511382622570107,
+     "flops_per_reference_sample": 177445573,
+     "params_delta_fraction": -0.00056211292980505,
+     "params_total": 1820674
+    },
+    "excluded_rows": 131,
+    "far_per_history": [
+     0.03770114942528736,
+     0.03798342541436464,
+     0.048601558917927556,
+     0.02902757619738752
+    ],
+    "gates": {
+     "P_noninferiority": true,
+     "W_noninferiority": true,
+     "background_stability": true,
+     "compute_envelope": true,
+     "eligible": true,
+     "finite_and_support": true,
+     "minimum_effect": false,
+     "nuisance": true,
+     "observable": true,
+     "recovery": false,
+     "score_separation": true,
+     "structural": true
+    },
+    "localization_per_history": [
+     1.0,
+     1.0,
+     1.0,
+     1.0
+    ],
+    "metric_code_sha256": "09d79910a413a5a61630db63084223e08499449f04b24330bd28a4a6ce2dbd93",
+    "per_history_far_delta": [
+     0.0034482758620689724,
+     0.0029926335174953952,
+     0.008940852819807422,
+     0.0009675858732462531
+    ],
+    "status": "VALID_NEGATIVE",
+    "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+   },
+   "interaction": null,
+   "invalid_reasons": [],
+   "members": [
+    "B0"
+   ],
+   "replication": {
+    "confirmation_delta_pw": -0.010264875170558593,
+    "definition": "sign agreement under (dev >= 0) == (conf >= 0) on exact raw S_pred paired Delta_PW",
+    "development_delta_pw": -0.01007096548106882,
+    "sign_agreement": true
+   },
+   "selected": true,
+   "unresolved": false
+  },
+  "C3-B": {
+   "arm_kind": "single",
+   "component_set": [
+    "C3"
+   ],
+   "confirmation": {
+    "S_pop": {
+     "delta_pw": -0.00756697751857871,
+     "macro_pw": 0.6931768364672029,
+     "per_seed_pw": {
+      "171701": 0.7098766007067845,
+      "171702": 0.6954199388667011,
+      "171703": 0.6742339698281228
+     }
+    },
+    "S_pred": {
+     "delta_pw": 0.0032358733839532214,
+     "directional": "4/4",
+     "lcb95": 0.6783942133206838,
+     "macro_p": 0.6757603019530183,
+     "macro_pw": 0.6877367776595865,
+     "macro_w": 0.7061817175571368,
+     "per_history_delta_pw": null,
+     "per_history_pw": [
+      0.682091182091182,
+      0.6771618903971844,
+      0.6970244238046096,
+      0.6946696143453698
+     ],
+     "per_seed_delta_pw": {
+      "171701": 0.04129285032914254,
+      "171702": 0.010709944090337875,
+      "171703": -0.04229517426762075
+     },
+     "per_seed_pw": {
+      "171701": 0.7144750697114916,
+      "171702": 0.6965446807905559,
+      "171703": 0.6521905824767121
+     }
+    },
+    "compute": {
+     "b0_flops_per_reference_sample": 182016709,
+     "b0_params": 1821698,
+     "envelope_pass": true,
+     "flops_delta_fraction": -0.01116170054475603,
+     "flops_per_reference_sample": 179985093,
+     "params_delta_fraction": 6.58726089615293e-06,
+     "params_total": 1821710
+    },
+    "elapsed_s": 949.4,
+    "evidence_commit": "86c6d8a1ebce8707ae2a18b678f1da210f43edca",
+    "gates": {
+     "P_noninferiority": true,
+     "W_noninferiority": true,
+     "background_stability": false,
+     "compute_envelope": true,
+     "eligible": true,
+     "finite_and_support": true,
+     "minimum_effect": false,
+     "nuisance": true,
+     "observable": true,
+     "recovery": false,
+     "score_separation": true,
+     "structural": true
+    },
+    "metric_code_sha256": "c67607718e156f6a32736317a33489a6b0f314f22cf20c1b811cbabbbf753516",
+    "support_sha256": "6ed3f08cb644c0548cc539a5f257af1eeb7f7cbdca1c0f57f7fdf680642926b3",
+    "thresholds": {
+     "S_pop": 2.266145626703898,
+     "S_pred": 0.08301806449890137
+    }
+   },
+   "development": {
+    "S_pop": {
+     "delta_pw": -0.0033444538095369625,
+     "directional": 4,
+     "lcb95": 0.6610278936570686,
+     "macro_pw": 0.677372604418324,
+     "per_history_delta_pw": [
+      0.014148351648351709,
+      0.013860013860013898,
+      -0.03035493386620991,
+      -0.011031246880303436
+     ],
+     "per_history_pw": [
+      0.7165750915750916,
+      0.6603372603372604,
+      0.6617185269768769,
+      0.6708595387840671
+     ],
+     "per_seed_delta_pw": {
+      "171701": -0.005466301695022713,
+      "171702": 0.019068686400444457,
+      "171703": -0.02363574613403263
+     }
+    },
+    "S_pred": {
+     "delta_pw": -0.015301104035036225,
+     "directional": 4,
+     "lcb95": 0.6111653315996022,
+     "macro_pw": 0.6567411219644952,
+     "per_history_delta_pw": [
+      -0.011584249084248932,
+      -0.02541002541002546,
+      -0.02131506327909416,
+      -0.0028950783667767155
+     ],
+     "per_history_pw": [
+      0.6777472527472529,
+      0.674012474012474,
+      0.5889713578837187,
+      0.6862334032145352
+     ],
+     "per_seed_delta_pw": {
+      "171701": 0.011441287381839027,
+      "171702": -0.005454603517685563,
+      "171703": -0.05188999596926214
+     }
+    },
+    "S_pred_macro_p": 0.6592622551222375,
+    "S_pred_macro_w": 0.6544489123187497,
+    "background_ratio_per_history": [
+     0.08239114992920177,
+     0.09451219733198013,
+     0.11735249735899221,
+     0.1269239721610026
+    ],
+    "commit": "7eb63e75711533f4537351da92d3f9204c8afa4e",
+    "compute": {
+     "b0_flops_per_reference_sample": 182016709,
+     "b0_params": 1821698,
+     "envelope_pass": true,
+     "flops_delta_fraction": -0.01116170054475603,
+     "flops_per_reference_sample": 179985093,
+     "params_delta_fraction": 6.58726089615293e-06,
+     "params_total": 1821710
+    },
+    "excluded_rows": 131,
+    "far_per_history": [
+     0.03724137931034483,
+     0.035681399631675874,
+     0.048143053645116916,
+     0.025641025641025644
+    ],
+    "gates": {
+     "P_noninferiority": true,
+     "W_noninferiority": true,
+     "background_stability": false,
+     "compute_envelope": true,
+     "eligible": true,
+     "finite_and_support": true,
+     "minimum_effect": false,
+     "nuisance": true,
+     "observable": true,
+     "recovery": false,
+     "score_separation": true,
+     "structural": true
+    },
+    "localization_per_history": [
+     1.0,
+     1.0,
+     1.0,
+     1.0
+    ],
+    "metric_code_sha256": "09d79910a413a5a61630db63084223e08499449f04b24330bd28a4a6ce2dbd93",
+    "per_history_far_delta": [
+     0.0029885057471264465,
+     0.0006906077348066281,
+     0.008482347546996782,
+     -0.0024189646831156222
+    ],
+    "status": "VALID_NEGATIVE",
+    "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+   },
+   "interaction": null,
+   "invalid_reasons": [],
+   "members": [
+    "B0"
+   ],
+   "replication": {
+    "confirmation_delta_pw": 0.0032358733839532214,
+    "definition": "sign agreement under (dev >= 0) == (conf >= 0) on exact raw S_pred paired Delta_PW",
+    "development_delta_pw": -0.015301104035036225,
+    "sign_agreement": false
+   },
+   "selected": false,
+   "unresolved": false
+  },
+  "C5-A": {
+   "arm_kind": "single",
+   "component_set": [
+    "C5"
+   ],
+   "confirmation": {
+    "S_pop": {
+     "delta_pw": -0.007645642697423886,
+     "macro_pw": 0.6930981712883576,
+     "per_seed_pw": {
+      "171701": 0.7055008567600939,
+      "171702": 0.7053791138772465,
+      "171703": 0.6684145432277324
+     }
+    },
+    "S_pred": {
+     "delta_pw": 0.011509196059877472,
+     "directional": "4/4",
+     "lcb95": 0.6700873379576401,
+     "macro_p": 0.6853200662634024,
+     "macro_pw": 0.6960101003355108,
+     "macro_w": 0.7128454161621068,
+     "per_history_delta_pw": null,
+     "per_history_pw": [
+      0.6562926562926563,
+      0.7264328808446455,
+      0.6898434812521499,
+      0.7114713829525915
+     ],
+     "per_seed_delta_pw": {
+      "171701": -0.0032142258747626107,
+      "171702": 0.022344034514374167,
+      "171703": 0.015397779540020862
+     },
+     "per_seed_pw": {
+      "171701": 0.6699679935075864,
+      "171702": 0.7081787712145922,
+      "171703": 0.7098835362843537
+     }
+    },
+    "compute": {
+     "b0_flops_per_reference_sample": 182016709,
+     "b0_params": 1821698,
+     "envelope_pass": true,
+     "flops_delta_fraction": 0.0,
+     "flops_per_reference_sample": 182016709,
+     "params_delta_fraction": 0.0,
+     "params_total": 1821698
+    },
+    "elapsed_s": 922.9,
+    "evidence_commit": "86c6d8a1ebce8707ae2a18b678f1da210f43edca",
+    "gates": {
+     "P_noninferiority": true,
+     "W_noninferiority": true,
+     "background_stability": false,
+     "compute_envelope": true,
+     "eligible": true,
+     "finite_and_support": true,
+     "minimum_effect": false,
+     "nuisance": true,
+     "observable": true,
+     "recovery": false,
+     "score_separation": true,
+     "structural": true
+    },
+    "metric_code_sha256": "c67607718e156f6a32736317a33489a6b0f314f22cf20c1b811cbabbbf753516",
+    "support_sha256": "6ed3f08cb644c0548cc539a5f257af1eeb7f7cbdca1c0f57f7fdf680642926b3",
+    "thresholds": {
+     "S_pop": 2.0814820528030396,
+     "S_pred": 0.11995324989159901
+    }
+   },
+   "development": {
+    "S_pop": {
+     "delta_pw": 0.0022749039623895704,
+     "directional": 4,
+     "lcb95": 0.67708121283628,
+     "macro_pw": 0.6829919621902504,
+     "per_history_delta_pw": [
+      -0.015247252747252804,
+      0.028505428505428476,
+      -0.012893710153201954,
+      0.008735150244584156
+     ],
+     "per_history_pw": [
+      0.6871794871794871,
+      0.674982674982675,
+      0.6791797506898849,
+      0.6906259359089547
+     ],
+     "per_seed_delta_pw": {
+      "171701": -0.003663994866330067,
+      "171702": 0.04039787324227828,
+      "171703": -0.029909166488779504
+     }
+    },
+    "S_pred": {
+     "delta_pw": 0.032334926203523996,
+     "directional": 4,
+     "lcb95": 0.6826334818305313,
+     "macro_pw": 0.7043771522030555,
+     "per_history_delta_pw": [
+      0.01172161172161168,
+      0.028967428967428988,
+      0.06094775906365968,
+      0.02770290506139561
+     ],
+     "per_history_pw": [
+      0.7010531135531135,
+      0.7283899283899284,
+      0.6712341802264725,
+      0.7168313866427075
+     ],
+     "per_seed_delta_pw": {
+      "171701": 0.012701811752002468,
+      "171702": 0.04436572967239405,
+      "171703": 0.03993723718617548
+     }
+    },
+    "S_pred_macro_p": 0.707526855019696,
+    "S_pred_macro_w": 0.7015055455530632,
+    "background_ratio_per_history": [
+     0.0801732407561681,
+     0.0750463503500845,
+     0.035148228714312724,
+     0.16143581296446527
+    ],
+    "commit": "8dea7fd975b224c6d6f4a96774af40caf9ad6c97",
+    "compute": {
+     "b0_flops_per_reference_sample": 182016709,
+     "b0_params": 1821698,
+     "envelope_pass": true,
+     "flops_delta_fraction": 0.0,
+     "flops_per_reference_sample": 182016709,
+     "params_delta_fraction": 0.0,
+     "params_total": 1821698
+    },
+    "excluded_rows": 131,
+    "far_per_history": [
+     0.035402298850574714,
+     0.03752302025782688,
+     0.03736817973406694,
+     0.022496371552975323
+    ],
+    "gates": {
+     "P_noninferiority": true,
+     "W_noninferiority": true,
+     "background_stability": false,
+     "compute_envelope": true,
+     "eligible": true,
+     "finite_and_support": true,
+     "minimum_effect": false,
+     "nuisance": true,
+     "observable": true,
+     "recovery": false,
+     "score_separation": true,
+     "structural": true
+    },
+    "localization_per_history": [
+     1.0,
+     1.0,
+     1.0,
+     1.0
+    ],
+    "metric_code_sha256": "91c00e7d84872532fbde077873976124348f9901e86ef386b9811e5f5471861e",
+    "per_history_far_delta": [
+     0.0011494252873563288,
+     0.0025322283609576363,
+     -0.0022925263640531934,
+     -0.005563618771165943
+    ],
+    "status": "VALID_NEGATIVE",
+    "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+   },
+   "interaction": null,
+   "invalid_reasons": [],
+   "members": [
+    "B0"
+   ],
+   "replication": {
+    "confirmation_delta_pw": 0.011509196059877472,
+    "definition": "sign agreement under (dev >= 0) == (conf >= 0) on exact raw S_pred paired Delta_PW",
+    "development_delta_pw": 0.032334926203523996,
+    "sign_agreement": true
+   },
+   "selected": true,
+   "unresolved": false
+  },
+  "C5-B": {
+   "arm_kind": "single",
+   "component_set": [
+    "C5"
+   ],
+   "confirmation": {
+    "S_pop": {
+     "delta_pw": -1.5711412770273252e-05,
+     "macro_pw": 0.7007281025730112,
+     "per_seed_pw": {
+      "171701": 0.710410655763342,
+      "171702": 0.682131369700898,
+      "171703": 0.7096422822547936
+     }
+    },
+    "S_pred": {
+     "delta_pw": 1.2281994595908508e-05,
+     "directional": "4/4",
+     "lcb95": 0.6704403619070802,
+     "macro_p": 0.6705088511620496,
+     "macro_pw": 0.6845131862702292,
+     "macro_w": 0.7044919107042878,
+     "per_history_delta_pw": null,
+     "per_history_pw": [
+      0.663026663026663,
+      0.7034942182001004,
+      0.6926814585483316,
+      0.6788504053058216
+     ],
+     "per_seed_delta_pw": {
+      "171701": 3.684598378772552e-05,
+      "171702": 0.0,
+      "171703": 0.0
+     },
+     "per_seed_pw": {
+      "171701": 0.6732190653661367,
+      "171702": 0.685834736700218,
+      "171703": 0.6944857567443329
+     }
+    },
+    "compute": {
+     "b0_flops_per_reference_sample": 182016709,
+     "b0_params": 1821698,
+     "envelope_pass": true,
+     "flops_delta_fraction": 0.0,
+     "flops_per_reference_sample": 182016709,
+     "params_delta_fraction": 0.0,
+     "params_total": 1821698
+    },
+    "elapsed_s": 1534.1,
+    "evidence_commit": "86c6d8a1ebce8707ae2a18b678f1da210f43edca",
+    "gates": {
+     "P_noninferiority": true,
+     "W_noninferiority": true,
+     "background_stability": false,
+     "compute_envelope": true,
+     "eligible": true,
+     "finite_and_support": true,
+     "minimum_effect": false,
+     "nuisance": true,
+     "observable": true,
+     "recovery": false,
+     "score_separation": true,
+     "structural": true
+    },
+    "metric_code_sha256": "c67607718e156f6a32736317a33489a6b0f314f22cf20c1b811cbabbbf753516",
+    "support_sha256": "6ed3f08cb644c0548cc539a5f257af1eeb7f7cbdca1c0f57f7fdf680642926b3",
+    "thresholds": {
+     "S_pop": 2.29494579633077,
+     "S_pred": 0.09983504563570023
+    }
+   },
+   "development": {
+    "S_pop": {
+     "delta_pw": 4.810943985781672e-07,
+     "directional": 4,
+     "lcb95": 0.6578297554674944,
+     "macro_pw": 0.6807175393222595,
+     "per_history_delta_pw": [
+      4.578754578765665e-05,
+      -4.6200046200040035e-05,
+      -4.75782662480162e-05,
+      4.991514425478627e-05
+     ],
+     "per_history_pw": [
+      0.7024725274725275,
+      0.6464310464310464,
+      0.6920258825768388,
+      0.6819407008086253
+     ],
+     "per_seed_delta_pw": {
+      "171701": 1.4432831957345016e-06,
+      "171702": 0.0,
+      "171703": 0.0
+     }
+    },
+    "S_pred": {
+     "delta_pw": 1.1446886446867902e-05,
+     "directional": 4,
+     "lcb95": 0.630059138216432,
+     "macro_pw": 0.6720536728859784,
+     "per_history_delta_pw": [
+      4.57875457874346e-05,
+      0.0,
+      0.0,
+      0.0
+     ],
+     "per_history_pw": [
+      0.6893772893772893,
+      0.6994224994224995,
+      0.6102864211628128,
+      0.6891284815813119
+     ],
+     "per_seed_delta_pw": {
+      "171701": 3.434065934060371e-05,
+      "171702": 0.0,
+      "171703": 0.0
+     }
+    },
+    "S_pred_macro_p": 0.678850869825247,
+    "S_pred_macro_w": 0.6644984925838765,
+    "background_ratio_per_history": [
+     0.07872129840976778,
+     0.030935656745477418,
+     0.09235736205418672,
+     0.09500526163624384
+    ],
+    "commit": "8dea7fd975b224c6d6f4a96774af40caf9ad6c97",
+    "compute": {
+     "b0_flops_per_reference_sample": 182016709,
+     "b0_params": 1821698,
+     "envelope_pass": true,
+     "flops_delta_fraction": 0.0,
+     "flops_per_reference_sample": 182016709,
+     "params_delta_fraction": 0.0,
+     "params_total": 1821698
+    },
+    "excluded_rows": 131,
+    "far_per_history": [
+     0.034252873563218385,
+     0.034990791896869246,
+     0.039660706098120134,
+     0.027818093855829704
+    ],
+    "gates": {
+     "P_noninferiority": true,
+     "W_noninferiority": true,
+     "background_stability": true,
+     "compute_envelope": true,
+     "eligible": true,
+     "finite_and_support": true,
+     "minimum_effect": false,
+     "nuisance": true,
+     "observable": true,
+     "recovery": false,
+     "score_separation": true,
+     "structural": true
+    },
+    "localization_per_history": [
+     1.0,
+     1.0,
+     1.0,
+     1.0
+    ],
+    "metric_code_sha256": "91c00e7d84872532fbde077873976124348f9901e86ef386b9811e5f5471861e",
+    "per_history_far_delta": [
+     0.0,
+     0.0,
+     0.0,
+     -0.00024189646831156153
+    ],
+    "status": "VALID_NEGATIVE",
+    "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+   },
+   "interaction": null,
+   "invalid_reasons": [],
+   "members": [
+    "B0"
+   ],
+   "replication": {
+    "confirmation_delta_pw": 1.2281994595908508e-05,
+    "definition": "sign agreement under (dev >= 0) == (conf >= 0) on exact raw S_pred paired Delta_PW",
+    "development_delta_pw": 1.1446886446867902e-05,
+    "sign_agreement": true
+   },
+   "selected": false,
+   "unresolved": false
+  },
+  "C6-A": {
+   "arm_kind": "single",
+   "component_set": [
+    "C6"
+   ],
+   "confirmation": {
+    "S_pop": {
+     "delta_pw": -0.014321695891075311,
+     "macro_pw": 0.6864221180947061,
+     "per_seed_pw": {
+      "171701": 0.6873893782710525,
+      "171702": 0.676333904425388,
+      "171703": 0.695543071587678
+     }
+    },
+    "S_pred": {
+     "delta_pw": 0.0018882628217952169,
+     "directional": "4/4",
+     "lcb95": 0.6679741150522884,
+     "macro_p": 0.6754182364549386,
+     "macro_pw": 0.6863891670974285,
+     "macro_w": 0.7029186282015175,
+     "per_history_delta_pw": null,
+     "per_history_pw": [
+      0.6605696605696606,
+      0.7067621920563097,
+      0.6901874785001719,
+      0.6880373372635716
+     ],
+     "per_seed_delta_pw": {
+      "171701": 0.010481824100079806,
+      "171702": -0.013032261982507953,
+      "171703": 0.008215226347813798
+     },
+     "per_seed_pw": {
+      "171701": 0.6836640434824288,
+      "171702": 0.67280247471771,
+      "171703": 0.7027009830921467
+     }
+    },
+    "compute": {
+     "b0_flops_per_reference_sample": 182016709,
+     "b0_params": 1821698,
+     "envelope_pass": true,
+     "flops_delta_fraction": 0.0003600548562824526,
+     "flops_per_reference_sample": 182082245,
+     "params_delta_fraction": 0.01805787786998723,
+     "params_total": 1854594
+    },
+    "elapsed_s": 1620.3,
+    "evidence_commit": "86c6d8a1ebce8707ae2a18b678f1da210f43edca",
+    "gates": {
+     "P_noninferiority": true,
+     "W_noninferiority": true,
+     "background_stability": false,
+     "compute_envelope": true,
+     "eligible": true,
+     "finite_and_support": true,
+     "minimum_effect": false,
+     "nuisance": true,
+     "observable": true,
+     "recovery": false,
+     "score_separation": true,
+     "structural": true
+    },
+    "metric_code_sha256": "c67607718e156f6a32736317a33489a6b0f314f22cf20c1b811cbabbbf753516",
+    "support_sha256": "6ed3f08cb644c0548cc539a5f257af1eeb7f7cbdca1c0f57f7fdf680642926b3",
+    "thresholds": {
+     "S_pop": 1.1040315230687459,
+     "S_pred": 0.13287942856550217
+    }
+   },
+   "development": {
+    "S_pop": {
+     "delta_pw": 0.016848281019405942,
+     "directional": 4,
+     "lcb95": 0.6811293358463171,
+     "macro_pw": 0.6975653392472669,
+     "per_history_delta_pw": [
+      0.010760073260073333,
+      0.03354123354123362,
+      0.022742411266533424,
+      0.00034940600978339287
+     ],
+     "per_history_pw": [
+      0.7131868131868132,
+      0.6800184800184801,
+      0.7148158721096203,
+      0.682240191674154
+     ],
+     "per_seed_delta_pw": {
+      "171701": -0.0037118277439748,
+      "171702": 0.0288396734672064,
+      "171703": 0.0254169973349861
+     }
+    },
+    "S_pred": {
+     "delta_pw": 0.008968441594149187,
+     "directional": 4,
+     "lcb95": 0.646096946353061,
+     "macro_pw": 0.6810106675936806,
+     "per_history_delta_pw": [
+      0.025732600732600752,
+      -0.018480018480018567,
+      0.017889428109239658,
+      0.010731756014774718
+     ],
+     "per_history_pw": [
+      0.7150641025641026,
+      0.6809424809424809,
+      0.6281758492720525,
+      0.6998602375960866
+     ],
+     "per_seed_delta_pw": {
+      "171701": 0.0094127788208063,
+      "171702": 0.0188275442786065,
+      "171703": -0.0013349983169652
+     }
+    },
+    "S_pred_macro_p": 0.6869398827103146,
+    "S_pred_macro_w": 0.6747698736854898,
+    "background_ratio_per_history": [
+     0.0608352284920047,
+     0.05973467236296621,
+     0.04333945412123807,
+     0.1317462267575555
+    ],
+    "commit": "5ee3e04e05d3e4cb112167389af845595951e144",
+    "compute": {
+     "b0_flops_per_reference_sample": 182016709,
+     "b0_params": 1821698,
+     "envelope_pass": true,
+     "flops_delta_fraction": 0.0003600548562824526,
+     "flops_per_reference_sample": 182082245,
+     "params_delta_fraction": 0.01805787786998723,
+     "params_total": 1854594
+    },
+    "excluded_rows": 131,
+    "far_per_history": [
+     0.035402298850574714,
+     0.04258747697974218,
+     0.04241173773498396,
+     0.026850507982583455
+    ],
+    "gates": {
+     "P_noninferiority": true,
+     "W_noninferiority": true,
+     "background_stability": false,
+     "compute_envelope": true,
+     "eligible": true,
+     "finite_and_support": true,
+     "minimum_effect": false,
+     "nuisance": true,
+     "observable": true,
+     "recovery": false,
+     "score_separation": true,
+     "structural": true
+    },
+    "localization_per_history": [
+     1.0,
+     1.0,
+     1.0,
+     1.0
+    ],
+    "metric_code_sha256": "f8c2c4f47daa25b422e485d620d86bf6c5a47334f5cfc086790d450695b3b030",
+    "per_history_far_delta": [
+     0.0011494252873563288,
+     0.0075966850828729365,
+     0.0027510316368638266,
+     -0.0012094823415578111
+    ],
+    "status": "VALID_NEGATIVE",
+    "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+   },
+   "interaction": null,
+   "invalid_reasons": [],
+   "members": [
+    "B0"
+   ],
+   "replication": {
+    "confirmation_delta_pw": 0.0018882628217952169,
+    "definition": "sign agreement under (dev >= 0) == (conf >= 0) on exact raw S_pred paired Delta_PW",
+    "development_delta_pw": 0.008968441594149187,
+    "sign_agreement": true
+   },
+   "selected": true,
+   "unresolved": false
+  },
+  "C6-B": {
+   "arm_kind": "single",
+   "component_set": [
+    "C6"
+   ],
+   "confirmation": {
+    "S_pop": {
+     "delta_pw": -0.024714222163849848,
+     "macro_pw": 0.6760295918219317,
+     "per_seed_pw": {
+      "171701": 0.6971055261129546,
+      "171702": 0.632396881299159,
+      "171703": 0.6985863680536812
+     }
+    },
+    "S_pred": {
+     "delta_pw": -0.00788184576167028,
+     "directional": "4/4",
+     "lcb95": 0.6577058048870871,
+     "macro_p": 0.6658101471660794,
+     "macro_pw": 0.6766190585139631,
+     "macro_w": 0.6936436373774526,
+     "per_history_delta_pw": null,
+     "per_history_pw": [
+      0.6493311493311493,
+      0.6967697335344395,
+      0.677545579635363,
+      0.6828297715549004
+     ],
+     "per_seed_delta_pw": {
+      "171701": 0.0011346769018975023,
+      "171702": -0.031038981367543683,
+      "171703": 0.0062587671806353384
+     },
+     "per_seed_pw": {
+      "171701": 0.6743168962842465,
+      "171702": 0.6547957553326743,
+      "171703": 0.7007445239249682
+     }
+    },
+    "compute": {
+     "b0_flops_per_reference_sample": 182016709,
+     "b0_params": 1821698,
+     "envelope_pass": true,
+     "flops_delta_fraction": 0.0028013252343772463,
+     "flops_per_reference_sample": 182526597,
+     "params_delta_fraction": 0.004550150464017636,
+     "params_total": 1829987
+    },
+    "elapsed_s": 2804.4,
+    "evidence_commit": "86c6d8a1ebce8707ae2a18b678f1da210f43edca",
+    "gates": {
+     "P_noninferiority": true,
+     "W_noninferiority": true,
+     "background_stability": false,
+     "compute_envelope": true,
+     "eligible": true,
+     "finite_and_support": true,
+     "minimum_effect": false,
+     "nuisance": true,
+     "observable": true,
+     "recovery": false,
+     "score_separation": true,
+     "structural": true
+    },
+    "metric_code_sha256": "c67607718e156f6a32736317a33489a6b0f314f22cf20c1b811cbabbbf753516",
+    "support_sha256": "6ed3f08cb644c0548cc539a5f257af1eeb7f7cbdca1c0f57f7fdf680642926b3",
+    "thresholds": {
+     "S_pop": 2.203987956047058,
+     "S_pred": 0.09094049533208211
+    }
+   },
+   "development": {
+    "S_pop": {
+     "delta_pw": -0.004063905203039934,
+     "directional": 4,
+     "lcb95": 0.6599075260508319,
+     "macro_pw": 0.6766531530248211,
+     "per_history_delta_pw": [
+      -0.0077380952380951,
+      0.03654423654423655,
+      -0.03987058711580538,
+      -0.005191175002495663
+     ],
+     "per_history_pw": [
+      0.6946886446886448,
+      0.683021483021483,
+      0.6522028737272815,
+      0.6766996106618749
+     ],
+     "per_seed_delta_pw": {
+      "171701": -0.0220614299007011,
+      "171702": 0.0022803460867669,
+      "171703": 0.0075893682048144
+     }
+    },
+    "S_pred": {
+     "delta_pw": -0.015497267681295224,
+     "directional": 4,
+     "lcb95": 0.6150386656415182,
+     "macro_pw": 0.6565449583182362,
+     "per_history_delta_pw": [
+      4.57875457874346e-05,
+      -0.0410256410256411,
+      -0.019411932629174955,
+      -0.0015972846161526055
+     ],
+     "per_history_pw": [
+      0.6893772893772893,
+      0.6583968583968584,
+      0.5908744885336379,
+      0.6875311969651593
+     ],
+     "per_seed_delta_pw": {
+      "171701": -0.024377097484801,
+      "171702": -0.0017454926637891,
+      "171703": -0.0203692128952955
+     }
+    },
+    "S_pred_macro_p": 0.6615414907012145,
+    "S_pred_macro_w": 0.652062795197827,
+    "background_ratio_per_history": [
+     0.11720748343959242,
+     0.04790800596300849,
+     0.07014293716133743,
+     0.1540403124914471
+    ],
+    "commit": "5ee3e04e05d3e4cb112167389af845595951e144",
+    "compute": {
+     "b0_flops_per_reference_sample": 182016709,
+     "b0_params": 1821698,
+     "envelope_pass": true,
+     "flops_delta_fraction": 0.0028013252343772463,
+     "flops_per_reference_sample": 182526597,
+     "params_delta_fraction": 0.004550150464017636,
+     "params_total": 1829987
+    },
+    "excluded_rows": 131,
+    "far_per_history": [
+     0.03586206896551724,
+     0.041666666666666664,
+     0.04516276937184777,
+     0.027818093855829704
+    ],
+    "gates": {
+     "P_noninferiority": true,
+     "W_noninferiority": true,
+     "background_stability": false,
+     "compute_envelope": true,
+     "eligible": true,
+     "finite_and_support": true,
+     "minimum_effect": false,
+     "nuisance": true,
+     "observable": true,
+     "recovery": false,
+     "score_separation": true,
+     "structural": true
+    },
+    "localization_per_history": [
+     1.0,
+     1.0,
+     1.0,
+     1.0
+    ],
+    "metric_code_sha256": "f8c2c4f47daa25b422e485d620d86bf6c5a47334f5cfc086790d450695b3b030",
+    "per_history_far_delta": [
+     0.0016091954022988547,
+     0.0066758747697974186,
+     0.005502063273727639,
+     -0.00024189646831156153
+    ],
+    "status": "VALID_NEGATIVE",
+    "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+   },
+   "interaction": null,
+   "invalid_reasons": [],
+   "members": [
+    "B0"
+   ],
+   "replication": {
+    "confirmation_delta_pw": -0.00788184576167028,
+    "definition": "sign agreement under (dev >= 0) == (conf >= 0) on exact raw S_pred paired Delta_PW",
+    "development_delta_pw": -0.015497267681295224,
+    "sign_agreement": true
+   },
+   "selected": false,
+   "unresolved": false
+  },
+  "C7-A": {
+   "arm_kind": "single",
+   "component_set": [
+    "C7"
+   ],
+   "confirmation": {
+    "S_pop": {
+     "delta_pw": -0.00974051353597786,
+     "macro_pw": 0.6910033004498036,
+     "per_seed_pw": {
+      "171701": 0.6925201464170228,
+      "171702": 0.6719904336037772,
+      "171703": 0.7084993213286109
+     }
+    },
+    "S_pred": {
+     "delta_pw": 0.0,
+     "directional": "4/4",
+     "lcb95": 0.6704403619070802,
+     "macro_p": 0.6704883811710564,
+     "macro_pw": 0.6845009042756333,
+     "macro_w": 0.7044919107042878,
+     "per_history_delta_pw": null,
+     "per_history_pw": [
+      0.663026663026663,
+      0.7034942182001004,
+      0.6926814585483316,
+      0.678801277327438
+     ],
+     "per_seed_delta_pw": {
+      "171701": 0.0,
+      "171702": 0.0,
+      "171703": 0.0
+     },
+     "per_seed_pw": {
+      "171701": 0.673182219382349,
+      "171702": 0.685834736700218,
+      "171703": 0.6944857567443329
+     }
+    },
+    "compute": {
+     "b0_flops_per_reference_sample": 182016709,
+     "b0_params": 1821698,
+     "envelope_pass": true,
+     "flops_delta_fraction": 0.0,
+     "flops_per_reference_sample": 182016709,
+     "params_delta_fraction": 0.0,
+     "params_total": 1821698
+    },
+    "elapsed_s": 771.6,
+    "evidence_commit": "86c6d8a1ebce8707ae2a18b678f1da210f43edca",
+    "gates": {
+     "P_noninferiority": true,
+     "W_noninferiority": true,
+     "background_stability": false,
+     "compute_envelope": true,
+     "eligible": true,
+     "finite_and_support": true,
+     "minimum_effect": false,
+     "nuisance": true,
+     "observable": true,
+     "recovery": false,
+     "score_separation": true,
+     "structural": true
+    },
+    "metric_code_sha256": "c67607718e156f6a32736317a33489a6b0f314f22cf20c1b811cbabbbf753516",
+    "support_sha256": "6ed3f08cb644c0548cc539a5f257af1eeb7f7cbdca1c0f57f7fdf680642926b3",
+    "thresholds": {
+     "S_pop": 75.88856666666666,
+     "S_pred": 0.09983651588360469
+    }
+   },
+   "development": {
+    "S_pop": {
+     "delta_pw": -0.012823271190627428,
+     "directional": 4,
+     "lcb95": 0.6494310588060588,
+     "macro_pw": 0.6678937870372335,
+     "per_history_delta_pw": [
+      -0.02417582417582409,
+      -0.006652806652806653,
+      -0.013226758016937845,
+      -0.007237695916941234
+     ],
+     "per_history_pw": [
+      0.6782509157509158,
+      0.6398244398244398,
+      0.678846702826149,
+      0.6746530897474293
+     ],
+     "per_seed_delta_pw": {
+      "171701": -0.0286974218365574,
+      "171702": -0.0030268841127053,
+      "171703": -0.0067455076226196
+     }
+    },
+    "S_pred": {
+     "delta_pw": 0.0,
+     "directional": 4,
+     "lcb95": 0.6300476913299852,
+     "macro_pw": 0.6720422259995316,
+     "per_history_delta_pw": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ],
+     "per_history_pw": [
+      0.6893315018315018,
+      0.6994224994224995,
+      0.6102864211628128,
+      0.6891284815813119
+     ],
+     "per_seed_delta_pw": {
+      "171701": 0.0,
+      "171702": 0.0,
+      "171703": 0.0
+     }
+    },
+    "S_pred_macro_p": 0.678830519804897,
+    "S_pred_macro_w": 0.6644984925838765,
+    "background_ratio_per_history": [
+     0.07873076874267575,
+     0.030908149386909226,
+     0.09237031390523213,
+     0.09498172094407496
+    ],
+    "commit": "5eee50e22cf2386ee2f549bace9ba2d2c87ea0b",
+    "compute": {
+     "b0_flops_per_reference_sample": 182016709,
+     "b0_params": 1821698,
+     "envelope_pass": true,
+     "flops_delta_fraction": 0.0,
+     "flops_per_reference_sample": 182016709,
+     "params_delta_fraction": 0.0,
+     "params_total": 1821698
+    },
+    "excluded_rows": 131,
+    "far_per_history": [
+     0.034252873563218385,
+     0.034990791896869246,
+     0.039660706098120134,
+     0.028059990324141266
+    ],
+    "gates": {
+     "P_noninferiority": true,
+     "W_noninferiority": true,
+     "background_stability": true,
+     "compute_envelope": true,
+     "eligible": true,
+     "finite_and_support": true,
+     "minimum_effect": false,
+     "nuisance": true,
+     "observable": true,
+     "recovery": false,
+     "score_separation": true,
+     "structural": true
+    },
+    "localization_per_history": [
+     1.0,
+     1.0,
+     1.0,
+     1.0
+    ],
+    "metric_code_sha256": "ba9a6d8c62b1",
+    "per_history_far_delta": [
+     0.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    "status": "VALID_NEGATIVE",
+    "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+   },
+   "interaction": null,
+   "invalid_reasons": [],
+   "members": [
+    "B0"
+   ],
+   "replication": {
+    "confirmation_delta_pw": 0.0,
+    "definition": "sign agreement under (dev >= 0) == (conf >= 0) on exact raw S_pred paired Delta_PW",
+    "development_delta_pw": 0.0,
+    "sign_agreement": true
+   },
+   "selected": true,
+   "unresolved": false
+  },
+  "C7-B": {
+   "arm_kind": "single",
+   "component_set": [
+    "C7"
+   ],
+   "confirmation": {
+    "S_pop": {
+     "delta_pw": 0.001687143967696425,
+     "macro_pw": 0.7024309579534779,
+     "per_seed_pw": {
+      "171701": 0.7053188668868945,
+      "171702": 0.6839724715085903,
+      "171703": 0.7180015354649489
+     }
+    },
+    "S_pred": {
+     "delta_pw": 0.0,
+     "directional": "4/4",
+     "lcb95": 0.6704403619070802,
+     "macro_p": 0.6704883811710564,
+     "macro_pw": 0.6845009042756333,
+     "macro_w": 0.7044919107042878,
+     "per_history_delta_pw": null,
+     "per_history_pw": [
+      0.663026663026663,
+      0.7034942182001004,
+      0.6926814585483316,
+      0.678801277327438
+     ],
+     "per_seed_delta_pw": {
+      "171701": 0.0,
+      "171702": 0.0,
+      "171703": 0.0
+     },
+     "per_seed_pw": {
+      "171701": 0.673182219382349,
+      "171702": 0.685834736700218,
+      "171703": 0.6944857567443329
+     }
+    },
+    "compute": {
+     "b0_flops_per_reference_sample": 182016709,
+     "b0_params": 1821698,
+     "envelope_pass": true,
+     "flops_delta_fraction": 0.0,
+     "flops_per_reference_sample": 182016709,
+     "params_delta_fraction": 0.0,
+     "params_total": 1821698
+    },
+    "elapsed_s": 1904.4,
+    "evidence_commit": "86c6d8a1ebce8707ae2a18b678f1da210f43edca",
+    "gates": {
+     "P_noninferiority": true,
+     "W_noninferiority": true,
+     "background_stability": false,
+     "compute_envelope": true,
+     "eligible": true,
+     "finite_and_support": true,
+     "minimum_effect": false,
+     "nuisance": true,
+     "observable": true,
+     "recovery": false,
+     "score_separation": true,
+     "structural": true
+    },
+    "metric_code_sha256": "c67607718e156f6a32736317a33489a6b0f314f22cf20c1b811cbabbbf753516",
+    "support_sha256": "6ed3f08cb644c0548cc539a5f257af1eeb7f7cbdca1c0f57f7fdf680642926b3",
+    "thresholds": {
+     "S_pop": 2.5672666666666664,
+     "S_pred": 0.09983651588360469
+    }
+   },
+   "development": {
+    "S_pop": {
+     "delta_pw": -0.0016012398291704126,
+     "directional": 4,
+     "lcb95": 0.6675105404159072,
+     "macro_pw": 0.6791158183986905,
+     "per_history_delta_pw": [
+      -0.035119047619047605,
+      0.02527142527142534,
+      -0.024360072318964643,
+      0.027802735349905183
+     ],
+     "per_history_pw": [
+      0.6673076923076923,
+      0.6717486717486718,
+      0.6677133885241222,
+      0.7096935210142757
+     ],
+     "per_seed_delta_pw": {
+      "171701": -0.0109546928661205,
+      "171702": 0.003413141235254,
+      "171703": 0.0027378321433552
+     }
+    },
+    "S_pred": {
+     "delta_pw": 0.0,
+     "directional": 4,
+     "lcb95": 0.6300476913299852,
+     "macro_pw": 0.6720422259995316,
+     "per_history_delta_pw": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ],
+     "per_history_pw": [
+      0.6893315018315018,
+      0.6994224994224995,
+      0.6102864211628128,
+      0.6891284815813119
+     ],
+     "per_seed_delta_pw": {
+      "171701": 0.0,
+      "171702": 0.0,
+      "171703": 0.0
+     }
+    },
+    "S_pred_macro_p": 0.678830519804897,
+    "S_pred_macro_w": 0.6644984925838765,
+    "background_ratio_per_history": [
+     0.07873076874267575,
+     0.030908149386909226,
+     0.09237031390523213,
+     0.09498172094407496
+    ],
+    "commit": "5eee50e22cf2386ee2f549bace9ba2d2c87ea0b",
+    "compute": {
+     "b0_flops_per_reference_sample": 182016709,
+     "b0_params": 1821698,
+     "envelope_pass": true,
+     "flops_delta_fraction": 0.0,
+     "flops_per_reference_sample": 182016709,
+     "params_delta_fraction": 0.0,
+     "params_total": 1821698
+    },
+    "excluded_rows": 131,
+    "far_per_history": [
+     0.034252873563218385,
+     0.034990791896869246,
+     0.039660706098120134,
+     0.028059990324141266
+    ],
+    "gates": {
+     "P_noninferiority": true,
+     "W_noninferiority": true,
+     "background_stability": true,
+     "compute_envelope": true,
+     "eligible": true,
+     "finite_and_support": true,
+     "minimum_effect": false,
+     "nuisance": true,
+     "observable": true,
+     "recovery": false,
+     "score_separation": true,
+     "structural": true
+    },
+    "localization_per_history": [
+     1.0,
+     1.0,
+     1.0,
+     1.0
+    ],
+    "metric_code_sha256": "ba9a6d8c62b1",
+    "per_history_far_delta": [
+     0.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    "status": "VALID_NEGATIVE",
+    "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+   },
+   "interaction": null,
+   "invalid_reasons": [],
+   "members": [
+    "B0"
+   ],
+   "replication": {
+    "confirmation_delta_pw": 0.0,
+    "definition": "sign agreement under (dev >= 0) == (conf >= 0) on exact raw S_pred paired Delta_PW",
+    "development_delta_pw": 0.0,
+    "sign_agreement": true
+   },
+   "selected": false,
+   "unresolved": false
+  },
+  "C8-A": {
+   "arm_kind": "single",
+   "component_set": [
+    "C8"
+   ],
+   "confirmation": {
+    "S_pop": {
+     "delta_pw": 0.0,
+     "macro_pw": 0.7007438139857814,
+     "per_seed_pw": {
+      "171701": 0.710410655763342,
+      "171702": 0.682131369700898,
+      "171703": 0.7096894164931045
+     }
+    },
+    "S_pred": {
+     "delta_pw": -0.0007292068305395638,
+     "directional": "4/4",
+     "lcb95": 0.6697151713916636,
+     "macro_p": 0.6703798121551284,
+     "macro_pw": 0.6837716974450937,
+     "macro_w": 0.7017730057686582,
+     "per_history_delta_pw": null,
+     "per_history_pw": [
+      0.6658021658021658,
+      0.7085218702865762,
+      0.6793085655314757,
+      0.6814541881601572
+     ],
+     "per_seed_delta_pw": {
+      "171701": -0.001484836155095981,
+      "171702": 9.655256745788598e-05,
+      "171703": -0.0007993369039805964
+     },
+     "per_seed_pw": {
+      "171701": 0.671697383227253,
+      "171702": 0.6859312892676759,
+      "171703": 0.6936864198403523
+     }
+    },
+    "compute": {
+     "b0_flops_per_reference_sample": 182016709,
+     "b0_params": 1821698,
+     "envelope_pass": true,
+     "flops_delta_fraction": 0.0,
+     "flops_per_reference_sample": 182016709,
+     "params_delta_fraction": 0.0,
+     "params_total": 1821698
+    },
+    "elapsed_s": 662.0,
+    "evidence_commit": "86c6d8a1ebce8707ae2a18b678f1da210f43edca",
+    "gates": {
+     "P_noninferiority": true,
+     "W_noninferiority": true,
+     "background_stability": false,
+     "compute_envelope": true,
+     "eligible": true,
+     "finite_and_support": true,
+     "minimum_effect": false,
+     "nuisance": true,
+     "observable": true,
+     "recovery": false,
+     "score_separation": true,
+     "structural": true
+    },
+    "metric_code_sha256": "c67607718e156f6a32736317a33489a6b0f314f22cf20c1b811cbabbbf753516",
+    "support_sha256": "6ed3f08cb644c0548cc539a5f257af1eeb7f7cbdca1c0f57f7fdf680642926b3",
+    "thresholds": {
+     "S_pop": 2.2948666666666666,
+     "S_pred": 1.4705475348858459
+    }
+   },
+   "development": {
+    "S_pop": {
+     "delta_pw": 0.0,
+     "directional": 4,
+     "lcb95": 0.6578763000687066,
+     "macro_pw": 0.680717058227861,
+     "per_history_delta_pw": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ],
+     "per_history_pw": [
+      0.7024267399267399,
+      0.6464772464772465,
+      0.6920734608430869,
+      0.6818907856643706
+     ],
+     "per_seed_delta_pw": {
+      "171701": 0.0,
+      "171702": 0.0,
+      "171703": 0.0
+     }
+    },
+    "S_pred": {
+     "delta_pw": 0.004356175642764877,
+     "directional": 4,
+     "lcb95": 0.6393186149323745,
+     "macro_pw": 0.6763984016422964,
+     "per_history_delta_pw": [
+      0.009294871794871873,
+      -0.0021252021252021747,
+      0.009705966314587422,
+      0.0005490665868022049
+     ],
+     "per_history_pw": [
+      0.6986263736263737,
+      0.6972972972972973,
+      0.6199923874774003,
+      0.6896775481681141
+     ],
+     "per_seed_delta_pw": {
+      "171701": 0.0086027632265795,
+      "171702": 0.0053816686421858,
+      "171703": -0.0009159049404706
+     }
+    },
+    "S_pred_macro_p": 0.680543088038623,
+    "S_pred_macro_w": 0.6713887106205165,
+    "background_ratio_per_history": [
+     0.09160852124676526,
+     0.05217597937981865,
+     0.15498724115619014,
+     0.09474382908766937
+    ],
+    "commit": "9d5c8e3184df95b81752be81bb6106f9a9ea14b7",
+    "compute": {
+     "b0_flops_per_reference_sample": 182016709,
+     "b0_params": 1821698,
+     "envelope_pass": true,
+     "flops_delta_fraction": 0.0,
+     "flops_per_reference_sample": 182016709,
+     "params_delta_fraction": 0.0,
+     "params_total": 1821698
+    },
+    "excluded_rows": 131,
+    "far_per_history": [
+     0.03218390804597701,
+     0.031998158379373844,
+     0.03782668500687758,
+     0.023222060957910014
+    ],
+    "gates": {
+     "P_noninferiority": true,
+     "W_noninferiority": true,
+     "background_stability": false,
+     "compute_envelope": true,
+     "eligible": true,
+     "finite_and_support": true,
+     "minimum_effect": false,
+     "nuisance": true,
+     "observable": true,
+     "recovery": false,
+     "score_separation": true,
+     "structural": true
+    },
+    "localization_per_history": [
+     1.0,
+     1.0,
+     1.0,
+     1.0
+    ],
+    "metric_code_sha256": "0c22748ad5bf",
+    "per_history_far_delta": [
+     -0.0020689655172413737,
+     -0.002992633517495402,
+     -0.0018340210912425534,
+     -0.004837929366231251
+    ],
+    "status": "VALID_NEGATIVE",
+    "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+   },
+   "interaction": null,
+   "invalid_reasons": [],
+   "members": [
+    "B0"
+   ],
+   "replication": {
+    "confirmation_delta_pw": -0.0007292068305395638,
+    "definition": "sign agreement under (dev >= 0) == (conf >= 0) on exact raw S_pred paired Delta_PW",
+    "development_delta_pw": 0.004356175642764877,
+    "sign_agreement": false
+   },
+   "selected": true,
+   "unresolved": false
+  },
+  "C8-B": {
+   "arm_kind": "single",
+   "component_set": [
+    "C8"
+   ],
+   "confirmation": {
+    "S_pop": {
+     "delta_pw": 0.0,
+     "macro_pw": 0.7007438139857814,
+     "per_seed_pw": {
+      "171701": 0.710410655763342,
+      "171702": 0.682131369700898,
+      "171703": 0.7096894164931045
+     }
+    },
+    "S_pred": {
+     "delta_pw": -0.0003757968555937463,
+     "directional": "4/4",
+     "lcb95": 0.6699069865672032,
+     "macro_p": 0.6702280796322782,
+     "macro_pw": 0.6841251074200395,
+     "macro_w": 0.703957053478109,
+     "per_history_delta_pw": null,
+     "per_history_pw": [
+      0.6623441623441623,
+      0.703054298642534,
+      0.6925954592363261,
+      0.6785065094571358
+     ],
+     "per_seed_delta_pw": {
+      "171701": -0.0007660639433085814,
+      "171702": -5.983710585000246e-05,
+      "171703": -0.0003014895176226551
+     },
+     "per_seed_pw": {
+      "171701": 0.6724161554390404,
+      "171702": 0.685774899594368,
+      "171703": 0.6941842672267102
+     }
+    },
+    "compute": {
+     "b0_flops_per_reference_sample": 182016709,
+     "b0_params": 1821698,
+     "envelope_pass": true,
+     "flops_delta_fraction": 0.0,
+     "flops_per_reference_sample": 182016709,
+     "params_delta_fraction": 0.0,
+     "params_total": 1821698
+    },
+    "elapsed_s": 680.8,
+    "evidence_commit": "86c6d8a1ebce8707ae2a18b678f1da210f43edca",
+    "gates": {
+     "P_noninferiority": true,
+     "W_noninferiority": true,
+     "background_stability": false,
+     "compute_envelope": true,
+     "eligible": true,
+     "finite_and_support": true,
+     "minimum_effect": false,
+     "nuisance": true,
+     "observable": true,
+     "recovery": false,
+     "score_separation": true,
+     "structural": true
+    },
+    "metric_code_sha256": "c67607718e156f6a32736317a33489a6b0f314f22cf20c1b811cbabbbf753516",
+    "support_sha256": "6ed3f08cb644c0548cc539a5f257af1eeb7f7cbdca1c0f57f7fdf680642926b3",
+    "thresholds": {
+     "S_pop": 2.2948666666666666,
+     "S_pred": 0.050961349932568976
+    }
+   },
+   "development": {
+    "S_pop": {
+     "delta_pw": 0.0,
+     "directional": 4,
+     "lcb95": 0.6578763000687066,
+     "macro_pw": 0.680717058227861,
+     "per_history_delta_pw": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ],
+     "per_history_pw": [
+      0.7024267399267399,
+      0.6464772464772465,
+      0.6920734608430869,
+      0.6818907856643706
+     ],
+     "per_seed_delta_pw": {
+      "171701": 0.0,
+      "171702": 0.0,
+      "171703": 0.0
+     }
+    },
+    "S_pred": {
+     "delta_pw": -0.0003840809543401713,
+     "directional": 4,
+     "lcb95": 0.629627620484514,
+     "macro_pw": 0.6716581450451914,
+     "per_history_delta_pw": [
+      -0.0006410256410256387,
+      -0.0003696003696003203,
+      -0.0004757826624798289,
+      -4.991514425489729e-05
+     ],
+     "per_history_pw": [
+      0.6886904761904762,
+      0.6990528990528991,
+      0.609810638500333,
+      0.689078566437057
+     ],
+     "per_seed_delta_pw": {
+      "171701": -0.0006211359708902,
+      "171702": -0.0003568177575868,
+      "171703": -0.0001742891345435
+     }
+    },
+    "S_pred_macro_p": 0.6784931000896897,
+    "S_pred_macro_w": 0.6640534209532557,
+    "background_ratio_per_history": [
+     0.07799681788025697,
+     0.03181485953095478,
+     0.08975551571640374,
+     0.1012382997624004
+    ],
+    "commit": "9d5c8e3184df95b81752be81bb6106f9a9ea14b7",
+    "compute": {
+     "b0_flops_per_reference_sample": 182016709,
+     "b0_params": 1821698,
+     "envelope_pass": true,
+     "flops_delta_fraction": 0.0,
+     "flops_per_reference_sample": 182016709,
+     "params_delta_fraction": 0.0,
+     "params_total": 1821698
+    },
+    "excluded_rows": 131,
+    "far_per_history": [
+     0.034252873563218385,
+     0.034990791896869246,
+     0.03988995873452545,
+     0.028059990324141266
+    ],
+    "gates": {
+     "P_noninferiority": true,
+     "W_noninferiority": true,
+     "background_stability": false,
+     "compute_envelope": true,
+     "eligible": true,
+     "finite_and_support": true,
+     "minimum_effect": false,
+     "nuisance": true,
+     "observable": true,
+     "recovery": false,
+     "score_separation": true,
+     "structural": true
+    },
+    "localization_per_history": [
+     1.0,
+     1.0,
+     1.0,
+     1.0
+    ],
+    "metric_code_sha256": "0c22748ad5bf",
+    "per_history_far_delta": [
+     0.0,
+     0.0,
+     0.00022925263640531657,
+     0.0
+    ],
+    "status": "VALID_NEGATIVE",
+    "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+   },
+   "interaction": null,
+   "invalid_reasons": [],
+   "members": [
+    "B0"
+   ],
+   "replication": {
+    "confirmation_delta_pw": -0.0003757968555937463,
+    "definition": "sign agreement under (dev >= 0) == (conf >= 0) on exact raw S_pred paired Delta_PW",
+    "development_delta_pw": -0.0003840809543401713,
+    "sign_agreement": true
+   },
+   "selected": false,
+   "unresolved": false
+  },
+  "C9-A": {
+   "arm_kind": "single",
+   "component_set": [
+    "C9"
+   ],
+   "confirmation": {
+    "S_pop": {
+     "delta_pw": 0.0,
+     "macro_pw": 0.7007438139857814,
+     "per_seed_pw": {
+      "171701": 0.710410655763342,
+      "171702": 0.682131369700898,
+      "171703": 0.7096894164931045
+     }
+    },
+    "S_pred": {
+     "delta_pw": 0.0012216751996696102,
+     "directional": "4/4",
+     "lcb95": 0.6681030933794383,
+     "macro_p": 0.6742983544126557,
+     "macro_pw": 0.685722579475303,
+     "macro_w": 0.7029261370138169,
+     "per_history_delta_pw": null,
+     "per_history_pw": [
+      0.6657566657566657,
+      0.7069507290095526,
+      0.6997334021327829,
+      0.6704495210022108
+     ],
+     "per_seed_delta_pw": {
+      "171701": 0.010637888327645006,
+      "171702": -0.003636842354157288,
+      "171703": -0.0033360203744788874
+     },
+     "per_seed_pw": {
+      "171701": 0.683820107709994,
+      "171702": 0.6821978943460607,
+      "171703": 0.691149736369854
+     }
+    },
+    "compute": {
+     "b0_flops_per_reference_sample": 182016709,
+     "b0_params": 1821698,
+     "envelope_pass": true,
+     "flops_delta_fraction": 0.0,
+     "flops_per_reference_sample": 182016709,
+     "params_delta_fraction": 0.0,
+     "params_total": 1821698
+    },
+    "elapsed_s": 651.9,
+    "evidence_commit": "86c6d8a1ebce8707ae2a18b678f1da210f43edca",
+    "gates": {
+     "P_noninferiority": true,
+     "W_noninferiority": true,
+     "background_stability": false,
+     "compute_envelope": true,
+     "eligible": true,
+     "finite_and_support": true,
+     "minimum_effect": false,
+     "nuisance": true,
+     "observable": true,
+     "recovery": false,
+     "score_separation": true,
+     "structural": true
+    },
+    "metric_code_sha256": "c67607718e156f6a32736317a33489a6b0f314f22cf20c1b811cbabbbf753516",
+    "support_sha256": "6ed3f08cb644c0548cc539a5f257af1eeb7f7cbdca1c0f57f7fdf680642926b3",
+    "thresholds": {
+     "S_pop": 2.2948646545410156,
+     "S_pred": 0.2198956867059072
+    }
+   },
+   "development": {
+    "S_pop": {
+     "delta_pw": 0.0,
+     "directional": 4,
+     "lcb95": 0.6578763000687066,
+     "macro_pw": 0.680717058227861,
+     "per_history_delta_pw": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ],
+     "per_history_pw": [
+      0.7024267399267399,
+      0.6464772464772465,
+      0.6920734608430869,
+      0.6818907856643706
+     ],
+     "per_seed_delta_pw": {
+      "171701": 0.0,
+      "171702": 0.0,
+      "171703": 0.0
+     }
+    },
+    "S_pred": {
+     "delta_pw": -0.008666080208195074,
+     "directional": 4,
+     "lcb95": 0.6087903101632405,
+     "macro_pw": 0.6633761457913363,
+     "per_history_delta_pw": [
+      0.0001831501831501825,
+      0.001293601293601232,
+      -0.02840422495004291,
+      -0.007736847359489096
+     ],
+     "per_history_pw": [
+      0.689514652014652,
+      0.7007161007161007,
+      0.5818821962127699,
+      0.6813916342218228
+     ],
+     "per_seed_delta_pw": {
+      "171701": -0.010579128663476212,
+      "171702": -0.012796218315005548,
+      "171703": -0.0026228936461034635
+     }
+    },
+    "S_pred_macro_p": 0.6721657425552738,
+    "S_pred_macro_w": 0.6538960710783162,
+    "background_ratio_per_history": [
+     0.06594399529124806,
+     0.049168300694567145,
+     0.05755759036077818,
+     0.14301434383147194
+    ],
+    "commit": "55af8f2fc8cefbe5a40424dbb2cb52310d112d4f",
+    "compute": {
+     "b0_flops_per_reference_sample": 182016709,
+     "b0_params": 1821698,
+     "envelope_pass": true,
+     "flops_delta_fraction": 0.0,
+     "flops_per_reference_sample": 182016709,
+     "params_delta_fraction": 0.0,
+     "params_total": 1821698
+    },
+    "excluded_rows": 131,
+    "far_per_history": [
+     0.03471264367816092,
+     0.0393646408839779,
+     0.04516276937184777,
+     0.030720851475568457
+    ],
+    "gates": {
+     "P_noninferiority": true,
+     "W_noninferiority": true,
+     "background_stability": false,
+     "compute_envelope": true,
+     "eligible": true,
+     "finite_and_support": true,
+     "minimum_effect": false,
+     "nuisance": true,
+     "observable": true,
+     "recovery": false,
+     "score_separation": true,
+     "structural": true
+    },
+    "localization_per_history": [
+     1.0,
+     1.0,
+     1.0,
+     1.0
+    ],
+    "metric_code_sha256": "e7d70d53bd8368df9636b889183e766b6b1754b34500e5934672ec21530c62b2",
+    "per_history_far_delta": [
+     0.0004597701149425329,
+     0.004373848987108651,
+     0.005502063273727639,
+     0.0026608611514271907
+    ],
+    "status": "VALID_NEGATIVE",
+    "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+   },
+   "interaction": null,
+   "invalid_reasons": [],
+   "members": [
+    "B0"
+   ],
+   "replication": {
+    "confirmation_delta_pw": 0.0012216751996696102,
+    "definition": "sign agreement under (dev >= 0) == (conf >= 0) on exact raw S_pred paired Delta_PW",
+    "development_delta_pw": -0.008666080208195074,
+    "sign_agreement": false
+   },
+   "selected": false,
+   "unresolved": false
+  },
+  "C9-B": {
+   "arm_kind": "single",
+   "component_set": [
+    "C9"
+   ],
+   "confirmation": {
+    "S_pop": {
+     "delta_pw": 0.0,
+     "macro_pw": 0.7007438139857814,
+     "per_seed_pw": {
+      "171701": 0.710410655763342,
+      "171702": 0.682131369700898,
+      "171703": 0.7096894164931045
+     }
+    },
+    "S_pred": {
+     "delta_pw": 0.013401395499951119,
+     "directional": "4/4",
+     "lcb95": 0.6811551370374899,
+     "macro_p": 0.6915442073963052,
+     "macro_pw": 0.6979022997755843,
+     "macro_w": 0.7083786487451079,
+     "per_history_delta_pw": null,
+     "per_history_pw": [
+      0.6751751751751751,
+      0.6990950226244342,
+      0.7183952528379773,
+      0.6989437484647506
+     ],
+     "per_seed_delta_pw": {
+      "171701": 0.021598218002397918,
+      "171702": 0.00545719638511355,
+      "171703": 0.013148772112341889
+     },
+     "per_seed_pw": {
+      "171701": 0.6947804373847469,
+      "171702": 0.6912919330853315,
+      "171703": 0.7076345288566748
+     }
+    },
+    "compute": {
+     "b0_flops_per_reference_sample": 182016709,
+     "b0_params": 1821698,
+     "envelope_pass": true,
+     "flops_delta_fraction": 0.0,
+     "flops_per_reference_sample": 182016709,
+     "params_delta_fraction": 0.0,
+     "params_total": 1821698
+    },
+    "elapsed_s": 656.8,
+    "evidence_commit": "86c6d8a1ebce8707ae2a18b678f1da210f43edca",
+    "gates": {
+     "P_noninferiority": true,
+     "W_noninferiority": true,
+     "background_stability": false,
+     "compute_envelope": true,
+     "eligible": true,
+     "finite_and_support": true,
+     "minimum_effect": false,
+     "nuisance": true,
+     "observable": true,
+     "recovery": false,
+     "score_separation": true,
+     "structural": true
+    },
+    "metric_code_sha256": "c67607718e156f6a32736317a33489a6b0f314f22cf20c1b811cbabbbf753516",
+    "support_sha256": "6ed3f08cb644c0548cc539a5f257af1eeb7f7cbdca1c0f57f7fdf680642926b3",
+    "thresholds": {
+     "S_pop": 2.2948646545410156,
+     "S_pred": 0.2481131354967753
+    }
+   },
+   "development": {
+    "S_pop": {
+     "delta_pw": 0.0,
+     "directional": 4,
+     "lcb95": 0.6578763000687066,
+     "macro_pw": 0.680717058227861,
+     "per_history_delta_pw": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ],
+     "per_history_pw": [
+      0.7024267399267399,
+      0.6464772464772465,
+      0.6920734608430869,
+      0.6818907856643706
+     ],
+     "per_seed_delta_pw": {
+      "171701": 0.0,
+      "171702": 0.0,
+      "171703": 0.0
+     }
+    },
+    "S_pred": {
+     "delta_pw": -0.007333795257505475,
+     "directional": 4,
+     "lcb95": 0.6431000730404813,
+     "macro_pw": 0.664708430742026,
+     "per_history_delta_pw": [
+      -0.017445054945054994,
+      -0.03515823515823513,
+      0.023218193929013253,
+      4.991514425467525e-05
+     ],
+     "per_history_pw": [
+      0.6718864468864468,
+      0.6642642642642643,
+      0.6335046150918261,
+      0.6891783967255666
+     ],
+     "per_seed_delta_pw": {
+      "171701": -0.014008653353130285,
+      "171702": -0.016180364450479323,
+      "171703": 0.008187632031093184
+     }
+    },
+    "S_pred_macro_p": 0.6717409297129022,
+    "S_pred_macro_w": 0.6579333500295156,
+    "background_ratio_per_history": [
+     0.05752326934855633,
+     0.041499255964499146,
+     0.05995670450738977,
+     0.15401448801262943
+    ],
+    "commit": "55af8f2fc8cefbe5a40424dbb2cb52310d112d4f",
+    "compute": {
+     "b0_flops_per_reference_sample": 182016709,
+     "b0_params": 1821698,
+     "envelope_pass": true,
+     "flops_delta_fraction": 0.0,
+     "flops_per_reference_sample": 182016709,
+     "params_delta_fraction": 0.0,
+     "params_total": 1821698
+    },
+    "excluded_rows": 131,
+    "far_per_history": [
+     0.03862068965517241,
+     0.038904235727440145,
+     0.04470426409903714,
+     0.03241412675374939
+    ],
+    "gates": {
+     "P_noninferiority": true,
+     "W_noninferiority": true,
+     "background_stability": false,
+     "compute_envelope": true,
+     "eligible": true,
+     "finite_and_support": true,
+     "minimum_effect": false,
+     "nuisance": true,
+     "observable": true,
+     "recovery": false,
+     "score_separation": true,
+     "structural": true
+    },
+    "localization_per_history": [
+     1.0,
+     1.0,
+     0.9941002949852508,
+     1.0
+    ],
+    "metric_code_sha256": "e7d70d53bd8368df9636b889183e766b6b1754b34500e5934672ec21530c62b2",
+    "per_history_far_delta": [
+     0.004367816091954024,
+     0.003913443830570899,
+     0.005043558000917006,
+     0.004354136429608125
+    ],
+    "status": "VALID_NEGATIVE",
+    "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+   },
+   "interaction": null,
+   "invalid_reasons": [],
+   "members": [
+    "B0"
+   ],
+   "replication": {
+    "confirmation_delta_pw": 0.013401395499951119,
+    "definition": "sign agreement under (dev >= 0) == (conf >= 0) on exact raw S_pred paired Delta_PW",
+    "development_delta_pw": -0.007333795257505475,
+    "sign_agreement": false
+   },
+   "selected": true,
+   "unresolved": false
+  },
+  "K1": {
+   "arm_kind": "combination",
+   "component_set": [
+    "C2",
+    "C3"
+   ],
+   "confirmation": {
+    "S_pop": {
+     "delta_pw": -0.019849251645510473,
+     "macro_pw": 0.680894562340271,
+     "per_seed_delta_pw": {
+      "171701": -0.026091574546966312,
+      "171702": -0.019801924867819953,
+      "171703": -0.013654255521745151
+     },
+     "per_seed_pw": {
+      "171701": 0.6843190812163756,
+      "171702": 0.6623294448330781,
+      "171703": 0.6960351609713593
+     }
+    },
+    "S_pred": {
+     "delta_pw": -0.010253500159183582,
+     "directional": "4/4",
+     "lcb95": 0.6700292821616352,
+     "macro_p": 0.6625488821592213,
+     "macro_pw": 0.6742474041164498,
+     "macro_w": 0.691675584636018,
+     "per_history_delta_pw": [
+      0.007098007098007231,
+      -0.03349673202614367,
+      -0.019822841417268644,
+      0.005207565708671202
+     ],
+     "per_history_pw": [
+      0.6701246701246703,
+      0.6699974861739567,
+      0.672858617131063,
+      0.6840088430361092
+     ],
+     "per_seed_delta_pw": {
+      "171701": 0.014210054444571019,
+      "171702": -0.019355444985747927,
+      "171703": -0.025615109936373837
+     },
+     "per_seed_pw": {
+      "171701": 0.68739227382692,
+      "171702": 0.6664792917144701,
+      "171703": 0.668870646807959
+     }
+    },
+    "compute": {
+     "b0_flops_per_reference_sample": 182016709,
+     "b0_params": 1821698,
+     "envelope_pass": true,
+     "flops_delta_fraction": -0.02511382622570107,
+     "flops_per_reference_sample": 177445573,
+     "params_delta_fraction": -0.00056211292980505,
+     "params_total": 1820674
+    },
+    "elapsed_s": 891.3,
+    "evidence_commit": "5a720d3190eee848e2358fd2fa95f49115e64c6e",
+    "gates": {
+     "P_noninferiority": true,
+     "W_noninferiority": true,
+     "background_stability": false,
+     "compute_envelope": true,
+     "eligible": true,
+     "finite_and_support": true,
+     "minimum_effect": false,
+     "nuisance": true,
+     "observable": true,
+     "recovery": false,
+     "score_separation": true,
+     "structural": true
+    },
+    "metric_code_sha256": "e4373e15569f9e425cb424eba34158a9d83aeffb6c94e2a83bcf083d71ff5ec3",
+    "support_sha256": "6ed3f08cb644c0548cc539a5f257af1eeb7f7cbdca1c0f57f7fdf680642926b3",
+    "thresholds": {
+     "S_pop": 2.363068421681722,
+     "S_pred": 0.07203046356638272
+    }
+   },
+   "development": {
+    "S_pop": {
+     "delta_pw": -0.006656195362540029,
+     "directional": 4,
+     "lcb95": 0.6435624926190964,
+     "macro_pw": 0.6740608628653209,
+     "per_history_delta_pw": [
+      0.009432,
+      -0.009148,
+      0.005186,
+      -0.032095
+     ],
+     "per_history_pw": [
+      0.7118589743589743,
+      0.6373296373296374,
+      0.6972594918641164,
+      0.6497953479085554
+     ],
+     "per_seed_delta_pw": {
+      "171701": -0.009493306741453877,
+      "171702": 0.0008592234069622062,
+      "171703": -0.011334502753128417
+     }
+    },
+    "S_pred": {
+     "delta_pw": -0.01005989656391737,
+     "directional": 4,
+     "lcb95": 0.6139844201768213,
+     "macro_pw": 0.6619823294356141,
+     "per_history_delta_pw": [
+      0.009524,
+      -0.03234,
+      -0.023313,
+      0.00589
+     ],
+     "per_history_pw": [
+      0.6988553113553113,
+      0.6670824670824671,
+      0.5869730707013037,
+      0.6950184686033741
+     ],
+     "per_seed_delta_pw": {
+      "171701": 0.004626279295868452,
+      "171702": -0.0074596221227613,
+      "171703": -0.02734634686485926
+     }
+    },
+    "S_pred_macro_p": 0.6604305306167654,
+    "S_pred_macro_w": 0.6641739472531577,
+    "background_ratio_per_history": [
+     0.06414111400639184,
+     0.061017927414961703,
+     0.06656614230533255,
+     0.06773325290371258
+    ],
+    "commit": "6a86a02d4b92fb277b9534c3672a111c8c98fa3c",
+    "compute": {
+     "b0_flops_per_reference_sample": 182016709,
+     "b0_params": 1821698,
+     "envelope_pass": true,
+     "flops_delta_fraction": -0.02511382622570107,
+     "flops_per_reference_sample": 177445573,
+     "params_delta_fraction": -0.00056211292980505,
+     "params_total": 1820674
+    },
+    "excluded_rows": 131,
+    "far_per_history": [
+     0.03770114942528736,
+     0.03798342541436464,
+     0.048601558917927556,
+     0.02902757619738752
+    ],
+    "gates": {
+     "P_noninferiority": true,
+     "W_noninferiority": true,
+     "background_stability": true,
+     "compute_envelope": true,
+     "eligible": true,
+     "finite_and_support": true,
+     "minimum_effect": false,
+     "nuisance": true,
+     "observable": true,
+     "recovery": false,
+     "score_separation": true,
+     "structural": true
+    },
+    "localization_per_history": [
+     1.0,
+     1.0,
+     1.0,
+     1.0
+    ],
+    "metric_code_sha256": "6913e42c28e7e965985b950e4c53a8af5d9e4bef7dbf8af935bd2b1025f9c674",
+    "per_history_far_delta": [
+     0.0034482758620689724,
+     0.0029926335174953952,
+     0.008940852819807422,
+     0.0009675858732462531
+    ],
+    "status": "VALID_NEGATIVE",
+    "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+   },
+   "interaction": {
+    "S_pop": {
+     "interaction_macro": -0.0015286090483124619,
+     "interaction_per_seed": {
+      "171701": -0.011463949400625562,
+      "171702": 0.0070486153239609495,
+      "171703": -0.0001704930682727701
+     },
+     "k_delta_per_seed": {
+      "171701": -0.026091574546966312,
+      "171702": -0.019801924867819953,
+      "171703": -0.013654255521745151
+     },
+     "k_delta_vs_B0": -0.019849251645510473,
+     "single_deltas_per_seed": {
+      "C2-A": {
+       "171701": 0.0,
+       "171702": 0.0,
+       "171703": 0.0
+      },
+      "C3-A": {
+       "171701": -0.01462762514634075,
+       "171702": -0.026850540191780903,
+       "171703": -0.013483762453472381
+      }
+     },
+     "single_deltas_vs_B0": {
+      "C2-A": 0.0,
+      "C3-A": -0.01832064259719801
+     }
+    },
+    "S_pred": {
+     "interaction_macro": 1.778852398048869e-05,
+     "interaction_per_seed": {
+      "171701": 6.637477612714271e-05,
+      "171702": 3.4125034125032094e-05,
+      "171703": -4.713423831070873e-05
+     },
+     "k_delta_per_seed": {
+      "171701": 0.014210054444571019,
+      "171702": -0.019355444985747927,
+      "171703": -0.025615109936373837
+     },
+     "k_delta_vs_B0": -0.010253500159183582,
+     "single_deltas_per_seed": {
+      "C2-A": {
+       "171701": -6.637477612714271e-05,
+       "171702": 0.0,
+       "171703": 4.713423831070873e-05
+      },
+      "C3-A": {
+       "171701": 0.014210054444571019,
+       "171702": -0.01938957001987296,
+       "171703": -0.025615109936373837
+      }
+     },
+     "single_deltas_vs_B0": {
+      "C2-A": -6.413512605477993e-06,
+      "C3-A": -0.010264875170558593
+     }
+    }
+   },
+   "invalid_reasons": [],
+   "members": [
+    "C2-A",
+    "C3-A"
+   ],
+   "replication": {
+    "confirmation_delta_pw": -0.010253500159183582,
+    "development_delta_pw": -0.01005989656391737,
+    "sign_agreement": true
+   },
+   "selected": null,
+   "unresolved": false
+  },
+  "K2": {
+   "arm_kind": "combination",
+   "component_set": [
+    "C3",
+    "C5"
+   ],
+   "confirmation": {
+    "S_pop": {
+     "delta_pw": -0.028266630182450275,
+     "macro_pw": 0.6724771838033312,
+     "per_seed_delta_pw": {
+      "171701": -0.0371435270142324,
+      "171702": -0.01478504732171948,
+      "171703": -0.03287131621139894
+     },
+     "per_seed_pw": {
+      "171701": 0.6732671287491095,
+      "171702": 0.6673463223791786,
+      "171703": 0.6768181002817055
+     }
+    },
+    "S_pred": {
+     "delta_pw": 0.023636906927780903,
+     "directional": "4/4",
+     "lcb95": 0.6907063621459906,
+     "macro_p": 0.6975511203826751,
+     "macro_pw": 0.7081378112034141,
+     "macro_w": 0.7237864291944915,
+     "per_history_delta_pw": [
+      0.03426153426153422,
+      0.027526395173454232,
+      -0.00855693154454773,
+      0.04131662982068285
+     ],
+     "per_history_pw": [
+      0.6972881972881972,
+      0.7310206133735546,
+      0.6841245270037839,
+      0.7201179071481209
+     ],
+     "per_seed_delta_pw": {
+      "171701": 0.028032409452208973,
+      "171702": 0.022105736997246828,
+      "171703": 0.020772574333886906
+     },
+     "per_seed_pw": {
+      "171701": 0.701214628834558,
+      "171702": 0.7079404736974648,
+      "171703": 0.7152583310782198
+     }
+    },
+    "compute": {
+     "b0_flops_per_reference_sample": 182016709,
+     "b0_params": 1821698,
+     "envelope_pass": true,
+     "flops_delta_fraction": -0.02511382622570107,
+     "flops_per_reference_sample": 177445573,
+     "params_delta_fraction": -0.00056211292980505,
+     "params_total": 1820674
+    },
+    "elapsed_s": 859.7,
+    "evidence_commit": "5a720d3190eee848e2358fd2fa95f49115e64c6e",
+    "gates": {
+     "P_noninferiority": true,
+     "W_noninferiority": true,
+     "background_stability": false,
+     "compute_envelope": true,
+     "eligible": true,
+     "finite_and_support": true,
+     "minimum_effect": false,
+     "nuisance": true,
+     "observable": true,
+     "recovery": false,
+     "score_separation": true,
+     "structural": true
+    },
+    "metric_code_sha256": "e4373e15569f9e425cb424eba34158a9d83aeffb6c94e2a83bcf083d71ff5ec3",
+    "support_sha256": "6ed3f08cb644c0548cc539a5f257af1eeb7f7cbdca1c0f57f7fdf680642926b3",
+    "thresholds": {
+     "S_pop": 2.2187960942586265,
+     "S_pred": 0.09256093328197797
+    }
+   },
+   "development": {
+    "S_pop": {
+     "delta_pw": -0.0036412539865105322,
+     "directional": 4,
+     "lcb95": 0.6592435407883521,
+     "macro_pw": 0.6770758042413505,
+     "per_history_delta_pw": [
+      -0.01978,
+      0.023008,
+      0.012656,
+      -0.030448
+     ],
+     "per_history_pw": [
+      0.6826465201465202,
+      0.6694848694848695,
+      0.7047292796650492,
+      0.6514425476689628
+     ],
+     "per_seed_delta_pw": {
+      "171701": 0.0028372558035307804,
+      "171702": -0.0111641127855161,
+      "171703": -0.002596904977546277
+     }
+    },
+    "S_pred": {
+     "delta_pw": 0.01414417725822307,
+     "directional": 4,
+     "lcb95": 0.6657100998528023,
+     "macro_pw": 0.6861864032577545,
+     "per_history_delta_pw": [
+      0.026419,
+      -0.001848,
+      0.056713,
+      -0.024708
+     ],
+     "per_history_pw": [
+      0.7157509157509158,
+      0.6975744975744975,
+      0.6669997145304025,
+      0.6644204851752021
+     ],
+     "per_seed_delta_pw": {
+      "171701": 0.024974340421494157,
+      "171702": 0.00618979346417825,
+      "171703": 0.011268397888996806
+     }
+    },
+    "S_pred_macro_p": 0.6898619062802932,
+    "S_pred_macro_w": 0.6821620530634964,
+    "background_ratio_per_history": [
+     0.0483067370252398,
+     0.09083438019632999,
+     0.0351073412931132,
+     0.07509712473860886
+    ],
+    "commit": "6a86a02d4b92fb277b9534c3672a111c8c98fa3c",
+    "compute": {
+     "b0_flops_per_reference_sample": 182016709,
+     "b0_params": 1821698,
+     "envelope_pass": true,
+     "flops_delta_fraction": -0.02511382622570107,
+     "flops_per_reference_sample": 177445573,
+     "params_delta_fraction": -0.00056211292980505,
+     "params_total": 1820674
+    },
+    "excluded_rows": 131,
+    "far_per_history": [
+     0.0439080459770115,
+     0.03360957642725598,
+     0.04218248509857864,
+     0.025399129172714075
+    ],
+    "gates": {
+     "P_noninferiority": true,
+     "W_noninferiority": true,
+     "background_stability": true,
+     "compute_envelope": true,
+     "eligible": true,
+     "finite_and_support": true,
+     "minimum_effect": false,
+     "nuisance": true,
+     "observable": true,
+     "recovery": false,
+     "score_separation": true,
+     "structural": true
+    },
+    "localization_per_history": [
+     1.0,
+     1.0,
+     1.0,
+     1.0
+    ],
+    "metric_code_sha256": "6913e42c28e7e965985b950e4c53a8af5d9e4bef7dbf8af935bd2b1025f9c674",
+    "per_history_far_delta": [
+     0.009655172413793114,
+     -0.001381215469613263,
+     0.002521779000458503,
+     -0.0026608611514271907
+    ],
+    "status": "VALID_NEGATIVE",
+    "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+   },
+   "interaction": {
+    "S_pop": {
+     "interaction_macro": -0.002300344887828376,
+     "interaction_per_seed": {
+      "171701": -0.01760610286464359,
+      "171702": -0.011182251306287028,
+      "171703": 0.02188731950744549
+     },
+     "k_delta_per_seed": {
+      "171701": -0.0371435270142324,
+      "171702": -0.01478504732171948,
+      "171703": -0.03287131621139894
+     },
+     "k_delta_vs_B0": -0.028266630182450275,
+     "single_deltas_per_seed": {
+      "C3-A": {
+       "171701": -0.01462762514634075,
+       "171702": -0.026850540191780903,
+       "171703": -0.013483762453472381
+      },
+      "C5-A": {
+       "171701": -0.004909799003248061,
+       "171702": 0.02324774417634845,
+       "171703": -0.04127487326537205
+      }
+     },
+     "single_deltas_vs_B0": {
+      "C3-A": -0.01832064259719801,
+      "C5-A": -0.007645642697423886
+     }
+    },
+    "S_pred": {
+     "interaction_macro": 0.022392586038462024,
+     "interaction_per_seed": {
+      "171701": 0.017036580882400565,
+      "171702": 0.01915127250274562,
+      "171703": 0.03098990473023988
+     },
+     "k_delta_per_seed": {
+      "171701": 0.028032409452208973,
+      "171702": 0.022105736997246828,
+      "171703": 0.020772574333886906
+     },
+     "k_delta_vs_B0": 0.023636906927780903,
+     "single_deltas_per_seed": {
+      "C3-A": {
+       "171701": 0.014210054444571019,
+       "171702": -0.01938957001987296,
+       "171703": -0.025615109936373837
+      },
+      "C5-A": {
+       "171701": -0.0032142258747626107,
+       "171702": 0.022344034514374167,
+       "171703": 0.015397779540020862
+      }
+     },
+     "single_deltas_vs_B0": {
+      "C3-A": -0.010264875170558593,
+      "C5-A": 0.011509196059877472
+     }
+    }
+   },
+   "invalid_reasons": [],
+   "members": [
+    "C3-A",
+    "C5-A"
+   ],
+   "replication": {
+    "confirmation_delta_pw": 0.023636906927780903,
+    "development_delta_pw": 0.01414417725822307,
+    "sign_agreement": true
+   },
+   "selected": null,
+   "unresolved": false
+  },
+  "K3": {
+   "arm_kind": "combination",
+   "component_set": [
+    "C5",
+    "C6"
+   ],
+   "confirmation": {
+    "S_pop": {
+     "delta_pw": 0.01377283567392292,
+     "macro_pw": 0.7145166496597045,
+     "per_seed_delta_pw": {
+      "171701": 0.002037158286316898,
+      "171702": 0.03994793875194136,
+      "171703": -0.0006665900164894989
+     },
+     "per_seed_pw": {
+      "171701": 0.7124478140496588,
+      "171702": 0.7220793084528394,
+      "171703": 0.709022826476615
+     }
+    },
+    "S_pred": {
+     "delta_pw": 0.043638703929114175,
+     "directional": "4/4",
+     "lcb95": 0.7009931758383771,
+     "macro_p": 0.7196409132006982,
+     "macro_pw": 0.7281396082047475,
+     "macro_w": 0.7418441167735824,
+     "per_history_delta_pw": [
+      0.0271635271635271,
+      0.029097536450477857,
+      0.040720674234606125,
+      0.07757307786784584
+     ],
+     "per_history_pw": [
+      0.6901901901901901,
+      0.7325917546505782,
+      0.7334021327829378,
+      0.7563743551952838
+     ],
+     "per_seed_delta_pw": {
+      "171701": 0.025300139965953705,
+      "171702": 0.042195503211226115,
+      "171703": 0.0634204686101627
+     },
+     "per_seed_pw": {
+      "171701": 0.6984823593483027,
+      "171702": 0.7280302399114441,
+      "171703": 0.7579062253544956
+     }
+    },
+    "compute": {
+     "b0_flops_per_reference_sample": 182016709,
+     "b0_params": 1821698,
+     "envelope_pass": true,
+     "flops_delta_fraction": 0.0003600548562824526,
+     "flops_per_reference_sample": 182082245,
+     "params_delta_fraction": 0.01805787786998723,
+     "params_total": 1854594
+    },
+    "elapsed_s": 730.5,
+    "evidence_commit": "5a720d3190eee848e2358fd2fa95f49115e64c6e",
+    "gates": {
+     "P_noninferiority": true,
+     "W_noninferiority": true,
+     "background_stability": false,
+     "compute_envelope": true,
+     "eligible": true,
+     "finite_and_support": true,
+     "minimum_effect": false,
+     "nuisance": true,
+     "observable": true,
+     "recovery": false,
+     "score_separation": true,
+     "structural": true
+    },
+    "metric_code_sha256": "e4373e15569f9e425cb424eba34158a9d83aeffb6c94e2a83bcf083d71ff5ec3",
+    "support_sha256": "6ed3f08cb644c0548cc539a5f257af1eeb7f7cbdca1c0f57f7fdf680642926b3",
+    "thresholds": {
+     "S_pop": 0.951493501663208,
+     "S_pred": 0.10678733140230179
+    }
+   },
+   "development": {
+    "S_pop": {
+     "delta_pw": 0.01967091699800594,
+     "directional": 4,
+     "lcb95": 0.6795162361200097,
+     "macro_pw": 0.7003879752258668,
+     "per_history_delta_pw": [
+      0.010623,
+      0.0389,
+      0.037397,
+      -0.008236
+     ],
+     "per_history_pw": [
+      0.7130494505494505,
+      0.6853776853776853,
+      0.7294699781139976,
+      0.673654786862334
+     ],
+     "per_seed_delta_pw": {
+      "171701": 0.005908121629316088,
+      "171702": 0.04997683099946526,
+      "171703": 0.003127798365236467
+     }
+    },
+    "S_pred": {
+     "delta_pw": 0.029498257611542567,
+     "directional": 4,
+     "lcb95": 0.6902540692488595,
+     "macro_pw": 0.7015404836110741,
+     "per_history_delta_pw": [
+      0.022299,
+      0.013768,
+      0.072842,
+      0.009085
+     ],
+     "per_history_pw": [
+      0.7116300366300367,
+      0.7131901131901133,
+      0.6831287467884671,
+      0.6982130378356795
+     ],
+     "per_seed_delta_pw": {
+      "171701": 0.038763180907346984,
+      "171702": 0.02948698902187552,
+      "171703": 0.020244602905405196
+     }
+    },
+    "S_pred_macro_p": 0.702629182811626,
+    "S_pred_macro_w": 0.7010317330619478,
+    "background_ratio_per_history": [
+     0.07303518107021646,
+     0.09301539963606732,
+     0.05297431627594617,
+     0.136268887187816
+    ],
+    "commit": "6a86a02d4b92fb277b9534c3672a111c8c98fa3c",
+    "compute": {
+     "b0_flops_per_reference_sample": 182016709,
+     "b0_params": 1821698,
+     "envelope_pass": true,
+     "flops_delta_fraction": 0.0003600548562824526,
+     "flops_per_reference_sample": 182082245,
+     "params_delta_fraction": 0.01805787786998723,
+     "params_total": 1854594
+    },
+    "excluded_rows": 131,
+    "far_per_history": [
+     0.04091954022988505,
+     0.040976058931860036,
+     0.03805593764328289,
+     0.024915336236090952
+    ],
+    "gates": {
+     "P_noninferiority": true,
+     "W_noninferiority": true,
+     "background_stability": false,
+     "compute_envelope": true,
+     "eligible": true,
+     "finite_and_support": true,
+     "minimum_effect": false,
+     "nuisance": true,
+     "observable": true,
+     "recovery": false,
+     "score_separation": true,
+     "structural": true
+    },
+    "localization_per_history": [
+     1.0,
+     1.0,
+     1.0,
+     1.0
+    ],
+    "metric_code_sha256": "6913e42c28e7e965985b950e4c53a8af5d9e4bef7dbf8af935bd2b1025f9c674",
+    "per_history_far_delta": [
+     0.006666666666666668,
+     0.0059852670349907905,
+     -0.0016047684548372437,
+     -0.0031446540880503138
+    ],
+    "status": "VALID_NEGATIVE",
+    "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+   },
+   "interaction": {
+    "S_pop": {
+     "interaction_macro": 0.03574017426242212,
+     "interaction_per_seed": {
+      "171701": 0.029968234781854397,
+      "171702": 0.02249765985110297,
+      "171703": 0.05475462815430898
+     },
+     "k_delta_per_seed": {
+      "171701": 0.002037158286316898,
+      "171702": 0.03994793875194136,
+      "171703": -0.0006665900164894989
+     },
+     "k_delta_vs_B0": 0.01377283567392292,
+     "single_deltas_per_seed": {
+      "C5-A": {
+       "171701": -0.004909799003248061,
+       "171702": 0.02324774417634845,
+       "171703": -0.04127487326537205
+      },
+      "C6-A": {
+       "171701": -0.023021277492289438,
+       "171702": -0.005797465275510061,
+       "171703": -0.014146344905426433
+      }
+     },
+     "single_deltas_vs_B0": {
+      "C5-A": -0.007645642697423886,
+      "C6-A": -0.014321695891075311
+     }
+    },
+    "S_pred": {
+     "interaction_macro": 0.030241245047441488,
+     "interaction_per_seed": {
+      "171701": 0.01803254174063651,
+      "171702": 0.0328837306793599,
+      "171703": 0.039807462722328046
+     },
+     "k_delta_per_seed": {
+      "171701": 0.025300139965953705,
+      "171702": 0.042195503211226115,
+      "171703": 0.0634204686101627
+     },
+     "k_delta_vs_B0": 0.043638703929114175,
+     "single_deltas_per_seed": {
+      "C5-A": {
+       "171701": -0.0032142258747626107,
+       "171702": 0.022344034514374167,
+       "171703": 0.015397779540020862
+      },
+      "C6-A": {
+       "171701": 0.010481824100079806,
+       "171702": -0.013032261982507953,
+       "171703": 0.008215226347813798
+      }
+     },
+     "single_deltas_vs_B0": {
+      "C5-A": 0.011509196059877472,
+      "C6-A": 0.0018882628217952169
+     }
+    }
+   },
+   "invalid_reasons": [],
+   "members": [
+    "C5-A",
+    "C6-A"
+   ],
+   "replication": {
+    "confirmation_delta_pw": 0.043638703929114175,
+    "development_delta_pw": 0.029498257611542567,
+    "sign_agreement": true
+   },
+   "selected": null,
+   "unresolved": false
+  },
+  "K4": {
+   "arm_kind": "combination",
+   "component_set": [
+    "C6",
+    "C7"
+   ],
+   "confirmation": {
+    "S_pop": {
+     "delta_pw": -0.012752398086227856,
+     "macro_pw": 0.6879914158995535,
+     "per_seed_delta_pw": {
+      "171701": -0.014144698023524915,
+      "171702": 0.0006542857973690364,
+      "171703": -0.02476678203252769
+     },
+     "per_seed_pw": {
+      "171701": 0.696265957739817,
+      "171702": 0.6827856554982671,
+      "171703": 0.6849226344605768
+     }
+    },
+    "S_pred": {
+     "delta_pw": 0.0018686603313728216,
+     "directional": "4/4",
+     "lcb95": 0.6679633651382877,
+     "macro_p": 0.6754888253905037,
+     "macro_pw": 0.6863695646070062,
+     "macro_w": 0.7027799371249703,
+     "per_history_delta_pw": [
+      -0.002457002457002422,
+      0.0033308195072903057,
+      -0.0025369797041624453,
+      0.009137803979366144
+     ],
+     "per_history_pw": [
+      0.6605696605696606,
+      0.7068250377073907,
+      0.6901444788441692,
+      0.6879390813068041
+     ],
+     "per_seed_delta_pw": {
+      "171701": 0.010492112354602567,
+      "171702": -0.013105953950083515,
+      "171703": 0.008219822589599413
+     },
+     "per_seed_pw": {
+      "171701": 0.6836743317369516,
+      "171702": 0.6727287827501345,
+      "171703": 0.7027055793339323
+     }
+    },
+    "compute": {
+     "b0_flops_per_reference_sample": 182016709,
+     "b0_params": 1821698,
+     "envelope_pass": true,
+     "flops_delta_fraction": 0.0003600548562824526,
+     "flops_per_reference_sample": 182082245,
+     "params_delta_fraction": 0.01805787786998723,
+     "params_total": 1854594
+    },
+    "elapsed_s": 1051.6,
+    "evidence_commit": "5a720d3190eee848e2358fd2fa95f49115e64c6e",
+    "gates": {
+     "P_noninferiority": true,
+     "W_noninferiority": true,
+     "background_stability": false,
+     "compute_envelope": true,
+     "eligible": true,
+     "finite_and_support": true,
+     "minimum_effect": false,
+     "nuisance": true,
+     "observable": true,
+     "recovery": false,
+     "score_separation": true,
+     "structural": true
+    },
+    "metric_code_sha256": "e4373e15569f9e425cb424eba34158a9d83aeffb6c94e2a83bcf083d71ff5ec3",
+    "support_sha256": "6ed3f08cb644c0548cc539a5f257af1eeb7f7cbdca1c0f57f7fdf680642926b3",
+    "thresholds": {
+     "S_pop": 84.63037469040584,
+     "S_pred": 0.13288299987713495
+    }
+   },
+   "development": {
+    "S_pop": {
+     "delta_pw": -0.005565041203530259,
+     "directional": 4,
+     "lcb95": 0.636238676863677,
+     "macro_pw": 0.6751520170243306,
+     "per_history_delta_pw": [
+      -0.043681,
+      -0.017741,
+      0.019745,
+      0.019417
+     ],
+     "per_history_pw": [
+      0.6587454212454212,
+      0.6287364287364288,
+      0.7118184413359977,
+      0.701307776779475
+     ],
+     "per_seed_delta_pw": {
+      "171701": -0.01883973132411121,
+      "171702": 0.013460014291966416,
+      "171703": -0.011315406578445986
+     }
+    },
+    "S_pred": {
+     "delta_pw": 0.00897930426109439,
+     "directional": 4,
+     "lcb95": 0.6461201512666833,
+     "macro_pw": 0.6810215302606258,
+     "per_history_delta_pw": [
+      0.025778,
+      -0.01848,
+      0.017937,
+      0.010682
+     ],
+     "per_history_pw": [
+      0.7151098901098901,
+      0.6809424809424809,
+      0.6282234275383005,
+      0.6998103224518318
+     ],
+     "per_seed_delta_pw": {
+      "171701": 0.009378128786156292,
+      "171702": 0.01878732159687435,
+      "171703": -0.0012275375997474747
+     }
+    },
+    "S_pred_macro_p": 0.6869149251381872,
+    "S_pred_macro_w": 0.6748229197177984,
+    "background_ratio_per_history": [
+     0.06083623372742269,
+     0.059777476316395704,
+     0.043464134239347696,
+     0.13167433693784247
+    ],
+    "commit": "6a86a02d4b92fb277b9534c3672a111c8c98fa3c",
+    "compute": {
+     "b0_flops_per_reference_sample": 182016709,
+     "b0_params": 1821698,
+     "envelope_pass": true,
+     "flops_delta_fraction": 0.0003600548562824526,
+     "flops_per_reference_sample": 182082245,
+     "params_delta_fraction": 0.01805787786998723,
+     "params_total": 1854594
+    },
+    "excluded_rows": 131,
+    "far_per_history": [
+     0.035402298850574714,
+     0.04258747697974218,
+     0.04241173773498396,
+     0.026850507982583455
+    ],
+    "gates": {
+     "P_noninferiority": true,
+     "W_noninferiority": true,
+     "background_stability": false,
+     "compute_envelope": true,
+     "eligible": true,
+     "finite_and_support": true,
+     "minimum_effect": false,
+     "nuisance": true,
+     "observable": true,
+     "recovery": false,
+     "score_separation": true,
+     "structural": true
+    },
+    "localization_per_history": [
+     1.0,
+     1.0,
+     1.0,
+     1.0
+    ],
+    "metric_code_sha256": "6913e42c28e7e965985b950e4c53a8af5d9e4bef7dbf8af935bd2b1025f9c674",
+    "per_history_far_delta": [
+     0.0011494252873563288,
+     0.0075966850828729365,
+     0.0027510316368638266,
+     -0.0012094823415578111
+    ],
+    "status": "VALID_NEGATIVE",
+    "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+   },
+   "interaction": {
+    "S_pop": {
+     "interaction_macro": 0.011309811340825315,
+     "interaction_per_seed": {
+      "171701": 0.026767088815083717,
+      "171702": 0.016592687169999953,
+      "171703": -0.009430341962607725
+     },
+     "k_delta_per_seed": {
+      "171701": -0.014144698023524915,
+      "171702": 0.0006542857973690364,
+      "171703": -0.02476678203252769
+     },
+     "k_delta_vs_B0": -0.012752398086227856,
+     "single_deltas_per_seed": {
+      "C6-A": {
+       "171701": -0.023021277492289438,
+       "171702": -0.005797465275510061,
+       "171703": -0.014146344905426433
+      },
+      "C7-A": {
+       "171701": -0.017890509346319194,
+       "171702": -0.010140936097120856,
+       "171703": -0.001190095164493532
+      }
+     },
+     "single_deltas_vs_B0": {
+      "C6-A": -0.014321695891075311,
+      "C7-A": -0.00974051353597786
+     }
+    },
+    "S_pred": {
+     "interaction_macro": -1.960249042239526e-05,
+     "interaction_per_seed": {
+      "171701": 1.0288254522761164e-05,
+      "171702": -7.369196757556207e-05,
+      "171703": 4.596241785614907e-06
+     },
+     "k_delta_per_seed": {
+      "171701": 0.010492112354602567,
+      "171702": -0.013105953950083515,
+      "171703": 0.008219822589599413
+     },
+     "k_delta_vs_B0": 0.0018686603313728216,
+     "single_deltas_per_seed": {
+      "C6-A": {
+       "171701": 0.010481824100079806,
+       "171702": -0.013032261982507953,
+       "171703": 0.008215226347813798
+      },
+      "C7-A": {
+       "171701": 0.0,
+       "171702": 0.0,
+       "171703": 0.0
+      }
+     },
+     "single_deltas_vs_B0": {
+      "C6-A": 0.0018882628217952169,
+      "C7-A": 0.0
+     }
+    }
+   },
+   "invalid_reasons": [],
+   "members": [
+    "C6-A",
+    "C7-A"
+   ],
+   "replication": {
+    "confirmation_delta_pw": 0.0018686603313728216,
+    "development_delta_pw": 0.00897930426109439,
+    "sign_agreement": true
+   },
+   "selected": null,
+   "unresolved": false
+  },
+  "K5": {
+   "arm_kind": "combination",
+   "component_set": [
+    "C7",
+    "C8"
+   ],
+   "confirmation": {
+    "S_pop": {
+     "delta_pw": -0.00974051353597786,
+     "macro_pw": 0.6910033004498036,
+     "per_seed_delta_pw": {
+      "171701": -0.017890509346319194,
+      "171702": -0.010140936097120856,
+      "171703": -0.001190095164493532
+     },
+     "per_seed_pw": {
+      "171701": 0.6925201464170228,
+      "171702": 0.6719904336037772,
+      "171703": 0.7084993213286109
+     }
+    },
+    "S_pred": {
+     "delta_pw": -0.0007292068305395638,
+     "directional": "4/4",
+     "lcb95": 0.6697151713916636,
+     "macro_p": 0.6703798121551284,
+     "macro_pw": 0.6837716974450937,
+     "macro_w": 0.7017730057686582,
+     "per_history_delta_pw": [
+      0.0027755027755027584,
+      0.00502765208647582,
+      -0.013372893016855958,
+      0.0026529108327192352
+     ],
+     "per_history_pw": [
+      0.6658021658021658,
+      0.7085218702865762,
+      0.6793085655314757,
+      0.6814541881601572
+     ],
+     "per_seed_delta_pw": {
+      "171701": -0.001484836155095981,
+      "171702": 9.655256745788598e-05,
+      "171703": -0.0007993369039805964
+     },
+     "per_seed_pw": {
+      "171701": 0.671697383227253,
+      "171702": 0.6859312892676759,
+      "171703": 0.6936864198403523
+     }
+    },
+    "compute": {
+     "b0_flops_per_reference_sample": 182016709,
+     "b0_params": 1821698,
+     "envelope_pass": true,
+     "flops_delta_fraction": 0.0,
+     "flops_per_reference_sample": 182016709,
+     "params_delta_fraction": 0.0,
+     "params_total": 1821698
+    },
+    "elapsed_s": 1057.4,
+    "evidence_commit": "5a720d3190eee848e2358fd2fa95f49115e64c6e",
+    "gates": {
+     "P_noninferiority": true,
+     "W_noninferiority": true,
+     "background_stability": false,
+     "compute_envelope": true,
+     "eligible": true,
+     "finite_and_support": true,
+     "minimum_effect": false,
+     "nuisance": true,
+     "observable": true,
+     "recovery": false,
+     "score_separation": true,
+     "structural": true
+    },
+    "metric_code_sha256": "e4373e15569f9e425cb424eba34158a9d83aeffb6c94e2a83bcf083d71ff5ec3",
+    "support_sha256": "6ed3f08cb644c0548cc539a5f257af1eeb7f7cbdca1c0f57f7fdf680642926b3",
+    "thresholds": {
+     "S_pop": 75.88856126674845,
+     "S_pred": 1.4705475348858459
+    }
+   },
+   "development": {
+    "S_pop": {
+     "delta_pw": -0.012823271190627428,
+     "directional": 4,
+     "lcb95": 0.6494310588060588,
+     "macro_pw": 0.6678937870372335,
+     "per_history_delta_pw": [
+      -0.024176,
+      -0.006653,
+      -0.013227,
+      -0.007238
+     ],
+     "per_history_pw": [
+      0.6782509157509158,
+      0.6398244398244398,
+      0.678846702826149,
+      0.6746530897474293
+     ],
+     "per_seed_delta_pw": {
+      "171701": -0.028697421836557324,
+      "171702": -0.0030268841127053525,
+      "171703": -0.0067455076226196065
+     }
+    },
+    "S_pred": {
+     "delta_pw": 0.004356175642764877,
+     "directional": 4,
+     "lcb95": 0.6393186149323745,
+     "macro_pw": 0.6763984016422964,
+     "per_history_delta_pw": [
+      0.009295,
+      -0.002125,
+      0.009706,
+      0.000549
+     ],
+     "per_history_pw": [
+      0.6986263736263737,
+      0.6972972972972973,
+      0.6199923874774003,
+      0.6896775481681141
+     ],
+     "per_seed_delta_pw": {
+      "171701": 0.00860276322657949,
+      "171702": 0.005381668642185811,
+      "171703": -0.0009159049404706687
+     }
+    },
+    "S_pred_macro_p": 0.680543088038623,
+    "S_pred_macro_w": 0.6713887106205165,
+    "background_ratio_per_history": [
+     0.09160852124676526,
+     0.05217597937981865,
+     0.15498724115619014,
+     0.09474382908766937
+    ],
+    "commit": "1886729b431b2a9bace8d208b9d579e7f274a610",
+    "compute": {
+     "b0_flops_per_reference_sample": 182016709,
+     "b0_params": 1821698,
+     "envelope_pass": true,
+     "flops_delta_fraction": 0.0,
+     "flops_per_reference_sample": 182016709,
+     "params_delta_fraction": 0.0,
+     "params_total": 1821698
+    },
+    "excluded_rows": 131,
+    "far_per_history": [
+     0.03218390804597701,
+     0.031998158379373844,
+     0.03782668500687758,
+     0.023222060957910014
+    ],
+    "gates": {
+     "P_noninferiority": true,
+     "W_noninferiority": true,
+     "background_stability": false,
+     "compute_envelope": true,
+     "eligible": true,
+     "finite_and_support": true,
+     "minimum_effect": false,
+     "nuisance": true,
+     "observable": true,
+     "recovery": false,
+     "score_separation": true,
+     "structural": true
+    },
+    "localization_per_history": [
+     1.0,
+     1.0,
+     1.0,
+     1.0
+    ],
+    "metric_code_sha256": "0b1c7c4c5e50f137183a00a0eb943d95313b5e0d9bd2ae7b520396ad03cbfcd9",
+    "per_history_far_delta": [
+     -0.0020689655172413737,
+     -0.002992633517495402,
+     -0.0018340210912425534,
+     -0.004837929366231251
+    ],
+    "status": "VALID_NEGATIVE",
+    "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+   },
+   "interaction": {
+    "S_pop": {
+     "interaction_macro": 0.0,
+     "interaction_per_seed": {
+      "171701": 0.0,
+      "171702": 0.0,
+      "171703": 0.0
+     },
+     "k_delta_per_seed": {
+      "171701": -0.017890509346319194,
+      "171702": -0.010140936097120856,
+      "171703": -0.001190095164493532
+     },
+     "k_delta_vs_B0": -0.00974051353597786,
+     "single_deltas_per_seed": {
+      "C7-A": {
+       "171701": -0.017890509346319194,
+       "171702": -0.010140936097120856,
+       "171703": -0.001190095164493532
+      },
+      "C8-A": {
+       "171701": 0.0,
+       "171702": 0.0,
+       "171703": 0.0
+      }
+     },
+     "single_deltas_vs_B0": {
+      "C7-A": -0.00974051353597786,
+      "C8-A": 0.0
+     }
+    },
+    "S_pred": {
+     "interaction_macro": 0.0,
+     "interaction_per_seed": {
+      "171701": 0.0,
+      "171702": 0.0,
+      "171703": 0.0
+     },
+     "k_delta_per_seed": {
+      "171701": -0.001484836155095981,
+      "171702": 9.655256745788598e-05,
+      "171703": -0.0007993369039805964
+     },
+     "k_delta_vs_B0": -0.0007292068305395638,
+     "single_deltas_per_seed": {
+      "C7-A": {
+       "171701": 0.0,
+       "171702": 0.0,
+       "171703": 0.0
+      },
+      "C8-A": {
+       "171701": -0.001484836155095981,
+       "171702": 9.655256745788598e-05,
+       "171703": -0.0007993369039805964
+      }
+     },
+     "single_deltas_vs_B0": {
+      "C7-A": 0.0,
+      "C8-A": -0.0007292068305395638
+     }
+    }
+   },
+   "invalid_reasons": [],
+   "members": [
+    "C7-A",
+    "C8-A"
+   ],
+   "replication": {
+    "confirmation_delta_pw": -0.0007292068305395638,
+    "development_delta_pw": 0.004356175642764877,
+    "sign_agreement": false
+   },
+   "selected": null,
+   "unresolved": false
+  },
+  "K6": {
+   "arm_kind": "combination",
+   "component_set": [
+    "C8",
+    "C9"
+   ],
+   "confirmation": {
+    "S_pop": {
+     "delta_pw": 0.0,
+     "macro_pw": 0.7007438139857814,
+     "per_seed_delta_pw": {
+      "171701": 0.0,
+      "171702": 0.0,
+      "171703": 0.0
+     },
+     "per_seed_pw": {
+      "171701": 0.710410655763342,
+      "171702": 0.682131369700898,
+      "171703": 0.7096894164931045
+     }
+    },
+    "S_pred": {
+     "delta_pw": 0.013303585240534729,
+     "directional": "4/4",
+     "lcb95": 0.6864299400224235,
+     "macro_p": 0.690952092859168,
+     "macro_pw": 0.6978044895161679,
+     "macro_w": 0.708927632565987,
+     "per_history_delta_pw": [
+      0.01942851942851953,
+      -0.009803921568627416,
+      0.024036807705538288,
+      0.019552935396708437
+     ],
+     "per_history_pw": [
+      0.6824551824551826,
+      0.693690296631473,
+      0.7167182662538699,
+      0.6983542127241464
+     ],
+     "per_seed_delta_pw": {
+      "171701": 0.02205701105071356,
+      "171702": 0.005217456466441339,
+      "171703": 0.012636288204449286
+     },
+     "per_seed_pw": {
+      "171701": 0.6952392304330626,
+      "171702": 0.6910521931666593,
+      "171703": 0.7071220449487822
+     }
+    },
+    "compute": {
+     "b0_flops_per_reference_sample": 182016709,
+     "b0_params": 1821698,
+     "envelope_pass": true,
+     "flops_delta_fraction": 0.0,
+     "flops_per_reference_sample": 182016709,
+     "params_delta_fraction": 0.0,
+     "params_total": 1821698
+    },
+    "elapsed_s": 1861.3,
+    "evidence_commit": "5a720d3190eee848e2358fd2fa95f49115e64c6e",
+    "gates": {
+     "P_noninferiority": true,
+     "W_noninferiority": true,
+     "background_stability": false,
+     "compute_envelope": true,
+     "eligible": true,
+     "finite_and_support": true,
+     "minimum_effect": false,
+     "nuisance": true,
+     "observable": true,
+     "recovery": false,
+     "score_separation": true,
+     "structural": true
+    },
+    "metric_code_sha256": "e4373e15569f9e425cb424eba34158a9d83aeffb6c94e2a83bcf083d71ff5ec3",
+    "support_sha256": "6ed3f08cb644c0548cc539a5f257af1eeb7f7cbdca1c0f57f7fdf680642926b3",
+    "thresholds": {
+     "S_pop": 2.2948646545410156,
+     "S_pred": 2.723059783825336
+    }
+   },
+   "development": {
+    "S_pop": {
+     "delta_pw": 0.0,
+     "directional": 4,
+     "lcb95": 0.6578763000687066,
+     "macro_pw": 0.680717058227861,
+     "per_history_delta_pw": [
+      0.0,
+      0.0,
+      -0.0,
+      0.0
+     ],
+     "per_history_pw": [
+      0.7024267399267399,
+      0.6464772464772465,
+      0.6920734608430869,
+      0.6818907856643706
+     ],
+     "per_seed_delta_pw": {
+      "171701": 0.0,
+      "171702": 0.0,
+      "171703": 0.0
+     }
+    },
+    "S_pred": {
+     "delta_pw": -0.006201958313356089,
+     "directional": 4,
+     "lcb95": 0.6516143442982938,
+     "macro_pw": 0.6658402676861754,
+     "per_history_delta_pw": [
+      -0.017216,
+      -0.038392,
+      0.034494,
+      -0.003694
+     ],
+     "per_history_pw": [
+      0.6721153846153847,
+      0.6610302610302611,
+      0.6447806641925968,
+      0.685434760906459
+     ],
+     "per_seed_delta_pw": {
+      "171701": -0.011698709361948945,
+      "171702": -0.017482799270478577,
+      "171703": 0.010575633692359254
+     }
+    },
+    "S_pred_macro_p": 0.6723903114654239,
+    "S_pred_macro_w": 0.6594390889086568,
+    "background_ratio_per_history": [
+     0.09022745611155335,
+     0.04025055958274735,
+     0.10085642397220541,
+     0.2097469072363289
+    ],
+    "commit": "1886729b431b2a9bace8d208b9d579e7f274a610",
+    "compute": {
+     "b0_flops_per_reference_sample": 182016709,
+     "b0_params": 1821698,
+     "envelope_pass": true,
+     "flops_delta_fraction": 0.0,
+     "flops_per_reference_sample": 182016709,
+     "params_delta_fraction": 0.0,
+     "params_total": 1821698
+    },
+    "excluded_rows": 131,
+    "far_per_history": [
+     0.037471264367816094,
+     0.039825046040515656,
+     0.0442457588262265,
+     0.031446540880503145
+    ],
+    "gates": {
+     "P_noninferiority": true,
+     "W_noninferiority": true,
+     "background_stability": false,
+     "compute_envelope": true,
+     "eligible": true,
+     "finite_and_support": true,
+     "minimum_effect": false,
+     "nuisance": true,
+     "observable": true,
+     "recovery": false,
+     "score_separation": true,
+     "structural": true
+    },
+    "localization_per_history": [
+     1.0,
+     1.0,
+     0.9941002949852508,
+     1.0
+    ],
+    "metric_code_sha256": "0b1c7c4c5e50f137183a00a0eb943d95313b5e0d9bd2ae7b520396ad03cbfcd9",
+    "per_history_far_delta": [
+     0.0032183908045977094,
+     0.00483425414364641,
+     0.004585052728106366,
+     0.0033865505563618788
+    ],
+    "status": "VALID_NEGATIVE",
+    "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+   },
+   "interaction": {
+    "S_pop": {
+     "interaction_macro": 0.0,
+     "interaction_per_seed": {
+      "171701": 0.0,
+      "171702": 0.0,
+      "171703": 0.0
+     },
+     "k_delta_per_seed": {
+      "171701": 0.0,
+      "171702": 0.0,
+      "171703": 0.0
+     },
+     "k_delta_vs_B0": 0.0,
+     "single_deltas_per_seed": {
+      "C8-A": {
+       "171701": 0.0,
+       "171702": 0.0,
+       "171703": 0.0
+      },
+      "C9-B": {
+       "171701": 0.0,
+       "171702": 0.0,
+       "171703": 0.0
+      }
+     },
+     "single_deltas_vs_B0": {
+      "C8-A": 0.0,
+      "C9-B": 0.0
+     }
+    },
+    "S_pred": {
+     "interaction_macro": 0.0006313965711231741,
+     "interaction_per_seed": {
+      "171701": 0.0019436292034116232,
+      "171702": -0.00033629248613009644,
+      "171703": 0.00028685299608799397
+     },
+     "k_delta_per_seed": {
+      "171701": 0.02205701105071356,
+      "171702": 0.005217456466441339,
+      "171703": 0.012636288204449286
+     },
+     "k_delta_vs_B0": 0.013303585240534729,
+     "single_deltas_per_seed": {
+      "C8-A": {
+       "171701": -0.001484836155095981,
+       "171702": 9.655256745788598e-05,
+       "171703": -0.0007993369039805964
+      },
+      "C9-B": {
+       "171701": 0.021598218002397918,
+       "171702": 0.00545719638511355,
+       "171703": 0.013148772112341889
+      }
+     },
+     "single_deltas_vs_B0": {
+      "C8-A": -0.0007292068305395638,
+      "C9-B": 0.013401395499951119
+     }
+    }
+   },
+   "invalid_reasons": [],
+   "members": [
+    "C8-A",
+    "C9-B"
+   ],
+   "replication": {
+    "confirmation_delta_pw": 0.013303585240534729,
+    "development_delta_pw": -0.006201958313356089,
+    "sign_agreement": false
+   },
+   "selected": null,
+   "unresolved": false
+  },
+  "K7": {
+   "arm_kind": "combination",
+   "component_set": [
+    "C2",
+    "C3",
+    "C5",
+    "C6"
+   ],
+   "confirmation": {
+    "S_pop": {
+     "delta_pw": 0.012258358175512277,
+     "macro_pw": 0.7130021721612938,
+     "per_seed_delta_pw": {
+      "171701": 0.05009980515155499,
+      "171702": 0.0021699644382082717,
+      "171703": -0.015494695063226427
+     },
+     "per_seed_pw": {
+      "171701": 0.7605104609148969,
+      "171702": 0.6843013341391063,
+      "171703": 0.694194721429878
+     }
+    },
+    "S_pred": {
+     "delta_pw": 0.04732481569491994,
+     "directional": "4/4",
+     "lcb95": 0.696270249579073,
+     "macro_p": 0.7205128377509455,
+     "macro_pw": 0.7318257199705531,
+     "macro_w": 0.7494871235264219,
+     "per_history_delta_pw": [
+      0.018245518245518122,
+      0.03777023629964826,
+      0.039301685586515256,
+      0.09398182264799804
+     ],
+     "per_history_pw": [
+      0.6812721812721811,
+      0.7412644544997486,
+      0.7319831441348469,
+      0.772783099975436
+     ],
+     "per_seed_delta_pw": {
+      "171701": 0.05983735984102445,
+      "171702": 0.06322675519002452,
+      "171703": 0.018910332053710843
+     },
+     "per_seed_pw": {
+      "171701": 0.7330195792233735,
+      "171702": 0.7490614918902425,
+      "171703": 0.7133960887980437
+     }
+    },
+    "compute": {
+     "b0_flops_per_reference_sample": 182016709,
+     "b0_params": 1821698,
+     "envelope_pass": true,
+     "flops_delta_fraction": 0.0003600548562824526,
+     "flops_per_reference_sample": 182082245,
+     "params_delta_fraction": 0.01805787786998723,
+     "params_total": 1854594
+    },
+    "elapsed_s": 875.9,
+    "evidence_commit": "5a720d3190eee848e2358fd2fa95f49115e64c6e",
+    "gates": {
+     "P_noninferiority": true,
+     "W_noninferiority": true,
+     "background_stability": false,
+     "compute_envelope": true,
+     "eligible": true,
+     "finite_and_support": true,
+     "minimum_effect": false,
+     "nuisance": true,
+     "observable": true,
+     "recovery": false,
+     "score_separation": true,
+     "structural": true
+    },
+    "metric_code_sha256": "e4373e15569f9e425cb424eba34158a9d83aeffb6c94e2a83bcf083d71ff5ec3",
+    "support_sha256": "6ed3f08cb644c0548cc539a5f257af1eeb7f7cbdca1c0f57f7fdf680642926b3",
+    "thresholds": {
+     "S_pop": 1.0341702302296956,
+     "S_pred": 0.1381880392630895
+    }
+   },
+   "development": {
+    "S_pop": {
+     "delta_pw": 0.02037277543428943,
+     "directional": 4,
+     "lcb95": 0.6934452698603641,
+     "macro_pw": 0.7010898336621504,
+     "per_history_delta_pw": [
+      0.004808,
+      0.04255,
+      0.009325,
+      0.024808
+     ],
+     "per_history_pw": [
+      0.7072344322344323,
+      0.689027489027489,
+      0.7013988010276906,
+      0.7066986123589897
+     ],
+     "per_seed_delta_pw": {
+      "171701": 0.014479069187146254,
+      "171702": 0.03186550001922883,
+      "171703": 0.0147737570964932
+     }
+    },
+    "S_pred": {
+     "delta_pw": 0.03539233094829649,
+     "directional": 4,
+     "lcb95": 0.6935398419617305,
+     "macro_pw": 0.707434556947828,
+     "per_history_delta_pw": [
+      0.029304,
+      0.005082,
+      0.074888,
+      0.032295
+     ],
+     "per_history_pw": [
+      0.7186355311355311,
+      0.7045045045045045,
+      0.6851746122371302,
+      0.7214235799141461
+     ],
+     "per_seed_delta_pw": {
+      "171701": 0.04530515583368189,
+      "171702": 0.06508096061649216,
+      "171703": -0.0042091236052845815
+     }
+    },
+    "S_pred_macro_p": 0.7099930122858992,
+    "S_pred_macro_w": 0.7051346618759452,
+    "background_ratio_per_history": [
+     0.05231339994666989,
+     0.08102520683161715,
+     0.05353207788396308,
+     0.19081945754938148
+    ],
+    "commit": "ddc77c1f1f4b737298a0e920789e778fb28d370f",
+    "compute": {
+     "b0_flops_per_reference_sample": 182016709,
+     "b0_params": 1821698,
+     "envelope_pass": true,
+     "flops_delta_fraction": 0.0003600548562824526,
+     "flops_per_reference_sample": 182082245,
+     "params_delta_fraction": 0.01805787786998723,
+     "params_total": 1854594
+    },
+    "excluded_rows": 131,
+    "far_per_history": [
+     0.044367816091954025,
+     0.04005524861878453,
+     0.045621274644658406,
+     0.027092404450895016
+    ],
+    "gates": {
+     "P_noninferiority": true,
+     "W_noninferiority": true,
+     "background_stability": false,
+     "compute_envelope": true,
+     "eligible": true,
+     "finite_and_support": true,
+     "minimum_effect": false,
+     "nuisance": true,
+     "observable": true,
+     "recovery": false,
+     "score_separation": true,
+     "structural": true
+    },
+    "localization_per_history": [
+     1.0,
+     1.0,
+     1.0,
+     1.0
+    ],
+    "metric_code_sha256": "bc0384e88c6bd0835abbab9a3c7656f60a747c098e4015f33e2b0d49f2d2bfd3",
+    "per_history_far_delta": [
+     0.01011494252873564,
+     0.005064456721915286,
+     0.005960568546538272,
+     -0.0009675858732462496
+    ],
+    "status": "VALID_NEGATIVE",
+    "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+   },
+   "interaction": {
+    "S_pop": {
+     "interaction_macro": 0.05254633936120948,
+     "interaction_per_seed": {
+      "171701": 0.09265850679343324,
+      "171702": 0.011570225729150785,
+      "171703": 0.053410285561044435
+     },
+     "k_delta_per_seed": {
+      "171701": 0.05009980515155499,
+      "171702": 0.0021699644382082717,
+      "171703": -0.015494695063226427
+     },
+     "k_delta_vs_B0": 0.012258358175512277,
+     "single_deltas_per_seed": {
+      "C2-A": {
+       "171701": 0.0,
+       "171702": 0.0,
+       "171703": 0.0
+      },
+      "C3-A": {
+       "171701": -0.01462762514634075,
+       "171702": -0.026850540191780903,
+       "171703": -0.013483762453472381
+      },
+      "C5-A": {
+       "171701": -0.004909799003248061,
+       "171702": 0.02324774417634845,
+       "171703": -0.04127487326537205
+      },
+      "C6-A": {
+       "171701": -0.023021277492289438,
+       "171702": -0.005797465275510061,
+       "171703": -0.014146344905426433
+      }
+     },
+     "single_deltas_vs_B0": {
+      "C2-A": 0.0,
+      "C3-A": -0.01832064259719801,
+      "C5-A": -0.007645642697423886,
+      "C6-A": -0.014321695891075311
+     }
+    },
+    "S_pred": {
+     "interaction_macro": 0.04419864549641132,
+     "interaction_per_seed": {
+      "171701": 0.03842608194726338,
+      "171702": 0.07330455267803127,
+      "171703": 0.020865301863939312
+     },
+     "k_delta_per_seed": {
+      "171701": 0.05983735984102445,
+      "171702": 0.06322675519002452,
+      "171703": 0.018910332053710843
+     },
+     "k_delta_vs_B0": 0.04732481569491994,
+     "single_deltas_per_seed": {
+      "C2-A": {
+       "171701": -6.637477612714271e-05,
+       "171702": 0.0,
+       "171703": 4.713423831070873e-05
+      },
+      "C3-A": {
+       "171701": 0.014210054444571019,
+       "171702": -0.01938957001987296,
+       "171703": -0.025615109936373837
+      },
+      "C5-A": {
+       "171701": -0.0032142258747626107,
+       "171702": 0.022344034514374167,
+       "171703": 0.015397779540020862
+      },
+      "C6-A": {
+       "171701": 0.010481824100079806,
+       "171702": -0.013032261982507953,
+       "171703": 0.008215226347813798
+      }
+     },
+     "single_deltas_vs_B0": {
+      "C2-A": -6.413512605477993e-06,
+      "C3-A": -0.010264875170558593,
+      "C5-A": 0.011509196059877472,
+      "C6-A": 0.0018882628217952169
+     }
+    }
+   },
+   "invalid_reasons": [],
+   "members": [
+    "C2-A",
+    "C3-A",
+    "C5-A",
+    "C6-A"
+   ],
+   "replication": {
+    "confirmation_delta_pw": 0.04732481569491994,
+    "development_delta_pw": 0.03539233094829649,
+    "sign_agreement": true
+   },
+   "selected": null,
+   "unresolved": false
+  },
+  "K8": {
+   "arm_kind": "combination",
+   "component_set": [
+    "C7",
+    "C8",
+    "C9"
+   ],
+   "confirmation": {
+    "S_pop": {
+     "delta_pw": -0.00974051353597786,
+     "macro_pw": 0.6910033004498036,
+     "per_seed_delta_pw": {
+      "171701": -0.017890509346319194,
+      "171702": -0.010140936097120856,
+      "171703": -0.001190095164493532
+     },
+     "per_seed_pw": {
+      "171701": 0.6925201464170228,
+      "171702": 0.6719904336037772,
+      "171703": 0.7084993213286109
+     }
+    },
+    "S_pred": {
+     "delta_pw": 0.013303585240534729,
+     "directional": "4/4",
+     "lcb95": 0.6864299400224235,
+     "macro_p": 0.690952092859168,
+     "macro_pw": 0.6978044895161679,
+     "macro_w": 0.708927632565987,
+     "per_history_delta_pw": [
+      0.01942851942851953,
+      -0.009803921568627416,
+      0.024036807705538288,
+      0.019552935396708437
+     ],
+     "per_history_pw": [
+      0.6824551824551826,
+      0.693690296631473,
+      0.7167182662538699,
+      0.6983542127241464
+     ],
+     "per_seed_delta_pw": {
+      "171701": 0.02205701105071356,
+      "171702": 0.005217456466441339,
+      "171703": 0.012636288204449286
+     },
+     "per_seed_pw": {
+      "171701": 0.6952392304330626,
+      "171702": 0.6910521931666593,
+      "171703": 0.7071220449487822
+     }
+    },
+    "compute": {
+     "b0_flops_per_reference_sample": 182016709,
+     "b0_params": 1821698,
+     "envelope_pass": true,
+     "flops_delta_fraction": 0.0,
+     "flops_per_reference_sample": 182016709,
+     "params_delta_fraction": 0.0,
+     "params_total": 1821698
+    },
+    "elapsed_s": 3575.2,
+    "evidence_commit": "5a720d3190eee848e2358fd2fa95f49115e64c6e",
+    "gates": {
+     "P_noninferiority": true,
+     "W_noninferiority": true,
+     "background_stability": false,
+     "compute_envelope": true,
+     "eligible": true,
+     "finite_and_support": true,
+     "minimum_effect": false,
+     "nuisance": true,
+     "observable": true,
+     "recovery": false,
+     "score_separation": true,
+     "structural": true
+    },
+    "metric_code_sha256": "e4373e15569f9e425cb424eba34158a9d83aeffb6c94e2a83bcf083d71ff5ec3",
+    "support_sha256": "6ed3f08cb644c0548cc539a5f257af1eeb7f7cbdca1c0f57f7fdf680642926b3",
+    "thresholds": {
+     "S_pop": 75.88856126674845,
+     "S_pred": 2.723059783825336
+    }
+   },
+   "development": {
+    "S_pop": {
+     "delta_pw": -0.012823271190627428,
+     "directional": 4,
+     "lcb95": 0.6494310588060588,
+     "macro_pw": 0.6678937870372335,
+     "per_history_delta_pw": [
+      -0.024176,
+      -0.006653,
+      -0.013227,
+      -0.007238
+     ],
+     "per_history_pw": [
+      0.6782509157509158,
+      0.6398244398244398,
+      0.678846702826149,
+      0.6746530897474293
+     ],
+     "per_seed_delta_pw": {
+      "171701": -0.028697421836557324,
+      "171702": -0.0030268841127053525,
+      "171703": -0.0067455076226196065
+     }
+    },
+    "S_pred": {
+     "delta_pw": -0.006201958313356089,
+     "directional": 4,
+     "lcb95": 0.6516143442982938,
+     "macro_pw": 0.6658402676861754,
+     "per_history_delta_pw": [
+      -0.017216,
+      -0.038392,
+      0.034494,
+      -0.003694
+     ],
+     "per_history_pw": [
+      0.6721153846153847,
+      0.6610302610302611,
+      0.6447806641925968,
+      0.685434760906459
+     ],
+     "per_seed_delta_pw": {
+      "171701": -0.011698709361948945,
+      "171702": -0.017482799270478577,
+      "171703": 0.010575633692359254
+     }
+    },
+    "S_pred_macro_p": 0.6723903114654239,
+    "S_pred_macro_w": 0.6594390889086568,
+    "background_ratio_per_history": [
+     0.09022745611155335,
+     0.04025055958274735,
+     0.10085642397220541,
+     0.2097469072363289
+    ],
+    "commit": "ddc77c1f1f4b737298a0e920789e778fb28d370f",
+    "compute": {
+     "b0_flops_per_reference_sample": 182016709,
+     "b0_params": 1821698,
+     "envelope_pass": true,
+     "flops_delta_fraction": 0.0,
+     "flops_per_reference_sample": 182016709,
+     "params_delta_fraction": 0.0,
+     "params_total": 1821698
+    },
+    "excluded_rows": 131,
+    "far_per_history": [
+     0.037471264367816094,
+     0.039825046040515656,
+     0.0442457588262265,
+     0.031446540880503145
+    ],
+    "gates": {
+     "P_noninferiority": true,
+     "W_noninferiority": true,
+     "background_stability": false,
+     "compute_envelope": true,
+     "eligible": true,
+     "finite_and_support": true,
+     "minimum_effect": false,
+     "nuisance": true,
+     "observable": true,
+     "recovery": false,
+     "score_separation": true,
+     "structural": true
+    },
+    "localization_per_history": [
+     1.0,
+     1.0,
+     0.9941002949852508,
+     1.0
+    ],
+    "metric_code_sha256": "bc0384e88c6bd0835abbab9a3c7656f60a747c098e4015f33e2b0d49f2d2bfd3",
+    "per_history_far_delta": [
+     0.0032183908045977094,
+     0.00483425414364641,
+     0.004585052728106366,
+     0.0033865505563618788
+    ],
+    "status": "VALID_NEGATIVE",
+    "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+   },
+   "interaction": {
+    "S_pop": {
+     "interaction_macro": 0.0,
+     "interaction_per_seed": {
+      "171701": 0.0,
+      "171702": 0.0,
+      "171703": 0.0
+     },
+     "k_delta_per_seed": {
+      "171701": -0.017890509346319194,
+      "171702": -0.010140936097120856,
+      "171703": -0.001190095164493532
+     },
+     "k_delta_vs_B0": -0.00974051353597786,
+     "single_deltas_per_seed": {
+      "C7-A": {
+       "171701": -0.017890509346319194,
+       "171702": -0.010140936097120856,
+       "171703": -0.001190095164493532
+      },
+      "C8-A": {
+       "171701": 0.0,
+       "171702": 0.0,
+       "171703": 0.0
+      },
+      "C9-B": {
+       "171701": 0.0,
+       "171702": 0.0,
+       "171703": 0.0
+      }
+     },
+     "single_deltas_vs_B0": {
+      "C7-A": -0.00974051353597786,
+      "C8-A": 0.0,
+      "C9-B": 0.0
+     }
+    },
+    "S_pred": {
+     "interaction_macro": 0.0006313965711231741,
+     "interaction_per_seed": {
+      "171701": 0.0019436292034116232,
+      "171702": -0.00033629248613009644,
+      "171703": 0.00028685299608799397
+     },
+     "k_delta_per_seed": {
+      "171701": 0.02205701105071356,
+      "171702": 0.005217456466441339,
+      "171703": 0.012636288204449286
+     },
+     "k_delta_vs_B0": 0.013303585240534729,
+     "single_deltas_per_seed": {
+      "C7-A": {
+       "171701": 0.0,
+       "171702": 0.0,
+       "171703": 0.0
+      },
+      "C8-A": {
+       "171701": -0.001484836155095981,
+       "171702": 9.655256745788598e-05,
+       "171703": -0.0007993369039805964
+      },
+      "C9-B": {
+       "171701": 0.021598218002397918,
+       "171702": 0.00545719638511355,
+       "171703": 0.013148772112341889
+      }
+     },
+     "single_deltas_vs_B0": {
+      "C7-A": 0.0,
+      "C8-A": -0.0007292068305395638,
+      "C9-B": 0.013401395499951119
+     }
+    }
+   },
+   "invalid_reasons": [],
+   "members": [
+    "C7-A",
+    "C8-A",
+    "C9-B"
+   ],
+   "replication": {
+    "confirmation_delta_pw": 0.013303585240534729,
+    "development_delta_pw": -0.006201958313356089,
+    "sign_agreement": false
+   },
+   "selected": null,
+   "unresolved": false
+  },
+  "K9": {
+   "arm_kind": "combination",
+   "component_set": [
+    "C2",
+    "C3",
+    "C5",
+    "C6",
+    "C7",
+    "C8",
+    "C9"
+   ],
+   "confirmation": {
+    "S_pop": {
+     "delta_pw": -0.002685728540543978,
+     "macro_pw": 0.6980580854452375,
+     "per_seed_delta_pw": {
+      "171701": 0.022143559327245765,
+      "171702": -0.00469658046029342,
+      "171703": -0.02550416448858428
+     },
+     "per_seed_pw": {
+      "171701": 0.7325542150905877,
+      "171702": 0.6774347892406046,
+      "171703": 0.6841852520045202
+     }
+    },
+    "S_pred": {
+     "delta_pw": 0.04590041216474842,
+     "directional": "4/4",
+     "lcb95": 0.6958933686874864,
+     "macro_p": 0.7215322272398572,
+     "macro_pw": 0.7304013164403819,
+     "macro_w": 0.7445586476753844,
+     "per_history_delta_pw": [
+      0.016926016926016918,
+      0.04022121669180512,
+      0.03826969384244927,
+      0.08818472119872278
+     ],
+     "per_history_pw": [
+      0.6799526799526799,
+      0.7437154348919055,
+      0.7309511523907809,
+      0.7669859985261608
+     ],
+     "per_seed_delta_pw": {
+      "171701": 0.06080379202220765,
+      "171702": 0.058144468675033756,
+      "171703": 0.018752975797003857
+     },
+     "per_seed_pw": {
+      "171701": 0.7339860114045567,
+      "171702": 0.7439792053752518,
+      "171703": 0.7132387325413367
+     }
+    },
+    "compute": {
+     "b0_flops_per_reference_sample": 182016709,
+     "b0_params": 1821698,
+     "envelope_pass": true,
+     "flops_delta_fraction": 0.0003600548562824526,
+     "flops_per_reference_sample": 182082245,
+     "params_delta_fraction": 0.01805787786998723,
+     "params_total": 1854594
+    },
+    "elapsed_s": 3285.3,
+    "evidence_commit": "5a720d3190eee848e2358fd2fa95f49115e64c6e",
+    "gates": {
+     "P_noninferiority": true,
+     "W_noninferiority": true,
+     "background_stability": false,
+     "compute_envelope": true,
+     "eligible": true,
+     "finite_and_support": true,
+     "minimum_effect": false,
+     "nuisance": true,
+     "observable": true,
+     "recovery": false,
+     "score_separation": true,
+     "structural": true
+    },
+    "metric_code_sha256": "e4373e15569f9e425cb424eba34158a9d83aeffb6c94e2a83bcf083d71ff5ec3",
+    "support_sha256": "6ed3f08cb644c0548cc539a5f257af1eeb7f7cbdca1c0f57f7fdf680642926b3",
+    "thresholds": {
+     "S_pop": 70.82517774396071,
+     "S_pred": 2.4573107972023815
+    }
+   },
+   "development": {
+    "S_pop": {
+     "delta_pw": 0.008612354560302182,
+     "directional": 4,
+     "lcb95": 0.6828607610282615,
+     "macro_pw": 0.6893294127881631,
+     "per_history_delta_pw": [
+      -0.005495,
+      0.048187,
+      -0.007993,
+      -0.00025
+     ],
+     "per_history_pw": [
+      0.6969322344322344,
+      0.6946638946638947,
+      0.6840803121134265,
+      0.6816412099430966
+     ],
+     "per_seed_delta_pw": {
+      "171701": 0.015319473552275364,
+      "171702": 0.03635929428476192,
+      "171703": -0.02584170415613074
+     }
+    },
+    "S_pred": {
+     "delta_pw": 0.043167331992156686,
+     "directional": 4,
+     "lcb95": 0.7012093375745959,
+     "macro_pw": 0.7152095579916881,
+     "per_history_delta_pw": [
+      0.036859,
+      0.016078,
+      0.082596,
+      0.037137
+     ],
+     "per_history_pw": [
+      0.7261904761904762,
+      0.7155001155001154,
+      0.6928822913693026,
+      0.7262653489068583
+     ],
+     "per_seed_delta_pw": {
+      "171701": 0.04606471254751843,
+      "171702": 0.07046001722116602,
+      "171703": 0.01297726620778561
+     }
+    },
+    "S_pred_macro_p": 0.7181302936007445,
+    "S_pred_macro_w": 0.7129049685014385,
+    "background_ratio_per_history": [
+     0.07851624250457241,
+     0.10420550874655259,
+     0.07505791319246653,
+     0.2861687264711152
+    ],
+    "commit": "ddc77c1f1f4b737298a0e920789e778fb28d370f",
+    "compute": {
+     "b0_flops_per_reference_sample": 182016709,
+     "b0_params": 1821698,
+     "envelope_pass": true,
+     "flops_delta_fraction": 0.0003600548562824526,
+     "flops_per_reference_sample": 182082245,
+     "params_delta_fraction": 0.01805787786998723,
+     "params_total": 1854594
+    },
+    "excluded_rows": 131,
+    "far_per_history": [
+     0.041379310344827586,
+     0.040515653775322284,
+     0.04516276937184777,
+     0.026850507982583455
+    ],
+    "gates": {
+     "P_noninferiority": true,
+     "W_noninferiority": true,
+     "background_stability": false,
+     "compute_envelope": true,
+     "eligible": true,
+     "finite_and_support": true,
+     "minimum_effect": false,
+     "nuisance": true,
+     "observable": true,
+     "recovery": false,
+     "score_separation": true,
+     "structural": true
+    },
+    "localization_per_history": [
+     1.0,
+     1.0,
+     1.0,
+     1.0
+    ],
+    "metric_code_sha256": "bc0384e88c6bd0835abbab9a3c7656f60a747c098e4015f33e2b0d49f2d2bfd3",
+    "per_history_far_delta": [
+     0.007126436781609201,
+     0.0055248618784530384,
+     0.005502063273727639,
+     -0.0012094823415578111
+    ],
+    "status": "VALID_NEGATIVE",
+    "support_sha256": "800fc825ac948c3661c2dc727c83083095a796df8950c94922dafabae318f59a"
+   },
+   "interaction": {
+    "S_pop": {
+     "interaction_macro": 0.04734276618113109,
+     "interaction_per_seed": {
+      "171701": 0.08259277031544321,
+      "171702": 0.014844616927769949,
+      "171703": 0.044590911300180114
+     },
+     "k_delta_per_seed": {
+      "171701": 0.022143559327245765,
+      "171702": -0.00469658046029342,
+      "171703": -0.02550416448858428
+     },
+     "k_delta_vs_B0": -0.002685728540543978,
+     "single_deltas_per_seed": {
+      "C2-A": {
+       "171701": 0.0,
+       "171702": 0.0,
+       "171703": 0.0
+      },
+      "C3-A": {
+       "171701": -0.01462762514634075,
+       "171702": -0.026850540191780903,
+       "171703": -0.013483762453472381
+      },
+      "C5-A": {
+       "171701": -0.004909799003248061,
+       "171702": 0.02324774417634845,
+       "171703": -0.04127487326537205
+      },
+      "C6-A": {
+       "171701": -0.023021277492289438,
+       "171702": -0.005797465275510061,
+       "171703": -0.014146344905426433
+      },
+      "C7-A": {
+       "171701": -0.017890509346319194,
+       "171702": -0.010140936097120856,
+       "171703": -0.001190095164493532
+      },
+      "C8-A": {
+       "171701": 0.0,
+       "171702": 0.0,
+       "171703": 0.0
+      },
+      "C9-B": {
+       "171701": 0.0,
+       "171702": 0.0,
+       "171703": 0.0
+      }
+     },
+     "single_deltas_vs_B0": {
+      "C2-A": 0.0,
+      "C3-A": -0.01832064259719801,
+      "C5-A": -0.007645642697423886,
+      "C6-A": -0.014321695891075311,
+      "C7-A": -0.00974051353597786,
+      "C8-A": 0.0,
+      "C9-B": 0.0
+     }
+    },
+    "S_pred": {
+     "interaction_macro": 0.030102053296828246,
+     "interaction_per_seed": {
+      "171701": 0.01927913228114464,
+      "171702": 0.06266851721046907,
+      "171703": 0.008358510398871033
+     },
+     "k_delta_per_seed": {
+      "171701": 0.06080379202220765,
+      "171702": 0.058144468675033756,
+      "171703": 0.018752975797003857
+     },
+     "k_delta_vs_B0": 0.04590041216474842,
+     "single_deltas_per_seed": {
+      "C2-A": {
+       "171701": -6.637477612714271e-05,
+       "171702": 0.0,
+       "171703": 4.713423831070873e-05
+      },
+      "C3-A": {
+       "171701": 0.014210054444571019,
+       "171702": -0.01938957001987296,
+       "171703": -0.025615109936373837
+      },
+      "C5-A": {
+       "171701": -0.0032142258747626107,
+       "171702": 0.022344034514374167,
+       "171703": 0.015397779540020862
+      },
+      "C6-A": {
+       "171701": 0.010481824100079806,
+       "171702": -0.013032261982507953,
+       "171703": 0.008215226347813798
+      },
+      "C7-A": {
+       "171701": 0.0,
+       "171702": 0.0,
+       "171703": 0.0
+      },
+      "C8-A": {
+       "171701": -0.001484836155095981,
+       "171702": 9.655256745788598e-05,
+       "171703": -0.0007993369039805964
+      },
+      "C9-B": {
+       "171701": 0.021598218002397918,
+       "171702": 0.00545719638511355,
+       "171703": 0.013148772112341889
+      }
+     },
+     "single_deltas_vs_B0": {
+      "C2-A": -6.413512605477993e-06,
+      "C3-A": -0.010264875170558593,
+      "C5-A": 0.011509196059877472,
+      "C6-A": 0.0018882628217952169,
+      "C7-A": 0.0,
+      "C8-A": -0.0007292068305395638,
+      "C9-B": 0.013401395499951119
+     }
+    }
+   },
+   "invalid_reasons": [],
+   "members": [
+    "C2-A",
+    "C3-A",
+    "C5-A",
+    "C6-A",
+    "C7-A",
+    "C8-A",
+    "C9-B"
+   ],
+   "replication": {
+    "confirmation_delta_pw": 0.04590041216474842,
+    "development_delta_pw": 0.043167331992156686,
+    "sign_agreement": true
+   },
+   "selected": null,
+   "unresolved": false
+  }
+ },
+ "schema_id": "sprint17-component-interaction-matrix-v1",
+ "selection": {
+  "C2": "C2-A",
+  "C3": "C3-A",
+  "C5": "C5-A",
+  "C6": "C6-A",
+  "C7": "C7-A",
+  "C8": "C8-A",
+  "C9": "C9-B"
+ },
+ "sources": {
+  "experiments/sprint17-ablation-protocol-v4.md": "35a0526b4b26b6003589fa2498b075abd9c3172a1dedf443ebdb396cc6df4482",
+  "experiments/sprint17-role-binding-v3.json": "e73fee24cf84b60d17cbe4013ecc77ddace6e9132286ca8b65155039dd47a679",
+  "experiments/sprint17-task10-c2-summary.json": "7be59de042e81e1d4b61fa1e796690558b3b834dee595a02578f1b12532cd69a",
+  "experiments/sprint17-task11-c3-summary.json": "177816890cff7180184ef41d8edbaf63d300954a6ccbe115b4dc056659a95957",
+  "experiments/sprint17-task12-c5-summary.json": "3f0a656fbcd049f47c5849ce54dd3a6498e6428c8f87c1fe75d281f313df48f3",
+  "experiments/sprint17-task13-c6-summary.json": "cfdde3d085ad254bbf2eda08a90d870547893ac1b0d550e43bbca7bcd4dbad73",
+  "experiments/sprint17-task14-c7-summary.json": "255d9299a497c881f348454b4b5d717bdf61afcedb3b5e3dc722c3e619ff8a45",
+  "experiments/sprint17-task15-c8-summary.json": "10ae92ed5887973b3f0630c3956ef880c1d310548e07fdd2768321ffdd091117",
+  "experiments/sprint17-task16-c9-summary.json": "7353a3f636fc3029d2d2d787a3d1e670a92958bf5c5863363af96a642d28f12a",
+  "experiments/sprint17-task17-selection.json": "b7b269e66046ea1c6d3c7101e2198d723db4030b671504da80d865f2f670271b",
+  "experiments/sprint17-task19-combinations.json": "69bc2052d3872fd621295a9389ede0d8c83506bd8d930daf06519251feb440d0",
+  "experiments/sprint17-task20-k-summary.json": "b6ad250e6af86b6ec4ab95bd0ec3946c3a15fc89f3e17823f01b03b5cf9354d9",
+  "experiments/sprint17-task21-k-summary.json": "1701421d1a21aef9e0671929ab12a166d17ea55830b461dbd6335079e9fa1ea9",
+  "experiments/sprint17-task23-confirmation-lock.json": "3b2f14ffb9d4b3d548df2d02158f8c23e0808475dedf69e84877df7a2ae34bf4",
+  "experiments/sprint17-task24-confirmation-summary.json": "f26b82ff5d4096496b6909f45cbbc2afca64aada880a0a855facb2ae3cccb256",
+  "experiments/sprint17-task25-confirmation-summary.json": "11643fae2f1ff81e90b14fac91cff6e3a2ea881e3b4bcb16de08d4cedb138f96",
+  "experiments/sprint17-task7-b0-summary.json": "540b7835a8ea31505cdac76fa5cf355dd6bd46194c2e3f6ff7acf39f6d1bd1f8"
+ },
+ "task": "Task 26 - Publish the component and interaction matrix",
+ "waiver_id": "S17-V4-WAIVER-H-S17-V3-DESIGN-03-COHORT_MIX_15_60-P-91-149"
+}

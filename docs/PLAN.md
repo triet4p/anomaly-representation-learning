@@ -17,7 +17,7 @@ it does not claim that Sprint 16 identified a causal bottleneck.
 
 ## Current Sprint
 
- [Sprint 17 — Controlled Suspect-Component Architecture Ablation](sprint-plans/sprint-17.md) is **ACTIVE at Batch E — Task 25 done, Task 26 not started**. Tasks 1–25 are complete; Batch A–D evidence reviews passed with zero actionable findings. B0 + all 14 singles scored once on Confirmation (all `VALID_NEGATIVE`; max ΔP+W +0.0134 C9-B < +0.05); K1–K9 scored once each (all `VALID_NEGATIVE`; max ΔP+W +0.0473 K7 < +0.05; 216/216 cells). Results retain `MEASURABLE_WITH_USER_WAIVER`; no recovery is claimed.
+ [Sprint 17 — Controlled Suspect-Component Architecture Ablation](sprint-plans/sprint-17.md) is **ACTIVE at Batch E — Task 26 done, Task 27 not started**. Tasks 1–26 are complete; Batch A–D evidence reviews passed with zero actionable findings. B0 + all 14 singles scored once on Confirmation (all `VALID_NEGATIVE`; max ΔP+W +0.0134 C9-B < +0.05); K1–K9 scored once each (all `VALID_NEGATIVE`; max ΔP+W +0.0473 K7 < +0.05; 216/216 cells); the 24-row Development+Confirmation matrix is published read-only. Results retain `MEASURABLE_WITH_USER_WAIVER`; no recovery is claimed.
 
 ## Paused Sprints
 
@@ -62,7 +62,7 @@ it does not claim that Sprint 16 identified a causal bottleneck.
 | 20 | Benchmark measurability recovery with independent confirmation and sealed generalization | Complete — Sprint 14 (`NOT_MEASURABLE`) |
 | 21 | Balanced causal benchmark recovery and measurability certification | Complete — Sprint 15 (final `MEASURABLE`; Task 22 DONE; post-final evidence review R2 PASS with 0 actionable findings) |
 | 22 | Causal localization of representation-to-score bottlenecks | Complete — Sprint 16 (`UNRESOLVED`; R1→R7 lineage recorded; zero valid bottleneck paths) |
-| 23 | Controlled single-component and interaction ablation of provisional representation-to-score suspects | Active at Batch E — Sprint 17 Task 25 DONE (Tasks 1–25 complete; Batch A–D reviews PASS with zero actionable findings; B0 + 14/14 singles scored once on Confirmation, all `VALID_NEGATIVE`, max ΔP+W +0.0134 C9-B < +0.05; K1–K9 scored once each, all `VALID_NEGATIVE`, max ΔP+W +0.0473 K7 < +0.05, 216/216 cells; Sealed untouched) |
+| 23 | Controlled single-component and interaction ablation of provisional representation-to-score suspects | Active at Batch E — Sprint 17 Task 26 DONE (Tasks 1–26 complete; Batch A–D reviews PASS with zero actionable findings; B0 + 14/14 singles scored once on Confirmation, all `VALID_NEGATIVE`, max ΔP+W +0.0134 C9-B < +0.05; K1–K9 scored once each, all `VALID_NEGATIVE`, max ΔP+W +0.0473 K7 < +0.05, 216/216 cells; 24-row matrix published read-only `43d919ac…`; Sealed untouched) |
 
 ## High-Level Design Decisions
 

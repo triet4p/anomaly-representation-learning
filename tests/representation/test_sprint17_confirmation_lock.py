@@ -253,10 +253,10 @@ def test_freeze_bytes_are_deterministic_rematerialization() -> None:
 
 
 def test_no_unregistered_confirmation_scores_and_task25_not_started() -> None:
-    # Post-Task-25 revision: the Task 24 and Task 25 confirmation summaries
-    # are registered reviewed freeze artifacts alongside the Task 23 lock
-    # (all allowlisted); the Task 24/25 records assert the one-shot/no-rerun/
-    # no-Sealed ledgers. Task 26 remains not started.
+    # Post-Task-26 revision: the Task 24/25 confirmation summaries are
+    # registered reviewed freeze artifacts alongside the Task 23 lock (all
+    # allowlisted); the Task 24/25 records assert the one-shot/no-rerun/
+    # no-Sealed ledgers. Task 27 review remains not started.
     for evdir in ["task7-evidence", "task10-evidence", "task11-evidence", "task12-evidence", "task13-evidence", "task14-evidence", "task15-evidence", "task16-evidence", "task20-evidence", "task21-evidence"]:
         d = REPO_ROOT / "artifacts" / "sprint-17" / evdir
         if not d.exists():
@@ -268,7 +268,7 @@ def test_no_unregistered_confirmation_scores_and_task25_not_started() -> None:
             assert p.name in ("sprint17-task23-confirmation-lock.json",
                              "sprint17-task24-confirmation-summary.json",
                              "sprint17-task25-confirmation-summary.json"), p
-    for name in ("task-26.md", "review-batch-e.md"):
+    for name in ("review-batch-e.md",):
         assert not (REPO_ROOT / "artifacts" / "sprint-17" / name).exists(), name
 
 
