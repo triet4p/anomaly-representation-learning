@@ -34,14 +34,28 @@ def test_arm_registry_is_exactly_b0_plus_14_singles() -> None:
         "B0", "C2-A", "C2-B", "C3-A", "C3-B", "C5-A", "C5-B",
         "C6-A", "C6-B", "C7-A", "C7-B", "C8-A", "C8-B", "C9-A", "C9-B",
     )
+    assert DRIVER.K_ARMS == (
+        "K1", "K2", "K3", "K4", "K5", "K6", "K7", "K8", "K9",
+    )
+    assert DRIVER.K_MEMBERS == {
+        "K1": ("C2-A", "C3-A"), "K2": ("C3-A", "C5-A"),
+        "K3": ("C5-A", "C6-A"), "K4": ("C6-A", "C7-A"),
+        "K5": ("C7-A", "C8-A"), "K6": ("C8-A", "C9-B"),
+        "K7": ("C2-A", "C3-A", "C5-A", "C6-A"),
+        "K8": ("C7-A", "C8-A", "C9-B"),
+        "K9": ("C2-A", "C3-A", "C5-A", "C6-A", "C7-A", "C8-A", "C9-B"),
+    }
     assert set(DRIVER.TRAINABLE_ARMS) | set(DRIVER.TRAIN_FREE_ARMS) == set(DRIVER.CONFIRM_ARMS)
+    assert set(DRIVER.TRAINABLE_K) | set(DRIVER.TRAIN_FREE_K) == set(DRIVER.K_ARMS)
+    assert DRIVER.TRAINABLE_K == ("K1", "K2", "K3", "K4", "K7", "K9")
+    assert DRIVER.TRAIN_FREE_K == ("K5", "K6", "K8")
     assert not set(DRIVER.TRAINABLE_ARMS) & set(DRIVER.TRAIN_FREE_ARMS)
-    assert not {a for a in DRIVER.CONFIRM_ARMS if a.startswith("K")}
-    assert len(set(DRIVER.ARM_FILE_PREFIX.values())) == 15
+    assert not set(DRIVER.TRAINABLE_K) & set(DRIVER.TRAIN_FREE_K)
+    assert not set(DRIVER.CONFIRM_ARMS) & set(DRIVER.K_ARMS)
+    assert len(set(DRIVER.ARM_FILE_PREFIX.values())) == 24
     assert DRIVER.ARM_COMPONENTS["B0"] == ()
     assert DRIVER.ARM_COMPONENTS["C9-B"] == ("C9",)
-
-
+    assert DRIVER.ARM_COMPONENTS["K9"] == ("C2", "C3", "C5", "C6", "C7", "C8", "C9")
 def test_task23_lock_constant_matches_lock_module() -> None:
     import sys
     sys.path.insert(0, str(REPO_ROOT / "src"))
@@ -76,11 +90,38 @@ def test_arm_configs_are_b0_plus_declared_delta_only() -> None:
             assert {"arm_id", "scorer", "adapter_description"} >= delta > {"arm_id"}
         elif arm_id.startswith("C9-"):
             assert {"arm_id", "aggregation", "adapter_description"} >= delta > {"arm_id"}
+        else:
+            raise AssertionError(f"unexpected arm {arm_id}")
+    assert DRIVER.arm_config_dict("C2-B", 171701)["stride"] == 32
     assert DRIVER.arm_config_dict("C5-B", 171701)["criterion"] == "vicreg-file-level"
     assert DRIVER.arm_config_dict("C8-B", 171701)["scorer"] == "cosine-distance-mean"
     assert DRIVER.arm_config_dict("C9-A", 171701)["aggregation"] == "top-k-mean-fraction-0.25"
     with pytest.raises(ValueError):
-        DRIVER.arm_config_dict("K1", 171701)
+        DRIVER.arm_config_dict("K10", 171701)
+    with pytest.raises(ValueError):
+        DRIVER.arm_config_dict("C1-A", 171701)
+
+
+def test_k_configs_are_exact_member_unions() -> None:
+    base_keys = set(DRIVER.b0_config_dict(171701))
+    for k_id, members in DRIVER.K_MEMBERS.items():
+        cfg = DRIVER.arm_config_dict(k_id, 171701)
+        assert cfg["arm_id"] == k_id
+        assert cfg["member_arm_ids"] == list(members)
+        if "C2-A" in members:
+            assert cfg["stride"] == 16
+        if "C3-A" in members:
+            assert cfg["local_encoder_params"] == 34688
+        if "C5-A" in members:
+            assert cfg["masking_policy"] == "channel_time_block"
+            assert cfg["criterion"] == "multi-horizon-ema"
+        if "C6-A" in members:
+            assert cfg["pooling_params"] == 32896
+        assert set(cfg) >= base_keys
+    assert DRIVER.masking_policy_for("K2") is not None
+    assert DRIVER.masking_policy_for("K9") is not None
+    assert DRIVER.masking_policy_for("K1") is None
+    assert DRIVER.masking_policy_for("K5") is None
 
 
 def test_masking_policy_only_c5a() -> None:
