@@ -163,3 +163,52 @@ def test_far_delta_gate_semantics() -> None:
     assert DRIVER._far_delta_ok({"per_history_far": [0.01, 0.0, None, 0.02]}) is False
     assert DRIVER._far_delta_ok({"per_history_far": [0.01, 0.021, 0.0, 0.0]}) is False
     assert DRIVER._far_delta_ok({"macro_pw": None}) is False
+
+
+def test_development_consistency_signs_use_exact_raw_deltas() -> None:
+    """Regression test for the Task 24 re-review correction (LOW).
+
+    The committed summary's `development_consistency` block must carry the
+    exact raw frozen S_pred paired Delta_PW values (never rounded inputs:
+    C2-A's Development delta is -1.03e-07, which a rounded -0.0 input
+    misclassifies) with sign flags under (dev >= 0) == (conf >= 0).
+    Execution-free: frozen summaries enter as opaque parsed config values;
+    no outcome is recomputed and no data root is touched.
+    """
+    expected_dev = {
+        "C2-A": -1.0312510312360246e-07,
+        "C2-B": -0.0044133930934630765,
+        "C3-A": -0.01007096548106882,
+        "C3-B": -0.015301104035036225,
+        "C5-A": 0.032334926203523996,
+        "C5-B": 1.1446886446867902e-05,
+        "C6-A": 0.008968441594149187,
+        "C6-B": -0.015497267681295224,
+        "C7-A": 0.0,
+        "C7-B": 0.0,
+        "C8-A": 0.004356175642764877,
+        "C8-B": -0.0003840809543401713,
+        "C9-A": -0.008666080208195074,
+        "C9-B": -0.007333795257505475,
+    }
+    expected_flags = {
+        "C2-A": True, "C2-B": False, "C3-A": True, "C3-B": False,
+        "C5-A": True, "C5-B": True, "C6-A": True, "C6-B": True,
+        "C7-A": True, "C7-B": True, "C8-A": False, "C8-B": True,
+        "C9-A": False, "C9-B": False,
+    }
+    summary = json.loads(
+        (REPO_ROOT / "experiments" / "sprint17-task24-confirmation-summary.json")
+        .read_text(encoding="utf-8"))
+    block = summary["development_consistency"]
+    assert sum(1 for aid in expected_flags if block[aid]["sign_agreement"]) == 9
+    assert {aid for aid in expected_flags if block[aid]["sign_agreement"]} == {
+        "C2-A", "C3-A", "C5-A", "C5-B", "C6-A", "C6-B",
+        "C7-A", "C7-B", "C8-B",
+    }
+    for aid, dev in expected_dev.items():
+        assert block[aid]["development_delta_pw"] == dev
+        assert block[aid]["sign_agreement"] == expected_flags[aid]
+        assert block[aid]["sign_agreement"] == (
+            (block[aid]["development_delta_pw"] >= 0)
+            == (block[aid]["confirmation_delta_pw"] >= 0))

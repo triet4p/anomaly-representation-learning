@@ -1093,72 +1093,86 @@
  "development_consistency": {
   "C2-A": {
    "confirmation_delta_pw": -6.413512605477993e-06,
-   "development_delta_pw": -0.0,
-   "sign_agreement": false
+   "definition": "sign agreement under (dev >= 0) == (conf >= 0) on exact raw S_pred paired Delta_PW",
+   "development_delta_pw": -1.0312510312360246e-07,
+   "sign_agreement": true
   },
   "C2-B": {
    "confirmation_delta_pw": 0.009124263362435622,
-   "development_delta_pw": -0.0044,
+   "definition": "sign agreement under (dev >= 0) == (conf >= 0) on exact raw S_pred paired Delta_PW",
+   "development_delta_pw": -0.0044133930934630765,
    "sign_agreement": false
   },
   "C3-A": {
    "confirmation_delta_pw": -0.010264875170558593,
-   "development_delta_pw": -0.0101,
+   "definition": "sign agreement under (dev >= 0) == (conf >= 0) on exact raw S_pred paired Delta_PW",
+   "development_delta_pw": -0.01007096548106882,
    "sign_agreement": true
   },
   "C3-B": {
    "confirmation_delta_pw": 0.0032358733839532214,
-   "development_delta_pw": -0.0153,
+   "definition": "sign agreement under (dev >= 0) == (conf >= 0) on exact raw S_pred paired Delta_PW",
+   "development_delta_pw": -0.015301104035036225,
    "sign_agreement": false
   },
   "C5-A": {
    "confirmation_delta_pw": 0.011509196059877472,
-   "development_delta_pw": 0.0323,
+   "definition": "sign agreement under (dev >= 0) == (conf >= 0) on exact raw S_pred paired Delta_PW",
+   "development_delta_pw": 0.032334926203523996,
    "sign_agreement": true
   },
   "C5-B": {
    "confirmation_delta_pw": 1.2281994595908508e-05,
-   "development_delta_pw": 0.0,
+   "definition": "sign agreement under (dev >= 0) == (conf >= 0) on exact raw S_pred paired Delta_PW",
+   "development_delta_pw": 1.1446886446867902e-05,
    "sign_agreement": true
   },
   "C6-A": {
    "confirmation_delta_pw": 0.0018882628217952169,
-   "development_delta_pw": 0.009,
+   "definition": "sign agreement under (dev >= 0) == (conf >= 0) on exact raw S_pred paired Delta_PW",
+   "development_delta_pw": 0.008968441594149187,
    "sign_agreement": true
   },
   "C6-B": {
    "confirmation_delta_pw": -0.00788184576167028,
-   "development_delta_pw": -0.0155,
+   "definition": "sign agreement under (dev >= 0) == (conf >= 0) on exact raw S_pred paired Delta_PW",
+   "development_delta_pw": -0.015497267681295224,
    "sign_agreement": true
   },
   "C7-A": {
    "confirmation_delta_pw": 0.0,
+   "definition": "sign agreement under (dev >= 0) == (conf >= 0) on exact raw S_pred paired Delta_PW",
    "development_delta_pw": 0.0,
    "sign_agreement": true
   },
   "C7-B": {
    "confirmation_delta_pw": 0.0,
+   "definition": "sign agreement under (dev >= 0) == (conf >= 0) on exact raw S_pred paired Delta_PW",
    "development_delta_pw": 0.0,
    "sign_agreement": true
   },
   "C8-A": {
    "confirmation_delta_pw": -0.0007292068305395638,
-   "development_delta_pw": 0.0044,
+   "definition": "sign agreement under (dev >= 0) == (conf >= 0) on exact raw S_pred paired Delta_PW",
+   "development_delta_pw": 0.004356175642764877,
    "sign_agreement": false
   },
   "C8-B": {
    "confirmation_delta_pw": -0.0003757968555937463,
-   "development_delta_pw": -0.0004,
+   "definition": "sign agreement under (dev >= 0) == (conf >= 0) on exact raw S_pred paired Delta_PW",
+   "development_delta_pw": -0.0003840809543401713,
    "sign_agreement": true
   },
   "C9-A": {
    "confirmation_delta_pw": 0.0012216751996696102,
-   "development_delta_pw": -0.0087,
+   "definition": "sign agreement under (dev >= 0) == (conf >= 0) on exact raw S_pred paired Delta_PW",
+   "development_delta_pw": -0.008666080208195074,
    "sign_agreement": false
   },
   "C9-B": {
    "confirmation_delta_pw": 0.013401395499951119,
-   "development_delta_pw": -0.0073,
+   "definition": "sign agreement under (dev >= 0) == (conf >= 0) on exact raw S_pred paired Delta_PW",
+   "development_delta_pw": -0.007333795257505475,
    "sign_agreement": false
   }
  },
