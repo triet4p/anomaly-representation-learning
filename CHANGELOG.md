@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 - Added per-checkpoint immutable Fit-bank digests to Sprint 21 pilot provenance and bound the GPU-memory check to Torch's measured device property.
+- Added exact restored-bank digest checks before scoring and full-roster-uncomputable summaries for operational aborts.
 - Stabilized joint prediction and contrastive training: enforced input normalization parity across prediction and contrastive branches via `ConditionalBatchNorm`, bounded contextual and EMA-target latent scales via top-level LayerNorm, and isolated whole-file contrastive optimization via a dedicated 2-layer MLP projection head (`contrastive_projector`).
 - Calibrated contrastive task parameters: increased augmentation jitter/cutout bounds and raised temperature to $\tau=0.2$, eliminating trivial whole-file contrastive saturation.
 - Implemented stationary model selection policy: added `stationary_joint_loss` with fixed target contrastive weighting ($\lambda_{\max}$) and pre-warmup overrides in `JointRepresentationCriterion` and `RepresentationTrainer`, preventing warmup states from outranking joint-trained checkpoints.

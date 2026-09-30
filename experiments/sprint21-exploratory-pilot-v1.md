@@ -77,6 +77,8 @@ Every primary and secondary macro requires all 32 declared histories to be prese
 The sole output root is `/tmp/sprint21-exploratory-pilot-v1`. Each attempt is no-overwrite and records `attempt.json`, append-only/fsynced `pilot-ledger.jsonl`, one support/manifest report per materialized history, one score JSONL per history/model seed if scoring is reached, and `summary.json`. Ledger events record each materialization start/completion, each history/seed score, seed completion, scientific support stop, or operational abort. Hash drift, missing assets, source/runtime/module isolation failure, or unexpected scoring errors stop; a scientific support failure stops immediately under §3. No retry, resume, continuation, replacement, omission, or rerun in the same root. Any partial output remains evidence and is not overwritten.
 The binding's `device_total_mib` is the rounded result of `torch.cuda.get_device_properties(0).total_memory` converted to MiB; the remote dry-run observed 15,948 MiB for that exact Torch property.
 
+Before scoring each model seed, the runner compares the restored checkpoint-embedded bank digest with that seed's binding value and verifies model/bank state is unchanged after scoring. On an operational abort, `attempt.json` and the fsynced ledger identify the active coordinate/phase, completed and remaining coordinates, and each seed's scored/unscored IDs; `summary.json` records an `ABORTED_OPERATIONAL` full-roster state with null macros, variances, and bootstrap values. Partial scores are never aggregated.
+
 Safe pre-contact dry-run (allowed because it checks exact source/runtime/config constructors and checkpoint file hashes only; it performs no bound-history materialization, preflight, deserialization, or scoring):
 
 ```sh

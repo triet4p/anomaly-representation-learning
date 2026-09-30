@@ -1334,6 +1334,58 @@ def _score_history(
     }
     return endpoint_record
 
+def _operational_abort_seed_results(
+    history_ids: list[str], endpoint_records: dict[int, list[dict[str, Any]]],
+) -> dict[str, Any]:
+    _expect(len(history_ids) == len(set(history_ids)),
+            "ROSTER_OR_SCORE_INCOMPLETE", "operational-abort report has duplicate declared history IDs")
+    results: dict[str, Any] = {}
+    for model_seed in MODEL_SEEDS:
+        records = endpoint_records[model_seed]
+        scored_ids = [record["history_id"] for record in records]
+        _expect(scored_ids == history_ids[:len(scored_ids)],
+                "ROSTER_OR_SCORE_INCOMPLETE", f"model seed {model_seed} has a non-prefix partial score roster")
+        by_id = {record["history_id"]: record for record in records}
+        per_history = [
+            {
+                "history_id": history_id,
+                "value": None,
+                "status": "SCORED_NOT_AGGREGATED" if history_id in by_id else "NOT_SCORED",
+                "hard_status": by_id[history_id].get("hard_status", "UNKNOWN") if history_id in by_id else "NOT_ATTEMPTED",
+                "metric_status": by_id[history_id].get("metric_status", "UNKNOWN") if history_id in by_id else "NOT_ATTEMPTED",
+            }
+            for history_id in history_ids
+        ]
+        results[str(model_seed)] = {
+            "full_roster_status": "UNCOMPUTABLE_FULL_ROSTER",
+            "scored_history_ids": scored_ids,
+            "unscored_history_ids": history_ids[len(scored_ids):],
+            "primary": {
+                branch: {
+                    "status": "UNCOMPUTABLE_FULL_ROSTER",
+                    "macro": None,
+                    "sample_variance": None,
+                    "bootstrap_lcb95": None,
+                    "per_history": per_history,
+                }
+                for branch in ("S_pred", "S_pop")
+            },
+            "secondary_cohort_macros": {
+                cohort: {branch: None for branch in ("S_pred", "S_pop")}
+                for cohort in ("P", "W", "A")
+            },
+            "bootstrap": {
+                "replicates": BOOTSTRAP_REPLICATES,
+                "seed": BOOTSTRAP_SEED,
+                "computed": False,
+                "resampling_unit": "whole history",
+                "interpretation": "not computed: operational abort left the full-roster result unfinalized",
+            },
+        }
+    return results
+
+
+
 
 def _run_pilot(
     worktree_root: Path, checkpoint_root: Path, output_dir: Path,
@@ -1364,11 +1416,15 @@ def _run_pilot(
         _json_line(ledger_handle, {"event": "run_started", "binding_sha256": binding_digest, "roster_size": 32})
         root_records: list[dict[str, Any]] = []
         endpoint_records: dict[int, list[dict[str, Any]]] = {seed: [] for seed in MODEL_SEEDS}
+        active_history_id: str | None = None
+        active_phase = "materialization"
         try:
             history_ids = [coordinate["history_id"] for coordinate in binding["roster"]]
             for index, coordinate in enumerate(binding["roster"]):
+                active_history_id = coordinate["history_id"]
                 record = _materialize_one(output_dir, coordinate, verified, ledger_handle)
                 root_records.append(record)
+                active_history_id = None
                 if record["report"]["hard_status"] != "PASS":
                     unattempted_ids = history_ids[index + 1:]
                     stop_results = _scientific_support_stop(
@@ -1421,14 +1477,22 @@ def _run_pilot(
                     })
                     return summary
             _expect(len(root_records) == 32, "ROSTER_OR_SCORE_INCOMPLETE", "not all 32 bound histories materialized exactly once")
+            active_phase = "scorer_restore"
             proof = verified["runtime_state"]["proof_module"]
             config_map = verified["runtime_state"]["config_map"]
             mapping = verified["runtime_state"]["mapping"]
             device = "cuda"
             for model_seed in MODEL_SEEDS:
+                active_phase = f"restore_seed_{model_seed}"
                 checkpoint = checkpoint_root / CHECKPOINTS[model_seed][0]
                 proof.verify_checkpoint_file(checkpoint, model_seed)
                 model, bank, patchifier, cfg, bank_digest, saved_config_digest = proof.restore_seed(checkpoint, model_seed, device, config_map)
+                _expect(
+                    bank_digest == BANK_SHA256_BY_MODEL_SEED[model_seed],
+                    "PROVENANCE_MISMATCH",
+                    f"seed {model_seed} restored immutable Fit-bank digest differs",
+                )
+                active_phase = f"score_seed_{model_seed}"
                 state_before = proof.snapshot_state(model, bank)
                 _expect(len(state_before) >= 3 and bank.k == 5 and tuple(bank.embeddings.shape) == (5040, 128),
                         "PROVENANCE_MISMATCH", f"seed {model_seed} restored bank/model dimensions differ")
@@ -1436,6 +1500,7 @@ def _run_pilot(
                 score_dir.mkdir(parents=True, exist_ok=False)
                 chronicle = importlib.import_module("synth.chronicle")
                 for history in root_records:
+                    active_history_id = history["coordinate"]["history_id"]
                     samples, manifest = chronicle.load_chronological(history["root"])
                     _expect(
                         sha256_file(history["root"] / "manifest.json") == history["report"]["manifest_sha256"],
@@ -1453,6 +1518,8 @@ def _run_pilot(
                     )
                     _json_line(ledger_handle, {"event": "history_scored", "history_id": history["coordinate"]["history_id"], "model_seed": model_seed, "hard_status": endpoint["hard_status"], "metric_status": endpoint["metric_status"], "score_file_rows": endpoint["score_file_rows"]})
                     del scoring_history, samples, manifest
+                    active_history_id = None
+                active_phase = f"verify_seed_{model_seed}"
                 state_after = proof.snapshot_state(model, bank)
                 _expect(state_after == state_before, "RESTORE_ONLY_OR_ISOLATION_FAILURE", f"model seed {model_seed} parameters, buffers, or bank changed during scoring")
                 proof.verify_checkpoint_file(checkpoint, model_seed)
@@ -1460,6 +1527,7 @@ def _run_pilot(
                 del model, bank, patchifier, cfg
                 if torch.cuda.is_available():
                     torch.cuda.empty_cache()
+            active_phase = "full_roster_aggregation"
             final = {}
             history_ids = [coordinate["history_id"] for coordinate in binding["roster"]]
             for model_seed in MODEL_SEEDS:
@@ -1492,6 +1560,7 @@ def _run_pilot(
                     "Sprint 20 NOT_READY, Sprint 18 quota48/no-Cycle4 boundary, and all Gate V2 decisions remain unchanged",
                 ],
             }
+            active_phase = "final_evidence_write"
             _write_json_new(output_dir / "summary.json", summary)
             attempt["attempted_history_ids"] = history_ids
             attempt["unattempted_history_ids"] = []
@@ -1510,9 +1579,20 @@ def _run_pilot(
                 seed: set(record["history_id"] for record in endpoint_records[seed])
                 for seed in MODEL_SEEDS
             }
+            materialized_ids = [record["coordinate"]["history_id"] for record in root_records]
+            attempted_ids = list(materialized_ids)
+            if active_history_id is not None and active_history_id not in attempted_ids:
+                attempted_ids.append(active_history_id)
+            unattempted_ids = [
+                history_id for history_id in history_ids if history_id not in set(attempted_ids)
+            ]
             attempt["status"] = "ABORTED"
             attempt["run_aborted_utc"] = dt.datetime.now(dt.timezone.utc).isoformat()
-            attempt["materialized_completed_history_ids"] = [record["coordinate"]["history_id"] for record in root_records]
+            attempt["attempted_history_ids"] = attempted_ids
+            attempt["unattempted_history_ids"] = unattempted_ids
+            attempt["materialized_completed_history_ids"] = materialized_ids
+            attempt["active_history_id"] = active_history_id
+            attempt["failure_phase"] = active_phase
             attempt["completed_score_history_ids_by_model_seed"] = completed_by_seed
             attempt["unattempted_score_history_ids_by_model_seed"] = {
                 str(seed): [history_id for history_id in history_ids if history_id not in completed_sets[seed]]
@@ -1525,7 +1605,11 @@ def _run_pilot(
             _json_line(ledger_handle, {
                 "event": "run_aborted", "error_type": type(exc).__name__,
                 "code": getattr(exc, "code", "UNEXPECTED_FAILURE"), "message": str(exc),
-                "materialized_completed_history_ids": [record["coordinate"]["history_id"] for record in root_records],
+                "attempted_history_ids": attempted_ids,
+                "unattempted_history_ids": unattempted_ids,
+                "active_history_id": active_history_id,
+                "failure_phase": active_phase,
+                "materialized_completed_history_ids": materialized_ids,
                 "completed_score_history_ids_by_model_seed": completed_by_seed,
                 "unattempted_score_history_ids_by_model_seed": {
                     str(seed): [history_id for history_id in history_ids if history_id not in completed_sets[seed]]
@@ -1533,6 +1617,44 @@ def _run_pilot(
                 },
                 "retry": False, "resume": False, "replacement": False,
             })
+            summary_path = output_dir / "summary.json"
+            if not summary_path.exists() and not summary_path.is_symlink():
+                summary = {
+                    "schema_id": "sprint21-pilot-summary-v1",
+                    "protocol_id": PROTOCOL_ID,
+                    "binding_sha256": binding_digest,
+                    "status": "ABORTED_OPERATIONAL",
+                    "contact_authorized_by_task4": False,
+                    "history_count": 32,
+                    "history_unit": HISTORY_UNIT,
+                    "attempted_history_ids": attempted_ids,
+                    "unattempted_history_ids": unattempted_ids,
+                    "materialized_completed_history_ids": materialized_ids,
+                    "active_history_id": active_history_id,
+                    "failure_phase": active_phase,
+                    "model_seed_results_separate": _operational_abort_seed_results(history_ids, endpoint_records),
+                    "support_records": [record["report"] for record in root_records],
+                    "source_and_runtime_verification": {
+                        "source": verified["source"], "profile": verified["profile"],
+                        "runtime": verified["runtime_state"]["runtime"],
+                        "checkpoints": verified["runtime_state"]["checkpoints"],
+                    },
+                    "seed_lineage": _seed_lineage_record(),
+                    "error": {
+                        "code": getattr(exc, "code", "UNEXPECTED_FAILURE"),
+                        "type": type(exc).__name__,
+                        "message": str(exc),
+                    },
+                    "claim_limits": [
+                        "operational abort left the fixed history roster incomplete or its full-roster result unfinalized",
+                        "no full-roster endpoint, macro, variance, or bootstrap is reported",
+                        "no retry, resume, replacement, omission, or continued generation after the abort",
+                        "H=32 is sample size only and grants no miss allowance or tolerance rule",
+                        "Sprint 20 NOT_READY, Sprint 18 quota48/no-Cycle4 boundary, and all Gate V2 decisions remain unchanged",
+                    ],
+                }
+                _write_json_new(summary_path, summary)
+                _json_line(ledger_handle, {"event": "abort_summary_written", "status": summary["status"]})
             raise
 
 
@@ -1579,6 +1701,22 @@ def _smoke() -> dict[str, Any]:
             and stopped[str(MODEL_SEEDS[0])]["primary"]["S_pred"]["per_history"][0]["status"] == "SUPPORT_PASS_NOT_SCORED_AFTER_STOP"
             and stopped[str(MODEL_SEEDS[0])]["primary"]["S_pred"]["per_history"][2]["status"] == "NOT_ATTEMPTED_AFTER_STOP",
             "SMOKE_FAILURE", "scientific support stop continued or produced a subset endpoint")
+    abort_records = {
+        model_seed: [{"history_id": ids[0], "hard_status": "PASS", "metric_status": "COMPUTABLE"}]
+        for model_seed in MODEL_SEEDS
+    }
+    aborted = _operational_abort_seed_results(ids, abort_records)
+    _expect(
+        all(
+            result["full_roster_status"] == "UNCOMPUTABLE_FULL_ROSTER"
+            and result["primary"]["S_pred"]["macro"] is None
+            and result["primary"]["S_pred"]["per_history"][0]["value"] is None
+            and result["unscored_history_ids"] == ids[1:]
+            for result in aborted.values()
+        ),
+        "SMOKE_FAILURE", "operational abort reported a partial-roster endpoint",
+    )
+
     validate_score_roster(["a", "b"], {"a": {"S_pred": 1.0, "S_pop": 2.0}, "b": {"S_pred": 3.0, "S_pop": 4.0}}, {"S_pred": {"p1", "n1"}, "S_pop": {"p1", "n1"}})
     rejected = 0
     for malformed in (
@@ -1591,6 +1729,17 @@ def _smoke() -> dict[str, Any]:
             _expect(exc.code == "ROSTER_OR_SCORE_INCOMPLETE", "SMOKE_FAILURE", "wrong disposition for invalid full-roster scores")
             rejected += 1
     _expect(rejected == 2, "SMOKE_FAILURE", "invalid roster cases were not both rejected")
+    support_mismatch_rejected = False
+    try:
+        validate_score_roster(
+            ["a", "b"],
+            {"a": {"S_pred": 1.0, "S_pop": 2.0}, "b": {"S_pred": 3.0, "S_pop": 4.0}},
+            {"S_pred": {"p1", "n1"}, "S_pop": {"p1", "n2"}},
+        )
+    except PilotError as exc:
+        _expect(exc.code == "ROSTER_OR_SCORE_INCOMPLETE", "SMOKE_FAILURE", "wrong disposition for branch support mismatch")
+        support_mismatch_rejected = True
+    _expect(support_mismatch_rejected, "SMOKE_FAILURE", "branch-specific support mismatch was accepted")
     try:
         validate_roster(fixed_roster()[:-1])
     except PilotError as exc:
@@ -1602,7 +1751,9 @@ def _smoke() -> dict[str, Any]:
         "full_roster_macro_and_history_variance": "PASS",
         "hard_failure_prevents_subset_macro_bootstrap": "PASS",
         "first_support_failure_stops_generation_and_scoring": "PASS",
+        "operational_abort_keeps_full_roster_uncomputable": True,
         "missing_or_nonfinite_file_branch_scores_rejected": rejected,
+        "score_branch_support_mismatch_rejected": support_mismatch_rejected,
         "fixed_roster_mutation_rejected": True,
         "generator_or_preflight_called": False,
         "model_or_checkpoint_loaded": False,
