@@ -46,6 +46,12 @@ CHECKPOINTS = {
     171702: ("b0_seed171702_step300.pt", "64ed2cedec210e4692f60bb4dd3430a57cf94abfcd50551abd97c9265ea785f8"),
     171703: ("b0_seed171703_step300.pt", "9edb2122e357376a9ff1e065d73d5ab7704f8d2005991552332f1ced01b0e906"),
 }
+BANK_SHA256_BY_MODEL_SEED = {
+    171701: "432852b7c8ba6d1845b26e3e8f4d34f2e986258d39da22b844c15def2bc00662",
+    171702: "6bae50edd1aee8ac4a00a6255e85db01b89eeaef7341405ac58c93e0a15b511a",
+    171703: "7dfe8c3e63b764f0a043c5c38ba63fced463ce78846d38153bc5588a2a6efff8",
+}
+
 
 # Direct source hashes are independently checked in addition to the immutable
 # historical Git commit. This covers the Task 1/3 generator, metric, and model
@@ -172,7 +178,7 @@ EXPECTED_RUNTIME = {
     "torch": "2.14.0+cu130",
     "cuda_available": True,
     "device_name": "NVIDIA GeForce RTX 4060 Ti",
-    "device_total_mib": 16380,
+    "device_total_mib": 15948,
 }
 BOOTSTRAP_REPLICATES = 2000
 BOOTSTRAP_SEED = 20260202
@@ -325,7 +331,16 @@ def _expected_scorer_binding() -> dict[str, Any]:
         "file_masking": "sha256(UTF-8(global_file_id)); unsigned big-endian first 4 bytes mod 2**31",
         "score_branches": ["S_pred", "S_pop"],
         "model_inputs": "signal x plus explicit source-derived robot_idx/program_idx; labels/health/events/split/future metadata are not passed; NORMAL and seed=0 are inert required FileSample sentinels",
-        "bank": {"source": "checkpoint-embedded historical Fit-only bank", "rows": 5040, "dimensions": 128, "k": 5, "refit": False},
+        "bank": {
+            "source": "checkpoint-embedded historical Fit-only bank",
+            "rows": 5040,
+            "dimensions": 128,
+            "k": 5,
+            "sha256_by_model_seed": {
+                str(seed): digest for seed, digest in BANK_SHA256_BY_MODEL_SEED.items()
+            },
+            "refit": False,
+        },
         "inference_only": True,
     }
 

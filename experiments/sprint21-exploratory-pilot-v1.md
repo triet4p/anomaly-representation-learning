@@ -49,6 +49,9 @@ The only scorer is the immutable Sprint 17 B0 representation, restored one model
 
 All three seeds are mandatory, remain separate scorer variants, and use the same independent whole-history roster. Their scores are never pooled as additional histories or used to select a favorable seed. The exact Task3 wrapper is commit `f8a8fa6dd3ae1534c8f8db8d552898ffe88314ba`, SHA-256 `d1d8239d34944ab54f371555f68d1431f7d4784ba0a67bd4fec49359ba8f7a32`. It restores the checkpoint-embedded historical Fit-only reference bank unchanged (5,040 rows × 128 dimensions, k=5); the Task3 proof recorded the real-checkpoint restore, scores, state immutability, and negative cases. Historical provenance records 5,040 healthy Fit files and 154,129 valid Fit patches. No Evaluation row enters model, preprocessing, normalization, or bank fitting. There is no standalone bank file/hash; each exact checkpoint carries its bank. Stored Calibration thresholds are not read or used.
 
+The reviewed Task 3 restore proof recorded immutable embedding digests for these checkpoint-resident Fit-only banks, now carried in the binding: `171701` = `432852b7c8ba6d1845b26e3e8f4d34f2e986258d39da22b844c15def2bc00662`; `171702` = `6bae50edd1aee8ac4a00a6255e85db01b89eeaef7341405ac58c93e0a15b511a`; `171703` = `7dfe8c3e63b764f0a043c5c38ba63fced463ce78846d38153bc5588a2a6efff8`. The safe Task 4 dry-run binds these reviewed digests and exact checkpoint file hashes without deserializing checkpoints or recomputing the embedded banks.
+
+
 The narrow Fit/bank reuse exception is defensible only for this threshold-free descriptive diagnostic: the model/bank predate all newly generated histories, the bank is historical Fit-only, and the endpoints are within-history event AUROCs with no operating threshold. This is not a newly fitted prospective Fit/Calibration/Evaluation topology, does not reuse historical Fit/Calibration/Development/Design roots as Evaluation, and grants no Calibration, training, refit, bank-fit, threshold, recalibration, causal, prevalence, or deployment claim.
 
 The fixed, source-derived conditioning map is:
@@ -72,6 +75,7 @@ Every primary and secondary macro requires all 32 declared histories to be prese
 ## 6. One-shot evidence and operational commands
 
 The sole output root is `/tmp/sprint21-exploratory-pilot-v1`. Each attempt is no-overwrite and records `attempt.json`, append-only/fsynced `pilot-ledger.jsonl`, one support/manifest report per materialized history, one score JSONL per history/model seed if scoring is reached, and `summary.json`. Ledger events record each materialization start/completion, each history/seed score, seed completion, scientific support stop, or operational abort. Hash drift, missing assets, source/runtime/module isolation failure, or unexpected scoring errors stop; a scientific support failure stops immediately under §3. No retry, resume, continuation, replacement, omission, or rerun in the same root. Any partial output remains evidence and is not overwritten.
+The binding's `device_total_mib` is the rounded result of `torch.cuda.get_device_properties(0).total_memory` converted to MiB; the remote dry-run observed 15,948 MiB for that exact Torch property.
 
 Safe pre-contact dry-run (allowed because it checks exact source/runtime/config constructors and checkpoint file hashes only; it performs no bound-history materialization, preflight, deserialization, or scoring):
 
