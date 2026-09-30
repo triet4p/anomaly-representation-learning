@@ -832,7 +832,6 @@ def score_roster_once(
     mapping: dict[str, dict[str, int]],
 ):
     import torch
-    import torch.nn.functional as F
     from representation.inference import RepresentationInference
     inference = RepresentationInference(model, bank, patchifier, masking_config=cfg)
     scores: dict[str, dict[str, float]] = {}
@@ -849,18 +848,26 @@ def score_roster_once(
             res = inference.score_batch(moved)
         s_pred = float(torch.as_tensor(res["S_pred"]).reshape(-1)[0].item())
         s_pop = float(torch.as_tensor(res["S_pop"]).reshape(-1)[0].item())
-        # Independent recomputation from the same inference tensors.
-        errors = F.mse_loss(
-            res["predicted_latents"], res["target_latents"], reduction="none"
-        ).mean(dim=-1)
-        pred_mask = res["prediction_mask"]
+        # Independent recomputation from the same exact inference tensors.
+        # The pinned historical score_batch returns per-patch MSE in
+        # "patch_scores" (already masked to zero outside the prediction mask),
+        # the boolean "prediction_mask", and "file_embedding".
+        patch_scores = torch.as_tensor(res["patch_scores"])
+        pred_mask = torch.as_tensor(res["prediction_mask"])
+        if patch_scores.shape != pred_mask.shape:
+            raise ProofFailure(
+                "ROSTER_OR_SCORE_INCOMPLETE",
+                f"{record.file_id}: patch_scores {tuple(patch_scores.shape)} "
+                f"!= prediction_mask {tuple(pred_mask.shape)}",
+            )
         expected_pred = float(
-            (errors.masked_fill(~pred_mask, 0.0).sum(dim=1) / pred_mask.sum(dim=1).clamp_min(1).to(errors.dtype))
+            (patch_scores.sum(dim=1) / pred_mask.sum(dim=1).clamp_min(1).to(patch_scores.dtype))
             .reshape(-1)[0]
             .item()
         )
+        file_embedding = torch.as_tensor(res["file_embedding"])
         distances = torch.cdist(
-            res["file_embedding"].float().cpu(), bank.embeddings.float().cpu()
+            file_embedding.float().cpu(), bank.embeddings.float().cpu()
         )
         expected_pop = float(
             distances.topk(BANK_K, largest=False, dim=1).values.mean(dim=1).reshape(-1)[0].item()
@@ -880,8 +887,8 @@ def score_roster_once(
         details[record.file_id] = {
             "mask_bits": bits,
             "mask_seed": seed,
-            "predicted_latents_norm": float(res["predicted_latents"].detach().float().norm().item()),
-            "file_embedding_norm": float(res["file_embedding"].detach().float().norm().item()),
+            "patch_scores_norm": float(patch_scores.detach().float().norm().item()),
+            "file_embedding_norm": float(file_embedding.detach().float().norm().item()),
         }
     check_full_roster([r.file_id for r in roster], scores)
     return scores, masks, details
