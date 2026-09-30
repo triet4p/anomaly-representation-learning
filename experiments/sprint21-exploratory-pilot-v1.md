@@ -84,7 +84,7 @@ PYTHONPATH=/tmp/sprint21-proof-hist-v1/src \
   --worktree-root /tmp/sprint21-proof-hist-v1 \
   --checkpoint-root /tmp/sprint17-task7-out/checkpoints \
   --binding /tmp/sprint21-pilot-binding-v1.json \
-  --expected-binding-sha256 <canonical-binding-sha256> \
+  --expected-binding-sha256 "$(/home/trietlm/anomaly-representation-learning/.venv/bin/python -c 'import json; print(json.load(open("/tmp/sprint21-pilot-binding-v1.json"))["binding_sha256"])')" \
   --output-dir /tmp/sprint21-exploratory-pilot-v1
 ```
 
