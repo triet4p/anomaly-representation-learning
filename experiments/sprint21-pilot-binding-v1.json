@@ -26,7 +26,7 @@
     "thresholds_or_calibration": false,
     "training_or_refitting": false
   },
-  "binding_sha256": "49858cb10e56fe0cdc20b5cca4fb835f82a0c76235f9dd0c962401810e29f2f2",
+  "binding_sha256": "66173b855399eb4b8c0fbf880a9e1590479c0a423e8a068e7d0db17d6a618555",
   "construction": {
     "allocation": "synth.balanced.allocate_quotas(rows, ledger, maintenance_windows, data_seed, QuotaConfig(), method='exact')",
     "config_factory": "synth.chronicle.sprint15_v7_history_config(data_seed)",
@@ -652,13 +652,13 @@
       "src/synth/probe15.py": "a08b3d5fb83001e1f5c43f4c56ff536bae85e41d494db289304aeb33a339242b"
     },
     "protocol_path": "experiments/sprint21-exploratory-pilot-v1.md",
-    "protocol_sha256": "8d39637fa8ec4eb792793d4fa3e67d832dd2138a1c05d9ab8c276b97eac97618",
+    "protocol_sha256": "250e0cf52aa34135bec09295098c6a91626aad259b30699d4c77c93578441c8f",
     "task3_role_binding_canonical_sha256": "075868b22c028a981cc63ffe37b8d29720cd324c3e2c7254ce688678758230ba",
     "task3_role_binding_raw_sha256": "f212ca2fd5a0f60eeb206435b610fa6a8689774ea490db2aa94d44c15a01baf1",
     "task3_runner_commit": "f8a8fa6dd3ae1534c8f8db8d552898ffe88314ba",
     "task3_runner_sha256": "d1d8239d34944ab54f371555f68d1431f7d4784ba0a67bd4fec49359ba8f7a32",
-    "task4_runner_sha256": "ea9d8dc388b8add5389872e7c65e4dff34f9f2e89595de1ed0d8ac20638733a2",
-    "task4_runner_source_commit": "c3b6d93fd23111e495832e1cb1eb4e1328600437",
+    "task4_runner_sha256": "fc9ce3d65fa5a28c6a2eeb58d2444e8de59a3ef4402e0cb33a3ffc4603dec5a1",
+    "task4_runner_source_commit": "fd77d2b784bc62b13a8974c2ed6a15bbc4e21db0",
     "uv_lock_sha256": "4a7866878c81cdd8f5ba283cd8d0a772073bfc75941f73ec761ede5eeb2e239a"
   },
   "status": "FROZEN_PENDING_PRECONTACT_REVIEW"
