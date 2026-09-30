@@ -26,7 +26,7 @@
     "thresholds_or_calibration": false,
     "training_or_refitting": false
   },
-  "binding_sha256": "886ad493b536d0590c78bf26e0d3ce17c9b7f29af3ed0d0b6233c042dc1485c1",
+  "binding_sha256": "49858cb10e56fe0cdc20b5cca4fb835f82a0c76235f9dd0c962401810e29f2f2",
   "construction": {
     "allocation": "synth.balanced.allocate_quotas(rows, ledger, maintenance_windows, data_seed, QuotaConfig(), method='exact')",
     "config_factory": "synth.chronicle.sprint15_v7_history_config(data_seed)",
@@ -561,7 +561,7 @@
   "runtime": {
     "cuda_available": true,
     "device_name": "NVIDIA GeForce RTX 4060 Ti",
-    "device_total_mib": 16380,
+      "device_total_mib": 15948,
     "python": "3.12.13",
     "torch": "2.14.0+cu130"
   },
@@ -574,6 +574,11 @@
       "k": 5,
       "refit": false,
       "rows": 5040,
+      "sha256_by_model_seed": {
+        "171701": "432852b7c8ba6d1845b26e3e8f4d34f2e986258d39da22b844c15def2bc00662",
+        "171702": "6bae50edd1aee8ac4a00a6255e85db01b89eeaef7341405ac58c93e0a15b511a",
+        "171703": "7dfe8c3e63b764f0a043c5c38ba63fced463ce78846d38153bc5588a2a6efff8"
+      },
       "source": "checkpoint-embedded historical Fit-only bank"
     },
     "checkpoint_bytes": 18239321,
@@ -647,13 +652,13 @@
       "src/synth/probe15.py": "a08b3d5fb83001e1f5c43f4c56ff536bae85e41d494db289304aeb33a339242b"
     },
     "protocol_path": "experiments/sprint21-exploratory-pilot-v1.md",
-    "protocol_sha256": "0384459101d867cae75fbaa526667865b930150d8addc926bad326b7842b5051",
+    "protocol_sha256": "8d39637fa8ec4eb792793d4fa3e67d832dd2138a1c05d9ab8c276b97eac97618",
     "task3_role_binding_canonical_sha256": "075868b22c028a981cc63ffe37b8d29720cd324c3e2c7254ce688678758230ba",
     "task3_role_binding_raw_sha256": "f212ca2fd5a0f60eeb206435b610fa6a8689774ea490db2aa94d44c15a01baf1",
     "task3_runner_commit": "f8a8fa6dd3ae1534c8f8db8d552898ffe88314ba",
     "task3_runner_sha256": "d1d8239d34944ab54f371555f68d1431f7d4784ba0a67bd4fec49359ba8f7a32",
-    "task4_runner_sha256": "513ddf83c2065757a06d12e05b8c16aa9806f198a0a9758a6c65a8ee35e2dbac",
-    "task4_runner_source_commit": "581ca8c8b5bd53275a41a362a68732b636e0d854",
+    "task4_runner_sha256": "ea9d8dc388b8add5389872e7c65e4dff34f9f2e89595de1ed0d8ac20638733a2",
+    "task4_runner_source_commit": "c3b6d93fd23111e495832e1cb1eb4e1328600437",
     "uv_lock_sha256": "4a7866878c81cdd8f5ba283cd8d0a772073bfc75941f73ec761ede5eeb2e239a"
   },
   "status": "FROZEN_PENDING_PRECONTACT_REVIEW"
