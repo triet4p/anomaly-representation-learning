@@ -26,7 +26,7 @@
     "thresholds_or_calibration": false,
     "training_or_refitting": false
   },
-  "binding_sha256": "a471fe0ed385be79be720bcf3113eed914af4b571e3ac598eb9f313e7613199f",
+  "binding_sha256": "886ad493b536d0590c78bf26e0d3ce17c9b7f29af3ed0d0b6233c042dc1485c1",
   "construction": {
     "allocation": "synth.balanced.allocate_quotas(rows, ledger, maintenance_windows, data_seed, QuotaConfig(), method='exact')",
     "config_factory": "synth.chronicle.sprint15_v7_history_config(data_seed)",
@@ -652,8 +652,8 @@
     "task3_role_binding_raw_sha256": "f212ca2fd5a0f60eeb206435b610fa6a8689774ea490db2aa94d44c15a01baf1",
     "task3_runner_commit": "f8a8fa6dd3ae1534c8f8db8d552898ffe88314ba",
     "task3_runner_sha256": "d1d8239d34944ab54f371555f68d1431f7d4784ba0a67bd4fec49359ba8f7a32",
-    "task4_runner_sha256": "00653b7f312d62bbc0a078bf55a6e9fd48885936fa4fd520c293a467c26f455f",
-    "task4_runner_source_commit": "80822abb9606f2c7dfcb875a1446f41bc1538ab3",
+    "task4_runner_sha256": "513ddf83c2065757a06d12e05b8c16aa9806f198a0a9758a6c65a8ee35e2dbac",
+    "task4_runner_source_commit": "581ca8c8b5bd53275a41a362a68732b636e0d854",
     "uv_lock_sha256": "4a7866878c81cdd8f5ba283cd8d0a772073bfc75941f73ec761ede5eeb2e239a"
   },
   "status": "FROZEN_PENDING_PRECONTACT_REVIEW"
