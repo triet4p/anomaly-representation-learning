@@ -41,3 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Updated `train_v1_representation.ipynb` from toy fixed-sample slice to production training with AdamW, cosine annealing learning rate scheduler, and gradient clipping.
 - Updated `infer_v1_representation.ipynb` to restore trained model weights and normal reference bank directly from production checkpoints.
 - Configured `.gitignore` to ignore `checkpoints/` and `*.pt` binary artifacts.
+
+### Fixed
+
+- Corrected Sprint 21 pilot program-share calculation and scorer conditioning: IDs now resolve from the pinned robot/program map, and missing serialized indices are rejected without changing the manifest schema.
