@@ -1,9 +1,10 @@
 """Fail-closed runner for the frozen Sprint 21 exploratory whole-history pilot.
 
 The live path is intentionally one-shot and review-gated. ``--smoke`` uses
-only in-memory analytical records; ``--dry-run`` checks immutable provenance
-and pure configuration objects; neither calls the history generator or
-preflight. Only ``--run --review-passed`` may materialize bound histories.
+disposable in-memory records to exercise production preparation helpers;
+``--dry-run`` checks immutable provenance and pure configuration objects.
+Neither calls the history generator or preflight. Only ``--run
+--review-passed`` may materialize bound histories.
 """
 from __future__ import annotations
 
@@ -972,7 +973,7 @@ def _support_and_structure(
             _expect(program is not None, "SUPPORT_MISMATCH", f"{cohort} event has no exact-endpoint program")
             program_counts[cohort][program] = program_counts[cohort].get(program, 0) + 1
     program_shares = {
-        cohort: (max(counts.values()) / cohorts[cohort] if counts[cohort] else 1.0)
+        cohort: (max(counts.values()) / cohorts[cohort] if cohorts[cohort] else 1.0)
         for cohort, counts in program_counts.items()
     }
     mix = {cohort: (cohorts[cohort] / positive_total if positive_total else 0.0) for cohort in "PWA"}
@@ -1136,6 +1137,9 @@ def _materialize_one(
         reloaded_manifest, samples, coordinate,
         verified["profile"]["generator_version"], GENERATOR_PROTOCOL_SHA256,
     )
+    serialized_conditioning_indices = _read_serialized_conditioning_indices(
+        profile_root, reloaded_manifest,
+    )
     allocation: dict[str, Any] | None = None
     allocation_failure: dict[str, Any] | None = None
     try:
@@ -1175,20 +1179,179 @@ def _materialize_one(
     return {
         "coordinate": coordinate, "root": profile_root, "report": report,
         "positive_windows": positive_windows, "control_windows": control_windows,
+        "serialized_conditioning_indices": serialized_conditioning_indices,
     }
 
 
+
+
+def _serialized_conditioning_indices_from_npz(
+    payload: bytes, source_id: str,
+) -> tuple[int, int]:
+    import io
+    import numpy as np
+
+    try:
+        sample_archive = np.load(io.BytesIO(payload), allow_pickle=False)
+    except Exception as exc:
+        raise PilotError(
+            "CONDITIONING_MISMATCH",
+            f"{source_id}: cannot inspect serialized sample conditioning: {exc}",
+        ) from exc
+    with sample_archive:
+        indices: list[int] = []
+        for field in ("robot_idx", "program_idx"):
+            _expect(field in sample_archive.files, "CONDITIONING_MISMATCH",
+                    f"{source_id}: serialized sample omits required {field}")
+            value = np.asarray(sample_archive[field])
+            _expect(value.shape == () and value.dtype.kind in "iu",
+                    "CONDITIONING_MISMATCH",
+                    f"{source_id}: serialized {field} must be an integer scalar")
+            index = int(value.item())
+            _expect(index >= 0, "CONDITIONING_MISMATCH",
+                    f"{source_id}: serialized {field} must be nonnegative")
+            indices.append(index)
+    return indices[0], indices[1]
+
+
+def _serialized_conditioning_indices_from_shard(
+    archive: Any, file_ids: list[str],
+) -> dict[str, tuple[int, int]]:
+    indices: dict[str, tuple[int, int]] = {}
+    for source_id in file_ids:
+        _expect(source_id not in indices, "MANIFEST_MISMATCH",
+                f"{source_id}: duplicate serialized sample in shard")
+        try:
+            payload = archive.read(f"{source_id}.npz")
+        except Exception as exc:
+            raise PilotError(
+                "CONDITIONING_MISMATCH",
+                f"{source_id}: cannot read serialized sample from shard: {exc}",
+            ) from exc
+        indices[source_id] = _serialized_conditioning_indices_from_npz(
+            payload, source_id,
+        )
+    return indices
+
+
+def _read_serialized_conditioning_indices(
+    history_root: Path, manifest: dict[str, Any],
+) -> dict[str, tuple[int, int]]:
+    import zipfile
+
+    indices: dict[str, tuple[int, int]] = {}
+    for shard in manifest.get("shards", []):
+        path = history_root / str(shard["path"])
+        try:
+            with zipfile.ZipFile(path, "r") as archive:
+                shard_indices = _serialized_conditioning_indices_from_shard(
+                    archive, list(shard["file_ids"]),
+                )
+        except PilotError:
+            raise
+        except Exception as exc:
+            raise PilotError(
+                "CONDITIONING_MISMATCH",
+                f"cannot inspect serialized conditioning in {path}: {exc}",
+            ) from exc
+        for source_id, values in shard_indices.items():
+            _expect(source_id not in indices, "MANIFEST_MISMATCH",
+                    f"{source_id}: duplicate serialized sample across shards")
+            indices[source_id] = values
+    expected_ids = [row["file_id"] for row in manifest["files"]]
+    _expect(list(indices) == expected_ids, "MANIFEST_MISMATCH",
+            "serialized conditioning roster/order differs from manifest file rows")
+    return indices
+
+
+def _prepare_scoring_input(
+    sample: Any, row: dict[str, Any], mapping: dict[str, Any],
+    serialized_indices: tuple[int, int], history_id: str,
+    manifest: dict[str, Any], patchifier: Any, cfg: Any, proof: Any,
+) -> tuple[dict[str, Any], str, int, int, int]:
+    import numpy as np
+    from representation.data import collate_variable_files
+    from synth.schema import FileSample, SampleLabel
+
+    source_id = sample.file_id
+    robot_id = row.get("robot_id")
+    program_id = row.get("program_id")
+    robot_map = mapping.get("robot_id_to_idx")
+    program_map = mapping.get("program_id_to_idx")
+    _expect(
+        isinstance(robot_map, dict) and isinstance(robot_id, str) and robot_id in robot_map,
+        "CONDITIONING_MISMATCH",
+        f"{source_id}: robot string is absent from the pinned vocabulary",
+    )
+    _expect(
+        isinstance(program_map, dict) and isinstance(program_id, str) and program_id in program_map,
+        "CONDITIONING_MISMATCH",
+        f"{source_id}: program string is absent from the pinned vocabulary",
+    )
+    robot_idx = robot_map[robot_id]
+    program_idx = program_map[program_id]
+    _expect(type(robot_idx) is int and robot_idx >= 0,
+            "CONDITIONING_MISMATCH", f"{source_id}: pinned robot index is invalid")
+    _expect(type(program_idx) is int and program_idx >= 0,
+            "CONDITIONING_MISMATCH", f"{source_id}: pinned program index is invalid")
+    _expect(
+        isinstance(serialized_indices, tuple) and len(serialized_indices) == 2
+        and all(type(index) is int and index >= 0 for index in serialized_indices),
+        "CONDITIONING_MISMATCH",
+        f"{source_id}: explicit serialized conditioning indices are invalid",
+    )
+    serialized_robot_idx, serialized_program_idx = serialized_indices
+    _expect(
+        type(getattr(sample, "robot_idx", None)) is int
+        and type(getattr(sample, "program_idx", None)) is int
+        and sample.robot_idx == serialized_robot_idx
+        and sample.program_idx == serialized_program_idx,
+        "CONDITIONING_MISMATCH",
+        f"{source_id}: loaded sample indices differ from explicit serialized indices",
+    )
+    _expect(
+        serialized_robot_idx == robot_idx and serialized_program_idx == program_idx,
+        "CONDITIONING_MISMATCH",
+        f"{source_id}: serialized numeric indices differ from the pinned string map",
+    )
+    x = sample.x
+    _expect(
+        isinstance(x, np.ndarray) and x.dtype == np.float32 and x.ndim == 2
+        and x.shape[0] == 6 and x.shape[1] > 0 and bool(np.isfinite(x).all()),
+        "INPUT_CONTRACT_FAILURE",
+        f"{source_id}: model signal must be finite float32 [6,T]",
+    )
+    global_id = f"{history_id}::{source_id}"
+    mask_seed = int(proof.file_seed(global_id))
+    neutral = FileSample(
+        x=x, file_id=global_id, file_label=SampleLabel.NORMAL,
+        seed=0, generator_version=manifest["generator_version"],
+        config_hash=manifest["config_hash"], regime_sequence=[],
+        robot_idx=robot_idx, program_idx=program_idx,
+    )
+    batch = collate_variable_files(
+        [neutral], patchifier, masking_config=cfg, masking_seed=mask_seed,
+    )
+    valid = batch["patch_valid_mask"][0].detach().cpu().numpy().astype(bool)
+    mask = batch["mask"][0].detach().cpu().numpy().astype(bool)
+    _expect(
+        bool(valid.any()) and int(mask.sum()) > 0 and not bool((mask & ~valid).any()),
+        "MASK_CONTRACT_FAILURE",
+        f"{global_id}: invalid or empty prediction mask",
+    )
+    model_batch = {
+        key: value for key, value in batch.items()
+        if key not in {"file_labels", "anomaly_meta", "anomaly_masks", "file_samples"}
+    }
+    return model_batch, global_id, mask_seed, robot_idx, program_idx
 
 
 def _score_history(
     history: dict[str, Any], model: Any, bank: Any, patchifier: Any, cfg: Any,
     mapping: dict[str, Any], proof: Any, device: str, output_path: Path,
 ) -> dict[str, Any]:
-    import numpy as np
     import torch
-    from representation.data import collate_variable_files
     from representation.inference import RepresentationInference
-    from synth.schema import FileSample, SampleLabel
 
     root_record = history["report"]
     history_id = root_record["history_id"]
@@ -1197,6 +1360,12 @@ def _score_history(
     samples = history["samples"]
     row_ids = [row["file_id"] for row in manifest["files"]]
     rows = {row["file_id"]: row for row in manifest["files"]}
+    serialized_conditioning_indices = history["serialized_conditioning_indices"]
+    _expect(
+        list(serialized_conditioning_indices) == row_ids,
+        "MANIFEST_MISMATCH",
+        "serialized conditioning roster/order differs from manifest file rows",
+    )
     ids = [f"{history_id}::{sample.file_id}" for sample in samples]
     expected_ids = [f"{history_id}::{source_id}" for source_id in row_ids]
     validate_runtime_roster(ids, expected_ids)
@@ -1209,38 +1378,12 @@ def _score_history(
         for sample in samples:
             source_id = sample.file_id
             row = rows[source_id]
-            robot_id = row.get("robot_id")
-            program_id = row.get("program_id")
-            robot_idx = row.get("robot_idx")
-            program_idx = row.get("program_idx")
-            _expect(robot_id in mapping["robot_id_to_idx"] and mapping["robot_id_to_idx"][robot_id] == robot_idx,
-                    "CONDITIONING_MISMATCH", f"{source_id}: robot string/index differ from pinned vocabulary")
-            _expect(program_id in mapping["program_id_to_idx"] and mapping["program_id_to_idx"][program_id] == program_idx,
-                    "CONDITIONING_MISMATCH", f"{source_id}: program string/index differ from pinned vocabulary")
-            _expect(sample.robot_idx == robot_idx and sample.program_idx == program_idx,
-                    "CONDITIONING_MISMATCH", f"{source_id}: serialized sample indices differ from manifest")
-            x = sample.x
-            _expect(isinstance(x, np.ndarray) and x.dtype == np.float32 and x.ndim == 2 and x.shape[0] == 6 and x.shape[1] > 0 and bool(np.isfinite(x).all()),
-                    "INPUT_CONTRACT_FAILURE", f"{source_id}: model signal must be finite float32 [6,T]")
-            global_id = f"{history_id}::{source_id}"
-            mask_seed = int(proof.file_seed(global_id))
-            # Build a fresh role-neutral model input; only x and the explicit
-            # source-derived numeric conditioning IDs survive from the sample.
-            neutral = FileSample(
-                x=x, file_id=global_id, file_label=SampleLabel.NORMAL,
-                seed=0, generator_version=manifest["generator_version"],
-                config_hash=manifest["config_hash"], regime_sequence=[],
-                robot_idx=robot_idx, program_idx=program_idx,
+            model_batch, global_id, mask_seed, robot_idx, program_idx = _prepare_scoring_input(
+                sample, row, mapping, serialized_conditioning_indices[source_id],
+                history_id, manifest, patchifier, cfg, proof,
             )
-            batch = collate_variable_files([neutral], patchifier, masking_config=cfg, masking_seed=mask_seed)
-            valid = batch["patch_valid_mask"][0].detach().cpu().numpy().astype(bool)
-            mask = batch["mask"][0].detach().cpu().numpy().astype(bool)
-            _expect(bool(valid.any()) and int(mask.sum()) > 0 and not bool((mask & ~valid).any()),
-                    "MASK_CONTRACT_FAILURE", f"{global_id}: invalid or empty prediction mask")
-            model_batch = {
-                key: value for key, value in batch.items()
-                if key not in {"file_labels", "anomaly_meta", "anomaly_masks", "file_samples"}
-            }
+            robot_id = row["robot_id"]
+            program_id = row["program_id"]
             moved = {
                 key: (value.to(device) if isinstance(value, torch.Tensor) else value)
                 for key, value in model_batch.items()
@@ -1658,6 +1801,229 @@ def _run_pilot(
             raise
 
 
+def _smoke_production_preparation() -> dict[str, Any]:
+    import io
+    import zipfile
+
+    import numpy as np
+    from representation.config import V1Config
+    from synth.config import PatchConfig
+    from synth.dataset import _sample_arrays, _sample_bytes
+    from synth.patchify import Patchifier
+    from synth.schema import FileSample, SampleLabel
+
+    events = importlib.import_module("synth.events")
+    balanced = importlib.import_module("synth.balanced")
+    task7 = importlib.import_module("sprint17_task7_b0")
+
+    day = 86400.0
+    rows: list[dict[str, Any]] = []
+    failures: list[dict[str, Any]] = []
+
+    def add_row(file_id: str, robot_id: str, program_id: str, end_time: float) -> None:
+        rows.append({
+            "file_id": file_id,
+            "operation_id": file_id,
+            "robot_id": robot_id,
+            "program_id": program_id,
+            "start_time": end_time - 3600.0,
+            "end_time": end_time,
+            "file_label": "normal",
+            "is_quarantined": False,
+            "quarantine_reason": None,
+            "is_censored": False,
+            "member_views": [events.TEMPORAL_VIEW],
+            "last_reset_time": 0.0,
+            "n_valid_patches": 1,
+        })
+
+    def add_failure(
+        cohort: str, robot_id: str, program_id: str, failure_day: int,
+        duration_d: float, subtype: str,
+    ) -> None:
+        failure_time = float(failure_day) * day
+        failure_id = f"fixture-{cohort}-{robot_id}"
+        add_row(f"{failure_id}-baseline", robot_id, program_id, failure_time - 21.0 * day)
+        for suffix, offset in (("early", -6.0), ("middle", -1.0), ("endpoint", 0.0)):
+            add_row(
+                f"{failure_id}-{suffix}", robot_id, program_id,
+                failure_time + offset * day,
+            )
+        failures.append({
+            "failure_id": failure_id,
+            "robot_id": robot_id,
+            "failure_time": failure_time,
+            "cohort": cohort,
+            "subtype": subtype,
+            "severity": 1.0,
+            "degradation_onset": (
+                failure_time - duration_d * day if cohort != "A" else None
+            ),
+            "duration_d": duration_d,
+        })
+
+    for cohort, robot_id, program_id, failure_day, duration_d, subtype in (
+        ("P", "robot-01", "program-01", 100, 5.0, "P1"),
+        ("P", "robot-02", "program-02", 160, 5.5, "P2"),
+        ("W", "robot-03", "program-01", 240, 15.0, "W1"),
+        ("W", "robot-04", "program-02", 300, 18.0, "W2"),
+        ("A", "robot-05", "program-03", 360, 0.0, "A1"),
+    ):
+        add_failure(cohort, robot_id, program_id, failure_day, duration_d, subtype)
+    for index in range(6, 10):
+        add_row(
+            f"fixture-control-robot-{index:02d}",
+            f"robot-{index:02d}", "program-03", float(400 + index) * day,
+        )
+    manifest = {
+        "files": rows,
+        "failure_events": failures,
+        "maintenance_windows": {},
+    }
+    coordinate = {"history_id": "H-S21-DISPOSABLE-STRUCTURE", "data_seed": None}
+    support_report, _, positive_windows, _ = _support_and_structure(
+        manifest, coordinate, None, None, task7, events, balanced,
+    )
+    expected_program_counts = {
+        "P": {"program-01": 1, "program-02": 1},
+        "W": {"program-01": 1, "program-02": 1},
+    }
+    _expect(
+        support_report["program_counts_P_W"] == expected_program_counts
+        and support_report["program_share_max_P_W"] == {"P": 0.5, "W": 0.5}
+        and all(len(positive_windows[cohort]) == expected
+                for cohort, expected in (("P", 2), ("W", 2), ("A", 1))),
+        "SMOKE_FAILURE",
+        "production structure preparation did not compute fixture event/program support",
+    )
+    empty_report, _, _, _ = _support_and_structure(
+        {**manifest, "failure_events": []}, coordinate, None, None,
+        task7, events, balanced,
+    )
+    _expect(
+        empty_report["program_share_max_P_W"] == {"P": 1.0, "W": 1.0},
+        "SMOKE_FAILURE",
+        "empty P/W support did not retain the frozen 1.0 zero-denominator semantics",
+    )
+
+    proof = importlib.import_module("sprint21_disposable_scorer_proof")
+    mapping = {
+        "robot_id_to_idx": {
+            f"robot-{index:02d}": index - 1 for index in range(1, 10)
+        },
+        "program_id_to_idx": {
+            f"program-{index:02d}": index - 1 for index in range(1, 9)
+        },
+    }
+    _expect(
+        proof.validate_conditioning_mapping(mapping) == TASK3_MAPPING_DIGEST,
+        "SMOKE_FAILURE",
+        "disposable input mapping differs from the pinned source-derived vocabulary",
+    )
+    source_id = "S21-T4-DISPOSABLE-FILE-01"
+    signal = np.arange(6 * 64, dtype=np.float32).reshape(6, 64) / np.float32(384)
+    sample = FileSample(
+        x=signal, file_id=source_id, file_label=SampleLabel.NORMAL,
+        seed=0, generator_version="S21-T4-DISPOSABLE-v1",
+        config_hash="s21-t4-disposable", regime_sequence=[],
+        robot_idx=0, program_idx=1,
+    )
+
+    def make_shard(payload: bytes) -> bytes:
+        output = io.BytesIO()
+        with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_STORED) as archive:
+            archive.writestr(f"{source_id}.npz", payload)
+        return output.getvalue()
+
+    serialized_payload = _sample_bytes(sample)
+    with zipfile.ZipFile(io.BytesIO(make_shard(serialized_payload)), "r") as archive:
+        serialized_indices = _serialized_conditioning_indices_from_shard(
+            archive, [source_id],
+        )[source_id]
+    config = V1Config(n_robots=9, n_programs=8)
+    patchifier = Patchifier(PatchConfig(
+        patch_size=config.patch_size, stride=config.stride, pad_end=True,
+    ))
+    row = {
+        "file_id": source_id,
+        "robot_id": "robot-01",
+        "program_id": "program-02",
+    }
+    model_batch, global_id, mask_seed, robot_idx, program_idx = _prepare_scoring_input(
+        sample, row, mapping, serialized_indices, "H-S21-DISPOSABLE-INPUT",
+        {"generator_version": sample.generator_version,
+         "config_hash": sample.config_hash},
+        patchifier, config, proof,
+    )
+    forbidden_batch_fields = {
+        "file_labels", "anomaly_meta", "anomaly_masks", "file_samples",
+    }
+    _expect(
+        global_id == f"H-S21-DISPOSABLE-INPUT::{source_id}"
+        and mask_seed == proof.file_seed(global_id)
+        and (robot_idx, program_idx) == (0, 1)
+        and model_batch["file_ids"] == [global_id]
+        and model_batch["robot_idx"].tolist() == [0]
+        and model_batch["program_idx"].tolist() == [1]
+        and np.array_equal(model_batch["signals"][0].cpu().numpy(), signal)
+        and not forbidden_batch_fields.intersection(model_batch),
+        "SMOKE_FAILURE",
+        "production collation did not preserve only mapped conditioning and signal inputs",
+    )
+
+    missing_index_fields_rejected = 0
+    sample_arrays = _sample_arrays(sample)
+    for missing_field in ("robot_idx", "program_idx"):
+        incomplete_arrays = dict(sample_arrays)
+        del incomplete_arrays[missing_field]
+        incomplete_npz = io.BytesIO()
+        np.savez_compressed(incomplete_npz, **incomplete_arrays)
+        with zipfile.ZipFile(
+            io.BytesIO(make_shard(incomplete_npz.getvalue())), "r",
+        ) as archive:
+            try:
+                _serialized_conditioning_indices_from_shard(archive, [source_id])
+            except PilotError as exc:
+                _expect(exc.code == "CONDITIONING_MISMATCH",
+                        "SMOKE_FAILURE", "missing serialized conditioning used the wrong disposition")
+                missing_index_fields_rejected += 1
+    _expect(
+        missing_index_fields_rejected == 2,
+        "SMOKE_FAILURE",
+        "missing serialized robot/program indices were not both rejected",
+    )
+
+    wrong_map_rejected = False
+    try:
+        _prepare_scoring_input(
+            sample, {**row, "program_id": "program-01"}, mapping,
+            serialized_indices, "H-S21-DISPOSABLE-INPUT",
+            {"generator_version": sample.generator_version,
+             "config_hash": sample.config_hash},
+            patchifier, config, proof,
+        )
+    except PilotError as exc:
+        _expect(exc.code == "CONDITIONING_MISMATCH",
+                "SMOKE_FAILURE", "wrong source conditioning map used the wrong disposition")
+        wrong_map_rejected = True
+    _expect(wrong_map_rejected, "SMOKE_FAILURE",
+            "serialized indices inconsistent with the source map were accepted")
+    return {
+        "structure_fixture": "PASS_DISPOSABLE_IN_MEMORY_ONLY",
+        "program_share_event_counts": support_report["program_counts_P_W"],
+        "empty_cohort_program_shares": empty_report["program_share_max_P_W"],
+        "serialized_indices_match_pinned_map": True,
+        "missing_serialized_index_fields_rejected": missing_index_fields_rejected,
+        "source_map_mismatch_rejected": wrong_map_rejected,
+        "collated_conditioning_indices": {
+            "robot_idx": robot_idx, "program_idx": program_idx,
+        },
+        "generator_or_preflight_called": False,
+        "model_or_checkpoint_loaded": False,
+        "pilot_history_materialized": False,
+    }
+
+
 def _smoke() -> dict[str, Any]:
     ids = ["H-S21-TEST-01", "H-S21-TEST-02", "H-S21-TEST-03"]
     records = [
@@ -1746,8 +2112,9 @@ def _smoke() -> dict[str, Any]:
         _expect(exc.code == "BINDING_MISMATCH", "SMOKE_FAILURE", "wrong disposition for short fixed roster")
     else:
         raise PilotError("SMOKE_FAILURE", "short fixed roster was accepted")
+    production = _smoke_production_preparation()
     return {
-        "status": "SMOKE_PASS_NO_PROJECT_IMPORTS_NO_DATA_CONTACT",
+        "status": "SMOKE_PASS_DISPOSABLE_PRODUCTION_PREPARATION_NO_DATA_CONTACT",
         "full_roster_macro_and_history_variance": "PASS",
         "hard_failure_prevents_subset_macro_bootstrap": "PASS",
         "first_support_failure_stops_generation_and_scoring": "PASS",
@@ -1755,8 +2122,7 @@ def _smoke() -> dict[str, Any]:
         "missing_or_nonfinite_file_branch_scores_rejected": rejected,
         "score_branch_support_mismatch_rejected": support_mismatch_rejected,
         "fixed_roster_mutation_rejected": True,
-        "generator_or_preflight_called": False,
-        "model_or_checkpoint_loaded": False,
+        "production_structure_and_conditioning_preparation": production,
         "history_root_read_or_written": False,
     }
 
@@ -1764,7 +2130,7 @@ def _smoke() -> dict[str, Any]:
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     mode = parser.add_mutually_exclusive_group(required=True)
-    mode.add_argument("--smoke", action="store_true", help="run in-memory helper invariants only")
+    mode.add_argument("--smoke", action="store_true", help="run disposable in-memory invariants and production preparation")
     mode.add_argument("--dry-run", action="store_true", help="verify the frozen source/runtime/checkpoints without materialization or scoring")
     mode.add_argument("--run", action="store_true", help="one-shot materialize and score the complete frozen H=32 roster")
     parser.add_argument("--worktree-root", type=Path)
