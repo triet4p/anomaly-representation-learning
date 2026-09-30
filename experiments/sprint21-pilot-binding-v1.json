@@ -26,7 +26,7 @@
     "thresholds_or_calibration": false,
     "training_or_refitting": false
   },
-  "binding_sha256": "e708b9cd43abb9a5fc5dcca2ea1f73478685e45f37cb832262349237b1826484",
+  "binding_sha256": "a471fe0ed385be79be720bcf3113eed914af4b571e3ac598eb9f313e7613199f",
   "construction": {
     "allocation": "synth.balanced.allocate_quotas(rows, ledger, maintenance_windows, data_seed, QuotaConfig(), method='exact')",
     "config_factory": "synth.chronicle.sprint15_v7_history_config(data_seed)",
@@ -653,7 +653,7 @@
     "task3_runner_commit": "f8a8fa6dd3ae1534c8f8db8d552898ffe88314ba",
     "task3_runner_sha256": "d1d8239d34944ab54f371555f68d1431f7d4784ba0a67bd4fec49359ba8f7a32",
     "task4_runner_sha256": "00653b7f312d62bbc0a078bf55a6e9fd48885936fa4fd520c293a467c26f455f",
-    "task4_runner_source_commit": "a4d836e32e35f75565db5757fb2949f46a5e9102",
+    "task4_runner_source_commit": "80822abb9606f2c7dfcb875a1446f41bc1538ab3",
     "uv_lock_sha256": "4a7866878c81cdd8f5ba283cd8d0a772073bfc75941f73ec761ede5eeb2e239a"
   },
   "status": "FROZEN_PENDING_PRECONTACT_REVIEW"
