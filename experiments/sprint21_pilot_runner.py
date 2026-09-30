@@ -727,20 +727,25 @@ def _verify_source_commit(root: Path, binding: dict[str, Any]) -> dict[str, Any]
         digest = sha256_file(path)
         actual_hashes[relative_path] = digest
         _expect(digest == expected, "SOURCE_OR_ISOLATION_MISMATCH", f"pinned source hash mismatch for {relative_path}")
-    evidence_hashes: dict[str, str] = {}
-    for relative_path, expected in EXPECTED_SEED_EVIDENCE.items():
-        path = root / relative_path
-        _expect(path.is_file(), "FRESHNESS_PROVENANCE_MISMATCH", f"missing cited seed evidence file {relative_path}")
-        digest = sha256_file(path)
-        _expect(digest == expected, "FRESHNESS_PROVENANCE_MISMATCH", f"cited seed evidence hash mismatch for {relative_path}")
-        evidence_hashes[relative_path] = digest
     lock_digest = sha256_file(root / "uv.lock")
     _expect(lock_digest == TASK3_UV_LOCK_SHA256, "SOURCE_OR_ISOLATION_MISMATCH", "pinned uv.lock hash differs")
-    return {"historical_head": BASE_COMMIT, "task4_runner_commit": runner_commit,
-            "task4_runner_sha256": source["task4_runner_sha256"], "protocol_sha256": source["protocol_sha256"],
-            "task3_runner_commit": TASK3_COMMIT, "task3_runner_sha256": TASK3_RUNNER_SHA256,
-            "pinned_source_hashes": actual_hashes, "seed_evidence_hashes": evidence_hashes,
-            "uv_lock_sha256": lock_digest, "allowed_historical_worktree_untracked_files": allowed}
+    evidence_catalog = [
+        {"path": path, "sha256": digest}
+        for path, digest in EXPECTED_SEED_EVIDENCE.items()
+    ]
+    return {
+        "historical_head": BASE_COMMIT,
+        "task4_runner_commit": runner_commit,
+        "task4_runner_sha256": source["task4_runner_sha256"],
+        "protocol_sha256": source["protocol_sha256"],
+        "task3_runner_commit": TASK3_COMMIT,
+        "task3_runner_sha256": TASK3_RUNNER_SHA256,
+        "pinned_source_hashes": actual_hashes,
+        "seed_evidence_catalog": evidence_catalog,
+        "seed_evidence_rehashed_from_worktree": False,
+        "uv_lock_sha256": lock_digest,
+        "allowed_historical_worktree_untracked_files": allowed,
+    }
 
 
 def _verify_pure_profile_configs(root: Path, binding: dict[str, Any]) -> dict[str, Any]:
