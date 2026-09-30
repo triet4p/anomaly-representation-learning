@@ -1,0 +1,660 @@
+{
+  "analysis": {
+    "bootstrap": {
+      "interpretation": "descriptive uncertainty summary only",
+      "lcb_percentile": 2.5,
+      "replicates": 2000,
+      "resampling_unit": "whole history",
+      "same_draws_for_branches": true,
+      "seed": 20260202
+    },
+    "full_roster_required": 32,
+    "hard_fail_or_missing_or_nonfinite_or_branch_support_mismatch": "per-history endpoint UNCOMPUTABLE; any such history makes full-roster macro/bootstrap UNCOMPUTABLE; never average a subset",
+    "history_macro": "unweighted mean across all 32 predeclared histories only",
+    "margin_misses": "retain the history if every hard floor passes; report as descriptive support strata only; no tolerance or miss allowance",
+    "primary": "within-history tie-aware AUROC for P+W event windows versus same-history eligible control windows; max file score per window; S_pred and S_pop separate",
+    "sample_variance": "unbiased sample variance across complete independent history endpoint values; scorer seeds remain separate repeated scorer variants",
+    "secondary": [
+      "P AUROC",
+      "W AUROC",
+      "A AUROC",
+      "support counts and reasons",
+      "per-history score-independent support",
+      "history variance and support-margin strata"
+    ],
+    "support_selection_score_independent": true,
+    "thresholds_or_calibration": false,
+    "training_or_refitting": false
+  },
+  "binding_sha256": "e708b9cd43abb9a5fc5dcca2ea1f73478685e45f37cb832262349237b1826484",
+  "construction": {
+    "allocation": "synth.balanced.allocate_quotas(rows, ledger, maintenance_windows, data_seed, QuotaConfig(), method='exact')",
+    "config_factory": "synth.chronicle.sprint15_v7_history_config(data_seed)",
+    "config_hash_by_data_seed": {
+      "921000": "b6e2551566ad",
+      "921001": "fb975aaf1c3e",
+      "921002": "c24d4f398bdd",
+      "921003": "320afdc9d7e9",
+      "921004": "bf009dad901e",
+      "921005": "b5b7d677911b",
+      "921006": "1ebb0ac324de",
+      "921007": "52a40d129d52",
+      "921008": "fd3e8944ae4f",
+      "921009": "107a89f71dc5",
+      "921010": "45c18fc24b99",
+      "921011": "a693c600be51",
+      "921012": "04423d07e09e",
+      "921013": "a9b5d8c448c2",
+      "921014": "5a5c3cbc57be",
+      "921015": "9c6f9e513aa2",
+      "921016": "a3bcac8e96c3",
+      "921017": "42b424b0adf7",
+      "921018": "aa40735096b5",
+      "921019": "053e9fbbd464",
+      "921020": "9e19547c15d4",
+      "921021": "1f6e4ad8613c",
+      "921022": "e738f4a50248",
+      "921023": "3d5b9cc7a22f",
+      "921024": "e55b5d214762",
+      "921025": "b24e7fcf1a8d",
+      "921026": "32287246f58e",
+      "921027": "68473ff02a22",
+      "921028": "0e8bea0ff843",
+      "921029": "52ad8529a59d",
+      "921030": "229693cc733b",
+      "921031": "9a3c0ce241a7"
+    },
+    "config_sha256_by_data_seed": {
+      "921000": "b6e2551566ad5ecc71d6574d866733be2713a25af783f2e1c34ad9badac9f42d",
+      "921001": "fb975aaf1c3e34ebbb6397c1d7b78d130a6c311fd96a99059f2434682843ea17",
+      "921002": "c24d4f398bddab2248109b001f12317d58381d0681b556e3b5785d27eeb16276",
+      "921003": "320afdc9d7e92de4fcc90b87f07d3cc8ddf4a4a7ce61dc4ce4d3616ff305eb07",
+      "921004": "bf009dad901e998914bb8284174e621598c264dc77299bc77708f955c201d44a",
+      "921005": "b5b7d677911b1e7846006d6fa57f0accaa45c4acbec7dae75160b50446335f5f",
+      "921006": "1ebb0ac324de245797d71acb1b8c41f11514b93dcc11e6dd117e6e0012e59f6c",
+      "921007": "52a40d129d52c623f3256ec9fb7a544a311b3517b2640cee289e82eed675d395",
+      "921008": "fd3e8944ae4fac44508deaa0ab54cdd32d440f31f255fb493c60406595e9349f",
+      "921009": "107a89f71dc5e0d87a1941e65fa8a843dfd49ea11c6d7d5dc45fd8e2217dbfb0",
+      "921010": "45c18fc24b99e617b222a2ee5dc773c31d1066f5978417511a8cf1fdf762ed7f",
+      "921011": "a693c600be5119086eadc6294991d0a3456c00bb67cd64e96c8dcb94689068f0",
+      "921012": "04423d07e09e057cf3d06cbcc6fbbf64d90084e115e0d70f1040dda3fddc614f",
+      "921013": "a9b5d8c448c2d1cc08592cc7f5cee78042f825c9cebe074fbbf61de18ebac6e3",
+      "921014": "5a5c3cbc57be5be1bc1ca1ac2c7d89676e91ea9d4ebbbb99a9426d672a27aeff",
+      "921015": "9c6f9e513aa21718ea25bd52b89384262769467f78d819477ab83ec7a6a583c5",
+      "921016": "a3bcac8e96c3fcc79ce39010130b1594303563f6941a2adfe60ce0ec7cc7ba81",
+      "921017": "42b424b0adf75391595d91b03b2d71bdc46082e13bf3fb4345c715d2b1f34b42",
+      "921018": "aa40735096b53e9244a96ed320a40e4b7ab9a6c01f6f6db34c32c9602b8b2860",
+      "921019": "053e9fbbd464ee9474c537fc621f0c43825b05aeeaae1c2024d242635cd9f8af",
+      "921020": "9e19547c15d4f6a7f19ec3d5ae3ffd91e66f51f9d0b359324c7c53db6cab23b2",
+      "921021": "1f6e4ad8613c9f4d4b81f3009927dd5a0ec66ae774038656c087e13c29a9d60c",
+      "921022": "e738f4a502483caac0847705634cba3626640eda57f9e0b69a4d5b879b86f04e",
+      "921023": "3d5b9cc7a22fa7bc6be2699b902b7afc182a5acf428e98d7242999d9cd60b715",
+      "921024": "e55b5d214762a0641f7271add1417ad955b58c445a80f457991481051575ebb7",
+      "921025": "b24e7fcf1a8d9a7ce128b6aaa3590eabb8bb30fac995648c31f596b1e230162a",
+      "921026": "32287246f58ec210cc253ca8f215c1bdcb06ac217510e57bcbac438af32ea3c7",
+      "921027": "68473ff02a228e56c5f95550fca2a2fc7dac953d1da9f60fae65a81f0bd876b5",
+      "921028": "0e8bea0ff843c8a1c98533e3e6c223fa12d3d657a430de87a081da8e14d0ee12",
+      "921029": "52ad8529a59df8d7bf897b460720c8166d8a5af5b5d00382a91d15dde7753c97",
+      "921030": "229693cc733b0a32745bbfc7ca8faa5a711e276f1db261616979e95f714a82a0",
+      "921031": "9a3c0ce241a70112a6f28cc7382e5fbc6b46c676ee3a96f320c02d45dc8ad26d"
+    },
+    "config_template_sha256": "3dfecb64967e3e6a1bfe26f8dd72565f553dbda0130dca639d5569c2e42e7dd6",
+    "generator_profile_protocol_id": "sprint15-benchmark-protocol-v7",
+    "generator_version": "2.0.0",
+    "manifest_protocol_tag": "sprint21-exploratory-pilot-v1",
+    "materializer": "synth.chronicle.materialize_chronological(cfg, root, shard_size=64, overwrite=False, role=history_id, protocol=manifest_protocol_tag, sprint15=None)",
+    "new_construction_quota": false,
+    "profile_id": "sprint15-v7",
+    "protocol_sha256": "a1fc09db2e246ed79d0595aec953a7788fd1b47c4981fbe1d92017d944b8d7b6",
+    "quota": {
+      "a": 16,
+      "a1": 8,
+      "a2": 8,
+      "controls": 48,
+      "p": 24,
+      "p1": 12,
+      "p2": 12,
+      "program_cap": 0.6,
+      "programs": 2,
+      "robot_days": 240,
+      "robot_neg_cap": 0.4,
+      "robot_pos_cap": 0.35,
+      "robots_neg": 6,
+      "robots_pos": 6,
+      "spacing_s": 1209600.0,
+      "w": 24,
+      "w1": 12,
+      "w2": 12
+    },
+    "quota_sha256": "0ebc9ec0874abcf6f0b60d1591b383b86164128db669966e7473b3c4277b359f"
+  },
+  "contact_authorized": false,
+  "design_margins_diagnostic_only": {
+    "A": 10,
+    "P": 13,
+    "W": 13,
+    "controls": 32,
+    "positive_total": 38,
+    "robot_days": 188
+  },
+  "freshness_exclusions": {
+    "history_data_seed_ranges": [
+      {
+        "first": 742,
+        "last": 797
+      },
+      {
+        "first": 910,
+        "last": 933
+      },
+      {
+        "first": 1000,
+        "last": 1017
+      },
+      {
+        "first": 1100,
+        "last": 1117
+      },
+      {
+        "first": 1200,
+        "last": 1217
+      },
+      {
+        "first": 1300,
+        "last": 1317
+      },
+      {
+        "first": 1400,
+        "last": 1417
+      },
+      {
+        "first": 1500,
+        "last": 1517
+      },
+      {
+        "first": 1600,
+        "last": 1617
+      },
+      {
+        "first": 2700,
+        "last": 2715
+      },
+      {
+        "first": 2800,
+        "last": 2815
+      },
+      {
+        "first": 31800,
+        "last": 31847
+      },
+      {
+        "first": 918000,
+        "last": 918015
+      },
+      {
+        "first": 918100,
+        "last": 918107
+      }
+    ],
+    "nondata_model_seed_ranges": [
+      {
+        "first": 171701,
+        "last": 171703
+      },
+      {
+        "first": 181801,
+        "last": 181803
+      }
+    ],
+    "scope": "Complete cited repository role-binding and preserved one-shot evidence catalog; no history/root search or Sealed-root access was performed.",
+    "single_data_seeds": [
+      0,
+      9000,
+      9001,
+      93058,
+      93061
+    ],
+    "source_records": [
+      {
+        "path": "experiments/sprint17-role-binding-v3.json",
+        "sha256": "f212ca2fd5a0f60eeb206435b610fa6a8689774ea490db2aa94d44c15a01baf1"
+      },
+      {
+        "path": "experiments/sprint18-role-binding-v1.json",
+        "sha256": "493c5d6a7a9b807f1fe915f00bb917be45a11183512581606eee34ee678bb228"
+      },
+      {
+        "path": "experiments/sprint18-role-binding-c2.json",
+        "sha256": "afe28bc4453a909c5ccba2872e6f37813d0c95f40e5e8a113fd01d3c6c29f14a"
+      },
+      {
+        "path": "experiments/sprint18-role-binding-c2-v2.json",
+        "sha256": "45818410f8d483d66a5523fd4ec38169bed9dc45d3a82f16979c05f9ab91dd92"
+      },
+      {
+        "path": "experiments/sprint18-role-binding-c3-v1.json",
+        "sha256": "6d87b9bba4e7e76e25917e6b00a13a52dc886e8ea8052ef6e5c88cf01a863ddd"
+      },
+      {
+        "path": "artifacts/sprint-18/task-4.md",
+        "sha256": "5665c2fb1953bff8ddde4e987d936c2f83b84cd057c4267f359887bf1f918d4e"
+      },
+      {
+        "path": "artifacts/sprint-18/task-42.md",
+        "sha256": "e6754347ea12cae83849fc2233480cb47195d7034564f2eb5d29fae799280dc9"
+      },
+      {
+        "path": "artifacts/sprint-18/task-43.md",
+        "sha256": "d98c7d6779d97f032d105b853ed19b0a9e1c8d04e87d7803d9bf29f85153f985"
+      },
+      {
+        "path": "artifacts/sprint-18/task-51.md",
+        "sha256": "cebd49d279292c47a109e5430cfe02fb5e452d5575f572663192b58a8a92087a"
+      },
+      {
+        "path": "artifacts/sprint-18/task-58.md",
+        "sha256": "ab8406cef6f3dd074a1e08bac88720a5222c27e00f4fd7e45ff63f7966134370"
+      },
+      {
+        "path": "artifacts/sprint-18/task-60.md",
+        "sha256": "605bfebf2967245fa569da4a19e7da4fe2b6c08bbe3a95d97384d86f46e0db09"
+      },
+      {
+        "path": "artifacts/sprint-18/task-61.md",
+        "sha256": "0c8c7e026eac293fbca04ae089ab2df72568f39343b133824f5b3fc7f5293e72"
+      },
+      {
+        "path": "artifacts/sprint-18/task-63.md",
+        "sha256": "d7f705707b6a57dfa43b484ca6140a325af8ce012755746f5d0c50fbfaa358f9"
+      },
+      {
+        "path": "artifacts/sprint-18/task-65.md",
+        "sha256": "5973c3cc9e72b4c8cf81cbbbb7f0d3af88bdd501856240cd981f9bf8b31a4b7c"
+      },
+      {
+        "path": "artifacts/sprint-18/isolated-feasibility-v3/attempt.json",
+        "sha256": "30ff8f407e9fe03335eeb332abb2882297ddd05458119215f6bef0f5abd90a13"
+      },
+      {
+        "path": "artifacts/sprint-18/control-eligibility-diagnostic-v1/attempt.json",
+        "sha256": "581789103c1b7541e679c10c327b2fc6aa08960893601399c08839b6bededa5d"
+      },
+      {
+        "path": "experiments/sprint18_task58_feasibility-v3.py",
+        "sha256": "f74c1e182b7bb28c40808edf35f9505d5f2ed564d9f5f6ff9289ad14d174988c"
+      },
+      {
+        "path": "experiments/sprint18_control_eligibility_diagnostic_v1.py",
+        "sha256": "881e29c638954b35849358615676655d0d269214e3fa7a5913ad19c4fcd5b961"
+      }
+    ]
+  },
+  "hard_floors": {
+    "A": 8,
+    "P": 10,
+    "W": 10,
+    "cohort_mix_max": 0.6,
+    "cohort_mix_min": 0.15,
+    "controls": 25,
+    "lead_support_P_W_min": 0.8,
+    "negative_robot_share_max": 0.4,
+    "negative_robots": 6,
+    "positive_robot_share_max": 0.35,
+    "positive_robots": 6,
+    "positive_total": 30,
+    "program_share_max": 0.6,
+    "programs_each_P_W": 2,
+    "robot_days": 150
+  },
+  "history_unit": "independent whole history; scorer seeds are repeated scorer variants, not additional histories",
+  "output": {
+    "confirmation_or_sealed_contact": false,
+    "files": [
+      "attempt.json",
+      "pilot-ledger.jsonl",
+      "history-evidence/H-S21-PILOT-XX.json",
+      "scores/model-171701/H-S21-PILOT-XX.jsonl",
+      "scores/model-171702/H-S21-PILOT-XX.jsonl",
+      "scores/model-171703/H-S21-PILOT-XX.jsonl",
+      "summary.json"
+    ],
+    "history_roots": "histories/H-S21-PILOT-01..H-S21-PILOT-32",
+    "omission": false,
+    "one_shot": true,
+    "post_failure_continue": false,
+    "preflight": false,
+    "replacement": false,
+    "resume": false,
+    "retry": false,
+    "run_root": "/tmp/sprint21-exploratory-pilot-v1",
+    "seed_search": false
+  },
+  "pilot_claim": "research-only, descriptive, simulator-conditional",
+  "protocol_id": "sprint21-exploratory-pilot-v1",
+  "roster": [
+    {
+      "config_hash": "b6e2551566ad",
+      "config_sha256": "b6e2551566ad5ecc71d6574d866733be2713a25af783f2e1c34ad9badac9f42d",
+      "data_seed": 921000,
+      "history_id": "H-S21-PILOT-01",
+      "relative_root": "histories/H-S21-PILOT-01"
+    },
+    {
+      "config_hash": "fb975aaf1c3e",
+      "config_sha256": "fb975aaf1c3e34ebbb6397c1d7b78d130a6c311fd96a99059f2434682843ea17",
+      "data_seed": 921001,
+      "history_id": "H-S21-PILOT-02",
+      "relative_root": "histories/H-S21-PILOT-02"
+    },
+    {
+      "config_hash": "c24d4f398bdd",
+      "config_sha256": "c24d4f398bddab2248109b001f12317d58381d0681b556e3b5785d27eeb16276",
+      "data_seed": 921002,
+      "history_id": "H-S21-PILOT-03",
+      "relative_root": "histories/H-S21-PILOT-03"
+    },
+    {
+      "config_hash": "320afdc9d7e9",
+      "config_sha256": "320afdc9d7e92de4fcc90b87f07d3cc8ddf4a4a7ce61dc4ce4d3616ff305eb07",
+      "data_seed": 921003,
+      "history_id": "H-S21-PILOT-04",
+      "relative_root": "histories/H-S21-PILOT-04"
+    },
+    {
+      "config_hash": "bf009dad901e",
+      "config_sha256": "bf009dad901e998914bb8284174e621598c264dc77299bc77708f955c201d44a",
+      "data_seed": 921004,
+      "history_id": "H-S21-PILOT-05",
+      "relative_root": "histories/H-S21-PILOT-05"
+    },
+    {
+      "config_hash": "b5b7d677911b",
+      "config_sha256": "b5b7d677911b1e7846006d6fa57f0accaa45c4acbec7dae75160b50446335f5f",
+      "data_seed": 921005,
+      "history_id": "H-S21-PILOT-06",
+      "relative_root": "histories/H-S21-PILOT-06"
+    },
+    {
+      "config_hash": "1ebb0ac324de",
+      "config_sha256": "1ebb0ac324de245797d71acb1b8c41f11514b93dcc11e6dd117e6e0012e59f6c",
+      "data_seed": 921006,
+      "history_id": "H-S21-PILOT-07",
+      "relative_root": "histories/H-S21-PILOT-07"
+    },
+    {
+      "config_hash": "52a40d129d52",
+      "config_sha256": "52a40d129d52c623f3256ec9fb7a544a311b3517b2640cee289e82eed675d395",
+      "data_seed": 921007,
+      "history_id": "H-S21-PILOT-08",
+      "relative_root": "histories/H-S21-PILOT-08"
+    },
+    {
+      "config_hash": "fd3e8944ae4f",
+      "config_sha256": "fd3e8944ae4fac44508deaa0ab54cdd32d440f31f255fb493c60406595e9349f",
+      "data_seed": 921008,
+      "history_id": "H-S21-PILOT-09",
+      "relative_root": "histories/H-S21-PILOT-09"
+    },
+    {
+      "config_hash": "107a89f71dc5",
+      "config_sha256": "107a89f71dc5e0d87a1941e65fa8a843dfd49ea11c6d7d5dc45fd8e2217dbfb0",
+      "data_seed": 921009,
+      "history_id": "H-S21-PILOT-10",
+      "relative_root": "histories/H-S21-PILOT-10"
+    },
+    {
+      "config_hash": "45c18fc24b99",
+      "config_sha256": "45c18fc24b99e617b222a2ee5dc773c31d1066f5978417511a8cf1fdf762ed7f",
+      "data_seed": 921010,
+      "history_id": "H-S21-PILOT-11",
+      "relative_root": "histories/H-S21-PILOT-11"
+    },
+    {
+      "config_hash": "a693c600be51",
+      "config_sha256": "a693c600be5119086eadc6294991d0a3456c00bb67cd64e96c8dcb94689068f0",
+      "data_seed": 921011,
+      "history_id": "H-S21-PILOT-12",
+      "relative_root": "histories/H-S21-PILOT-12"
+    },
+    {
+      "config_hash": "04423d07e09e",
+      "config_sha256": "04423d07e09e057cf3d06cbcc6fbbf64d90084e115e0d70f1040dda3fddc614f",
+      "data_seed": 921012,
+      "history_id": "H-S21-PILOT-13",
+      "relative_root": "histories/H-S21-PILOT-13"
+    },
+    {
+      "config_hash": "a9b5d8c448c2",
+      "config_sha256": "a9b5d8c448c2d1cc08592cc7f5cee78042f825c9cebe074fbbf61de18ebac6e3",
+      "data_seed": 921013,
+      "history_id": "H-S21-PILOT-14",
+      "relative_root": "histories/H-S21-PILOT-14"
+    },
+    {
+      "config_hash": "5a5c3cbc57be",
+      "config_sha256": "5a5c3cbc57be5be1bc1ca1ac2c7d89676e91ea9d4ebbbb99a9426d672a27aeff",
+      "data_seed": 921014,
+      "history_id": "H-S21-PILOT-15",
+      "relative_root": "histories/H-S21-PILOT-15"
+    },
+    {
+      "config_hash": "9c6f9e513aa2",
+      "config_sha256": "9c6f9e513aa21718ea25bd52b89384262769467f78d819477ab83ec7a6a583c5",
+      "data_seed": 921015,
+      "history_id": "H-S21-PILOT-16",
+      "relative_root": "histories/H-S21-PILOT-16"
+    },
+    {
+      "config_hash": "a3bcac8e96c3",
+      "config_sha256": "a3bcac8e96c3fcc79ce39010130b1594303563f6941a2adfe60ce0ec7cc7ba81",
+      "data_seed": 921016,
+      "history_id": "H-S21-PILOT-17",
+      "relative_root": "histories/H-S21-PILOT-17"
+    },
+    {
+      "config_hash": "42b424b0adf7",
+      "config_sha256": "42b424b0adf75391595d91b03b2d71bdc46082e13bf3fb4345c715d2b1f34b42",
+      "data_seed": 921017,
+      "history_id": "H-S21-PILOT-18",
+      "relative_root": "histories/H-S21-PILOT-18"
+    },
+    {
+      "config_hash": "aa40735096b5",
+      "config_sha256": "aa40735096b53e9244a96ed320a40e4b7ab9a6c01f6f6db34c32c9602b8b2860",
+      "data_seed": 921018,
+      "history_id": "H-S21-PILOT-19",
+      "relative_root": "histories/H-S21-PILOT-19"
+    },
+    {
+      "config_hash": "053e9fbbd464",
+      "config_sha256": "053e9fbbd464ee9474c537fc621f0c43825b05aeeaae1c2024d242635cd9f8af",
+      "data_seed": 921019,
+      "history_id": "H-S21-PILOT-20",
+      "relative_root": "histories/H-S21-PILOT-20"
+    },
+    {
+      "config_hash": "9e19547c15d4",
+      "config_sha256": "9e19547c15d4f6a7f19ec3d5ae3ffd91e66f51f9d0b359324c7c53db6cab23b2",
+      "data_seed": 921020,
+      "history_id": "H-S21-PILOT-21",
+      "relative_root": "histories/H-S21-PILOT-21"
+    },
+    {
+      "config_hash": "1f6e4ad8613c",
+      "config_sha256": "1f6e4ad8613c9f4d4b81f3009927dd5a0ec66ae774038656c087e13c29a9d60c",
+      "data_seed": 921021,
+      "history_id": "H-S21-PILOT-22",
+      "relative_root": "histories/H-S21-PILOT-22"
+    },
+    {
+      "config_hash": "e738f4a50248",
+      "config_sha256": "e738f4a502483caac0847705634cba3626640eda57f9e0b69a4d5b879b86f04e",
+      "data_seed": 921022,
+      "history_id": "H-S21-PILOT-23",
+      "relative_root": "histories/H-S21-PILOT-23"
+    },
+    {
+      "config_hash": "3d5b9cc7a22f",
+      "config_sha256": "3d5b9cc7a22fa7bc6be2699b902b7afc182a5acf428e98d7242999d9cd60b715",
+      "data_seed": 921023,
+      "history_id": "H-S21-PILOT-24",
+      "relative_root": "histories/H-S21-PILOT-24"
+    },
+    {
+      "config_hash": "e55b5d214762",
+      "config_sha256": "e55b5d214762a0641f7271add1417ad955b58c445a80f457991481051575ebb7",
+      "data_seed": 921024,
+      "history_id": "H-S21-PILOT-25",
+      "relative_root": "histories/H-S21-PILOT-25"
+    },
+    {
+      "config_hash": "b24e7fcf1a8d",
+      "config_sha256": "b24e7fcf1a8d9a7ce128b6aaa3590eabb8bb30fac995648c31f596b1e230162a",
+      "data_seed": 921025,
+      "history_id": "H-S21-PILOT-26",
+      "relative_root": "histories/H-S21-PILOT-26"
+    },
+    {
+      "config_hash": "32287246f58e",
+      "config_sha256": "32287246f58ec210cc253ca8f215c1bdcb06ac217510e57bcbac438af32ea3c7",
+      "data_seed": 921026,
+      "history_id": "H-S21-PILOT-27",
+      "relative_root": "histories/H-S21-PILOT-27"
+    },
+    {
+      "config_hash": "68473ff02a22",
+      "config_sha256": "68473ff02a228e56c5f95550fca2a2fc7dac953d1da9f60fae65a81f0bd876b5",
+      "data_seed": 921027,
+      "history_id": "H-S21-PILOT-28",
+      "relative_root": "histories/H-S21-PILOT-28"
+    },
+    {
+      "config_hash": "0e8bea0ff843",
+      "config_sha256": "0e8bea0ff843c8a1c98533e3e6c223fa12d3d657a430de87a081da8e14d0ee12",
+      "data_seed": 921028,
+      "history_id": "H-S21-PILOT-29",
+      "relative_root": "histories/H-S21-PILOT-29"
+    },
+    {
+      "config_hash": "52ad8529a59d",
+      "config_sha256": "52ad8529a59df8d7bf897b460720c8166d8a5af5b5d00382a91d15dde7753c97",
+      "data_seed": 921029,
+      "history_id": "H-S21-PILOT-30",
+      "relative_root": "histories/H-S21-PILOT-30"
+    },
+    {
+      "config_hash": "229693cc733b",
+      "config_sha256": "229693cc733b0a32745bbfc7ca8faa5a711e276f1db261616979e95f714a82a0",
+      "data_seed": 921030,
+      "history_id": "H-S21-PILOT-31",
+      "relative_root": "histories/H-S21-PILOT-31"
+    },
+    {
+      "config_hash": "9a3c0ce241a7",
+      "config_sha256": "9a3c0ce241a70112a6f28cc7382e5fbc6b46c676ee3a96f320c02d45dc8ad26d",
+      "data_seed": 921031,
+      "history_id": "H-S21-PILOT-32",
+      "relative_root": "histories/H-S21-PILOT-32"
+    }
+  ],
+  "roster_size": 32,
+  "runtime": {
+    "cuda_available": true,
+    "device_name": "NVIDIA GeForce RTX 4060 Ti",
+    "device_total_mib": 16380,
+    "python": "3.12.13",
+    "torch": "2.14.0+cu130"
+  },
+  "sample_size_choice": "H=32 is the fixed prospective history sample size only; it is not an H=32,m=2 or other miss allowance.",
+  "schema_id": "sprint21-pilot-binding-v1",
+  "scorer": {
+    "b0_config_sha256": "1ff67f95428ef29aab05d9f6394a305b75c8c2a9e12431f3cda09b6958596144",
+    "bank": {
+      "dimensions": 128,
+      "k": 5,
+      "refit": false,
+      "rows": 5040,
+      "source": "checkpoint-embedded historical Fit-only bank"
+    },
+    "checkpoint_bytes": 18239321,
+    "checkpoints": {
+      "171701": {
+        "filename": "b0_seed171701_step300.pt",
+        "sha256": "45f9e151c5d3946804ea531eb2bcace26b1f62e634671f51b8741ac6b411a619"
+      },
+      "171702": {
+        "filename": "b0_seed171702_step300.pt",
+        "sha256": "64ed2cedec210e4692f60bb4dd3430a57cf94abfcd50551abd97c9265ea785f8"
+      },
+      "171703": {
+        "filename": "b0_seed171703_step300.pt",
+        "sha256": "9edb2122e357376a9ff1e065d73d5ab7704f8d2005991552332f1ced01b0e906"
+      }
+    },
+    "conditioning_mapping_sha256": "4f769ccc64aac4c6a91fdd356eaa6963afe976ab847a22df23e43f9331418897",
+    "file_masking": "sha256(UTF-8(global_file_id)); unsigned big-endian first 4 bytes mod 2**31",
+    "historical_base_commit": "8c15f0204a3e495569b7f143dc109943e8b808de",
+    "inference_only": true,
+    "metric_code_sha256": "b2d6af7505abe459a84f76f5279a6a5c4298e7c142901edd4596fcfe3ddeb88f",
+    "metric_member_sha256": {
+      "experiments/sprint17_task7_b0.py": "7969f3cacb77b4e9d0476250ba49ffe12f74a50f62157afc861179d9c141e825",
+      "src/representation/attribution_metrics.py": "c14f815c19d8e5791bce09cc0f07986e3a0f4c90c5c70cbf20f1c29f5a8d0488",
+      "src/representation/sprint17_ablation.py": "52162995189985a30372e75c12538cfb15f93a2d36fe460551838c1c11e994af",
+      "src/synth/events.py": "85100f5e0aca47dd2e8b01a08c58f39d32be4f1eab469cdc38e4a4b57768169d",
+      "src/synth/probe15.py": "a08b3d5fb83001e1f5c43f4c56ff536bae85e41d494db289304aeb33a339242b"
+    },
+    "model_inputs": "signal x plus explicit source-derived robot_idx/program_idx; labels/health/events/split/future metadata are not passed; NORMAL and seed=0 are inert required FileSample sentinels",
+    "model_seeds": [
+      171701,
+      171702,
+      171703
+    ],
+    "score_branches": [
+      "S_pred",
+      "S_pop"
+    ],
+    "task3_runner_commit": "f8a8fa6dd3ae1534c8f8db8d552898ffe88314ba",
+    "task3_runner_sha256": "d1d8239d34944ab54f371555f68d1431f7d4784ba0a67bd4fec49359ba8f7a32",
+    "uv_lock_sha256": "4a7866878c81cdd8f5ba283cd8d0a772073bfc75941f73ec761ede5eeb2e239a"
+  },
+  "source": {
+    "historical_base_commit": "8c15f0204a3e495569b7f143dc109943e8b808de",
+    "metric_code_sha256": "b2d6af7505abe459a84f76f5279a6a5c4298e7c142901edd4596fcfe3ddeb88f",
+    "metric_member_sha256": {
+      "experiments/sprint17_task7_b0.py": "7969f3cacb77b4e9d0476250ba49ffe12f74a50f62157afc861179d9c141e825",
+      "src/representation/attribution_metrics.py": "c14f815c19d8e5791bce09cc0f07986e3a0f4c90c5c70cbf20f1c29f5a8d0488",
+      "src/representation/sprint17_ablation.py": "52162995189985a30372e75c12538cfb15f93a2d36fe460551838c1c11e994af",
+      "src/synth/events.py": "85100f5e0aca47dd2e8b01a08c58f39d32be4f1eab469cdc38e4a4b57768169d",
+      "src/synth/probe15.py": "a08b3d5fb83001e1f5c43f4c56ff536bae85e41d494db289304aeb33a339242b"
+    },
+    "pinned_source_sha256": {
+      "docs/BENCHMARK_MEASURABILITY_EXIT_GATES_V2.md": "d294762331ded4fd213f6870e563e32e17e12c632d7cb11a80373478ede34e1c",
+      "experiments/sprint15-benchmark-protocol-v7.md": "a1fc09db2e246ed79d0595aec953a7788fd1b47c4981fbe1d92017d944b8d7b6",
+      "experiments/sprint17_task7_b0.py": "7969f3cacb77b4e9d0476250ba49ffe12f74a50f62157afc861179d9c141e825",
+      "src/representation/contracts.py": "0b23080fc49f218484a6f7939bb9288f07b607686312e91c3b14d9d6b84464ed",
+      "src/representation/data.py": "88ea3becbc8328c5b21518b1f957fe710096cb96ed0cd2416fe6f139439d5eb4",
+      "src/representation/layers/normalization.py": "bfb5f68f5352115c2e044c27999cdf3fecab7aa3ce2cd05ce021204f1f9edd8d",
+      "src/representation/masking.py": "c0efd33b24b8d01c067198f0bc04c0c90c1e99bad9a6a1ec006b37ce27c0465f",
+      "src/representation/model.py": "7051f5f76be0bcc8e50d6d5ee2941a57c12a3285406d0ef27883c596aa6600f0",
+      "src/synth/__init__.py": "5c979561a2f01581e2943f23e30061788d10dabc2ec1172cbd9f25275032b168",
+      "src/synth/balanced.py": "d62de3422bd51f870d39d18b1a8bb942f9ca73fc0044d8f23cc2d0948bd35a43",
+      "src/synth/chronicle.py": "b5992d6af3c4387d18df746b43be17b4bfc1fac6938e8b44be35b6fb7c65dafd",
+      "src/synth/cli.py": "3c264a33c7e74dd2b1ab2c9cfbb7a7e2e524f1b39a1228f734460edb0d900a37",
+      "src/synth/config.py": "55fed2ef5b253d48c1b0c7f1dd5f7f966cdd03ad250cb86a988ac8de23d5c056",
+      "src/synth/events.py": "85100f5e0aca47dd2e8b01a08c58f39d32be4f1eab469cdc38e4a4b57768169d",
+      "src/synth/health.py": "e5854641fb85eb9b88e05ee9d8e503c69a9432b13177d8c62ad38c3494e7fc6d",
+      "src/synth/preflight15.py": "19f0300e97d55609c27f51403de9cc0f7a898684df7050424972fc4e4fb21dd1",
+      "src/synth/probe15.py": "a08b3d5fb83001e1f5c43f4c56ff536bae85e41d494db289304aeb33a339242b"
+    },
+    "protocol_path": "experiments/sprint21-exploratory-pilot-v1.md",
+    "protocol_sha256": "0384459101d867cae75fbaa526667865b930150d8addc926bad326b7842b5051",
+    "task3_role_binding_canonical_sha256": "075868b22c028a981cc63ffe37b8d29720cd324c3e2c7254ce688678758230ba",
+    "task3_role_binding_raw_sha256": "f212ca2fd5a0f60eeb206435b610fa6a8689774ea490db2aa94d44c15a01baf1",
+    "task3_runner_commit": "f8a8fa6dd3ae1534c8f8db8d552898ffe88314ba",
+    "task3_runner_sha256": "d1d8239d34944ab54f371555f68d1431f7d4784ba0a67bd4fec49359ba8f7a32",
+    "task4_runner_sha256": "00653b7f312d62bbc0a078bf55a6e9fd48885936fa4fd520c293a467c26f455f",
+    "task4_runner_source_commit": "a4d836e32e35f75565db5757fb2949f46a5e9102",
+    "uv_lock_sha256": "4a7866878c81cdd8f5ba283cd8d0a772073bfc75941f73ec761ede5eeb2e239a"
+  },
+  "status": "FROZEN_PENDING_PRECONTACT_REVIEW"
+}
