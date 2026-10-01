@@ -1051,6 +1051,7 @@ def preflight(args: argparse.Namespace) -> dict[str, object]:
         "b0_config_sha256": canonical_sha256(config_map),
         "conditioning_mapping_sha256": canonical_sha256(mapping),
         "conditioning_mapping": mapping,
+        "runtime": runtime,
         "checkpoint_preflight": checkpoint_preflight,
         "allocator_cases": allocator_results,
         "allocator_fixture_walltime_s": round(allocator_elapsed, 6),
