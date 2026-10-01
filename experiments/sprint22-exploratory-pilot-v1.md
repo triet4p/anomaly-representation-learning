@@ -1,0 +1,91 @@
+# Sprint 22 distinct H=32 exploratory pilot protocol v1
+
+**Protocol ID:** `sprint22-exploratory-pilot-v1`  
+**Status:** FROZEN PENDING INDEPENDENT PRE-CONTACT REVIEW — **NOT AUTHORIZED FOR PILOT CONTACT OR EXECUTION**.  
+**Claim:** research-only, descriptive, simulator-conditional.  
+**Authority:** the user's explicit selection of a new research pilot with H=32; this is a new study, not a Sprint 21 replay or continuation.
+
+## 1. Scope, authority, and immutable boundaries
+
+This protocol binds one new, fixed 32-history whole-history study. Binding and no-contact verification are the only authorized Task 3 actions. The single actual pilot invocation is prohibited until a fresh independent pre-contact review returns zero actionable findings and Main explicitly releases the exact binding digest and command. `contact_authorized` remains `false`; `--dry-run` is not a pilot release.
+
+Sprint 21's 32 coordinates (`H-S21-PILOT-01..32`, data seeds `921000..921031`), its one contacted history, 31 unattempted coordinates, runner, protocol, binding, output, and stop evidence remain immutable. None is replayed, resumed, finished, replaced, or rescored. The new block remains permanently research-only, including any coordinate not reached in a stop; it cannot be reused for Evaluation, Confirmation, or a gate.
+
+Sprint 20 remains `NOT_READY`; Sprint 18 remains blocked with its 48-control construction reserve and no-Cycle-4 status. This study changes no gate, quota, tolerance, miss allowance, or acceptance rule. No training, fitting, refitting, recalibration, threshold selection, score fusion, Confirmation/Sealed-root access, or current-checkout fallback is allowed. The historical Sprint 17 B0/Fit-bank reuse is only the narrow, threshold-free, descriptive research exception stated here; it is not a new prospective Fit/Calibration pipeline.
+
+## 2. Fixed roster and static collision proof
+
+The independent sampling unit is one whole generated history. The immutable roster is `H-S22-PILOT-01..32`, data seeds `922000..922031` inclusive, and roots `histories/H-S22-PILOT-01..32` beneath the sole one-shot output root `/tmp/sprint22-exploratory-pilot-v1`. All 32 ordered coordinates and the exact full and short config hashes for each seed are in `experiments/sprint22-pilot-binding-v1.json`. The seed block was chosen once as a contiguous block by disjointness from the enumerated catalog; there was no seed search or outcome-dependent choice.
+
+The binding's `freshness_provenance` and `freshness_exclusions` form the complete authorized **static** collision check. They enumerate the 18 source records inherited from the accepted Sprint 21 static catalog, every role/data-seed range and singleton in that catalog, all 32 Sprint 21 bound coordinates, the Sprint 22 allocator-only `history_seed=220001`, the inert `FileSample.seed=0`, the two Task 2 toy IDs and their mask-seed values, and model-only seed ranges. The new block is compared against every enumerated data/model/sentinel/mask seed value and has an empty intersection. The source records and their exact digests are listed in the binding.
+
+This proves disjointness only against the cited static role-binding and preserved evidence catalog. No history/root search, generated-data read, preflight, or Sealed-root access was performed or is implied. This is not a claim that the new roots already exist, are globally fresh outside the catalog, or have been opened; there are no actual pilot histories before the separately released one-shot invocation. `H=32` is a fixed sample-size choice only, not `H=32,m=2`, an allowance, a precision guarantee, or a tolerance-selection rule.
+
+## 3. Exact source, generator, config, and allocation
+
+Use only the complete historical source tree at commit `8c15f0204a3e495569b7f143dc109943e8b808de`. Fetch that real Git commit into a fresh detached worktree; do not use a copied source snapshot or current checkout. The bound runner is the unchanged, accepted `sprint22-pilot-runner-v2` bytes in the separately published Task 3 source commit. The historical tree remains clean and receives no runner/proof-wrapper overlay. Project imports resolve only through `PYTHONPATH=/tmp/sprint22-pilot-hist-v1/src` (or the exact fresh historical-worktree path used in the reviewed command).
+
+For every bound seed, the config is `synth.chronicle.sprint15_v7_history_config(data_seed)`, profile `sprint15-v7`, generator version `2.0.0`, generator profile protocol `sprint15-benchmark-protocol-v7`, and manifest protocol tag `sprint22-exploratory-pilot-v1`. The generator protocol SHA-256 is `a1fc09db2e246ed79d0595aec953a7788fd1b47c4981fbe1d92017d944b8d7b6`; the normalized config-template SHA-256 is `3dfecb64967e3e6a1bfe26f8dd72565f553dbda0130dca639d5569c2e42e7dd6`. The binding records each `cfg.hash()` and SHA-256 of the complete `dataclasses.asdict(cfg)` serialization; a config mismatch is a hard provenance failure.
+
+At a reached coordinate, the only permitted materialization call is:
+
+```python
+materialize_chronological(
+    cfg, root, shard_size=64, overwrite=False,
+    role=history_id, protocol="sprint22-exploratory-pilot-v1", sprint15=None,
+)
+```
+
+Use the pinned `synth.balanced.allocate_quotas(rows, ledger, maintenance_windows, data_seed, QuotaConfig(), method="exact")`, unchanged `QuotaConfig()`, and the Task 2 runner's real consumer boundary. `QuotaConfig.controls=48` is a **minimum construction reserve**: retain the allocator's entire qualifying control result, which may exceed 48; never truncate or select a subset. Construction with fewer than 48 fails even though the distinct downstream hard control floor is 25 and the design-margin diagnostic is 32. These three values are separate. The genuine Task 2 fixture proof observed 47 rejected as `control-shortfall`, and all 48/49 qualifying controls retained; it was disposable-only and is not a pilot result.
+
+No preflight, quota audit, threshold/audit scorer, generator tuning, or alternate allocator is permitted. Allocation infeasibility is a hard support failure, not a reason to retry, search, or replace the coordinate.
+
+## 4. Hard support, structural checks, and diagnostic margins
+
+Every materialized history must pass the unchanged allocator construction contract and every frozen structural and numerical hard flag before any model restore or scoring. The runner verifies the complete canonical eligible control set is retained, minimum-48 construction, source-bound allocation seed, exact positive subtype quotas (P1/P2=12 each, W1/W2=12 each, A1/A2=8 each), all selected positive events, serialized row-key allowlist without hidden event labels, nine-robot vocabulary and reserved robot, reserved program, per-robot chronology, positive maintenance intervals, P/W/A presence and valid subtypes, and frozen P/W degradation-duration shapes.
+
+Numerical hard floors are P≥10, W≥10, A≥8 eligible windows; positive total≥30; same-history eligible control windows≥25; eligible robot-days≥150; at least six positive and six negative/control robots; at least two programs in each P and W cohort; P/W/A shares each in [15%, 60%]; maximum positive-robot share≤35%; maximum negative-robot share≤40%; maximum program share≤60% within each P and W cohort; and P and W clean-baseline lead-support fractions each≥80%. The runner also preserves the inherited event, temporal, censoring, reset, quarantine, maintenance, schema, subtype, and eligibility predicates from the pinned historical `synth.events` and allocator code.
+
+The separate design margins P≥13, W≥13, A≥10, positive total≥38, controls≥32, and robot-days≥188 are diagnostic only. A margin miss never fails a history, stops execution, changes the endpoint, or creates a tolerated-miss rule; retain hard-pass histories and report margin strata descriptively.
+
+Stop at the first hard/structural support failure, including allocator construction failure. Persist that coordinate's bounded support evidence, leave later fixed coordinates unattempted, and do not restore or score any model (including earlier support-pass histories). A reached history is never skipped, replaced, retried, resumed, or followed by another coordinate after a hard failure.
+
+## 5. Frozen scorer, provenance, and input boundary
+
+Score every qualifying complete roster with all three required historical B0 model seeds, restored one at a time from the original read-only step-300 checkpoints. Exact filenames, 18,239,321-byte sizes, SHA-256 values, embedded Fit-bank digests, and runtime are in the binding. The model seeds are separate repeated scorer variants, never additional histories or a basis for favorable-seed selection. The B0 config digest is `1ff67f95428ef29aab05d9f6394a305b75c8c2a9e12431f3cda09b6958596144`; the historical `uv.lock` SHA-256 is `4a7866878c81cdd8f5ba283cd8d0a772073bfc75941f73ec761ede5eeb2e239a`; the canonical metric-code digest is `b2d6af7505abe459a84f76f5279a6a5c4298e7c142901edd4596fcfe3ddeb88f`.
+
+The exact source closure includes the eight pinned source-file hashes and five ordered metric-code member hashes in the binding. The scorer uses the checkpoint-embedded historical Fit-only bank unchanged (k=5, 5,040×128); per-model-seed bank-embedding hashes are bound. Before any scoring, the runner checks original checkpoint size/hash and restored step/config/bank; after each seed it requires model parameter/buffer and bank state immutability and checkpoint hash stability. No checkpoint or bank copy, fit, or substitution is allowed.
+
+The source-derived vocabulary is bound by SHA-256 `4f769ccc64aac4c6a91fdd356eaa6963afe976ab847a22df23e43f9331418897`: `robot-01..robot-09` map to indices 0..8 and `program-01..program-08` map to indices 0..7 in sorted identifier order. Inputs are finite float32 `[6,T]` files in the frozen channel order `feed`, `current`, `temperature`, `arc-voltage`, `arc-power`, `torch-pressure`. For each manifest file, resolve the numeric indices from the source-derived string map; require both explicit serialized `robot_idx` and `program_idx` fields to exist and agree. Missing or inconsistent conditioning is a hard failure before the collator's zero defaults can apply. Stable global file IDs are `history_id::source_file_id`; the pinned mask is `int.from_bytes(SHA256(UTF8(global_file_id))[:4], "big") % 2**31`. Only signal `x` and validated numeric conditioning reach the model; labels, health/event metadata, split labels, and future metadata do not.
+
+The exact reviewed Task 2 runner bytes are `experiments/sprint22_pilot_runner.py`, `RUNNER_ID="sprint22-pilot-runner-v2"`, SHA-256 `bec60ee2739f922e6316757b6b2f4c1bf3279200102668c1a35ae78e6f8799b5`. The Task 3 binding names its actual published Git commit and this exact digest. The protocol digest and canonical binding digest are computed from their actual bytes/content and recorded in the binding; no digest is copied from an unverified static claim.
+
+## 6. Endpoints, missingness, and uncertainty
+
+For each file and each frozen model seed, retain separate `S_pred` and `S_pop`: `S_pred` is mean masked prediction MSE over valid prediction-mask patches; `S_pop` is mean Euclidean distance to the five nearest embeddings in that checkpoint's unchanged Fit bank. No score threshold, calibration threshold, score fusion, or score-driven support selection is used.
+
+Eligibility and event/control support are fixed independently of scores using the pinned Task 7 `evaluable_support` and historical `synth.events` predicates. Aggregate each event/control window as the maximum member-file score. For each history and branch separately, the primary endpoint is tie-aware AUROC of all eligible P+W event-window scores against that same history's eligible control-window scores. P-only, W-only, and A-only within-history AUROCs and support counts/reasons are secondary descriptive measures.
+
+A branch endpoint is computable only with finite scores on identical complete support keys for all required windows. Every primary/secondary macro and uncertainty result requires every one of the 32 declared histories to be present, hard-pass, metric-computable, finite, and on common support. Any hard failure, missing/non-finite score, roster defect, or branch support mismatch makes the corresponding entire full-roster endpoint, macro, unbiased sample variance, and bootstrap LCB null/`UNCOMPUTABLE_FULL_ROSTER`; never impute or average a surviving subset. The result records all 32 coordinates and `NOT_ATTEMPTED` state for unattempted coordinates after a stop.
+
+When all 32 histories qualify, report separate unweighted history macros for each branch and scorer seed, unbiased sample variances across whole histories, and a paired history-block bootstrap using 2,000 replicates, RNG seed `20260202`, identical resampled history indices across branches, and the 2.5th-percentile descriptive LCB. Model seeds remain separate variants. This is descriptive uncertainty only, not a precision/generalization guarantee, miss allowance, or acceptance threshold.
+
+## 7. One-shot output, resource claims, and commands
+
+The sole output root is `/tmp/sprint22-exploratory-pilot-v1`. The exact bound path must be absent and not a symlink before either dry-run or the one possible actual invocation; any path existence, symlink, or binding/source drift fails closed without overwrite. The attempt budget is exactly one. The run records a bound `attempt.json`, append-only/fsynced `pilot-ledger.jsonl`, bounded per-history support/manifest evidence, per-history/per-model-seed score records only if scoring is reached, and `summary.json`. No output is permitted outside the bound root. No retries, resumption, replacement, omission, seed search, post-failure continuation, preflight, or output-root reuse is allowed.
+
+The no-contact `--dry-run` verifies the exact canonical binding, published runner commit/bytes, protocol bytes, clean pinned historical source closure, runtime/GPU identity, and original checkpoint file hashes, and requires the output root to remain absent. It must not materialize histories, run preflight, deserialize checkpoints, score, create/touch the output root, or claim a pilot result. A separate bounded configuration-constructor guard may recompute only the 32 pure `sprint15_v7_history_config` values from the pinned source and compare their bound hashes; it must not call a materializer, preflight, reader, allocator, checkpoint loader, or scorer.
+
+The only observed resource evidence available before the pilot is the Task 2 disposable mathematical-fixture run: 0.97256 s fixture wall time, 15.22 MiB peak allocated and 28.0 MiB peak reserved on the NVIDIA GeForce RTX 4060 Ti. It is fixture-only, not a real-history runtime or memory envelope and must not be extrapolated. Real-history resource use is unknown until the single released invocation.
+
+**Exact no-contact dry-run command and observed evidence** are recorded in `artifacts/sprint-22/task-3.md`. The pilot `--run` command is reserved there with the exact binding digest, runner source commit, and paths, but is **not to be executed by Task 3**. Only after independent pre-contact review passes and Main releases that exact digest may the operator replace `--dry-run` with `--run --review-passed --main-release-binding-sha256 <same-binding-digest>` and invoke it once. This protocol and binding do not authorize that invocation.
+
+## 8. References and decision limits
+
+- Accepted Sprint 21 protocol/binding and stopped-run evidence; exact file digests are in the binding's static catalog.
+- [Sprint 22 Task 1 disposable contract v1](sprint22-disposable-boundary-proof-v1.md)
+- [Sprint 22 Task 2 disposable execution contract v2](sprint22-disposable-boundary-proof-v2.md)
+- Sprint 19 estimands and Sprint 20 decision records; their evidence is descriptive context only and does not amend either decision.
+- Pinned historical base: `8c15f0204a3e495569b7f143dc109943e8b808de`
+
+No result from this study can amend Sprint 20, Sprint 18, Gate V2, or future acceptance criteria. Any future threshold/tolerance decision requires separate prospective authority, protocol, and untouched independent histories.
