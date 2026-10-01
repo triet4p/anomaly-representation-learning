@@ -46,3 +46,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Fixed
 
 - Corrected Sprint 21 pilot program-share calculation and scorer conditioning: IDs now resolve from the pinned robot/program map, and missing serialized indices are rejected without changing the manifest schema.
+- Fixed the Sprint 22 pilot runner's checkpoint-size guard by defining the frozen 18,239,321-byte checkpoint size required during binding validation and no-contact checks.

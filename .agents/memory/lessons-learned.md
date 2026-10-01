@@ -60,3 +60,10 @@
 **Root cause:** The wrapper asserted the unanimous-pass contract before persisting the deterministic raw `run_preflight` result; a failed assertion discarded the in-memory result even though the expensive computation had completed.
 **Fix / workaround:** For the one authorized diagnostic replay, write the complete raw result and per-binding gate reasons first, hash the persisted record, then perform any pass assertion. This captured the deterministic `PREFLIGHT-FAIL` / `15/16` result and sole failing seed.
 **Watch out for:** Any expensive preflight, audit, or batch command whose evidence is printed or persisted only after a success assertion. Persist raw deterministic outputs before assertions so fail-closed decisions retain exact rejection evidence.
+
+## [2026-10-01] Pilot binding guard referenced an undefined checkpoint-size constant
+
+**Symptom:** `validate_binding` raised `NameError: CHECKPOINT_BYTES` before the Sprint 22 no-contact dry-run could verify the binding and checkpoint identities.
+**Root cause:** The runner used the checkpoint byte-size identifier in expected binding construction and file-size checks, but never declared it.
+**Fix / workaround:** Define `CHECKPOINT_BYTES = 18_239_321`, the frozen size already recorded for each checkpoint; pin the corrected runner commit/digest and exercise only the no-contact dry-run.
+**Watch out for:** A clean syntax check and source hash do not resolve names reached only during binding validation; run the actual no-contact guard before review without deserializing or scoring checkpoints.
