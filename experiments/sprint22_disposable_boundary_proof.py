@@ -3,7 +3,7 @@
 This one-shot entry point runs only the reviewed in-memory allocator fixtures
 and two frozen mathematical file samples. It has no history-root, generator,
 preflight, training, or network interface. See the byte-verified contract at
-``experiments/sprint22-disposable-boundary-proof-v1.md``.
+``experiments/sprint22-disposable-boundary-proof-v2.md``.
 """
 from __future__ import annotations
 
@@ -34,9 +34,15 @@ PINNED_SRC = (REPO_ROOT / "src").resolve()
 if str(PINNED_SRC) not in sys.path:
     sys.path.insert(0, str(PINNED_SRC))
 
-CONTRACT_SHA256 = "dcb9b667f86e9a2240a86022490aae93c948bf5ff88f08dd4dd9c52f9701f1d4"
+CONTRACT_SHA256 = "b95cce11ed2deb6b9c2a3b66d9ab868c97d85a126450d0bdcafebce9e3b38b15"
+TASK2_SOURCE_ROOT = Path("/tmp/sprint22-task2-source-v2")
+CONTRACT_PATH = TASK2_SOURCE_ROOT / "experiments/sprint22-disposable-boundary-proof-v2.md"
+WORKTREE_ROOT = Path("/tmp/sprint22-disposable-boundary-hist-v2")
+RUNNER_ID = "sprint22-pilot-runner-v2"
+RUNNER_PATH = TASK2_SOURCE_ROOT / "experiments/sprint22_pilot_runner.py"
+RUNNER_SHA256 = "bec60ee2739f922e6316757b6b2f4c1bf3279200102668c1a35ae78e6f8799b5"
 BASE_COMMIT = "8c15f0204a3e495569b7f143dc109943e8b808de"
-OUTPUT_ROOT = Path("/tmp/sprint22-disposable-boundary-proof-out-v1")
+OUTPUT_ROOT = Path("/tmp/sprint22-disposable-boundary-proof-out-v2")
 CHECKPOINT_ROOT = Path("/tmp/sprint17-task7-out/checkpoints")
 MODEL_SEEDS = (171701, 171702, 171703)
 CHECKPOINT_FILES = {
@@ -139,6 +145,8 @@ def file_seed(file_id: str) -> int:
 
 
 def verify_reviewed_contract(path: Path) -> str:
+    if path.resolve() != CONTRACT_PATH.resolve():
+        raise ProofFailure("CONTRACT_MISMATCH", f"reviewed contract path must be exactly {CONTRACT_PATH}")
     try:
         digest = sha256_file(path)
     except OSError as exc:
@@ -999,11 +1007,13 @@ def preflight(args: argparse.Namespace) -> dict[str, object]:
     contract_path = Path(args.contract_path).resolve()
     contract_hash = verify_reviewed_contract(contract_path)
     worktree_root = Path(args.worktree_root).resolve()
+    if worktree_root != WORKTREE_ROOT.resolve():
+        raise ProofFailure("RESTORE_ONLY_OR_ISOLATION_FAILURE", f"historical worktree path must be exactly {WORKTREE_ROOT}")
     wrapper_path = Path(__file__).resolve()
     wrapper_hash = verify_wrapper_identity(wrapper_path, args.expected_wrapper_sha256)
     historical = verify_historical_tree(worktree_root, wrapper_hash)
     runner_path = Path(args.runner_path).resolve()
-    runner_hash = verify_wrapper_identity(runner_path, args.expected_runner_sha256)
+    consumer, runner_hash = _load_consumer(runner_path, args.expected_runner_sha256)
     checkpoint_root = Path(args.checkpoint_root).resolve()
     if checkpoint_root != CHECKPOINT_ROOT.resolve():
         raise ProofFailure("PROVENANCE_MISMATCH", f"checkpoint root {checkpoint_root} is not the authorized original path {CHECKPOINT_ROOT}")
@@ -1014,16 +1024,6 @@ def preflight(args: argparse.Namespace) -> dict[str, object]:
     output_dir = Path(args.output_dir)
     if output_dir.exists() or output_dir.is_symlink():
         raise ProofFailure("OUTPUT_ALREADY_EXISTS", f"one-shot output root already exists: {output_dir}")
-    # This module is a pure stdlib file at import time; only this helper is
-    # called from it. Its digest is compared with an independently supplied
-    # hash from the pushed Task 2 source commit.
-    spec = importlib.util.spec_from_file_location("_s22_pilot_runner_consumer", runner_path)
-    if spec is None or spec.loader is None:
-        raise ProofFailure("RESTORE_ONLY_OR_ISOLATION_FAILURE", f"cannot load new production runner at {runner_path}")
-    consumer = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(consumer)
-    if getattr(consumer, "RUNNER_ID", None) != "sprint22-pilot-runner-v1":
-        raise ProofFailure("RESTORE_ONLY_OR_ISOLATION_FAILURE", "runner identity differs from reviewed Sprint 22 version")
     checkpoint_preflight: dict[str, dict[str, object]] = {}
     for model_seed in MODEL_SEEDS:
         path = checkpoint_root / CHECKPOINT_FILES[model_seed]
@@ -1042,8 +1042,12 @@ def preflight(args: argparse.Namespace) -> dict[str, object]:
     allocator_elapsed = time.perf_counter() - allocator_started
     return {
         "contract_sha256": contract_hash,
+        "contract_path": str(contract_path),
+        "task2_source_root": str(TASK2_SOURCE_ROOT.resolve()),
         "wrapper_sha256": wrapper_hash,
         "pilot_runner_sha256": runner_hash,
+        "pilot_runner_id": RUNNER_ID,
+        "pilot_runner_path": str(runner_path),
         "worktree": str(worktree_root),
         "checkpoint_root": str(checkpoint_root),
         "output_root": str(output_dir),
@@ -1055,7 +1059,7 @@ def preflight(args: argparse.Namespace) -> dict[str, object]:
         "checkpoint_preflight": checkpoint_preflight,
         "allocator_cases": allocator_results,
         "allocator_fixture_walltime_s": round(allocator_elapsed, 6),
-        "consumer_helper": "sprint22_pilot_runner.require_minimum_control_allocation (loaded only after exact SHA-256 verification)",
+        "consumer_helper": "sprint22-pilot-runner-v2.require_minimum_control_allocation (loaded only after exact SHA-256 verification)",
     }
 
 
@@ -1142,12 +1146,18 @@ def execute_scoring(args: argparse.Namespace, context: dict[str, object]) -> dic
     if full_roster["status"] != "COMPUTABLE_FULL_ROSTER":
         raise ProofFailure("ROSTER_OR_SCORE_INCOMPLETE", "complete scorer fixture roster failed its full-roster validation")
     return {
-        "schema_id": "sprint22-disposable-boundary-proof-v1",
+        "schema_id": "sprint22-disposable-boundary-proof-v2",
         "status": "PASS_DISPOSABLE_ONLY",
         "contract_sha256": context["contract_sha256"],
+        "contract_path": context["contract_path"],
+        "task2_source_root": context["task2_source_root"],
+        "wrapper_sha256": context["wrapper_sha256"],
         "pilot_runner_sha256": context["pilot_runner_sha256"],
+        "pilot_runner_id": context["pilot_runner_id"],
+        "pilot_runner_path": context["pilot_runner_path"],
         "historical_base_commit": BASE_COMMIT,
         "historical_worktree": str(worktree_root),
+        "output_root": context["output_root"],
         "checkpoint_root": str(checkpoint_root),
         "source_provenance": context["source"],
         "runtime": context["runtime"],
@@ -1187,16 +1197,30 @@ def execute_scoring(args: argparse.Namespace, context: dict[str, object]) -> dic
     }
 
 
-def _load_consumer(path: Path, expected_sha256: str) -> Any:
-    actual = verify_wrapper_identity(path.resolve(), expected_sha256)
-    spec = importlib.util.spec_from_file_location("_s22_pilot_runner_consumer", path.resolve())
+def _load_consumer(path: Path, expected_sha256: str) -> tuple[Any, str]:
+    resolved_path = path.resolve()
+    if resolved_path != RUNNER_PATH.resolve():
+        raise ProofFailure("RESTORE_ONLY_OR_ISOLATION_FAILURE", f"runner path must be exactly {RUNNER_PATH}")
+    if expected_sha256 != RUNNER_SHA256:
+        raise ProofFailure("RESTORE_ONLY_OR_ISOLATION_FAILURE", "expected runner SHA-256 differs from the frozen v2 identity")
+    actual = verify_wrapper_identity(resolved_path, RUNNER_SHA256)
+    module_name = "_s22_pilot_runner_consumer_v2"
+    spec = importlib.util.spec_from_file_location(module_name, resolved_path)
     if spec is None or spec.loader is None:
-        raise ProofFailure("RESTORE_ONLY_OR_ISOLATION_FAILURE", f"cannot load production consumer: {path}")
+        raise ProofFailure("RESTORE_ONLY_OR_ISOLATION_FAILURE", f"cannot load reviewed v2 consumer runner at {resolved_path}")
     module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    if getattr(module, "RUNNER_ID", None) != "sprint22-pilot-runner-v1" or actual != expected_sha256:
-        raise ProofFailure("RESTORE_ONLY_OR_ISOLATION_FAILURE", "production consumer module identity/hash mismatch")
-    return module
+    sys.modules[module_name] = module
+    try:
+        spec.loader.exec_module(module)
+    except Exception as exc:
+        sys.modules.pop(module_name, None)
+        raise ProofFailure("RESTORE_ONLY_OR_ISOLATION_FAILURE", f"cannot import reviewed v2 consumer runner: {exc}") from exc
+    module_path = getattr(module, "__file__", None)
+    if module_path is None or Path(module_path).resolve() != resolved_path:
+        raise ProofFailure("RESTORE_ONLY_OR_ISOLATION_FAILURE", "imported consumer module origin differs from the reviewed runner path")
+    if getattr(module, "RUNNER_ID", None) != RUNNER_ID:
+        raise ProofFailure("RESTORE_ONLY_OR_ISOLATION_FAILURE", "runner identity differs from the reviewed Sprint 22 v2 version")
+    return module, actual
 
 
 def _parser() -> argparse.ArgumentParser:

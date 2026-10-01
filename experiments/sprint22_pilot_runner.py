@@ -24,7 +24,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
-RUNNER_ID = "sprint22-pilot-runner-v1"
+RUNNER_ID = "sprint22-pilot-runner-v2"
 PROTOCOL_ID = "sprint22-exploratory-pilot-v1"
 BINDING_SCHEMA_ID = "sprint22-pilot-binding-v1"
 BASE_COMMIT = "8c15f0204a3e495569b7f143dc109943e8b808de"
