@@ -1,0 +1,1315 @@
+"""Fail-closed runner for the pre-bound Sprint 18 iterative data candidate.
+
+The validator is side-effect-free. Contact stages require Main's exact release
+receipt and run only the bound preflight or the public chronological CLI.
+"""
+from __future__ import annotations
+
+import argparse
+import copy
+import hashlib
+import importlib.util
+import json
+import datetime
+import os
+from pathlib import Path, PurePosixPath
+import socket
+import subprocess
+import sys
+from typing import Any
+
+ROOT = Path(__file__).resolve().parents[1]
+BINDING_DEFAULT = ROOT / "experiments" / "sprint18-iterative-binding-v1.json"
+BASE_COMMIT = "cd04a0a018c73ae91593ea4041742f05829041a6"
+PROFILE = "sprint18-iterative-v1"
+EXECUTION_ROOT = "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree"
+GIT_STORAGE_ROOT = "/home/trietlm/anomaly-representation-learning"
+APPROVED_BRANCH = "sprint18-task68-a02-runtime"
+PYTHON_PROVIDER = "/home/trietlm/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/bin/python3.12"
+LOCKED_PACKAGE_VERSIONS = {"numpy": "2.5.2", "scipy": "1.18.1", "torch": "2.14.0"}
+TASK67_EVIDENCE = {
+    "path": "artifacts/sprint-18/task-67.md",
+    "sha256": "3758a28f4f27676dbf1014c6290ea5acd9fa27c8054fd0899b1d07bccc85aa3a",
+    "reference": "accepted Task67 evidence; provenance only, not a deployable source",
+}
+TASK67_EVIDENCE_PATH = TASK67_EVIDENCE["path"]
+TASK67_EVIDENCE_SHA256 = TASK67_EVIDENCE["sha256"]
+TASK67_EVIDENCE_REFERENCE = TASK67_EVIDENCE["reference"]
+PROTOCOL = "sprint15-benchmark-protocol-v7"
+ROLE_ORDER = (
+    ("DESIGN", 4), ("FIT", 3), ("CALIBRATION", 1),
+    ("DEVELOPMENT", 4), ("CONFIRMATION", 4),
+)
+ROLE_IDS = tuple(role for role, count in ROLE_ORDER for _ in range(count))
+ROLE_SUFFIX = {
+    "DESIGN": "DESIGN", "FIT": "FIT", "CALIBRATION": "CALIBRATION",
+    "DEVELOPMENT": "DEVELOPMENT", "CONFIRMATION": "CONFIRMATION",
+}
+PERMISSIONS = {
+    "DESIGN": "Integrity, causal, construction, and unchanged structural qualification; diagnostics only. No Fit/Calibration use or history selection.",
+    "FIT": "Verified-healthy eligibility; fit only the fixed probe's feature mean/std and healthy centroid. No representation training, bank, alternate scorer, or non-probe fitting.",
+    "CALIBRATION": "Verified-healthy eligibility; score with frozen Fit probe values and choose only the fixed probe q95. No fitting or retuning.",
+    "DEVELOPMENT": "Structural qualification and one fixed-probe evaluation using frozen Fit/Calibration values. No selection, promotion, pruning, or tuning.",
+    "CONFIRMATION": "After Task69 preceding-role PASS and Main release: structural certification and one fixed-probe evaluation using frozen Fit/Calibration values. No fitting, recalibration, retuning, rescue, or model score.",
+}
+SEED_FIELDS = ("factory", "scheduler", "health", "signal", "temporal")
+REQUIRED_SOURCE_PATHS = frozenset({
+    "docs/BENCHMARK_MEASURABILITY_EXIT_GATES_V2.md",
+    "experiments/sprint15-benchmark-protocol-v7.md",
+    "experiments/sprint15-observable-probe-v7.md",
+    "experiments/sprint18-data-method-c2-v1.md",
+    "experiments/sprint18-iterative-data-contract-v1.md",
+    "experiments/sprint18_iterative_candidate_v1.py",
+    "experiments/sprint18_task5_measurability.py",
+    "experiments/sprint22-pilot-binding-v1.json",
+    "pyproject.toml",
+    "src/synth/__init__.py",
+    "src/synth/balanced.py",
+    "src/synth/chronicle.py",
+    "src/synth/cli.py",
+    "src/synth/config.py",
+    "src/synth/events.py",
+    "src/synth/preflight15.py",
+    "src/synth/probe15.py",
+    "uv.lock",
+})
+
+
+class GuardError(RuntimeError):
+    """A frozen binding or stage precondition did not match."""
+
+
+def canonical_json(value: object) -> bytes:
+    return json.dumps(
+        value, sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+        default=str,
+    ).encode("utf-8")
+
+
+def sha256_bytes(value: bytes) -> str:
+    return hashlib.sha256(value).hexdigest()
+
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for block in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def read_json(path: Path) -> dict[str, Any]:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise GuardError(f"cannot read JSON input {path}: {exc}") from exc
+    if not isinstance(value, dict):
+        raise GuardError(f"JSON input must be an object: {path}")
+    return value
+
+
+def _candidate_digest(binding: dict[str, Any]) -> str:
+    payload = copy.deepcopy(binding)
+    payload.pop("binding_sha256", None)
+    return sha256_bytes(canonical_json(payload))
+
+
+def _source_path(root: Path, relative: str) -> Path:
+    path = root / relative
+    try:
+        resolved = path.resolve(strict=True)
+    except OSError as exc:
+        raise GuardError(f"required frozen source is absent: {relative}") from exc
+    if not resolved.is_file() or root.resolve() not in resolved.parents:
+        raise GuardError(f"frozen source is not a regular in-repository file: {relative}")
+    return resolved
+
+def _assert_safe_candidate_path(root: Path, path: Path) -> None:
+    root = root.resolve()
+    try:
+        relative = path.relative_to(root)
+    except ValueError as exc:
+        raise GuardError("candidate path is outside the bound project root") from exc
+    current = root
+    for component in relative.parts:
+        current = current / component
+        if current.is_symlink():
+            raise GuardError(f"candidate path contains a symlink: {current}")
+
+def _fsync_directory_chain(path: Path, root: Path) -> None:
+    if os.name == "nt":
+        return
+    root = root.resolve()
+    current = path.resolve(strict=True)
+    if current != root and root not in current.parents:
+        raise GuardError("durable candidate path is outside the project root")
+    while True:
+        flags = os.O_RDONLY
+        if hasattr(os, "O_DIRECTORY"):
+            flags |= os.O_DIRECTORY
+        descriptor = os.open(current, flags)
+        try:
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
+        if current == root:
+            return
+        current = current.parent
+
+
+def verify_source_closure(binding: dict[str, Any], root: Path) -> None:
+    closure = binding.get("source_closure", {})
+    sources = closure.get("sha256_by_path")
+    if not isinstance(sources, dict) or not sources:
+        raise GuardError("binding has no source closure")
+    if TASK67_EVIDENCE_PATH in sources:
+        raise GuardError("Task67 evidence is provenance, not a runtime source")
+    missing = REQUIRED_SOURCE_PATHS - sources.keys()
+    if missing:
+        raise GuardError(f"source closure omits required files: {sorted(missing)}")
+    if closure.get("closure_sha256") != sha256_bytes(canonical_json(sources)):
+        raise GuardError("source-closure manifest digest mismatch")
+    for relative, expected in sources.items():
+        if not isinstance(relative, str) or not isinstance(expected, str):
+            raise GuardError("source closure entries must be path/SHA-256 pairs")
+        actual = sha256_file(_source_path(root, relative))
+        if actual != expected:
+            raise GuardError(
+                f"frozen source mismatch: {relative}: expected {expected}, got {actual}"
+            )
+
+
+def _seed_exclusions(catalog: dict[str, Any]) -> set[int]:
+    excluded: set[int] = set()
+    for item in catalog.get("prior_data_seed_ranges", []):
+        first, last = item.get("first"), item.get("last")
+        if (not isinstance(first, int) or isinstance(first, bool)
+                or not isinstance(last, int) or isinstance(last, bool)
+                or first > last):
+            raise GuardError("invalid prior data-seed range in collision catalog")
+        excluded.update(range(first, last + 1))
+    for item in catalog.get("prior_model_seed_ranges", []):
+        first, last = item.get("first"), item.get("last")
+        if (not isinstance(first, int) or isinstance(first, bool)
+                or not isinstance(last, int) or isinstance(last, bool)
+                or first > last):
+            raise GuardError("invalid prior model-seed range in collision catalog")
+        excluded.update(range(first, last + 1))
+    singles = catalog.get("prior_single_seeds")
+    if not isinstance(singles, list) or any(
+        not isinstance(seed, int) or isinstance(seed, bool) for seed in singles
+    ):
+        raise GuardError("invalid singleton seed exclusions")
+    excluded.update(singles)
+    if catalog.get("catalog_id") != "S22-DISTINCT-H32-STATIC-CATALOG-v1":
+        raise GuardError("unknown static collision catalog identity")
+    if catalog.get("exclusions_sha256") != sha256_bytes(canonical_json(sorted(excluded))):
+        raise GuardError("static collision exclusion digest mismatch")
+    return excluded
+
+
+def _role_entries(binding: dict[str, Any]) -> list[dict[str, Any]]:
+    entries = binding.get("role_binding")
+    if not isinstance(entries, list) or len(entries) != 16:
+        raise GuardError("binding must contain exactly 16 role entries")
+    return entries
+
+
+def validate_binding(
+    binding: dict[str, Any], root: Path, *, disposable: bool = False,
+    check_sources: bool = True,
+) -> None:
+    if binding.get("schema_id") != "sprint18-iterative-binding-v1":
+        raise GuardError("unsupported candidate binding schema")
+    if binding.get("candidate_id") != "S18-ITER-0001" and not disposable:
+        raise GuardError("candidate identity differs from the frozen first block")
+    if binding.get("profile_id") != PROFILE or binding.get("generator_protocol_id") != PROTOCOL:
+        raise GuardError("profile or protocol identity mismatch")
+    if binding.get("contract_sha256") != "056105f87b1097c45244287636bcef8c2fc790f3fd894775b9105fbdbfb59e9d":
+        raise GuardError("accepted Task66 contract digest mismatch")
+    if binding.get("binding_sha256") != _candidate_digest(binding):
+        raise GuardError("canonical binding SHA-256 mismatch")
+    if binding.get("provenance", {}).get("task67_evidence") != TASK67_EVIDENCE:
+        raise GuardError("accepted Task67 evidence provenance identity mismatch")
+    validate_runtime_binding(binding)
+
+    entries = _role_entries(binding)
+    expected_roles = [role for role in ROLE_IDS]
+    actual_roles = [entry.get("role") for entry in entries]
+    if actual_roles != expected_roles:
+        raise GuardError("role count or immutable role order mismatch")
+    ids = [entry.get("history_id") for entry in entries]
+    seeds = [entry.get("data_seed") for entry in entries]
+    paths = [entry.get("directory") for entry in entries]
+    if (len(set(ids)) != 16 or len(set(seeds)) != 16 or len(set(paths)) != 16
+            or any(not isinstance(value, str) or not value for value in ids + paths)
+            or any(not isinstance(value, int) or isinstance(value, bool) for value in seeds)):
+        raise GuardError("role IDs, seeds, and paths must each be unique and well formed")
+
+    candidate = binding["candidate_id"]
+    first_seed = binding.get("seed_block", {}).get("first_seed")
+    if not isinstance(first_seed, int) or isinstance(first_seed, bool):
+        raise GuardError("invalid first seed")
+    if not disposable:
+        number = binding.get("candidate_number")
+        if number != 1 or first_seed != 32000 or seeds != list(range(32000, 32016)):
+            raise GuardError("candidate number or fixed 32000–32015 seed block mismatch")
+    elif seeds != list(range(first_seed, first_seed + 16)):
+        raise GuardError("disposable smoke seed block must remain contiguous and ordered")
+
+    root_relative = binding.get("candidate_root_relative")
+    if not isinstance(root_relative, str) or root_relative != (
+        f"data/generated/sprint18-iterative-v1/{candidate}"
+    ):
+        raise GuardError("candidate output root mismatch")
+    for index, entry in enumerate(entries):
+        role = expected_roles[index]
+        ordinal = sum(1 for prior in expected_roles[:index] if prior == role) + 1
+        if not disposable:
+            wanted_id = f"S18I-ITER-0001-{ROLE_SUFFIX[role]}-{ordinal:02d}"
+            if entry.get("history_id") != wanted_id:
+                raise GuardError(f"history identity/order mismatch at roster position {index}")
+        expected_path = f"{root_relative}/{role}/{entry['history_id']}"
+        if entry.get("directory") != expected_path:
+            raise GuardError(f"role path mismatch at roster position {index}")
+        if entry.get("permitted_use") != PERMISSIONS[role]:
+            raise GuardError(f"role permission mismatch for {entry.get('history_id')}")
+
+    catalog = binding.get("collision_catalog")
+    if not isinstance(catalog, dict):
+        raise GuardError("binding has no static collision catalog")
+    catalog_source = binding.get("source_closure", {}).get("sha256_by_path", {}).get(
+        "experiments/sprint22-pilot-binding-v1.json"
+    )
+    if catalog.get("source_catalog_sha256") != catalog_source:
+        raise GuardError("collision catalog is not bound to its exact static source")
+    excluded = _seed_exclusions(catalog)
+    collision = sorted(set(seeds) & excluded)
+    if collision:
+        raise GuardError(f"candidate seeds collide with the bound static catalog: {collision}")
+    if catalog.get("candidate_intersection") != []:
+        raise GuardError("recorded static-catalog intersection is not empty")
+    if catalog.get("candidate_seed_count") != 16:
+        raise GuardError("static collision proof is not for all 16 roles")
+
+    expected_config_keys = {str(entry["data_seed"]): entry for entry in entries}
+    if set(binding.get("configs", {})) != set(expected_config_keys):
+        raise GuardError("resolved configuration table does not match the roster seeds")
+    if check_sources:
+        verify_source_closure(binding, root)
+        spec = importlib.util.find_spec("synth")
+        expected_package = (root / "src" / "synth" / "__init__.py").resolve()
+        if spec is None or spec.origin is None or Path(spec.origin).resolve() != expected_package:
+            raise GuardError("synth import does not originate from the bound project src tree")
+        for item in sys.path:
+            if "sprint22" in item.lower() and ("source" in item.lower() or "hist" in item.lower()):
+                raise GuardError("historical Sprint22 source fallback is on sys.path")
+        from dataclasses import asdict
+        from synth.chronicle import sprint18_iterative_v1_history_config
+
+        semantic_hashes: set[str] = set()
+        for entry in entries:
+            seed = entry["data_seed"]
+            cfg = sprint18_iterative_v1_history_config(seed=seed)
+            resolved = asdict(cfg)
+            actual_short = cfg.hash()
+            actual_full = sha256_bytes(canonical_json(resolved))
+            seed_fields = {field: resolved[field]["seed"] for field in SEED_FIELDS}
+            normalized = copy.deepcopy(resolved)
+            for field in SEED_FIELDS:
+                normalized[field]["seed"] = 0
+            semantic_hash = sha256_bytes(canonical_json(normalized))
+            semantic_hashes.add(semantic_hash)
+            expected = binding["configs"][str(seed)]
+            if (actual_short != expected.get("config_hash")
+                    or actual_full != expected.get("config_sha256")
+                    or seed_fields != expected.get("seed_fields")
+                    or semantic_hash != expected.get("seed_independent_sha256")
+                    or entry.get("config_hash") != expected.get("config_hash")):
+                raise GuardError(f"resolved configuration mismatch for seed {seed}")
+        if len(semantic_hashes) != 1:
+            raise GuardError("the fixed 16 configs are not common-method equivalents")
+
+
+def validate_runtime_binding(binding: dict[str, Any]) -> None:
+    runtime = binding.get("runtime", {})
+    worktree = PurePosixPath(runtime.get("execution_worktree_root", ""))
+    storage = PurePosixPath(runtime.get("git_storage_root", ""))
+    prefix = worktree / ".venv"
+    expected_origins = {
+        "numpy": prefix / "lib/python3.12/site-packages/numpy/__init__.py",
+        "scipy": prefix / "lib/python3.12/site-packages/scipy/__init__.py",
+        "torch": prefix / "lib/python3.12/site-packages/torch/__init__.py",
+        "synth": worktree / "src/synth/__init__.py",
+    }
+    output_root = worktree / "data/generated"
+    candidate_root = output_root / "sprint18-iterative-v1/S18-ITER-0001"
+    if (
+        str(worktree) != EXECUTION_ROOT
+        or str(storage) != GIT_STORAGE_ROOT
+        or worktree == storage
+        or runtime.get("working_directory") != str(worktree)
+        or runtime.get("git_common_dir") != str(storage / ".git")
+        or runtime.get("approved_branch") != APPROVED_BRANCH
+        or runtime.get("origin_url") != "https://github.com/triet4p/anomaly-representation-learning.git"
+        or runtime.get("hostname") != "di-server"
+        or runtime.get("python_version") != [3, 12, 13]
+        or runtime.get("python_executable") != PYTHON_PROVIDER
+        or runtime.get("python_prefix") != str(prefix)
+        or runtime.get("output_root") != str(output_root)
+        or runtime.get("candidate_root") != str(candidate_root)
+        or runtime.get("package_versions") != LOCKED_PACKAGE_VERSIONS
+        or runtime.get("dependency_origins") != {
+            name: str(path) for name, path in expected_origins.items()
+        }
+        or runtime.get("environment_status_at_binding") != "PROSPECTIVE_NOT_CREATED"
+    ):
+        raise GuardError("prospective worktree or locked runtime binding is inconsistent")
+    sources = binding.get("source_closure", {}).get("sha256_by_path", {})
+    if runtime.get("uv_lock_sha256") != sources.get("uv.lock"):
+        raise GuardError("runtime environment is not bound to the frozen uv.lock")
+    if (runtime.get("uv_version") != "0.12.20"
+            or runtime.get("uv_build") != "2274b80d6"):
+        raise GuardError("runtime environment requires the observed locked uv provider")
+
+
+def _validate_runtime_observation(
+    binding: dict[str, Any], root: Path, observed: dict[str, Any],
+) -> None:
+    runtime = binding["runtime"]
+    expected_root = Path(runtime["execution_worktree_root"]).resolve()
+    if (root.resolve() != expected_root
+            or Path(observed["cwd"]).resolve() != expected_root):
+        raise GuardError(f"runtime execution worktree mismatch; expected {expected_root}")
+    if observed.get("hostname") != runtime.get("hostname"):
+        raise GuardError("runtime host identity mismatch")
+    if Path(observed["python_executable"]).resolve() != Path(
+        runtime["python_executable"]
+    ).resolve():
+        raise GuardError("runtime Python interpreter mismatch")
+    if Path(observed["python_prefix"]).resolve() != Path(runtime["python_prefix"]).resolve():
+        raise GuardError("runtime virtual-environment prefix mismatch")
+    if observed.get("python_version") != runtime.get("python_version"):
+        raise GuardError("runtime Python version mismatch")
+    if observed.get("package_versions") != runtime.get("package_versions"):
+        raise GuardError("runtime NumPy/SciPy/PyTorch version mismatch")
+    for module, expected in runtime.get("dependency_origins", {}).items():
+        actual = observed.get("dependency_origins", {}).get(module)
+        if actual is None or Path(actual).resolve() != Path(expected).resolve():
+            raise GuardError(f"runtime dependency origin mismatch for {module}")
+    if observed.get("cuda_available") is not True:
+        raise GuardError("bound CUDA runtime is unavailable")
+    if (observed.get("cuda_device") != runtime.get("cuda_device")
+            or observed.get("cuda_device_total_mib") != runtime.get("cuda_device_total_mib")):
+        raise GuardError("runtime CUDA device identity mismatch")
+
+
+def validate_runtime(binding: dict[str, Any], root: Path) -> None:
+    import numpy
+    import scipy
+    import torch
+    import synth
+
+    observed = {
+        "hostname": socket.gethostname(),
+        "cwd": str(Path.cwd().resolve()),
+        "python_executable": str(Path(sys.executable).resolve()),
+        "python_prefix": str(Path(sys.prefix).resolve()),
+        "python_version": list(sys.version_info[:3]),
+        "package_versions": {
+            "numpy": numpy.__version__, "scipy": scipy.__version__, "torch": torch.__version__,
+        },
+        "dependency_origins": {
+            "numpy": str(Path(numpy.__file__).resolve()),
+            "scipy": str(Path(scipy.__file__).resolve()),
+            "torch": str(Path(torch.__file__).resolve()),
+            "synth": str(Path(synth.__file__).resolve()),
+        },
+        "cuda_available": torch.cuda.is_available(),
+        "cuda_device": torch.cuda.get_device_name(0) if torch.cuda.is_available() else None,
+        "cuda_device_total_mib": (
+            torch.cuda.get_device_properties(0).total_memory // (1024 * 1024)
+            if torch.cuda.is_available() else None
+        ),
+    }
+    _validate_runtime_observation(binding, root, observed)
+
+
+def validate_release_receipt(
+    binding: dict[str, Any], binding_raw_sha256: str,
+    release: dict[str, Any],
+) -> str:
+    expected = {
+        "schema_id": "sprint18-main-candidate-release-v1",
+        "candidate_id": binding["candidate_id"],
+        "binding_sha256": binding["binding_sha256"],
+        "binding_file_sha256": binding_raw_sha256,
+        "source_closure_sha256": binding["source_closure"]["closure_sha256"],
+        "task67_evidence_path": TASK67_EVIDENCE_PATH,
+        "task67_evidence_sha256": TASK67_EVIDENCE_SHA256,
+        "task67_evidence_reference": TASK67_EVIDENCE_REFERENCE,
+        "base_commit": BASE_COMMIT,
+        "checkpoint_parent": BASE_COMMIT,
+        "release_scope": "Task69-preflight-and-nonconfirmation",
+        "status": "RELEASED_BY_MAIN",
+        "evidence_review_verdict": "PASS",
+        "actionable_findings": 0,
+    }
+    for key, value in expected.items():
+        if release.get(key) != value:
+            raise GuardError(f"Main release identity mismatch: {key}")
+    if not isinstance(release.get("evidence_review_ref"), str) or not release["evidence_review_ref"]:
+        raise GuardError("Main release lacks the Task68 evidence-review reference")
+    checkpoint = release.get("checkpoint_commit")
+    if (not isinstance(checkpoint, str) or len(checkpoint) != 40
+            or any(char not in "0123456789abcdef" for char in checkpoint)):
+        raise GuardError("Main release has no recorded full checkpoint SHA")
+    return checkpoint
+
+
+def validate_main_release(
+    binding: dict[str, Any], binding_raw_sha256: str, release_path: Path,
+    root: Path, *, stage: str, task69_release: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    release = read_json(release_path)
+    checkpoint = validate_release_receipt(binding, binding_raw_sha256, release)
+    parent = subprocess.run(
+        ["git", "-C", str(root), "rev-parse", f"{checkpoint}^"], check=True,
+        capture_output=True, text=True,
+    ).stdout.strip()
+    if parent != BASE_COMMIT:
+        raise GuardError("Main checkpoint does not directly follow frozen base cd04")
+    if stage == "materialize-confirmation":
+        if task69_release is None:
+            raise GuardError("Confirmation requires Main's separate Task69 release")
+        if task69_release.get("task68_checkpoint_commit") != checkpoint:
+            raise GuardError("Task69 release is not bound to this Task68 checkpoint")
+        expected_head = task69_release["task69_checkpoint_commit"]
+        current_parent = subprocess.run(
+            ["git", "-C", str(root), "rev-parse", f"{expected_head}^"], check=True,
+            capture_output=True, text=True,
+        ).stdout.strip()
+        expected_parent = checkpoint
+    else:
+        expected_head = checkpoint
+        expected_parent = BASE_COMMIT
+        current_parent = parent
+    head = subprocess.run(
+        ["git", "-C", str(root), "rev-parse", "HEAD"], check=True,
+        capture_output=True, text=True,
+    ).stdout.strip()
+    branch = subprocess.run(
+        ["git", "-C", str(root), "symbolic-ref", "--short", "HEAD"],
+        check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    if branch != binding["runtime"]["approved_branch"]:
+        raise GuardError("worktree is not on the approved new Sprint18 execution branch")
+    if head != expected_head or current_parent != expected_parent:
+        raise GuardError("worktree HEAD/checkpoint parent differs from Main release")
+    status = subprocess.run(
+        ["git", "-C", str(root), "status", "--porcelain=v1", "--untracked-files=all"],
+        check=True, capture_output=True, text=True,
+    ).stdout
+    if status:
+        raise GuardError("remote execution worktree is dirty; use no source mutation or candidate contact")
+    origin = subprocess.run(
+        ["git", "-C", str(root), "config", "--get", "remote.origin.url"],
+        check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    if origin != binding["runtime"]["origin_url"]:
+        raise GuardError("genuine repository origin mismatch")
+    common_dir = subprocess.run(
+        ["git", "-C", str(root), "rev-parse", "--path-format=absolute", "--git-common-dir"],
+        check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    if Path(common_dir).resolve() != Path(binding["runtime"]["git_common_dir"]).resolve():
+        raise GuardError("worktree does not use the bound canonical Git storage")
+    return release
+
+
+def _canonical_record(record: dict[str, Any]) -> dict[str, Any]:
+    payload = copy.deepcopy(record)
+    payload.pop("event_sha256", None)
+    return payload
+
+
+def read_ledger(ledger_path: Path) -> list[dict[str, Any]]:
+    if ledger_path.is_symlink():
+        raise GuardError("attempt ledger must not be a symlink")
+    try:
+        raw = ledger_path.read_bytes()
+    except FileNotFoundError:
+        return []
+    except OSError as exc:
+        raise GuardError(f"cannot read attempt ledger: {exc}") from exc
+    if raw and not raw.endswith(b"\n"):
+        raise GuardError("attempt ledger ends in an incomplete record")
+    events: list[dict[str, Any]] = []
+    previous = "0" * 64
+    for index, line in enumerate(raw.splitlines()):
+        try:
+            event = json.loads(line.decode("utf-8"))
+        except (UnicodeError, json.JSONDecodeError) as exc:
+            raise GuardError(f"attempt ledger is partial/corrupt at event {index}") from exc
+        if (event.get("sequence") != index + 1
+                or event.get("previous_event_sha256") != previous
+                or event.get("event_sha256") != sha256_bytes(canonical_json(_canonical_record(event)))):
+            raise GuardError(f"attempt ledger hash chain mismatch at event {index}")
+        previous = event["event_sha256"]
+        events.append(event)
+    return events
+
+
+def append_event(ledger_path: Path, event_type: str, fields: dict[str, Any]) -> dict[str, Any]:
+    events = read_ledger(ledger_path)
+    record: dict[str, Any] = {
+        "sequence": len(events) + 1,
+        "event_type": event_type,
+        "previous_event_sha256": events[-1]["event_sha256"] if events else "0" * 64,
+        **fields,
+    }
+    record["event_sha256"] = sha256_bytes(canonical_json(record))
+    encoded = canonical_json(record) + b"\n"
+    flags = os.O_WRONLY | os.O_APPEND | os.O_CREAT
+    if hasattr(os, "O_BINARY"):
+        flags |= os.O_BINARY
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    if ledger_path.is_symlink():
+        raise GuardError("append-only attempt ledger must not be a symlink")
+    descriptor = os.open(ledger_path, flags, 0o600)
+    try:
+        with os.fdopen(descriptor, "ab", closefd=False) as handle:
+            handle.write(encoded)
+            handle.flush()
+            os.fsync(handle.fileno())
+    finally:
+        os.close(descriptor)
+    if os.name != "nt":
+        directory_fd = os.open(ledger_path.parent, os.O_RDONLY)
+        try:
+            os.fsync(directory_fd)
+        finally:
+            os.close(directory_fd)
+    return record
+
+
+def _candidate_paths(binding: dict[str, Any], root: Path) -> tuple[Path, Path, Path]:
+    root = root.resolve()
+    candidate_root = root / binding["candidate_root_relative"]
+    attempt_root = candidate_root / binding["attempt_policy"]["attempt_directory"]
+    ledger_path = attempt_root / binding["attempt_policy"]["ledger_filename"]
+    return candidate_root, attempt_root, ledger_path
+
+
+def _expected_config_fields(binding: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "candidate_id": binding["candidate_id"],
+        "candidate_number": binding["candidate_number"],
+        "binding_sha256": binding["binding_sha256"],
+        "source_closure_sha256": binding["source_closure"]["closure_sha256"],
+        "role_order": [
+            {"role": entry["role"], "history_id": entry["history_id"],
+             "data_seed": entry["data_seed"], "directory": entry["directory"]}
+            for entry in binding["role_binding"]
+        ],
+        "attempt_number": 1,
+    }
+
+
+def _load_stage_state(binding: dict[str, Any], root: Path) -> tuple[Path, Path, list[dict[str, Any]]]:
+    candidate_root, attempt_root, ledger_path = _candidate_paths(binding, root)
+    _assert_safe_candidate_path(root, candidate_root)
+    _assert_safe_candidate_path(root, attempt_root)
+    _assert_safe_candidate_path(root, ledger_path)
+    marker_path = attempt_root / "attempt.json"
+    _assert_safe_candidate_path(root, marker_path)
+    if not candidate_root.is_dir():
+        raise GuardError("candidate root is absent; no stage may continue")
+    if not attempt_root.is_dir():
+        raise GuardError("candidate attempt marker is absent; no stage may continue")
+    events = read_ledger(ledger_path)
+    if not events or events[0].get("event_type") != "attempt_started":
+        raise GuardError("candidate ledger has no durable pre-attempt marker")
+    marker = read_json(marker_path)
+    frozen = _expected_config_fields(binding)
+    if any(marker.get(key) != value for key, value in frozen.items()):
+        raise GuardError("pre-attempt marker differs from the released binding")
+    if any(events[0].get(key) != value for key, value in marker.items()):
+        raise GuardError("ledger does not preserve the exact durable pre-attempt marker")
+    if any(events[0].get(key) != value for key, value in frozen.items()):
+        raise GuardError("ledger pre-attempt marker differs from the released binding")
+    if any(event.get("event_type") in {"candidate_rejected", "candidate_retired"} for event in events):
+        raise GuardError("candidate has already failed or been retired")
+    return candidate_root, attempt_root, events
+
+
+def _fail_candidate(ledger: Path, binding: dict[str, Any], reason: str) -> None:
+    append_event(ledger, "candidate_rejected", {
+        "candidate_id": binding["candidate_id"],
+        "binding_sha256": binding["binding_sha256"],
+        "reason": reason,
+    })
+
+
+def run_preflight(binding: dict[str, Any], root: Path) -> int:
+    candidate_root, attempt_root, ledger = _candidate_paths(binding, root)
+    _assert_safe_candidate_path(root, candidate_root)
+    _assert_safe_candidate_path(root, attempt_root)
+    candidate_root.parent.mkdir(parents=True, exist_ok=True)
+    candidate_root.mkdir(exist_ok=False)
+    attempt_root.mkdir(exist_ok=False)
+    marker = _expected_config_fields(binding)
+    marker.update({
+        "schema_id": "sprint18-iterative-pre-attempt-v1",
+        "started_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+    })
+    marker_path = attempt_root / "attempt.json"
+    with marker_path.open("xb") as handle:
+        handle.write(canonical_json(marker) + b"\n")
+        handle.flush()
+        os.fsync(handle.fileno())
+    _fsync_directory_chain(attempt_root, root)
+    append_event(ledger, "attempt_started", marker)
+    append_event(ledger, "preflight_started", {
+        "candidate_id": binding["candidate_id"], "profile_id": PROFILE,
+        "protocol_id": PROTOCOL,
+        "in_memory_waveforms_expected": True,
+        "persisted_role_roots_expected": False,
+        "seed_order": [entry["data_seed"] for entry in binding["role_binding"]],
+        "role_order": [entry["role"] for entry in binding["role_binding"]],
+    })
+    try:
+        from synth.preflight15 import run_preflight_iterative_v1
+        result = run_preflight_iterative_v1(
+            [entry["data_seed"] for entry in binding["role_binding"]],
+            [entry["role"] for entry in binding["role_binding"]],
+        )
+        output = attempt_root / "preflight-raw.json"
+        with output.open("xb") as handle:
+            raw = canonical_json(result) + b"\n"
+            handle.write(raw)
+            handle.flush()
+            os.fsync(handle.fileno())
+        digest = sha256_bytes(raw)
+        append_event(ledger, "preflight_recorded", {
+            "result_path": str(output), "result_sha256": digest,
+            "verdict": result.get("verdict"),
+            "feasible_count": result.get("feasible_count"),
+            "in_memory_waveforms_generated": True,
+            "persisted_candidate_role_roots": False,
+            "persisted_candidate_shards": False,
+            "persisted_candidate_manifests": False,
+        })
+        if result.get("verdict") != "PREFLIGHT-PASS":
+            _fail_candidate(ledger, binding, "fixed_16_history_preflight_rejected")
+            return 2
+        return 0
+    except BaseException as exc:
+        _fail_candidate(ledger, binding, f"preflight_exception:{type(exc).__name__}:{exc}")
+        raise
+
+def _release_stage_precondition(release: dict[str, Any], stage: str) -> None:
+    if stage not in {
+        "preflight", "materialize-nonconfirmation",
+        "record-nonconfirmation-pass", "materialize-confirmation",
+    }:
+        raise GuardError("unsupported candidate execution stage")
+    if release.get("release_scope") != "Task69-preflight-and-nonconfirmation":
+        raise GuardError("Task68 release does not authorize this stage")
+
+def _verify_preflight_pass(
+    binding: dict[str, Any], attempt_root: Path, events: list[dict[str, Any]],
+) -> None:
+    recorded_events = [
+        event for event in events if event.get("event_type") == "preflight_recorded"
+    ]
+    if len(recorded_events) != 1 or recorded_events[0].get("verdict") != "PREFLIGHT-PASS":
+        raise GuardError("all-16 fixed-order preflight has not passed exactly once")
+    raw_path = attempt_root / "preflight-raw.json"
+    _assert_safe_candidate_path(attempt_root, raw_path)
+    recorded = recorded_events[0]
+    if sha256_file(raw_path) != recorded.get("result_sha256"):
+        raise GuardError("raw preflight record digest mismatch")
+    result = read_json(raw_path)
+    entries = binding["role_binding"]
+    expected_seeds = [entry["data_seed"] for entry in entries]
+    expected_roles = [entry["role"] for entry in entries]
+    results = result.get("results")
+    if (result.get("protocol") != PROTOCOL
+            or result.get("seeds") != expected_seeds
+            or result.get("feasible_count") != "16/16"
+            or result.get("verdict") != "PREFLIGHT-PASS"
+            or not isinstance(results, list)
+            or len(results) != 16):
+        raise GuardError("raw preflight record is not the exact fixed roster PASS")
+    for index, (item, seed, role) in enumerate(zip(results, expected_seeds, expected_roles, strict=True)):
+        qualification = item.get("qualification")
+        if (item.get("history_seed") != seed or item.get("role") != role
+                or item.get("feasible") is not True
+                or item.get("in_memory_waveforms_generated") is not True
+                or item.get("persisted_candidate_root") is not False
+                or item.get("persisted_candidate_shards") is not False
+                or item.get("persisted_candidate_manifest") is not False
+                or item.get("no_write") is not True
+                or not isinstance(qualification, dict)
+                or qualification.get("passed") is not True):
+            raise GuardError(f"preflight result {index} fails its fixed role/no-write invariant")
+
+
+def _materialize_entries(
+    binding: dict[str, Any], root: Path, attempt_root: Path, ledger: Path,
+    events: list[dict[str, Any]], entries: list[dict[str, Any]],
+) -> int:
+    completed = [event for event in events if event.get("event_type") == "role_materialized"]
+    started = [event for event in events if event.get("event_type") == "role_materialization_started"]
+    completed_ids = [event.get("history_id") for event in completed]
+    started_ids = [event.get("history_id") for event in started]
+    if started_ids != completed_ids:
+        _fail_candidate(ledger, binding, "interrupted_materialization_no_resume")
+        raise GuardError("interrupted materialization retires candidate; no resume")
+    expected_ids = [entry["history_id"] for entry in binding["role_binding"]]
+    if completed_ids != expected_ids[:len(completed_ids)]:
+        raise GuardError("materialization ledger is not an exact ordered prefix")
+    next_index = len(completed)
+    for entry in entries:
+        index = expected_ids.index(entry["history_id"])
+        if index != next_index:
+            raise GuardError("requested role is not the next immutable roster coordinate")
+        target = root / entry["directory"]
+        _assert_safe_candidate_path(root, target)
+        if target.is_symlink() or target.exists():
+            _fail_candidate(ledger, binding, f"role_output_already_exists:{entry['history_id']}")
+            raise GuardError("bound role output exists; no overwrite or replacement")
+        append_event(ledger, "role_materialization_started", {
+            "candidate_id": binding["candidate_id"],
+            "history_id": entry["history_id"], "role": entry["role"],
+            "data_seed": entry["data_seed"], "directory": str(target),
+        })
+        command = [
+            sys.executable, "-m", "synth.cli", "--chronological",
+            "--profile", PROFILE, "--seed", str(entry["data_seed"]),
+            "--role", entry["history_id"], "--protocol", PROTOCOL,
+            "--channels", "6", "--shard-size", "64", "--output", str(target),
+        ]
+        env = os.environ.copy()
+        env["PYTHONDONTWRITEBYTECODE"] = "1"
+        completed_process = subprocess.run(command, cwd=root, env=env, check=False)
+        if completed_process.returncode != 0:
+            _fail_candidate(ledger, binding, f"public_cli_failed:{entry['history_id']}:{completed_process.returncode}")
+            return completed_process.returncode
+        try:
+            manifest = target / "manifest.json"
+            manifest_hash = sha256_file(manifest)
+            from synth.chronicle import load_chronological
+            samples, loaded_manifest = load_chronological(target)
+            if loaded_manifest.get("role") != entry["history_id"]:
+                raise GuardError("public loader returned a different role identity")
+            if loaded_manifest.get("protocol") != PROTOCOL:
+                raise GuardError("public loader returned a different manifest protocol")
+            if loaded_manifest.get("config_hash") != entry["config_hash"]:
+                raise GuardError("public loader returned a different config hash")
+        except BaseException as exc:
+            _fail_candidate(ledger, binding, f"public_loader_failed:{entry['history_id']}:{type(exc).__name__}:{exc}")
+            raise
+        append_event(ledger, "role_materialized", {
+            "candidate_id": binding["candidate_id"],
+            "history_id": entry["history_id"], "role": entry["role"],
+            "data_seed": entry["data_seed"], "directory": str(target),
+            "manifest_sha256": manifest_hash, "sample_count": len(samples),
+            "loader_manifest_role": loaded_manifest["role"],
+        })
+        next_index += 1
+        events = read_ledger(ledger)
+    return 0
+
+
+def _verify_qualification_record(
+    binding: dict[str, Any], record_path: Path, expected_sha256: str,
+) -> dict[str, Any]:
+    actual = sha256_file(record_path)
+    if actual != expected_sha256:
+        raise GuardError("Task69 qualification record SHA-256 mismatch")
+    record = read_json(record_path)
+    expected_ids = [entry["history_id"] for entry in binding["role_binding"][:12]]
+    if (record.get("schema_id") != "sprint18-iterative-nonconfirmation-pass-v1"
+            or record.get("candidate_id") != binding["candidate_id"]
+            or record.get("binding_sha256") != binding["binding_sha256"]
+            or record.get("role_ids") != expected_ids
+            or record.get("verdict") != "PASS"
+            or record.get("all_nonconfirmation_gates_pass") is not True):
+        raise GuardError("Task69 record does not certify the exact 12-role preceding block")
+    if record.get("fit_probe_fit_history_ids") != [
+        entry["history_id"] for entry in binding["role_binding"] if entry["role"] == "FIT"
+    ]:
+        raise GuardError("fixed probe was not fitted on exactly the bound Fit histories")
+    if record.get("probe_calibration_history_id") != next(
+        entry["history_id"] for entry in binding["role_binding"] if entry["role"] == "CALIBRATION"
+    ):
+        raise GuardError("fixed probe calibration did not use the bound Calibration history")
+    if record.get("confirmation_contacted") is not False:
+        raise GuardError("Task69 record must certify that Confirmation was not contacted")
+    checks = record.get("checks_by_history")
+    if not isinstance(checks, dict) or set(checks) != set(expected_ids):
+        raise GuardError("Task69 record has missing or extra per-history gate results")
+    for history_id, values in checks.items():
+        if not isinstance(values, dict) or not values or not all(value is True for value in values.values()):
+            raise GuardError(f"Task69 gates do not all pass for {history_id}")
+    return record
+
+
+def record_nonconfirmation_result(
+    binding: dict[str, Any], root: Path, record_path: Path,
+    expected_sha256: str,
+) -> int:
+    _, attempt_root, ledger = _candidate_paths(binding, root)
+    _, _, events = _load_stage_state(binding, root)
+    _verify_preflight_pass(binding, attempt_root, events)
+    materialized = [event for event in events if event.get("event_type") == "role_materialized"]
+    if [event.get("history_id") for event in materialized] != [
+        entry["history_id"] for entry in binding["role_binding"][:12]
+    ]:
+        raise GuardError("all 12 Design/Fit/Calibration/Development roots must reload before Task69 qualification")
+    if any(event.get("event_type") == "nonconfirmation_qualification_pass" for event in events):
+        raise GuardError("Task69 qualification PASS is already recorded; do not repeat it")
+    try:
+        record = _verify_qualification_record(binding, record_path, expected_sha256)
+    except GuardError as exc:
+        _fail_candidate(ledger, binding, f"nonconfirmation_qualification_rejected:{exc}")
+        raise
+    append_event(ledger, "nonconfirmation_qualification_pass", {
+        "candidate_id": binding["candidate_id"],
+        "qualification_path": str(record_path),
+        "qualification_sha256": expected_sha256,
+        "fit_probe_summary_sha256": record.get("fit_probe_summary_sha256"),
+        "calibration_summary_sha256": record.get("calibration_summary_sha256"),
+        "development_summary_sha256": record.get("development_summary_sha256"),
+    })
+    return 0
+
+
+def _validate_task69_release_identity(
+    binding: dict[str, Any], qualification_sha256: str, release: dict[str, Any],
+    task68_checkpoint: str,
+) -> str:
+    expected = {
+        "schema_id": "sprint18-task69-main-release-v1",
+        "candidate_id": binding["candidate_id"],
+        "binding_sha256": binding["binding_sha256"],
+        "qualification_sha256": qualification_sha256,
+        "task68_checkpoint_commit": task68_checkpoint,
+        "task67_evidence_path": TASK67_EVIDENCE_PATH,
+        "task67_evidence_sha256": TASK67_EVIDENCE_SHA256,
+        "task67_evidence_reference": TASK67_EVIDENCE_REFERENCE,
+        "evidence_review_verdict": "PASS",
+        "actionable_findings": 0,
+        "verdict": "PASS",
+        "release_scope": "Task70-confirmation-after-Task69-PASS",
+        "status": "RELEASED_BY_MAIN",
+    }
+    if any(release.get(key) != value for key, value in expected.items()):
+        raise GuardError("Task69 Main release does not authorize this candidate's Confirmation stage")
+    if not isinstance(release.get("evidence_review_ref"), str) or not release["evidence_review_ref"]:
+        raise GuardError("Task69 release lacks its evidence-review reference")
+    checkpoint = release.get("task69_checkpoint_commit")
+    if (not isinstance(checkpoint, str) or len(checkpoint) != 40
+            or any(char not in "0123456789abcdef" for char in checkpoint)):
+        raise GuardError("Task69 release lacks its recorded project checkpoint")
+    return checkpoint
+
+
+def _validate_task69_checkpoint_parent(parent: str, task68_checkpoint: str) -> None:
+    if parent != task68_checkpoint:
+        raise GuardError("Task69 checkpoint does not follow the Task68 checkpoint")
+
+
+def verify_task69_release(
+    binding: dict[str, Any], qualification_sha256: str, path: Path,
+    task68_checkpoint: str, root: Path,
+) -> dict[str, Any]:
+    release = read_json(path)
+    checkpoint = _validate_task69_release_identity(
+        binding, qualification_sha256, release, task68_checkpoint,
+    )
+    parent = subprocess.run(
+        ["git", "-C", str(root), "rev-parse", f"{checkpoint}^"], check=True,
+        capture_output=True, text=True,
+    ).stdout.strip()
+    _validate_task69_checkpoint_parent(parent, task68_checkpoint)
+    return release
+
+
+def run_confirmation(
+    binding: dict[str, Any], root: Path, record_path: Path,
+    record_sha256: str, task69_release_path: Path, task68_checkpoint: str,
+) -> int:
+    record = _verify_qualification_record(binding, record_path, record_sha256)
+    task69_release = verify_task69_release(
+        binding, record_sha256, task69_release_path, task68_checkpoint, root,
+    )
+    _, attempt_root, ledger = _load_stage_state(binding, root)
+    events = read_ledger(ledger)
+    if not any(event.get("event_type") == "nonconfirmation_qualification_pass"
+               and event.get("qualification_sha256") == record_sha256 for event in events):
+        raise GuardError("Task69 preceding-role PASS is not durably recorded")
+    if record.get("confirmation_contacted") is not False:
+        raise GuardError("Task69 record must certify that Confirmation was not contacted")
+    completed = [event for event in events if event.get("event_type") == "role_materialized"]
+    completed_ids = [event.get("history_id") for event in completed]
+    expected_prefix = [entry["history_id"] for entry in binding["role_binding"][:12]]
+    if completed_ids[:12] != expected_prefix:
+        raise GuardError("all 12 preceding roles must be materialized before Confirmation")
+    confirmation_ids = [entry["history_id"] for entry in binding["role_binding"][12:]]
+    confirmation_tail = completed_ids[12:]
+    if (len(completed_ids) > 16
+            or confirmation_tail != confirmation_ids[:len(confirmation_tail)]):
+        raise GuardError("Confirmation materialization is not an ordered roster prefix")
+    confirmation_started = [
+        event for event in events
+        if event.get("event_type") == "role_materialization_started"
+        and event.get("history_id") in confirmation_ids
+    ]
+    confirmation_completed = [
+        event for event in completed if event.get("history_id") in confirmation_ids
+    ]
+    authorized = any(
+        event.get("event_type") == "confirmation_materialization_authorized"
+        for event in events
+    )
+    if confirmation_started and not authorized:
+        _fail_candidate(ledger, binding, "confirmation_materialization_without_release")
+        raise GuardError("Confirmation started without its separate Main authorization")
+    if authorized:
+        if (len(confirmation_completed) == 4 and len(confirmation_started) == 4
+                and [event.get("history_id") for event in confirmation_completed] == confirmation_ids):
+            raise GuardError("Confirmation is already materialized; do not replay it")
+        _fail_candidate(ledger, binding, "interrupted_confirmation_no_resume")
+        raise GuardError("interrupted Confirmation attempt retires candidate; no resume")
+    append_event(ledger, "confirmation_materialization_authorized", {
+        "candidate_id": binding["candidate_id"],
+        "qualification_sha256": record_sha256,
+        "task69_release_path": str(task69_release_path),
+        "task69_checkpoint_commit": task69_release["task69_checkpoint_commit"],
+    })
+    return _materialize_entries(
+        binding, root, attempt_root, ledger, read_ledger(ledger),
+        binding["role_binding"][12:],
+    )
+
+def _runtime_observation() -> dict[str, Any]:
+    return {"hostname": socket.gethostname(), "python": sys.version.split()[0],
+            "executable": str(Path(sys.executable).resolve()),
+            "cwd": str(Path.cwd().resolve())}
+
+
+def _smoke_binding(binding: dict[str, Any], root: Path) -> dict[str, Any]:
+    """Build a disposable validation-only binding without writing any paths."""
+    from dataclasses import asdict
+    from synth.chronicle import sprint18_iterative_v1_history_config
+
+    fixture = copy.deepcopy(binding)
+    fixture["candidate_id"] = "S18-ITER-SMOKE-0001"
+    fixture["candidate_number"] = 1
+    fixture["candidate_root_relative"] = f"data/generated/sprint18-iterative-v1/{fixture['candidate_id']}"
+    fixture["seed_block"]["first_seed"] = 93000
+    roles = [entry["role"] for entry in fixture["role_binding"]]
+    fixture["role_binding"] = []
+    fixture["configs"] = {}
+    for index, role in enumerate(roles):
+        seed = 93000 + index
+        ordinal = sum(1 for prior in roles[:index] if prior == role) + 1
+        history_id = f"S18I-ITER-SMOKE-0001-{ROLE_SUFFIX[role]}-{ordinal:02d}"
+        directory = f"{fixture['candidate_root_relative']}/{role}/{history_id}"
+        cfg = sprint18_iterative_v1_history_config(seed=seed)
+        resolved = asdict(cfg)
+        fixture["configs"][str(seed)] = {
+            "config_hash": cfg.hash(),
+            "config_sha256": sha256_bytes(canonical_json(resolved)),
+            "seed_fields": {field: resolved[field]["seed"] for field in SEED_FIELDS},
+            "seed_independent_sha256": sha256_bytes(canonical_json({
+                key: ({**value, "seed": 0} if key in SEED_FIELDS else value)
+                for key, value in resolved.items()
+            })),
+        }
+        fixture["role_binding"].append({
+            "role": role, "history_id": history_id, "data_seed": seed,
+            "directory": directory, "permitted_use": PERMISSIONS[role],
+            "config_hash": cfg.hash(),
+        })
+    fixture["collision_catalog"]["candidate_intersection"] = []
+    fixture.pop("binding_sha256", None)
+    fixture["binding_sha256"] = _candidate_digest(fixture)
+    return fixture
+
+
+def run_no_contact_smoke(binding: dict[str, Any], root: Path) -> None:
+    fixture = _smoke_binding(binding, root)
+    validate_binding(fixture, root, disposable=True, check_sources=True)
+    expected_runtime = fixture["runtime"]
+    static_runtime_observation = {
+        "hostname": expected_runtime["hostname"],
+        "cwd": EXECUTION_ROOT,
+        "python_executable": PYTHON_PROVIDER,
+        "python_prefix": expected_runtime["python_prefix"],
+        "python_version": expected_runtime["python_version"],
+        "package_versions": expected_runtime["package_versions"],
+        "dependency_origins": expected_runtime["dependency_origins"],
+        "cuda_available": True,
+        "cuda_device": expected_runtime["cuda_device"],
+        "cuda_device_total_mib": expected_runtime["cuda_device_total_mib"],
+    }
+    _validate_runtime_observation(fixture, Path(EXECUTION_ROOT), static_runtime_observation)
+
+    runtime_negative_cases: list[str] = []
+    for label, field, value in (
+        ("runtime-python-version", "python_version", [3, 12, 12]),
+        (
+            "runtime-synth-origin",
+            "dependency_origins",
+            {
+                **expected_runtime["dependency_origins"],
+                "synth": f"{GIT_STORAGE_ROOT}/src/synth/__init__.py",
+            },
+        ),
+    ):
+        bad_observation = copy.deepcopy(static_runtime_observation)
+        bad_observation[field] = value
+        try:
+            _validate_runtime_observation(fixture, Path(EXECUTION_ROOT), bad_observation)
+        except GuardError:
+            runtime_negative_cases.append(label)
+        else:
+            raise GuardError(f"negative runtime-binding smoke unexpectedly passed: {label}")
+
+    raw_sha = sha256_bytes(canonical_json(fixture) + b"\n")
+    release = {
+        "schema_id": "sprint18-main-candidate-release-v1",
+        "candidate_id": fixture["candidate_id"],
+        "binding_sha256": fixture["binding_sha256"],
+        "binding_file_sha256": raw_sha,
+        "source_closure_sha256": fixture["source_closure"]["closure_sha256"],
+        "task67_evidence_path": TASK67_EVIDENCE_PATH,
+        "task67_evidence_sha256": TASK67_EVIDENCE_SHA256,
+        "task67_evidence_reference": TASK67_EVIDENCE_REFERENCE,
+        "base_commit": BASE_COMMIT,
+        "checkpoint_parent": BASE_COMMIT,
+        "checkpoint_commit": "a" * 40,
+        "release_scope": "Task69-preflight-and-nonconfirmation",
+        "status": "RELEASED_BY_MAIN",
+        "evidence_review_verdict": "PASS",
+        "evidence_review_ref": "disposable-no-contact-smoke",
+        "actionable_findings": 0,
+    }
+    if validate_release_receipt(fixture, raw_sha, release) != "a" * 40:
+        raise GuardError("positive disposable release receipt validation failed")
+
+    task68_checkpoint = "a" * 40
+    task69_checkpoint = "b" * 40
+    qualification_sha256 = "c" * 64
+    task69_release = {
+        "schema_id": "sprint18-task69-main-release-v1",
+        "candidate_id": fixture["candidate_id"],
+        "binding_sha256": fixture["binding_sha256"],
+        "qualification_sha256": qualification_sha256,
+        "task68_checkpoint_commit": task68_checkpoint,
+        "task67_evidence_path": TASK67_EVIDENCE_PATH,
+        "task67_evidence_sha256": TASK67_EVIDENCE_SHA256,
+        "task67_evidence_reference": TASK67_EVIDENCE_REFERENCE,
+        "evidence_review_verdict": "PASS",
+        "evidence_review_ref": "disposable-task69-smoke",
+        "actionable_findings": 0,
+        "verdict": "PASS",
+        "release_scope": "Task70-confirmation-after-Task69-PASS",
+        "status": "RELEASED_BY_MAIN",
+        "task69_checkpoint_commit": task69_checkpoint,
+    }
+    if _validate_task69_release_identity(
+        fixture, qualification_sha256, task69_release, task68_checkpoint,
+    ) != task69_checkpoint:
+        raise GuardError("positive Task69 release identity smoke failed")
+    _validate_task69_checkpoint_parent(task68_checkpoint, task68_checkpoint)
+
+    mutations: list[tuple[str, Any]] = []
+    bad_order = copy.deepcopy(fixture)
+    bad_order["role_binding"][0], bad_order["role_binding"][1] = bad_order["role_binding"][1], bad_order["role_binding"][0]
+    bad_order["binding_sha256"] = _candidate_digest(bad_order)
+    mutations.append(("role-order", bad_order))
+    bad_source = copy.deepcopy(fixture)
+    bad_source["source_closure"]["sha256_by_path"]["src/synth/chronicle.py"] = "0" * 64
+    bad_source["source_closure"]["closure_sha256"] = sha256_bytes(
+        canonical_json(bad_source["source_closure"]["sha256_by_path"])
+    )
+    bad_source["binding_sha256"] = _candidate_digest(bad_source)
+    mutations.append(("source-hash", bad_source))
+    bad_closure = copy.deepcopy(fixture)
+    bad_closure["source_closure"]["closure_sha256"] = "0" * 64
+    bad_closure["binding_sha256"] = _candidate_digest(bad_closure)
+    mutations.append(("source-closure-digest", bad_closure))
+    bad_path = copy.deepcopy(fixture)
+    bad_path["role_binding"][0]["directory"] += "/wrong"
+    bad_path["binding_sha256"] = _candidate_digest(bad_path)
+    mutations.append(("role-path", bad_path))
+    bad_config = copy.deepcopy(fixture)
+    bad_config["configs"]["93000"]["config_hash"] = "0" * 12
+    bad_config["binding_sha256"] = _candidate_digest(bad_config)
+    mutations.append(("config-hash", bad_config))
+    task67_in_closure = copy.deepcopy(fixture)
+    task67_in_closure["source_closure"]["sha256_by_path"][TASK67_EVIDENCE_PATH] = (
+        TASK67_EVIDENCE_SHA256
+    )
+    task67_in_closure["source_closure"]["closure_sha256"] = sha256_bytes(
+        canonical_json(task67_in_closure["source_closure"]["sha256_by_path"])
+    )
+    task67_in_closure["binding_sha256"] = _candidate_digest(task67_in_closure)
+    mutations.append(("task67-evidence-not-deployable", task67_in_closure))
+    for label, mutated in mutations:
+        try:
+            validate_binding(mutated, root, disposable=True, check_sources=True)
+        except GuardError:
+            continue
+        raise GuardError(f"negative no-contact smoke unexpectedly passed: {label}")
+    wrong_release = dict(release, binding_sha256="0" * 64)
+    try:
+        validate_release_receipt(fixture, raw_sha, wrong_release)
+    except GuardError:
+        pass
+    else:
+        raise GuardError("negative Main release identity smoke unexpectedly passed")
+    bad_task69_evidence = dict(task69_release, task67_evidence_sha256="0" * 64)
+    try:
+        _validate_task69_release_identity(
+            fixture, qualification_sha256, bad_task69_evidence, task68_checkpoint,
+        )
+    except GuardError:
+        pass
+    else:
+        raise GuardError("negative Task69 evidence provenance smoke unexpectedly passed")
+    try:
+        _validate_task69_checkpoint_parent("d" * 40, task68_checkpoint)
+    except GuardError:
+        pass
+    else:
+        raise GuardError("negative Task69 parent smoke unexpectedly passed")
+    print(json.dumps({
+        "result": "PASS",
+        "mode": "disposable-static-no-contact",
+        "disposable_history_ids": [entry["history_id"] for entry in fixture["role_binding"]],
+        "configured_role_count": len(fixture["configs"]),
+        "positive_binding_and_release": "PASS",
+        "task69_release_identity_and_direct_parent": "PASS",
+        "negative_cases": (
+            [label for label, _ in mutations]
+            + ["release-identity", "task69-evidence-provenance", "task69-wrong-parent"]
+            + runtime_negative_cases
+        ),
+        "runtime_binding_status": "PASS_PROSPECTIVE_ONLY",
+        "runtime_environment_binding_status": fixture["runtime"]["environment_status_at_binding"],
+        "runtime_observation": _runtime_observation(),
+        "generator_called": False,
+        "preflight_called": False,
+        "loader_called": False,
+        "probe_called": False,
+        "candidate_contact_released": False,
+        "candidate_paths_checked_or_written": False,
+    }, indent=2))
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--binding", type=Path, default=BINDING_DEFAULT)
+    parser.add_argument("--release", type=Path)
+    parser.add_argument("--stage", choices=(
+        "validate", "preflight", "materialize-nonconfirmation",
+        "record-nonconfirmation-pass", "materialize-confirmation",
+    ), default="validate")
+    parser.add_argument("--qualification-record", type=Path)
+    parser.add_argument("--qualification-sha256")
+    parser.add_argument("--task69-release", type=Path)
+    parser.add_argument("--smoke-no-contact", action="store_true")
+    return parser.parse_args()
+
+
+def main() -> int:
+    args = parse_args()
+    try:
+        binding_bytes = args.binding.read_bytes()
+        binding = json.loads(binding_bytes.decode("utf-8"))
+        if not isinstance(binding, dict):
+            raise GuardError("binding JSON root must be an object")
+        validate_binding(binding, ROOT)
+        if args.smoke_no_contact:
+            if args.stage != "validate" or args.release or args.qualification_record or args.task69_release:
+                raise GuardError("no-contact smoke accepts no execution stage or release path")
+            run_no_contact_smoke(binding, ROOT)
+            return 0
+        if args.stage == "validate":
+            print(json.dumps({
+                "result": "STATIC_BINDING_PASS", "candidate_id": binding["candidate_id"],
+                "binding_sha256": binding["binding_sha256"],
+                "binding_file_sha256": sha256_bytes(binding_bytes),
+                "source_closure_sha256": binding["source_closure"]["closure_sha256"],
+                "contacted": False,
+            }, indent=2))
+            return 0
+        if args.release is None:
+            raise GuardError("contact stage requires Main's exact release receipt")
+        task69_release = None
+        if args.stage == "materialize-confirmation":
+            if (args.qualification_record is None or args.qualification_sha256 is None
+                    or args.task69_release is None):
+                raise GuardError("Confirmation stage requires the exact Task69 result and Main release")
+            main_release_preview = read_json(args.release)
+            task68_checkpoint = validate_release_receipt(
+                binding, sha256_bytes(binding_bytes), main_release_preview,
+            )
+            task69_release = verify_task69_release(
+                binding, args.qualification_sha256, args.task69_release,
+                task68_checkpoint, ROOT,
+            )
+        release = validate_main_release(
+            binding, sha256_bytes(binding_bytes), args.release, ROOT,
+            stage=args.stage, task69_release=task69_release,
+        )
+        _release_stage_precondition(release, args.stage)
+        validate_runtime(binding, ROOT)
+        if args.stage == "preflight":
+            return run_preflight(binding, ROOT)
+        if args.stage == "materialize-nonconfirmation":
+            _, attempt_root, ledger = _load_stage_state(binding, ROOT)
+            events = read_ledger(ledger)
+            _verify_preflight_pass(binding, attempt_root, events)
+            if any(event.get("event_type") == "role_materialization_started" for event in events):
+                started = [event for event in events if event.get("event_type") == "role_materialization_started"]
+                materialized = [event for event in events if event.get("event_type") == "role_materialized"]
+                if len(started) != len(materialized):
+                    _fail_candidate(ledger, binding, "interrupted_materialization_no_resume")
+                    raise GuardError("incomplete candidate roots are preserved; no resume")
+            completed = [event["history_id"] for event in events if event.get("event_type") == "role_materialized"]
+            expected = [entry["history_id"] for entry in binding["role_binding"][:12]]
+            if completed and completed != expected[:len(completed)]:
+                raise GuardError("non-Confirmation materialization is not an ordered prefix")
+            return _materialize_entries(
+                binding, ROOT, attempt_root, ledger, events,
+                binding["role_binding"][len(completed):12],
+            )
+        if args.stage == "record-nonconfirmation-pass":
+            if args.qualification_record is None or args.qualification_sha256 is None:
+                raise GuardError("Task69 record stage requires its exact path and SHA-256")
+            return record_nonconfirmation_result(
+                binding, ROOT, args.qualification_record, args.qualification_sha256,
+            )
+        if args.stage == "materialize-confirmation":
+            return run_confirmation(
+                binding, ROOT, args.qualification_record,
+                args.qualification_sha256, args.task69_release,
+                release["checkpoint_commit"],
+            )
+        raise GuardError(f"unsupported stage {args.stage}")
+    except (GuardError, OSError, subprocess.CalledProcessError, ValueError,
+            KeyError, TypeError, AttributeError, IndexError) as exc:
+        print(f"sprint18 candidate guard refused: {exc}", file=sys.stderr)
+        return 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
