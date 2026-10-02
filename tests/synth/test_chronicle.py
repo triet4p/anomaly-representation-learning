@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from dataclasses import asdict
+
 import json
 
 from synth import cli as synth_cli
@@ -143,6 +145,44 @@ def test_client_and_server_profiles_are_multi_robot():
     server = server_config(seed=0)
     assert server.scheduler.n_units > client.scheduler.n_units
     assert server.hash() != client.hash()
+
+
+def test_sprint18_iterative_profile_changes_only_reviewed_exposure_leaves():
+    from synth.chronicle import (
+        sprint18_c2_history_config,
+        sprint18_iterative_v1_history_config,
+    )
+
+    c2 = sprint18_c2_history_config(seed=9000)
+    iterative = sprint18_iterative_v1_history_config(seed=9000)
+
+    def changed_paths(left, right, prefix=""):
+        if isinstance(left, dict) and isinstance(right, dict):
+            return {
+                path
+                for key in left.keys() | right.keys()
+                for path in changed_paths(
+                    left.get(key), right.get(key),
+                    f"{prefix}/{key}" if prefix else key,
+                )
+            }
+        return {prefix} if left != right else set()
+
+    assert changed_paths(asdict(c2), asdict(iterative)) == {
+        "factory/span_days",
+        "factory/dev_cutoff_days",
+        "scheduler/n_units",
+    }
+    assert (iterative.factory.span_days, iterative.factory.dev_cutoff_days) == (
+        450.0, 225.0
+    )
+    assert iterative.scheduler.n_units == 2880
+    assert iterative.scheduler.arrival_interval_s == c2.scheduler.arrival_interval_s
+    assert iterative.scheduler.arrival_jitter_s == c2.scheduler.arrival_jitter_s
+    assert next(c.abrupt_rate for c in iterative.health.cohorts
+                if c.cohort_id == "A") == 3.3e-5
+    assert all(getattr(iterative, name).seed == 9000 for name in
+               ("factory", "scheduler", "health", "signal", "temporal"))
 
 
 def test_cli_chronological_client_profile(tmp_path):

@@ -63,7 +63,8 @@ __all__ = [
     "sprint15_v5_history_config",
     "sprint15_v6_history_config",
     "sprint15_v7_history_config",
-    "write_seal",
+    "sprint18_c2_history_config",
+    "sprint18_iterative_v1_history_config",
     "verify_seal",
 ]
 
@@ -123,7 +124,8 @@ _EXPORT_MODULES = {
     "sprint15_v5_history_config": "synth.chronicle",
     "sprint15_v6_history_config": "synth.chronicle",
     "sprint15_v7_history_config": "synth.chronicle",
-    "write_seal": "synth.chronicle",
+    "sprint18_c2_history_config": "synth.chronicle",
+    "sprint18_iterative_v1_history_config": "synth.chronicle",
     "verify_seal": "synth.chronicle",
     "DatasetBuilder": "synth.dataset",
     "iter_materialized": "synth.dataset",
@@ -160,7 +162,8 @@ if TYPE_CHECKING:
     from synth.chronicle import sprint15_v5_history_config
     from synth.chronicle import sprint15_v6_history_config
     from synth.chronicle import sprint15_v7_history_config
-    from synth.generator import SessionGenerator
+    from synth.chronicle import sprint18_c2_history_config
+    from synth.chronicle import sprint18_iterative_v1_history_config
     from synth.schema import AnomalyMeta, FileSample, RegimeMeta, SampleLabel
     from synth.schema import DegradationStage, EpisodeKind, FactoryProvenance
     from synth.schema import ALLOWED_SPLIT_VIEWS, DIAGNOSTIC_ONLY_FIELD_NAMES

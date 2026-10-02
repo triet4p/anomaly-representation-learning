@@ -142,7 +142,7 @@ def test_factory_calendar_bounds_rejected():
     with pytest.raises(ValueError, match="span_days"):
         FactoryCalendarConfig(span_days=89.0)
     with pytest.raises(ValueError, match="span_days"):
-        FactoryCalendarConfig(span_days=184.0)
+        FactoryCalendarConfig(span_days=451.0)
     with pytest.raises(ValueError, match="dev_cutoff_days"):
         FactoryCalendarConfig(dev_cutoff_days=120.0)
     with pytest.raises(ValueError, match="dev_cutoff_days"):
@@ -155,6 +155,15 @@ def test_factory_calendar_bounds_rejected():
         FactoryCalendarConfig(seed=-1)
     with pytest.raises(ValueError, match="quarantine_days"):
         SynthConfig(factory=FactoryCalendarConfig(quarantine_days=1.0))
+
+
+def test_factory_calendar_accepts_450_day_iterative_boundary():
+    config = FactoryCalendarConfig(
+        span_days=450.0, dev_cutoff_days=225.0
+    )
+
+    assert config.span_days == 450.0
+    assert config.dev_cutoff_days == 225.0
 
 
 # ---------------------------------------------------------------------------

@@ -483,6 +483,66 @@ def sprint15_v7_history_config(seed: int = 0) -> SynthConfig:
     cfg.health = replace(cfg.health, stratified_subtype_emission=True)
     return cfg
 
+#: Sprint 18 Cycle 2 profile tag (method ``sprint18-data-method-c2-v1`` §5
+#: C2-M1). Labels histories built by ``sprint18_c2_history_config``; the
+#: generator protocol bytes stay frozen v7 (Task 43 binds Cycle 2 identities).
+S18_C2_PROFILE = "sprint18-c2"
+
+#: Generator protocol tag recorded on Cycle 2 fixture manifests. The v7
+#: protocol file bytes are untouched by the amendment; only the §1a A
+#: ``abrupt_rate`` literal is superseded for this profile.
+S18_C2_PROTOCOL = "sprint15-benchmark-protocol-v7"
+
+#: Cycle 2 abrupt rate: v7 §1a literal ``2.2e-5`` replaced by ``3.3e-5``
+#: (factor κ = 1.5) for profile ``sprint18-c2`` only.
+S18_C2_ABRUPT_RATE = 3.3e-5
+
+
+def sprint18_c2_history_config(seed: int = 0) -> SynthConfig:
+    """Return the Sprint 18 Cycle 2 history configuration.
+
+    Built from ``sprint15_v7_history_config`` (frozen Candidate 7 method)
+    with exactly one change per ``experiments/sprint18-data-method-c2-v1.md``
+    §5 C2-M1: cohort ``A`` ``abrupt_rate`` ``2.2e-5`` → ``3.3e-5``. Every
+    other setting — scheduler, fleet, factory span/cutoff, cohort shares,
+    P/W base rates and wear, thresholds, gains, ``upcoming_p`` 0.52,
+    maintenance, quarantine, ``min_duration_gate``, and the deterministic
+    ``stratified_subtype_emission`` mechanism with its alternation bounds —
+    is inherited unchanged. Cycle 2 identities, seeds, paths, and permissions
+    are frozen separately at Task 43; this factory takes only the history
+    seed and performs no roster, binding, or role logic.
+    """
+    cfg = sprint15_v7_history_config(seed=seed)
+    cohorts = []
+    for cohort in cfg.health.cohorts:
+        if cohort.cohort_id == "A":
+            cohorts.append(replace(cohort, abrupt_rate=S18_C2_ABRUPT_RATE))
+        else:
+            cohorts.append(cohort)
+    cfg.health = replace(cfg.health, cohorts=tuple(cohorts))
+    return cfg
+
+#: Sprint 18 iterative data-recovery profile; only exposure leaves differ
+#: from C2 while the manifest retains the inherited Sprint 15 v7 protocol.
+S18_ITERATIVE_PROFILE = "sprint18-iterative-v1"
+S18_ITERATIVE_CONTRACT_ID = "sprint18-iterative-data-contract-v1"
+
+
+def sprint18_iterative_v1_history_config(seed: int = 0) -> SynthConfig:
+    """Return the reviewed Sprint 18 450-day C2 exposure configuration.
+
+    This composes the C2 factory and changes only ``span_days`` to 450,
+    ``dev_cutoff_days`` to 225, and ``scheduler.n_units`` to 2880. Arrival
+    cadence, rates, wear, routes, maintenance, signal, and eligibility
+    mechanisms remain inherited unchanged.
+    """
+    cfg = sprint18_c2_history_config(seed=seed)
+    cfg.factory = replace(
+        cfg.factory, span_days=450.0, dev_cutoff_days=225.0
+    )
+    cfg.scheduler = replace(cfg.scheduler, n_units=2880)
+    return cfg
+
 
 def _require_root(root: str | Path, *, must_exist: bool) -> Path:
     if root is None or (isinstance(root, str) and not root.strip()):
