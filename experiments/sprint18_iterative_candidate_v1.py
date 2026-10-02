@@ -15,12 +15,19 @@ import os
 from pathlib import Path, PurePosixPath
 import socket
 import subprocess
+import tempfile
 import sys
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 BINDING_DEFAULT = ROOT / "experiments" / "sprint18-iterative-binding-v1.json"
-BASE_COMMIT = "cd04a0a018c73ae91593ea4041742f05829041a6"
+BASE_COMMIT = "1b708542aeaba7a69c883893deb90ff591ce9d5f"
+ACCEPTED_METHOD_LINEAGE_COMMIT = "cd04a0a018c73ae91593ea4041742f05829041a6"
+TASK68_A02_SOURCE_CLOSURE_SHA256 = "e9a50ec7764d8a9cf869a522fbd00ca462beec16bd53ba6308dcb84b1863dd99"
+SOURCE_IDENTITY_SCHEME = "git-tracked-utf8-text-lf-sha256-v1"
+UNKNOWN_SOURCE_IDENTITY_POLICY = "reject"
+NON_TEXT_SOURCE_POLICY = "reject; require a separately versioned identity scheme"
+MAIN_RELEASE_SCHEMA_ID = "sprint18-main-candidate-release-v2"
 PROFILE = "sprint18-iterative-v1"
 EXECUTION_ROOT = "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree"
 GIT_STORAGE_ROOT = "/home/trietlm/anomaly-representation-learning"
@@ -53,7 +60,7 @@ PERMISSIONS = {
     "CONFIRMATION": "After Task69 preceding-role PASS and Main release: structural certification and one fixed-probe evaluation using frozen Fit/Calibration values. No fitting, recalibration, retuning, rescue, or model score.",
 }
 SEED_FIELDS = ("factory", "scheduler", "health", "signal", "temporal")
-REQUIRED_SOURCE_PATHS = frozenset({
+EXPECTED_SOURCE_PATHS = frozenset({
     "docs/BENCHMARK_MEASURABILITY_EXIT_GATES_V2.md",
     "experiments/sprint15-benchmark-protocol-v7.md",
     "experiments/sprint15-observable-probe-v7.md",
@@ -64,15 +71,47 @@ REQUIRED_SOURCE_PATHS = frozenset({
     "experiments/sprint22-pilot-binding-v1.json",
     "pyproject.toml",
     "src/synth/__init__.py",
+    "src/synth/anomalies/__init__.py",
+    "src/synth/anomalies/base.py",
+    "src/synth/anomalies/contextual.py",
+    "src/synth/anomalies/cross_channel.py",
+    "src/synth/anomalies/drift.py",
+    "src/synth/anomalies/duration.py",
+    "src/synth/anomalies/easy_sanity.py",
+    "src/synth/anomalies/freq_phase.py",
+    "src/synth/anomalies/missing_event.py",
+    "src/synth/anomalies/registry.py",
+    "src/synth/anomalies/regularity.py",
+    "src/synth/anomalies/stuck.py",
+    "src/synth/anomalies/transition.py",
     "src/synth/balanced.py",
     "src/synth/chronicle.py",
     "src/synth/cli.py",
     "src/synth/config.py",
+    "src/synth/contrastive.py",
+    "src/synth/dataset.py",
+    "src/synth/diagnostics.py",
     "src/synth/events.py",
+    "src/synth/generator.py",
+    "src/synth/health.py",
+    "src/synth/masking.py",
+    "src/synth/normal.py",
+    "src/synth/patchify.py",
+    "src/synth/physics/__init__.py",
+    "src/synth/physics/causal.py",
+    "src/synth/physics/noise.py",
     "src/synth/preflight15.py",
     "src/synth/probe15.py",
+    "src/synth/regimes.py",
+    "src/synth/scheduled.py",
+    "src/synth/scheduler.py",
+    "src/synth/schema.py",
+    "src/synth/splits.py",
+    "src/synth/strength.py",
+    "src/synth/temporal.py",
     "uv.lock",
 })
+HISTORICAL_SOURCE_PATHS = EXPECTED_SOURCE_PATHS
 
 
 class GuardError(RuntimeError):
@@ -97,6 +136,31 @@ def sha256_file(path: Path) -> str:
             digest.update(block)
     return digest.hexdigest()
 
+
+def canonical_source_bytes(relative: str, raw: bytes) -> bytes:
+    """Return the strict UTF-8 text identity with LF canonical newlines."""
+    if b"\0" in raw:
+        raise GuardError(f"frozen source is not text: {relative}")
+    try:
+        raw.decode("utf-8", errors="strict")
+    except UnicodeDecodeError as exc:
+        raise GuardError(f"frozen source is not UTF-8 text: {relative}") from exc
+    crlf_count = raw.count(b"\r\n")
+    if raw.count(b"\r") != crlf_count:
+        raise GuardError(f"frozen source has bare CR bytes: {relative}")
+    if crlf_count and raw.count(b"\n") != crlf_count:
+        raise GuardError(f"frozen source mixes LF and CRLF newlines: {relative}")
+    return raw.replace(b"\r\n", b"\n")
+
+
+def _source_closure_digest(closure: dict[str, Any]) -> str:
+    return sha256_bytes(canonical_json({
+        "identity_scheme": closure.get("identity_scheme"),
+        "unknown_scheme_policy": closure.get("unknown_scheme_policy"),
+        "non_text_policy": closure.get("non_text_policy"),
+        "sha256_by_path": closure.get("sha256_by_path"),
+        "git_blob_oid_by_path": closure.get("git_blob_oid_by_path"),
+    }))
 
 def read_json(path: Path) -> dict[str, Any]:
     try:
@@ -158,25 +222,68 @@ def _fsync_directory_chain(path: Path, root: Path) -> None:
 
 
 def verify_source_closure(binding: dict[str, Any], root: Path) -> None:
-    closure = binding.get("source_closure", {})
-    sources = closure.get("sha256_by_path")
-    if not isinstance(sources, dict) or not sources:
+    closure = binding.get("source_closure")
+    if not isinstance(closure, dict):
         raise GuardError("binding has no source closure")
+    if set(closure) != {
+        "identity_scheme", "unknown_scheme_policy", "non_text_policy",
+        "closure_sha256", "sha256_by_path", "git_blob_oid_by_path",
+    }:
+        raise GuardError("source closure has unsupported identity fields")
+    if closure.get("identity_scheme") != SOURCE_IDENTITY_SCHEME:
+        raise GuardError("unknown source identity scheme")
+    if closure.get("unknown_scheme_policy") != UNKNOWN_SOURCE_IDENTITY_POLICY:
+        raise GuardError("unknown source identity policy must reject")
+    if closure.get("non_text_policy") != NON_TEXT_SOURCE_POLICY:
+        raise GuardError("non-text source identity policy mismatch")
+    sources = closure.get("sha256_by_path")
+    blob_oids = closure.get("git_blob_oid_by_path")
+    if not isinstance(sources, dict) or not isinstance(blob_oids, dict):
+        raise GuardError("source closure must bind text hashes and Git blob identities")
+    if set(sources) != EXPECTED_SOURCE_PATHS or set(blob_oids) != EXPECTED_SOURCE_PATHS:
+        raise GuardError("source closure path set differs from the exact 49-file catalog")
     if TASK67_EVIDENCE_PATH in sources:
         raise GuardError("Task67 evidence is provenance, not a runtime source")
-    missing = REQUIRED_SOURCE_PATHS - sources.keys()
-    if missing:
-        raise GuardError(f"source closure omits required files: {sorted(missing)}")
-    if closure.get("closure_sha256") != sha256_bytes(canonical_json(sources)):
+    if closure.get("closure_sha256") != _source_closure_digest(closure):
         raise GuardError("source-closure manifest digest mismatch")
     for relative, expected in sources.items():
-        if not isinstance(relative, str) or not isinstance(expected, str):
-            raise GuardError("source closure entries must be path/SHA-256 pairs")
-        actual = sha256_file(_source_path(root, relative))
+        blob_oid = blob_oids[relative]
+        if (
+            not isinstance(expected, str) or len(expected) != 64
+            or any(char not in "0123456789abcdef" for char in expected)
+        ):
+            raise GuardError("source closure entries must be lowercase SHA-256 identities")
+        if (
+            not isinstance(blob_oid, str) or len(blob_oid) != 40
+            or any(char not in "0123456789abcdef" for char in blob_oid)
+        ):
+            raise GuardError("source closure entries must bind lowercase Git blob IDs")
+        actual = sha256_bytes(canonical_source_bytes(
+            relative, _source_path(root, relative).read_bytes(),
+        ))
         if actual != expected:
             raise GuardError(
                 f"frozen source mismatch: {relative}: expected {expected}, got {actual}"
             )
+
+
+def verify_git_source_blobs(binding: dict[str, Any], root: Path) -> None:
+    expected = binding["source_closure"]["git_blob_oid_by_path"]
+    output = subprocess.run(
+        [
+            "git", "-C", str(root), "ls-tree", "-r",
+            "--format=%(objectname) %(path)", "HEAD", "--",
+            *sorted(EXPECTED_SOURCE_PATHS),
+        ],
+        check=True, capture_output=True, text=True,
+    ).stdout
+    actual = {
+        path: oid for oid, path in (
+            line.split(" ", 1) for line in output.splitlines()
+        )
+    }
+    if actual != expected:
+        raise GuardError("tracked Git source blob identities differ from the frozen closure")
 
 
 def _seed_exclusions(catalog: dict[str, Any]) -> set[int]:
@@ -231,8 +338,34 @@ def validate_binding(
         raise GuardError("canonical binding SHA-256 mismatch")
     if binding.get("provenance", {}).get("task67_evidence") != TASK67_EVIDENCE:
         raise GuardError("accepted Task67 evidence provenance identity mismatch")
+    provenance = binding["provenance"]
+    lineage = provenance.get("accepted_task68_lineage")
+    if lineage != {
+        "task68_a02_checkpoint_commit": BASE_COMMIT,
+        "task68_a02_checkpoint_parent": ACCEPTED_METHOD_LINEAGE_COMMIT,
+        "task66_contract_sha256": binding["contract_sha256"],
+    }:
+        raise GuardError("accepted Task68/Task66 checkpoint lineage mismatch")
+    historical = provenance.get("task68_a02_raw_sha256_by_path")
+    if (
+        provenance.get("task68_a02_raw_source_identity_scheme")
+        != "raw-byte-sha256-v1"
+        or provenance.get("task68_a02_raw_source_closure_sha256")
+        != TASK68_A02_SOURCE_CLOSURE_SHA256
+        or not isinstance(historical, dict)
+        or set(historical) != HISTORICAL_SOURCE_PATHS
+        or sha256_bytes(canonical_json(historical))
+        != TASK68_A02_SOURCE_CLOSURE_SHA256
+    ):
+        raise GuardError("accepted Task68 A02 raw source provenance mismatch")
+    release_policy = binding.get("release_policy", {})
+    if (
+        release_policy.get("candidate_release_receipt_schema_id")
+        != MAIN_RELEASE_SCHEMA_ID
+        or release_policy.get("required_checkpoint_parent") != BASE_COMMIT
+    ):
+        raise GuardError("candidate release policy does not bind the corrected checkpoint")
     validate_runtime_binding(binding)
-
     entries = _role_entries(binding)
     expected_roles = [role for role in ROLE_IDS]
     actual_roles = [entry.get("role") for entry in entries]
@@ -440,11 +573,12 @@ def validate_release_receipt(
     release: dict[str, Any],
 ) -> str:
     expected = {
-        "schema_id": "sprint18-main-candidate-release-v1",
+        "schema_id": MAIN_RELEASE_SCHEMA_ID,
         "candidate_id": binding["candidate_id"],
         "binding_sha256": binding["binding_sha256"],
         "binding_file_sha256": binding_raw_sha256,
         "source_closure_sha256": binding["source_closure"]["closure_sha256"],
+        "source_identity_scheme": SOURCE_IDENTITY_SCHEME,
         "task67_evidence_path": TASK67_EVIDENCE_PATH,
         "task67_evidence_sha256": TASK67_EVIDENCE_SHA256,
         "task67_evidence_reference": TASK67_EVIDENCE_REFERENCE,
@@ -478,7 +612,7 @@ def validate_main_release(
         capture_output=True, text=True,
     ).stdout.strip()
     if parent != BASE_COMMIT:
-        raise GuardError("Main checkpoint does not directly follow frozen base cd04")
+        raise GuardError("Main checkpoint does not directly follow the frozen Task68 correction base")
     if stage == "materialize-confirmation":
         if task69_release is None:
             raise GuardError("Confirmation requires Main's separate Task69 release")
@@ -524,6 +658,7 @@ def validate_main_release(
     ).stdout.strip()
     if Path(common_dir).resolve() != Path(binding["runtime"]["git_common_dir"]).resolve():
         raise GuardError("worktree does not use the bound canonical Git storage")
+    verify_git_source_blobs(binding, root)
     return release
 
 
@@ -1045,6 +1180,93 @@ def _smoke_binding(binding: dict[str, Any], root: Path) -> dict[str, Any]:
 def run_no_contact_smoke(binding: dict[str, Any], root: Path) -> None:
     fixture = _smoke_binding(binding, root)
     validate_binding(fixture, root, disposable=True, check_sources=True)
+    source_identity_passes: list[str] = []
+    for newline_style in ("LF", "CRLF"):
+        with tempfile.TemporaryDirectory(prefix="s18-source-identity-") as temp:
+            variant_root = Path(temp)
+            for relative in sorted(EXPECTED_SOURCE_PATHS):
+                canonical = canonical_source_bytes(
+                    relative, _source_path(root, relative).read_bytes(),
+                )
+                variant = (
+                    canonical if newline_style == "LF"
+                    else canonical.replace(b"\n", b"\r\n")
+                )
+                target = variant_root / relative
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(variant)
+            verify_source_closure(fixture, variant_root)
+        source_identity_passes.append(newline_style)
+
+    source_negative_cases: list[str] = []
+    with tempfile.TemporaryDirectory(prefix="s18-source-mutation-") as temp:
+        variant_root = Path(temp)
+        for relative in sorted(EXPECTED_SOURCE_PATHS):
+            canonical = canonical_source_bytes(
+                relative, _source_path(root, relative).read_bytes(),
+            )
+            target = variant_root / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(canonical)
+        chronicle = variant_root / "src/synth/chronicle.py"
+        chronicle.write_bytes(chronicle.read_bytes() + b"\n# content mutation\n")
+        try:
+            verify_source_closure(fixture, variant_root)
+        except GuardError:
+            source_negative_cases.append("non-eol-content-mutation")
+        else:
+            raise GuardError("source content mutation unexpectedly passed")
+        mixed = canonical_source_bytes(
+            "src/synth/chronicle.py", _source_path(root, "src/synth/chronicle.py").read_bytes(),
+        )
+        mixed_target = variant_root / "src/synth/chronicle.py"
+        mixed_target.write_bytes(mixed.replace(b"\n", b"\r\n", 1))
+        try:
+            verify_source_closure(fixture, variant_root)
+        except GuardError:
+            source_negative_cases.append("mixed-lf-crlf")
+        else:
+            raise GuardError("mixed LF/CRLF source unexpectedly passed")
+        mixed_target.write_bytes(mixed.replace(b"\n", b"\r", 1))
+        try:
+            verify_source_closure(fixture, variant_root)
+        except GuardError:
+            source_negative_cases.append("bare-cr")
+        else:
+            raise GuardError("bare-CR source unexpectedly passed")
+        mixed_target.write_bytes(mixed + b"\0")
+        try:
+            verify_source_closure(fixture, variant_root)
+        except GuardError:
+            source_negative_cases.append("non-text-source")
+        else:
+            raise GuardError("NUL-containing source unexpectedly passed")
+    git_tree = {
+        path: oid for oid, path in (
+            line.split(" ", 1) for line in subprocess.run(
+                [
+                    "git", "-C", str(root), "ls-tree", "-r",
+                    "--format=%(objectname) %(path)", "HEAD", "--",
+                    *sorted(EXPECTED_SOURCE_PATHS),
+                ],
+                check=True, capture_output=True, text=True,
+            ).stdout.splitlines()
+        )
+    }
+    verify_git_source_blobs(
+        {"source_closure": {"git_blob_oid_by_path": git_tree}}, root,
+    )
+    bad_git_tree = copy.deepcopy(git_tree)
+    bad_git_tree["src/synth/chronicle.py"] = "0" * 40
+    try:
+        verify_git_source_blobs(
+            {"source_closure": {"git_blob_oid_by_path": bad_git_tree}}, root,
+        )
+    except GuardError:
+        pass
+    else:
+        raise GuardError("Git source blob mismatch unexpectedly passed")
+    source_negative_cases.append("git-source-blob-mismatch")
     expected_runtime = fixture["runtime"]
     static_runtime_observation = {
         "hostname": expected_runtime["hostname"],
@@ -1083,11 +1305,12 @@ def run_no_contact_smoke(binding: dict[str, Any], root: Path) -> None:
 
     raw_sha = sha256_bytes(canonical_json(fixture) + b"\n")
     release = {
-        "schema_id": "sprint18-main-candidate-release-v1",
+        "schema_id": MAIN_RELEASE_SCHEMA_ID,
         "candidate_id": fixture["candidate_id"],
         "binding_sha256": fixture["binding_sha256"],
         "binding_file_sha256": raw_sha,
         "source_closure_sha256": fixture["source_closure"]["closure_sha256"],
+        "source_identity_scheme": SOURCE_IDENTITY_SCHEME,
         "task67_evidence_path": TASK67_EVIDENCE_PATH,
         "task67_evidence_sha256": TASK67_EVIDENCE_SHA256,
         "task67_evidence_reference": TASK67_EVIDENCE_REFERENCE,
@@ -1136,11 +1359,35 @@ def run_no_contact_smoke(binding: dict[str, Any], root: Path) -> None:
     mutations.append(("role-order", bad_order))
     bad_source = copy.deepcopy(fixture)
     bad_source["source_closure"]["sha256_by_path"]["src/synth/chronicle.py"] = "0" * 64
-    bad_source["source_closure"]["closure_sha256"] = sha256_bytes(
-        canonical_json(bad_source["source_closure"]["sha256_by_path"])
+    bad_source["source_closure"]["closure_sha256"] = _source_closure_digest(
+        bad_source["source_closure"],
     )
     bad_source["binding_sha256"] = _candidate_digest(bad_source)
     mutations.append(("source-hash", bad_source))
+    bad_source_path = copy.deepcopy(fixture)
+    bad_source_path["source_closure"]["sha256_by_path"].pop("src/synth/chronicle.py")
+    bad_source_path["source_closure"]["sha256_by_path"]["src/synth/not-tracked.py"] = "0" * 64
+    bad_source_path["source_closure"]["git_blob_oid_by_path"].pop("src/synth/chronicle.py")
+    bad_source_path["source_closure"]["git_blob_oid_by_path"]["src/synth/not-tracked.py"] = "0" * 40
+    bad_source_path["source_closure"]["closure_sha256"] = _source_closure_digest(
+        bad_source_path["source_closure"],
+    )
+    bad_source_path["binding_sha256"] = _candidate_digest(bad_source_path)
+    mutations.append(("source-path-set", bad_source_path))
+    bad_source_policy = copy.deepcopy(fixture)
+    bad_source_policy["source_closure"]["identity_scheme"] = "unknown-source-scheme"
+    bad_source_policy["source_closure"]["closure_sha256"] = _source_closure_digest(
+        bad_source_policy["source_closure"],
+    )
+    bad_source_policy["binding_sha256"] = _candidate_digest(bad_source_policy)
+    mutations.append(("source-identity-scheme", bad_source_policy))
+    bad_unknown_policy = copy.deepcopy(fixture)
+    bad_unknown_policy["source_closure"]["unknown_scheme_policy"] = "allow"
+    bad_unknown_policy["source_closure"]["closure_sha256"] = _source_closure_digest(
+        bad_unknown_policy["source_closure"],
+    )
+    bad_unknown_policy["binding_sha256"] = _candidate_digest(bad_unknown_policy)
+    mutations.append(("unknown-scheme-policy", bad_unknown_policy))
     bad_closure = copy.deepcopy(fixture)
     bad_closure["source_closure"]["closure_sha256"] = "0" * 64
     bad_closure["binding_sha256"] = _candidate_digest(bad_closure)
@@ -1157,8 +1404,8 @@ def run_no_contact_smoke(binding: dict[str, Any], root: Path) -> None:
     task67_in_closure["source_closure"]["sha256_by_path"][TASK67_EVIDENCE_PATH] = (
         TASK67_EVIDENCE_SHA256
     )
-    task67_in_closure["source_closure"]["closure_sha256"] = sha256_bytes(
-        canonical_json(task67_in_closure["source_closure"]["sha256_by_path"])
+    task67_in_closure["source_closure"]["closure_sha256"] = _source_closure_digest(
+        task67_in_closure["source_closure"],
     )
     task67_in_closure["binding_sha256"] = _candidate_digest(task67_in_closure)
     mutations.append(("task67-evidence-not-deployable", task67_in_closure))
@@ -1175,6 +1422,27 @@ def run_no_contact_smoke(binding: dict[str, Any], root: Path) -> None:
         pass
     else:
         raise GuardError("negative Main release identity smoke unexpectedly passed")
+    bad_release_parent = dict(
+        release, checkpoint_parent=ACCEPTED_METHOD_LINEAGE_COMMIT,
+    )
+    try:
+        validate_release_receipt(fixture, raw_sha, bad_release_parent)
+    except GuardError:
+        pass
+    else:
+        raise GuardError("Main release with historical checkpoint parent unexpectedly passed")
+    old_release = dict(
+        release,
+        schema_id="sprint18-main-candidate-release-v1",
+        base_commit=ACCEPTED_METHOD_LINEAGE_COMMIT,
+        checkpoint_parent=ACCEPTED_METHOD_LINEAGE_COMMIT,
+    )
+    try:
+        validate_release_receipt(fixture, raw_sha, old_release)
+    except GuardError:
+        pass
+    else:
+        raise GuardError("historical Main release unexpectedly passed the corrected receipt contract")
     bad_task69_evidence = dict(task69_release, task67_evidence_sha256="0" * 64)
     try:
         _validate_task69_release_identity(
@@ -1197,9 +1465,12 @@ def run_no_contact_smoke(binding: dict[str, Any], root: Path) -> None:
         "configured_role_count": len(fixture["configs"]),
         "positive_binding_and_release": "PASS",
         "task69_release_identity_and_direct_parent": "PASS",
+        "source_identity_variants": source_identity_passes,
+        "source_identity_git_blob_smoke": "PASS_BASE_TREE_ONLY",
         "negative_cases": (
             [label for label, _ in mutations]
-            + ["release-identity", "task69-evidence-provenance", "task69-wrong-parent"]
+            + ["release-identity", "release-parent", "historical-release-schema", "task69-evidence-provenance", "task69-wrong-parent"]
+            + source_negative_cases
             + runtime_negative_cases
         ),
         "runtime_binding_status": "PASS_PROSPECTIVE_ONLY",
