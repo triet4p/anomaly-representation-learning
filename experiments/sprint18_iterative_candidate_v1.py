@@ -1,7 +1,10 @@
 """Fail-closed runner for the pre-bound Sprint 18 iterative data candidate.
 
-The validator is side-effect-free. Contact stages require Main's exact release
-receipt and run only the bound preflight or the public chronological CLI.
+Supported Linux invocations run from the bound root with
+`PYTHONDONTWRITEBYTECODE=1`, `PYTHONPATH=<boundroot>/src:<boundroot>/experiments`,
+and `<boundroot>/.venv/bin/python`. Bare or differently rooted invocations fail closed.
+Contact stages require Main's exact release receipt and run only the bound
+preflight or the public chronological CLI.
 """
 from __future__ import annotations
 
@@ -21,7 +24,8 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 BINDING_DEFAULT = ROOT / "experiments" / "sprint18-iterative-binding-v1.json"
-BASE_COMMIT = "1b708542aeaba7a69c883893deb90ff591ce9d5f"
+BASE_COMMIT = "3a15b510ed6fd8a31ff172cb646a7bfa66996715"
+TASK68_A02_CHECKPOINT_COMMIT = "1b708542aeaba7a69c883893deb90ff591ce9d5f"
 ACCEPTED_METHOD_LINEAGE_COMMIT = "cd04a0a018c73ae91593ea4041742f05829041a6"
 TASK68_A02_SOURCE_CLOSURE_SHA256 = "e9a50ec7764d8a9cf869a522fbd00ca462beec16bd53ba6308dcb84b1863dd99"
 SOURCE_IDENTITY_SCHEME = "git-tracked-utf8-text-lf-sha256-v1"
@@ -33,7 +37,9 @@ EXECUTION_ROOT = "/home/trietlm/anomaly-representation-learning-s18t68-a02-workt
 GIT_STORAGE_ROOT = "/home/trietlm/anomaly-representation-learning"
 APPROVED_BRANCH = "sprint18-task68-a02-runtime"
 PYTHON_PROVIDER = "/home/trietlm/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/bin/python3.12"
-LOCKED_PACKAGE_VERSIONS = {"numpy": "2.5.2", "scipy": "1.18.1", "torch": "2.14.0"}
+LOCKED_PACKAGE_VERSIONS = {"numpy": "2.5.2", "scipy": "1.18.1", "torch": "2.14.0+cu130"}
+
+
 TASK67_EVIDENCE = {
     "path": "artifacts/sprint-18/task-67.md",
     "sha256": "3758a28f4f27676dbf1014c6290ea5acd9fa27c8054fd0899b1d07bccc85aa3a",
@@ -116,6 +122,36 @@ HISTORICAL_SOURCE_PATHS = EXPECTED_SOURCE_PATHS
 
 class GuardError(RuntimeError):
     """A frozen binding or stage precondition did not match."""
+
+def _entrypoint_pythonpath(root: Path) -> str:
+    return os.pathsep.join(
+        str((root / relative).resolve()) for relative in ("src", "experiments")
+    )
+
+
+def _entrypoint_child_environment(root: Path) -> dict[str, str]:
+    env = os.environ.copy()
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
+    env["PYTHONPATH"] = _entrypoint_pythonpath(root)
+    return env
+
+
+def _validate_entrypoint_environment(
+    binding: dict[str, Any], root: Path, *, disposable: bool,
+) -> None:
+    expected_pythonpath = _entrypoint_pythonpath(root)
+    if os.environ.get("PYTHONDONTWRITEBYTECODE") != "1":
+        raise GuardError("entrypoint requires PYTHONDONTWRITEBYTECODE=1")
+    if os.environ.get("PYTHONPATH") != expected_pythonpath:
+        raise GuardError(
+            "entrypoint requires PYTHONPATH to contain exactly the bound src and experiments paths"
+        )
+    if not disposable:
+        runtime = binding["runtime"]
+        if Path(sys.executable).resolve() != Path(runtime["python_executable"]).resolve():
+            raise GuardError("entrypoint must use the bound locked Python provider")
+        if Path(sys.prefix).resolve() != Path(runtime["python_prefix"]).resolve():
+            raise GuardError("entrypoint must use the bound locked virtual environment")
 
 
 def canonical_json(value: object) -> bytes:
@@ -273,7 +309,7 @@ def verify_git_source_blobs(binding: dict[str, Any], root: Path) -> None:
         [
             "git", "-C", str(root), "ls-tree", "-r",
             "--format=%(objectname) %(path)", "HEAD", "--",
-            *sorted(EXPECTED_SOURCE_PATHS),
+            *sorted(expected),
         ],
         check=True, capture_output=True, text=True,
     ).stdout
@@ -341,7 +377,7 @@ def validate_binding(
     provenance = binding["provenance"]
     lineage = provenance.get("accepted_task68_lineage")
     if lineage != {
-        "task68_a02_checkpoint_commit": BASE_COMMIT,
+        "task68_a02_checkpoint_commit": TASK68_A02_CHECKPOINT_COMMIT,
         "task68_a02_checkpoint_parent": ACCEPTED_METHOD_LINEAGE_COMMIT,
         "task66_contract_sha256": binding["contract_sha256"],
     }:
@@ -366,6 +402,7 @@ def validate_binding(
     ):
         raise GuardError("candidate release policy does not bind the corrected checkpoint")
     validate_runtime_binding(binding)
+    _validate_entrypoint_environment(binding, root, disposable=disposable)
     entries = _role_entries(binding)
     expected_roles = [role for role in ROLE_IDS]
     actual_roles = [entry.get("role") for entry in entries]
@@ -477,6 +514,11 @@ def validate_runtime_binding(binding: dict[str, Any]) -> None:
     }
     output_root = worktree / "data/generated"
     candidate_root = output_root / "sprint18-iterative-v1/S18-ITER-0001"
+    expected_entrypoint_environment = {
+        "PYTHONDONTWRITEBYTECODE": "1",
+        "PYTHONPATH": [str(worktree / "src"), str(worktree / "experiments")],
+        "interpreter": ".venv/bin/python",
+    }
     if (
         str(worktree) != EXECUTION_ROOT
         or str(storage) != GIT_STORAGE_ROOT
@@ -491,11 +533,12 @@ def validate_runtime_binding(binding: dict[str, Any]) -> None:
         or runtime.get("python_prefix") != str(prefix)
         or runtime.get("output_root") != str(output_root)
         or runtime.get("candidate_root") != str(candidate_root)
+        or runtime.get("entrypoint_environment") != expected_entrypoint_environment
         or runtime.get("package_versions") != LOCKED_PACKAGE_VERSIONS
         or runtime.get("dependency_origins") != {
             name: str(path) for name, path in expected_origins.items()
         }
-        or runtime.get("environment_status_at_binding") != "PROSPECTIVE_NOT_CREATED"
+        or runtime.get("environment_status_at_binding") != "EXISTING_LOCKED_ENVIRONMENT_VERIFIED"
     ):
         raise GuardError("prospective worktree or locked runtime binding is inconsistent")
     sources = binding.get("source_closure", {}).get("sha256_by_path", {})
@@ -505,6 +548,18 @@ def validate_runtime_binding(binding: dict[str, Any]) -> None:
             or runtime.get("uv_build") != "2274b80d6"):
         raise GuardError("runtime environment requires the observed locked uv provider")
 
+
+
+def _validate_runtime_dependencies(
+    binding: dict[str, Any], observed: dict[str, Any],
+) -> None:
+    runtime = binding["runtime"]
+    if observed.get("package_versions") != runtime.get("package_versions"):
+        raise GuardError("runtime NumPy/SciPy/PyTorch version mismatch")
+    for module, expected in runtime.get("dependency_origins", {}).items():
+        actual = observed.get("dependency_origins", {}).get(module)
+        if actual is None or Path(actual).resolve() != Path(expected).resolve():
+            raise GuardError(f"runtime dependency origin mismatch for {module}")
 
 def _validate_runtime_observation(
     binding: dict[str, Any], root: Path, observed: dict[str, Any],
@@ -524,12 +579,7 @@ def _validate_runtime_observation(
         raise GuardError("runtime virtual-environment prefix mismatch")
     if observed.get("python_version") != runtime.get("python_version"):
         raise GuardError("runtime Python version mismatch")
-    if observed.get("package_versions") != runtime.get("package_versions"):
-        raise GuardError("runtime NumPy/SciPy/PyTorch version mismatch")
-    for module, expected in runtime.get("dependency_origins", {}).items():
-        actual = observed.get("dependency_origins", {}).get(module)
-        if actual is None or Path(actual).resolve() != Path(expected).resolve():
-            raise GuardError(f"runtime dependency origin mismatch for {module}")
+    _validate_runtime_dependencies(binding, observed)
     if observed.get("cuda_available") is not True:
         raise GuardError("bound CUDA runtime is unavailable")
     if (observed.get("cuda_device") != runtime.get("cuda_device")
@@ -927,8 +977,7 @@ def _materialize_entries(
             "--role", entry["history_id"], "--protocol", PROTOCOL,
             "--channels", "6", "--shard-size", "64", "--output", str(target),
         ]
-        env = os.environ.copy()
-        env["PYTHONDONTWRITEBYTECODE"] = "1"
+        env = _entrypoint_child_environment(root)
         completed_process = subprocess.run(command, cwd=root, env=env, check=False)
         if completed_process.returncode != 0:
             _fail_candidate(ledger, binding, f"public_cli_failed:{entry['history_id']}:{completed_process.returncode}")
@@ -1180,6 +1229,23 @@ def _smoke_binding(binding: dict[str, Any], root: Path) -> dict[str, Any]:
 def run_no_contact_smoke(binding: dict[str, Any], root: Path) -> None:
     fixture = _smoke_binding(binding, root)
     validate_binding(fixture, root, disposable=True, check_sources=True)
+    child_source = subprocess.run(
+        [
+            sys.executable, "-c",
+            "import synth, sys; print(synth.__file__); print(sys.dont_write_bytecode)",
+        ],
+        cwd=root, env=_entrypoint_child_environment(root), check=False,
+        capture_output=True, text=True,
+    )
+    child_lines = child_source.stdout.splitlines()
+    if (
+        child_source.returncode != 0
+        or len(child_lines) != 2
+        or Path(child_lines[0]).resolve() != (root / "src" / "synth" / "__init__.py").resolve()
+        or child_lines[1] != "True"
+    ):
+        raise GuardError("child source-origin smoke did not resolve bound synth with bytecode disabled")
+    child_source_origin_smoke = "PASS_REAL_SUBPROCESS_BOUND_SRC"
     source_identity_passes: list[str] = []
     for newline_style in ("LF", "CRLF"):
         with tempfile.TemporaryDirectory(prefix="s18-source-identity-") as temp:
@@ -1241,67 +1307,113 @@ def run_no_contact_smoke(binding: dict[str, Any], root: Path) -> None:
             source_negative_cases.append("non-text-source")
         else:
             raise GuardError("NUL-containing source unexpectedly passed")
-    git_tree = {
-        path: oid for oid, path in (
-            line.split(" ", 1) for line in subprocess.run(
-                [
-                    "git", "-C", str(root), "ls-tree", "-r",
-                    "--format=%(objectname) %(path)", "HEAD", "--",
-                    *sorted(EXPECTED_SOURCE_PATHS),
-                ],
-                check=True, capture_output=True, text=True,
-            ).stdout.splitlines()
-        )
+    runner_relative = Path(__file__).resolve().relative_to(root.resolve()).as_posix()
+    bound_git_blobs = binding["source_closure"]["git_blob_oid_by_path"]
+    unchanged_git_blobs = {
+        relative: oid for relative, oid in bound_git_blobs.items()
+        if relative != runner_relative
     }
+    if len(unchanged_git_blobs) != 48:
+        raise GuardError("source closure does not contain exactly 48 unchanged blob members")
     verify_git_source_blobs(
-        {"source_closure": {"git_blob_oid_by_path": git_tree}}, root,
+        {"source_closure": {"git_blob_oid_by_path": unchanged_git_blobs}}, root,
     )
-    bad_git_tree = copy.deepcopy(git_tree)
-    bad_git_tree["src/synth/chronicle.py"] = "0" * 40
+    runner_blob_oid = subprocess.run(
+        ["git", "hash-object", f"--path={runner_relative}", runner_relative],
+        cwd=root, check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    if runner_blob_oid != bound_git_blobs[runner_relative]:
+        raise GuardError("expected path-filtered runner Git blob differs from its frozen identity")
+    bad_git_blobs = copy.deepcopy(unchanged_git_blobs)
+    bad_git_blobs["src/synth/chronicle.py"] = "0" * 40
     try:
         verify_git_source_blobs(
-            {"source_closure": {"git_blob_oid_by_path": bad_git_tree}}, root,
+            {"source_closure": {"git_blob_oid_by_path": bad_git_blobs}}, root,
         )
     except GuardError:
         pass
     else:
         raise GuardError("Git source blob mismatch unexpectedly passed")
     source_negative_cases.append("git-source-blob-mismatch")
-    expected_runtime = fixture["runtime"]
-    static_runtime_observation = {
-        "hostname": expected_runtime["hostname"],
-        "cwd": EXECUTION_ROOT,
-        "python_executable": PYTHON_PROVIDER,
-        "python_prefix": expected_runtime["python_prefix"],
-        "python_version": expected_runtime["python_version"],
-        "package_versions": expected_runtime["package_versions"],
-        "dependency_origins": expected_runtime["dependency_origins"],
-        "cuda_available": True,
-        "cuda_device": expected_runtime["cuda_device"],
-        "cuda_device_total_mib": expected_runtime["cuda_device_total_mib"],
+    recorded_runtime_dependencies = {
+        "package_versions": {
+            "numpy": "2.5.2", "scipy": "1.18.1", "torch": "2.14.0+cu130",
+        },
+        "dependency_origins": {
+            "numpy": f"{EXECUTION_ROOT}/.venv/lib/python3.12/site-packages/numpy/__init__.py",
+            "scipy": f"{EXECUTION_ROOT}/.venv/lib/python3.12/site-packages/scipy/__init__.py",
+            "torch": f"{EXECUTION_ROOT}/.venv/lib/python3.12/site-packages/torch/__init__.py",
+            "synth": f"{EXECUTION_ROOT}/src/synth/__init__.py",
+        },
     }
-    _validate_runtime_observation(fixture, Path(EXECUTION_ROOT), static_runtime_observation)
-
+    _validate_runtime_dependencies(fixture, recorded_runtime_dependencies)
     runtime_negative_cases: list[str] = []
     for label, field, value in (
-        ("runtime-python-version", "python_version", [3, 12, 12]),
         (
-            "runtime-synth-origin",
+            "runtime-torch-unqualified-release",
+            "package_versions",
+            {**recorded_runtime_dependencies["package_versions"], "torch": "2.14.0"},
+        ),
+        (
+            "runtime-torch-foreign-build",
+            "package_versions",
+            {**recorded_runtime_dependencies["package_versions"], "torch": "2.14.0+cu131"},
+        ),
+        (
+            "runtime-synth-foreign-origin",
             "dependency_origins",
             {
-                **expected_runtime["dependency_origins"],
-                "synth": f"{GIT_STORAGE_ROOT}/src/synth/__init__.py",
+                **recorded_runtime_dependencies["dependency_origins"],
+                "synth": "/__foreign__/src/synth/__init__.py",
+            },
+        ),
+        (
+            "runtime-synth-missing-origin",
+            "dependency_origins",
+            {
+                name: path for name, path
+                in recorded_runtime_dependencies["dependency_origins"].items()
+                if name != "synth"
             },
         ),
     ):
-        bad_observation = copy.deepcopy(static_runtime_observation)
+        bad_observation = copy.deepcopy(recorded_runtime_dependencies)
         bad_observation[field] = value
         try:
-            _validate_runtime_observation(fixture, Path(EXECUTION_ROOT), bad_observation)
+            _validate_runtime_dependencies(fixture, bad_observation)
         except GuardError:
             runtime_negative_cases.append(label)
         else:
-            raise GuardError(f"negative runtime-binding smoke unexpectedly passed: {label}")
+            raise GuardError(f"negative runtime dependency smoke unexpectedly passed: {label}")
+
+    entrypoint_negative_cases: list[str] = []
+    expected_pythonpath = _entrypoint_pythonpath(root)
+    for label, key, invalid_value in (
+        ("entrypoint-missing-pythonpath", "PYTHONPATH", None),
+        (
+            "entrypoint-foreign-pythonpath",
+            "PYTHONPATH",
+            expected_pythonpath + os.pathsep + str(root / "foreign-src"),
+        ),
+        ("entrypoint-bytecode-enabled", "PYTHONDONTWRITEBYTECODE", "0"),
+    ):
+        existed = key in os.environ
+        previous = os.environ.get(key)
+        if invalid_value is None:
+            os.environ.pop(key, None)
+        else:
+            os.environ[key] = invalid_value
+        try:
+            _validate_entrypoint_environment(fixture, root, disposable=True)
+        except GuardError:
+            entrypoint_negative_cases.append(label)
+        else:
+            raise GuardError(f"negative entrypoint environment smoke unexpectedly passed: {label}")
+        finally:
+            if existed:
+                os.environ[key] = previous if previous is not None else ""
+            else:
+                os.environ.pop(key, None)
 
     raw_sha = sha256_bytes(canonical_json(fixture) + b"\n")
     release = {
@@ -1466,14 +1578,18 @@ def run_no_contact_smoke(binding: dict[str, Any], root: Path) -> None:
         "positive_binding_and_release": "PASS",
         "task69_release_identity_and_direct_parent": "PASS",
         "source_identity_variants": source_identity_passes,
-        "source_identity_git_blob_smoke": "PASS_BASE_TREE_ONLY",
+        "source_identity_git_blob_smoke": "PASS_48_BASE_TREE_RUNNER_FILTERED_EXPECTATION",
         "negative_cases": (
             [label for label, _ in mutations]
             + ["release-identity", "release-parent", "historical-release-schema", "task69-evidence-provenance", "task69-wrong-parent"]
             + source_negative_cases
             + runtime_negative_cases
+            + entrypoint_negative_cases
         ),
         "runtime_binding_status": "PASS_PROSPECTIVE_ONLY",
+        "entrypoint_environment_status": "PASS_DISPOSABLE_SOURCE_CONTRACT",
+        "child_source_origin_smoke": child_source_origin_smoke,
+        "runtime_dependency_metadata_status": "PASS_RECORDED_A02_METADATA_ONLY",
         "runtime_environment_binding_status": fixture["runtime"]["environment_status_at_binding"],
         "runtime_observation": _runtime_observation(),
         "generator_called": False,
@@ -1507,13 +1623,14 @@ def main() -> int:
         binding = json.loads(binding_bytes.decode("utf-8"))
         if not isinstance(binding, dict):
             raise GuardError("binding JSON root must be an object")
-        validate_binding(binding, ROOT)
+        validate_binding(binding, ROOT, disposable=args.smoke_no_contact)
         if args.smoke_no_contact:
             if args.stage != "validate" or args.release or args.qualification_record or args.task69_release:
                 raise GuardError("no-contact smoke accepts no execution stage or release path")
             run_no_contact_smoke(binding, ROOT)
             return 0
         if args.stage == "validate":
+            validate_runtime(binding, ROOT)
             print(json.dumps({
                 "result": "STATIC_BINDING_PASS", "candidate_id": binding["candidate_id"],
                 "binding_sha256": binding["binding_sha256"],

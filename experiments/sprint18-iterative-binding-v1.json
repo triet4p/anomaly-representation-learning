@@ -1,6 +1,6 @@
 {
   "schema_id": "sprint18-iterative-binding-v1",
-  "binding_sha256": "87e949dd6612fccd181b83ddafa9cf2eb41b74ba1a2dbf288faed532bf51eca3",
+  "binding_sha256": "b9700fd36867627454c0559750c26dd3f622b2ba8df5730ff71b1788565a2c70",
   "candidate_id": "S18-ITER-0001",
   "candidate_number": 1,
   "contact_authorized": false,
@@ -154,14 +154,14 @@
     "identity_scheme": "git-tracked-utf8-text-lf-sha256-v1",
     "unknown_scheme_policy": "reject",
     "non_text_policy": "reject; require a separately versioned identity scheme",
-    "closure_sha256": "f529d369c6ab5b34b7350b24c937fd97c14c27609ec2416d8cb990138edfb56f",
+    "closure_sha256": "3238ea98f422a6fed62831ac10074de76da29cacf327a7cc5da6ffcffe9464a1",
     "sha256_by_path": {
       "docs/BENCHMARK_MEASURABILITY_EXIT_GATES_V2.md":"d294762331ded4fd213f6870e563e32e17e12c632d7cb11a80373478ede34e1c",
       "experiments/sprint15-benchmark-protocol-v7.md":"a1fc09db2e246ed79d0595aec953a7788fd1b47c4981fbe1d92017d944b8d7b6",
       "experiments/sprint15-observable-probe-v7.md":"d83f8fd90560cc6237fa906419b84bcaa787a6690799c7a7ef7e3ad5c814ef74",
       "experiments/sprint18-data-method-c2-v1.md":"f4cc8901c2e59f615ebcaaa3509fd654773efd06f7f6fd6a55faeab6b3ba4b9b",
       "experiments/sprint18-iterative-data-contract-v1.md":"056105f87b1097c45244287636bcef8c2fc790f3fd894775b9105fbdbfb59e9d",
-      "experiments/sprint18_iterative_candidate_v1.py":"cd2e36be51eaf0026769630e57252398ee8b78931ebe62add55949ec3ad5de8c",
+      "experiments/sprint18_iterative_candidate_v1.py":"f1da8d8f5fb2beb39bab3b9f5c285a863cb22ec0f28283a3b30681dd797289a9",
       "experiments/sprint18_task5_measurability.py":"0ee9e3ff9ae884dfa5a19efdfa921417ae52304c01e7f8293740a5dc4aa059b9",
       "experiments/sprint22-pilot-binding-v1.json":"eb47cf4c51e03bb9cdfce2c216fbee5fe8b90121e71e999ec3b8c541c1a380f6",
       "pyproject.toml":"30292a091a273d0d58958701f792ad30af9a9bbd7454480275dedd73d1421d01",
@@ -212,7 +212,7 @@
       "experiments/sprint15-observable-probe-v7.md":"b5af9534a9d5804178f4f816a70ae715c17219a8",
       "experiments/sprint18-data-method-c2-v1.md":"3d9052dc07841b65fa76f6942f161c4b40dfaaf0",
       "experiments/sprint18-iterative-data-contract-v1.md":"2309ef18e6bc56df839783da40afa5cf3df5747a",
-      "experiments/sprint18_iterative_candidate_v1.py":"bbfc113c1cc95eee93b030937632ac90d93f02e6",
+      "experiments/sprint18_iterative_candidate_v1.py":"d97cd2b84f88c78110d8e35b09e7013eaabbd61b",
       "experiments/sprint18_task5_measurability.py":"5b6a499ce6f488f3b9817e1217c1c07f50a8a4c5",
       "experiments/sprint22-pilot-binding-v1.json":"552c0e2ecf020156b5f05a1fe3cb9e42127d35a7",
       "pyproject.toml":"c5db30eb601289871d9aa19d5ff48283aa6438ef",
@@ -259,7 +259,7 @@
     }
   },
   "runtime": {
-    "transport": "Read-only SSH observation of canonical runtime; prospective worktree and environment have not been created",
+    "transport": "Canonical runtime was first observed read-only; Task69 A02 later created and verified the isolated execution worktree's locked .venv",
     "ssh_target": "trietlm@192.168.30.244",
     "hostname": "di-server",
     "git_storage_root": "/home/trietlm/anomaly-representation-learning",
@@ -273,7 +273,15 @@
     "python_version": [3, 12, 13],
     "python_executable": "/home/trietlm/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/bin/python3.12",
     "python_prefix": "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/.venv",
-    "package_versions": {"numpy":"2.5.2","scipy":"1.18.1","torch":"2.14.0"},
+    "package_versions": {"numpy":"2.5.2","scipy":"1.18.1","torch":"2.14.0+cu130"},
+    "entrypoint_environment": {
+      "PYTHONDONTWRITEBYTECODE": "1",
+      "PYTHONPATH": [
+        "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/src",
+        "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/experiments"
+      ],
+      "interpreter": ".venv/bin/python"
+    },
     "cuda_device": "NVIDIA GeForce RTX 4060 Ti",
     "cuda_device_total_mib": 15947,
     "dependency_origins": {
@@ -285,7 +293,7 @@
     "uv_version": "0.12.20",
     "uv_build": "2274b80d6",
     "uv_lock_sha256": "4a7866878c81cdd8f5ba283cd8d0a772073bfc75941f73ec761ede5eeb2e239a",
-    "environment_status_at_binding": "PROSPECTIVE_NOT_CREATED",
+    "environment_status_at_binding": "EXISTING_LOCKED_ENVIRONMENT_VERIFIED",
     "prebinding_observation": {
       "hostname": "di-server",
       "project_root": "/home/trietlm/anomaly-representation-learning",
@@ -307,7 +315,7 @@
         "torch":"/home/trietlm/anomaly-representation-learning/.venv/lib/python3.12/site-packages/torch/__init__.py"
       }
     },
-    "release_prerequisite": "After Main's Task68 evidence PASS and exact project checkpoint, materialize the exact checkpoint in the prospective root as a clean worktree on sprint18-task68-a02-runtime. Then create a new .venv from the bound Python provider and sync uv.lock; candidate contact remains blocked until the release receipt is supplied."
+    "release_prerequisite": "After Main's Task68 evidence PASS and exact project checkpoint, deploy that checkpoint in the existing clean execution worktree on sprint18-task68-a02-runtime without resetting the user-owned canonical checkout. Reuse the existing locked .venv; do not recreate it. Verify its exact provider, package versions/origins, and uv.lock identity, then issue a new Main receipt. Candidate contact remains blocked until that receipt is supplied."
   },
   "attempt_policy": {
     "attempt_number": 1,
@@ -329,7 +337,7 @@
     "qualification": "reject-only; fail if any source-computable construction or structural check misses"
   },
   "materialization": {
-    "public_cli": ["python", "-m", "synth.cli", "--chronological", "--profile", "sprint18-iterative-v1", "--seed", "<bound data_seed>", "--role", "<bound history_id>", "--protocol", "sprint15-benchmark-protocol-v7", "--channels", "6", "--shard-size", "64", "--output", "<bound absolute role path>"],
+    "public_cli": ["<boundroot>/.venv/bin/python", "-m", "synth.cli", "--chronological", "--profile", "sprint18-iterative-v1", "--seed", "<bound data_seed>", "--role", "<bound history_id>", "--protocol", "sprint15-benchmark-protocol-v7", "--channels", "6", "--shard-size", "64", "--output", "<bound absolute role path>"],
     "consumer_loader": "synth.chronicle.load_chronological",
     "loader_checks": ["manifest role == bound history_id", "manifest protocol == sprint15-benchmark-protocol-v7", "manifest config_hash == bound config_hash", "manifest file SHA-256 recorded", "actual loader sample count recorded"],
     "role_groups": {"DESIGN":4,"FIT":3,"CALIBRATION":1,"DEVELOPMENT":4,"CONFIRMATION":4},
@@ -340,7 +348,7 @@
     "required_status": "RELEASED_BY_MAIN",
     "required_review_verdict": "PASS",
     "required_actionable_findings": 0,
-    "required_checkpoint_parent": "1b708542aeaba7a69c883893deb90ff591ce9d5f",
+    "required_checkpoint_parent": "3a15b510ed6fd8a31ff172cb646a7bfa66996715",
     "required_scope": "Task69-preflight-and-nonconfirmation",
     "receipt_must_bind": ["candidate_id", "canonical binding_sha256", "raw binding file SHA-256", "source_closure_sha256", "source identity scheme", "Task67 evidence path/SHA/reference as provenance-only identity", "base commit", "Task68 checkpoint commit", "review verdict/ref and zero findings"],
     "task69_confirmation_release_schema_id": "sprint18-task69-main-release-v1",
