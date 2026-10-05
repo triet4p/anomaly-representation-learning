@@ -1,7 +1,7 @@
-"""Fail-closed runner for the pre-bound Sprint 18 iterative data candidate.
+"""Fail-closed runner for the prospective Sprint 18 iterative data candidate.
 
 Supported Linux invocations run from the bound root with
-`PYTHONDONTWRITEBYTECODE=1`, `PYTHONPATH=<boundroot>/src:<boundroot>/experiments`,
+`PYTHONDONTWRITEBYTECODE=1`, `PYTHONPATH=<boundroot>/src:<boundroot>/experiments:<boundroot>`,
 and `<boundroot>/.venv/bin/python`. Bare or differently rooted invocations fail closed.
 Contact stages require Main's exact release receipt and run only the bound
 preflight or the public chronological CLI.
@@ -24,7 +24,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 BINDING_DEFAULT = ROOT / "experiments" / "sprint18-iterative-binding-v1.json"
-BASE_COMMIT = "3a15b510ed6fd8a31ff172cb646a7bfa66996715"
+BASE_COMMIT = "4ad4f66c2e47eb9c702145a9a7585edceb9151dc"
 TASK68_A02_CHECKPOINT_COMMIT = "1b708542aeaba7a69c883893deb90ff591ce9d5f"
 ACCEPTED_METHOD_LINEAGE_COMMIT = "cd04a0a018c73ae91593ea4041742f05829041a6"
 TASK68_A02_SOURCE_CLOSURE_SHA256 = "e9a50ec7764d8a9cf869a522fbd00ca462beec16bd53ba6308dcb84b1863dd99"
@@ -125,7 +125,9 @@ class GuardError(RuntimeError):
 
 def _entrypoint_pythonpath(root: Path) -> str:
     return os.pathsep.join(
-        str((root / relative).resolve()) for relative in ("src", "experiments")
+        str(path.resolve()) for path in (
+            root / "src", root / "experiments", root,
+        )
     )
 
 
@@ -144,7 +146,7 @@ def _validate_entrypoint_environment(
         raise GuardError("entrypoint requires PYTHONDONTWRITEBYTECODE=1")
     if os.environ.get("PYTHONPATH") != expected_pythonpath:
         raise GuardError(
-            "entrypoint requires PYTHONPATH to contain exactly the bound src and experiments paths"
+            "entrypoint requires PYTHONPATH to contain exactly the bound src, experiments, and repository root paths"
         )
     if not disposable:
         runtime = binding["runtime"]
@@ -364,8 +366,8 @@ def validate_binding(
 ) -> None:
     if binding.get("schema_id") != "sprint18-iterative-binding-v1":
         raise GuardError("unsupported candidate binding schema")
-    if binding.get("candidate_id") != "S18-ITER-0001" and not disposable:
-        raise GuardError("candidate identity differs from the frozen first block")
+    if binding.get("candidate_id") != "S18-ITER-0002" and not disposable:
+        raise GuardError("candidate identity differs from the frozen second block")
     if binding.get("profile_id") != PROFILE or binding.get("generator_protocol_id") != PROTOCOL:
         raise GuardError("profile or protocol identity mismatch")
     if binding.get("contract_sha256") != "056105f87b1097c45244287636bcef8c2fc790f3fd894775b9105fbdbfb59e9d":
@@ -422,8 +424,8 @@ def validate_binding(
         raise GuardError("invalid first seed")
     if not disposable:
         number = binding.get("candidate_number")
-        if number != 1 or first_seed != 32000 or seeds != list(range(32000, 32016)):
-            raise GuardError("candidate number or fixed 32000–32015 seed block mismatch")
+        if number != 2 or first_seed != 32016 or seeds != list(range(32016, 32032)):
+            raise GuardError("candidate number or fixed 32016–32031 seed block mismatch")
     elif seeds != list(range(first_seed, first_seed + 16)):
         raise GuardError("disposable smoke seed block must remain contiguous and ordered")
 
@@ -436,7 +438,7 @@ def validate_binding(
         role = expected_roles[index]
         ordinal = sum(1 for prior in expected_roles[:index] if prior == role) + 1
         if not disposable:
-            wanted_id = f"S18I-ITER-0001-{ROLE_SUFFIX[role]}-{ordinal:02d}"
+            wanted_id = f"S18I-ITER-0002-{ROLE_SUFFIX[role]}-{ordinal:02d}"
             if entry.get("history_id") != wanted_id:
                 raise GuardError(f"history identity/order mismatch at roster position {index}")
         expected_path = f"{root_relative}/{role}/{entry['history_id']}"
@@ -513,10 +515,12 @@ def validate_runtime_binding(binding: dict[str, Any]) -> None:
         "synth": worktree / "src/synth/__init__.py",
     }
     output_root = worktree / "data/generated"
-    candidate_root = output_root / "sprint18-iterative-v1/S18-ITER-0001"
+    candidate_root = output_root / "sprint18-iterative-v1/S18-ITER-0002"
     expected_entrypoint_environment = {
         "PYTHONDONTWRITEBYTECODE": "1",
-        "PYTHONPATH": [str(worktree / "src"), str(worktree / "experiments")],
+        "PYTHONPATH": [
+            str(worktree / "src"), str(worktree / "experiments"), str(worktree),
+        ],
         "interpreter": ".venv/bin/python",
     }
     if (
@@ -1227,25 +1231,60 @@ def _smoke_binding(binding: dict[str, Any], root: Path) -> dict[str, Any]:
 
 
 def run_no_contact_smoke(binding: dict[str, Any], root: Path) -> None:
+    expected_seeds = list(range(32016, 32032))
+    entries = _role_entries(binding)
+    expected_history_ids: list[str] = []
+    ordinals: dict[str, int] = {}
+    for role in ROLE_IDS:
+        ordinals[role] = ordinals.get(role, 0) + 1
+        expected_history_ids.append(
+            f"S18I-ITER-0002-{ROLE_SUFFIX[role]}-{ordinals[role]:02d}"
+        )
+    seed_block = binding.get("seed_block", {})
+    if (
+        binding.get("candidate_id") != "S18-ITER-0002"
+        or binding.get("candidate_number") != 2
+        or binding.get("contact_authorized") is not False
+        or seed_block.get("first_seed") != 32016
+        or seed_block.get("size") != 16
+        or seed_block.get("stride") != 1
+        or seed_block.get("seeds") != expected_seeds
+        or [entry.get("role") for entry in entries] != list(ROLE_IDS)
+        or [entry.get("data_seed") for entry in entries] != expected_seeds
+        or [entry.get("history_id") for entry in entries] != expected_history_ids
+    ):
+        raise GuardError("no-contact smoke requires the exact unreleased candidate-2 binding")
+    validate_binding(binding, root, disposable=True, check_sources=False)
     fixture = _smoke_binding(binding, root)
     validate_binding(fixture, root, disposable=True, check_sources=True)
     child_source = subprocess.run(
         [
             sys.executable, "-c",
-            "import synth, sys; print(synth.__file__); print(sys.dont_write_bytecode)",
+            (
+                "import importlib, synth, sys; "
+                "unqualified = importlib.import_module('sprint18_task5_measurability'); "
+                "qualified = importlib.import_module('experiments.sprint18_task5_measurability'); "
+                "print(synth.__file__); print(sys.dont_write_bytecode); "
+                "print(unqualified.__file__); print(qualified.__file__)"
+            ),
         ],
         cwd=root, env=_entrypoint_child_environment(root), check=False,
         capture_output=True, text=True,
     )
     child_lines = child_source.stdout.splitlines()
+    helper_path = (root / "experiments" / "sprint18_task5_measurability.py").resolve()
     if (
         child_source.returncode != 0
-        or len(child_lines) != 2
+        or len(child_lines) != 4
         or Path(child_lines[0]).resolve() != (root / "src" / "synth" / "__init__.py").resolve()
         or child_lines[1] != "True"
+        or Path(child_lines[2]).resolve() != helper_path
+        or Path(child_lines[3]).resolve() != helper_path
     ):
-        raise GuardError("child source-origin smoke did not resolve bound synth with bytecode disabled")
-    child_source_origin_smoke = "PASS_REAL_SUBPROCESS_BOUND_SRC"
+        raise GuardError(
+            "child import smoke did not resolve bound synth and both experiment import forms"
+        )
+    child_source_origin_smoke = "PASS_REAL_SUBPROCESS_BOUND_SYNTH_AND_EXPERIMENTS"
     source_identity_passes: list[str] = []
     for newline_style in ("LF", "CRLF"):
         with tempfile.TemporaryDirectory(prefix="s18-source-identity-") as temp:
@@ -1469,6 +1508,16 @@ def run_no_contact_smoke(binding: dict[str, Any], root: Path) -> None:
     bad_order["role_binding"][0], bad_order["role_binding"][1] = bad_order["role_binding"][1], bad_order["role_binding"][0]
     bad_order["binding_sha256"] = _candidate_digest(bad_order)
     mutations.append(("role-order", bad_order))
+    bad_seed_order = copy.deepcopy(fixture)
+    bad_seed_order["role_binding"][0]["data_seed"], bad_seed_order["role_binding"][1]["data_seed"] = (
+        bad_seed_order["role_binding"][1]["data_seed"],
+        bad_seed_order["role_binding"][0]["data_seed"],
+    )
+    bad_seed_order["binding_sha256"] = _candidate_digest(bad_seed_order)
+    mutations.append(("seed-order", bad_seed_order))
+    bad_binding_digest = copy.deepcopy(fixture)
+    bad_binding_digest["binding_sha256"] = "0" * 64
+    mutations.append(("binding-digest", bad_binding_digest))
     bad_source = copy.deepcopy(fixture)
     bad_source["source_closure"]["sha256_by_path"]["src/synth/chronicle.py"] = "0" * 64
     bad_source["source_closure"]["closure_sha256"] = _source_closure_digest(
@@ -1535,7 +1584,7 @@ def run_no_contact_smoke(binding: dict[str, Any], root: Path) -> None:
     else:
         raise GuardError("negative Main release identity smoke unexpectedly passed")
     bad_release_parent = dict(
-        release, checkpoint_parent=ACCEPTED_METHOD_LINEAGE_COMMIT,
+        release, checkpoint_parent="3a15b510ed6fd8a31ff172cb646a7bfa66996715",
     )
     try:
         validate_release_receipt(fixture, raw_sha, bad_release_parent)

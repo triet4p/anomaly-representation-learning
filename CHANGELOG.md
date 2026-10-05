@@ -53,3 +53,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Fixed the Sprint 22 pilot runner's binding checkpoint-size guard by defining its frozen 18,239,321-byte checkpoint size; no pilot contact was authorized.
 - Fixed Sprint 18 Task 68 source checks to accept only declared UTF-8 text LF/CRLF checkout conversion while binding canonical hashes, tracked Git blobs, and the corrected Main checkpoint receipt.
 - Bound Sprint 18 Task 68 to the observed PyTorch `2.14.0+cu130` runtime and the exact locked-venv/source-path entrypoint.
+- Fixed the Sprint 18 bound entrypoint's experiment imports by binding the repository root alongside `src` and `experiments` while retaining exact-path enforcement.
