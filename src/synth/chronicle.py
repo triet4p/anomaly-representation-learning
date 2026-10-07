@@ -522,8 +522,6 @@ def sprint18_c2_history_config(seed: int = 0) -> SynthConfig:
     cfg.health = replace(cfg.health, cohorts=tuple(cohorts))
     return cfg
 
-#: Sprint 18 iterative data-recovery profile; only exposure leaves differ
-#: from C2 while the manifest retains the inherited Sprint 15 v7 protocol.
 S18_ITERATIVE_PROFILE = "sprint18-iterative-v1"
 S18_ITERATIVE_CONTRACT_ID = "sprint18-iterative-data-contract-v1"
 
@@ -542,6 +540,38 @@ def sprint18_iterative_v1_history_config(seed: int = 0) -> SynthConfig:
     )
     cfg.scheduler = replace(cfg.scheduler, n_units=2880)
     return cfg
+
+#: Sprint 18 iterative-v3 fixed-phase failure-ordinal profile and its
+#: versioned data contract. The v3 factory is the corrected method:
+#: same frozen exposure as v1 with deterministic per-group phase
+#: alternation at P/W failure-firing time (contract v3 §3). The v2
+#: profile/factory symbols below are the retired defective method and
+#: MUST NOT be used for corrected proof or candidate data; they remain
+#: only so historical v2 roots stay readable in place.
+S18_ITERATIVE_V3_PROFILE = "sprint18-iterative-v3"
+S18_ITERATIVE_V3_CONTRACT_ID = "sprint18-iterative-data-contract-v3"
+
+
+def sprint18_iterative_v3_history_config(seed: int = 0) -> SynthConfig:
+    """Return the Sprint 18 450-day config with v3 fixed-phase labels."""
+    return sprint18_iterative_v1_history_config(seed=seed)
+
+
+
+#: Sprint 18 iterative-v2 uses the same frozen exposure and existing
+#: stratification flag, whose P/W FailureEvent semantics are failure-ordinal.
+S18_ITERATIVE_V2_PROFILE = "sprint18-iterative-v2"
+S18_ITERATIVE_V2_CONTRACT_ID = "sprint18-iterative-data-contract-v2"
+
+
+def sprint18_iterative_v2_history_config(seed: int = 0) -> SynthConfig:
+    """Retired v2 failure-ordinal factory (defective variable phase).
+
+    Diagnostic alias only: returns the same frozen exposure leaves, but
+    its historical FailureEvent semantics are superseded by v3 and MUST
+    NOT back corrected proof or candidate data.
+    """
+    return sprint18_iterative_v1_history_config(seed=seed)
 
 
 def _require_root(root: str | Path, *, must_exist: bool) -> Path:

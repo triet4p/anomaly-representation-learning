@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
-- Planned the prospective Sprint 18 iterative-v3 data contract correction: fixed-phase failure-ordinal P/W subtype alternation (ordinal excluded from the hash preimage) repairing the v2 variable-phase contradiction against the unchanged per-group imbalance bound, with its executable bound proof and disposable public-proof contract frozen for review before any implementation.
+- Implemented the Sprint 18 iterative-v3 data correction: fixed-phase failure-ordinal P/W subtype alternation under profile `sprint18-iterative-v3`, proved on disposable seeds 94100/94101 with dual fresh-process public reloads (per-group imbalance 1, 64-member exact allocator witness, frozen observable probe gates unchanged).
 - Added a restore-only Sprint 21 disposable scorer proof entry point with pinned lock, full-seed configuration, source-derived conditioning, metric and role-binding provenance gates, and production mask-seed rejection.
 - Added a versioned research-only Sprint 18 control/eligibility mechanism diagnostic, result/attempt schema, and review-gated one-shot runner for the fixed 918100–918107 block; Task 61 verifies instrumentation only with disposable fixture seed 93061.
 - Added per-checkpoint immutable Fit-bank digests to Sprint 21 pilot provenance and bound the GPU-memory check to Torch's measured device property.

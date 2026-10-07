@@ -43,7 +43,8 @@ def build_parser() -> argparse.ArgumentParser:
                                          "sprint15-v4", "sprint15-v5",
                                          "sprint15-v6", "sprint15-v7",
                                          "sprint18-c2",
-                                         "sprint18-iterative-v1"),
+                                         "sprint18-iterative-v1",
+                                         "sprint18-iterative-v3"),
                    help="chronological scale profile (default: client)")
     p.add_argument("--role", type=str, default=None,
                    help="whole-history role recorded in the manifest "
@@ -84,7 +85,9 @@ def main(argv: list[str] | None = None) -> int:
             sprint15_v6_history_config,
             sprint18_c2_history_config,
             sprint18_iterative_v1_history_config,
+            sprint18_iterative_v3_history_config,
             S18_ITERATIVE_PROFILE,
+            S18_ITERATIVE_V3_PROFILE,
         )
         seed = 0 if args.seed is None else args.seed
         if args.profile == "client":
@@ -146,6 +149,19 @@ def main(argv: list[str] | None = None) -> int:
                     "sprint18-iterative-v1; it changes arrival cadence"
                 )
             cfg = sprint18_iterative_v1_history_config(seed=seed)
+            if args.protocol is None:
+                args.protocol = "sprint15-benchmark-protocol-v7"
+        elif args.profile == S18_ITERATIVE_V3_PROFILE:
+            if args.channels != 6:
+                build_parser().error(
+                    "--profile sprint18-iterative-v3 requires six channels"
+                )
+            if args.units is not None:
+                build_parser().error(
+                    "--units cannot be combined with --profile "
+                    "sprint18-iterative-v3; it changes arrival cadence"
+                )
+            cfg = sprint18_iterative_v3_history_config(seed=seed)
             if args.protocol is None:
                 args.protocol = "sprint15-benchmark-protocol-v7"
         else:

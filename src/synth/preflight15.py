@@ -9,8 +9,11 @@ does not select or promote a history.
 
 Sprint 18 profiles reuse the same chain. C2 retains its historical behavior;
 iterative-v1 composes the C2 failure rate with the reviewed exposure-only
-calendar change and applies the role-specific early structural predicates.
-All profiles fail closed on an unknown name.
+calendar change, while iterative-v3 uses the same exposure with
+fixed-phase failure-ordinal P/W FailureEvent labels (contract v3 §3).
+The retired iterative-v2 profile keeps its historical entry so frozen v2
+roots stay readable; it MUST NOT back corrected proof. All profiles fail
+closed on an unknown name.
 
 The module imports standard-library helpers, ``synth`` calendar/allocation
 predicates, and the existing Task 5 structural summary. It never imports
@@ -42,9 +45,17 @@ PREFLIGHT_C2_PROFILE = "sprint18-c2"
 #: Generator protocol tag reported by C2 preflight (frozen v7 bytes).
 PREFLIGHT_C2_PROTOCOL = "sprint15-benchmark-protocol-v7"
 
-#: Sprint 18 iterative-v1 profile and inherited manifest protocol.
 PREFLIGHT_ITERATIVE_PROFILE = "sprint18-iterative-v1"
 PREFLIGHT_ITERATIVE_PROTOCOL = "sprint15-benchmark-protocol-v7"
+PREFLIGHT_ITERATIVE_V3_PROFILE = "sprint18-iterative-v3"
+PREFLIGHT_ITERATIVE_V3_PROTOCOL = "sprint15-benchmark-protocol-v7"
+PREFLIGHT_ITERATIVE_V2_PROFILE = "sprint18-iterative-v2"
+PREFLIGHT_ITERATIVE_V2_PROTOCOL = "sprint15-benchmark-protocol-v7"
+#: Retired v2 entry kept for read-only diagnosis of frozen v2 roots only.
+_RETIRED_ITERATIVE_V2_PROFILES = (PREFLIGHT_ITERATIVE_V2_PROFILE,)
+_ITERATIVE_PROFILES = (
+    PREFLIGHT_ITERATIVE_PROFILE, PREFLIGHT_ITERATIVE_V3_PROFILE,
+)
 _ITERATIVE_ROLES = {
     "DESIGN", "FIT", "CALIBRATION", "DEVELOPMENT", "CONFIRMATION"
 }
@@ -56,17 +67,22 @@ _PREFLIGHT_ABRUPT_RATE = {
     PREFLIGHT_PROFILE: 2.2e-5,
     PREFLIGHT_C2_PROFILE: 3.3e-5,
     PREFLIGHT_ITERATIVE_PROFILE: 3.3e-5,
+    PREFLIGHT_ITERATIVE_V3_PROFILE: 3.3e-5,
+    PREFLIGHT_ITERATIVE_V2_PROFILE: 3.3e-5,
 }
-
 
 def _resolve_preflight(profile: str):
     """Resolve a preflight profile to its factory, label, and protocol.
 
     Unknown profiles raise rather than silently falling back to v7.
+    The retired v2 profile still resolves for read-only diagnosis of
+    frozen v2 roots; corrected proof MUST use the v3 entry.
     """
     from synth.chronicle import sprint15_v7_history_config
     from synth.chronicle import sprint18_c2_history_config
     from synth.chronicle import sprint18_iterative_v1_history_config
+    from synth.chronicle import sprint18_iterative_v2_history_config
+    from synth.chronicle import sprint18_iterative_v3_history_config
 
     if profile == PREFLIGHT_PROFILE:
         return sprint15_v7_history_config, PREFLIGHT_PROFILE, PREFLIGHT_PROTOCOL
@@ -75,6 +91,18 @@ def _resolve_preflight(profile: str):
             sprint18_c2_history_config,
             PREFLIGHT_C2_PROFILE,
             PREFLIGHT_C2_PROTOCOL,
+        )
+    if profile == PREFLIGHT_ITERATIVE_V3_PROFILE:
+        return (
+            sprint18_iterative_v3_history_config,
+            PREFLIGHT_ITERATIVE_V3_PROFILE,
+            PREFLIGHT_ITERATIVE_V3_PROTOCOL,
+        )
+    if profile == PREFLIGHT_ITERATIVE_V2_PROFILE:
+        return (
+            sprint18_iterative_v2_history_config,
+            PREFLIGHT_ITERATIVE_V2_PROFILE,
+            PREFLIGHT_ITERATIVE_V2_PROTOCOL,
         )
     if profile == PREFLIGHT_ITERATIVE_PROFILE:
         return (
@@ -90,14 +118,15 @@ def _preflight_seed_for(
 ) -> dict[str, object]:
     """Run the shared in-memory rejection-only chain for one seed.
 
-    Iterative-v1 requires the fixed roster role so the applicable Design or
-    Confirmation gate is explicit. The actual scheduler, health, signal,
-    temporal, and split path runs in memory, but no candidate root is written.
+    Iterative-v1 and iterative-v3 require the fixed roster role so the
+    applicable Design or Confirmation gate is explicit. The actual scheduler,
+    health, signal, temporal, and split path runs in memory, but no candidate
+    root is written.
     """
     factory, label, _ = _resolve_preflight(profile)
-    if label == PREFLIGHT_ITERATIVE_PROFILE and role not in _ITERATIVE_ROLES:
+    if label in _ITERATIVE_PROFILES and role not in _ITERATIVE_ROLES:
         raise ValueError(
-            "sprint18-iterative-v1 preflight requires one of "
+            f"{label} preflight requires one of "
             f"{sorted(_ITERATIVE_ROLES)!r} as role"
         )
 
@@ -139,7 +168,7 @@ def _preflight_seed_for(
         for cohort, subtype in B.BUCKET_ORDER
     }
 
-    if label != PREFLIGHT_ITERATIVE_PROFILE:
+    if label not in _ITERATIVE_PROFILES:
         try:
             allocation = B.allocate_quotas(
                 rows, ledger, wins, history_seed, B.DEFAULT_QUOTA, "exact"
@@ -373,9 +402,9 @@ def preflight_seed(
 ) -> dict[str, object]:
     """Run the no-write source-computable structural chain for one seed.
 
-    Iterative-v1 requires its prospective fixed role, applying the Design or
-    Confirmation gate where applicable. Other profiles retain their previous
-    no-role call shape.
+    Iterative-v1 and iterative-v3 require their prospective fixed role,
+    applying the Design or Confirmation gate where applicable. Other profiles
+    retain their previous no-role call shape.
     """
     return _preflight_seed_for(history_seed, profile, role)
 
@@ -398,6 +427,14 @@ def preflight_seed_iterative_v1(
         history_seed, PREFLIGHT_ITERATIVE_PROFILE, role
     )
 
+def preflight_seed_iterative_v3(
+    history_seed: int, role: str
+) -> dict[str, object]:
+    """Run iterative-v3 rejection-only preflight for one fixed role seed."""
+    return _preflight_seed_for(
+        history_seed, PREFLIGHT_ITERATIVE_V3_PROFILE, role
+    )
+
 
 def _run_preflight_for(
     seeds: list[int],
@@ -408,8 +445,8 @@ def _run_preflight_for(
     _, _, protocol = _resolve_preflight(profile)
     if roles is not None and len(roles) != len(seeds):
         raise ValueError("preflight roles must match the seed-list length")
-    if profile == PREFLIGHT_ITERATIVE_PROFILE and roles is None:
-        raise ValueError("iterative-v1 roster preflight requires fixed roles")
+    if profile in _ITERATIVE_PROFILES and roles is None:
+        raise ValueError(f"{profile} roster preflight requires fixed roles")
     results = [
         _preflight_seed_for(seed, profile, role)
         for seed, role in zip(seeds, roles or [None] * len(seeds), strict=True)
@@ -434,8 +471,8 @@ def run_preflight(
 ) -> dict[str, object]:
     """Run the fixed seed list in caller order, with role-specific gates.
 
-    Iterative-v1 requires one frozen role per seed; legacy profile callers
-    retain their previous signatures and unanimity behavior.
+    Iterative-v1 and iterative-v3 require one frozen role per seed; legacy
+    profile callers retain their previous signatures and unanimity behavior.
     """
     return _run_preflight_for(seeds, profile, roles)
 
@@ -456,4 +493,13 @@ def run_preflight_iterative_v1(
     """Run iterative-v1 preflight over the exact seed/role order supplied."""
     return _run_preflight_for(
         seeds, PREFLIGHT_ITERATIVE_PROFILE, roles
+    )
+
+
+def run_preflight_iterative_v3(
+    seeds: list[int], roles: list[str]
+) -> dict[str, object]:
+    """Run iterative-v3 preflight over the exact seed/role order supplied."""
+    return _run_preflight_for(
+        seeds, PREFLIGHT_ITERATIVE_V3_PROFILE, roles
     )

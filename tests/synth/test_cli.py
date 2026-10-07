@@ -144,18 +144,23 @@ def test_chronological_units_rejects_nonpositive():
 
 
 @pytest.mark.parametrize(
-    ("override", "value"),
-    [("--units", "2880"), ("--channels", "3")],
+    ("profile", "override", "value"),
+    [
+        ("sprint18-iterative-v1", "--units", "2880"),
+        ("sprint18-iterative-v1", "--channels", "3"),
+        ("sprint18-iterative-v3", "--units", "2880"),
+        ("sprint18-iterative-v3", "--channels", "3"),
+    ],
 )
 def test_iterative_profile_rejects_cadence_or_channel_overrides(
-    tmp_path: Path, override: str, value: str
+    tmp_path: Path, profile: str, override: str, value: str
 ):
-    output = tmp_path / "iterative"
+    output = tmp_path / profile
     with pytest.raises(SystemExit):
         cli.main([
             "--chronological",
-            "--profile", "sprint18-iterative-v1",
-            "--seed", "9000",
+            "--profile", profile,
+            "--seed", "94100",
             override, value,
             "--output", str(output),
         ])

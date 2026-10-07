@@ -320,10 +320,11 @@ class RobotHealthProcess:
             return "P" if rng.random() < hcfg.upcoming_p else "W"
 
         deg_sub_ordinal: dict[tuple[str, str], int] = {}
+        fail_sub_ordinal: dict[tuple[str, str], int] = {}
         abrupt_ordinal: dict[str, int] = {}
 
         def _draw_pw_subtype(cohort: str | None) -> str | None:
-            """Draw one precursor-manifestation subtype at episode opening.
+            """Draw the diagnostic subtype retained by a degradation episode.
 
             Sprint 14 protocol v3: causal selection on a dedicated sub-stream
             derived from (health seed, robot, cohort, per-cohort episode
@@ -332,13 +333,9 @@ class RobotHealthProcess:
             to subtype emission. Returns None for legacy configs whose
             cohort declares no subtypes (v4.1 behavior preserved exactly).
 
-            Sprint 15 protocol v7 (flag-gated): with
-            ``stratified_subtype_emission`` set, the uniform pick is replaced
-            by deterministic round-robin alternation
-            ``labels[(ordinal + digest[0]) % len(labels)]`` on the same
-            dedicated inputs, so emitted per-(robot, cohort) subtype counts
-            differ by at most one. Flag-off behavior is byte-identical to v6
-            and earlier.
+            The existing flag retains this episode-opening label for
+            diagnostic continuity. FailureEvent labels are assigned
+            separately at failure time below.
             """
             if cohort is None or cohort not in by_id:
                 return None
@@ -357,6 +354,37 @@ class RobotHealthProcess:
             sub_rng = np.random.default_rng(
                 int.from_bytes(digest[:8], "big"))
             return labels[int(sub_rng.integers(len(labels)))]
+
+        def _draw_pw_failure_subtype(cohort: str | None) -> str | None:
+            """Assign a P/W subtype by per-robot/cohort failure ordinal.
+
+            Sprint 18 iterative-data contract v3 §3: fixed-phase
+            alternation. The phase is one deterministic byte per
+            ``(seed, robot, cohort)`` group from domain
+            ``sprint18-failure-subtype-v3`` with the failure ordinal
+            excluded from the hash preimage; the per-group failure
+            ordinal increments exactly once per fired P/W failure
+            before indexing, so consecutive labels strictly alternate
+            and every per-group prefix stays within imbalance 1.
+            The shared health RNG is never drawn here, preserving
+            failure timing/density invariance. Flag-off callers keep
+            episode-subtype inheritance unchanged.
+            """
+            if cohort is None or cohort not in by_id:
+                return None
+            labels = by_id[cohort].subtypes
+            if not labels:
+                return None
+            key = (robot_id, cohort)
+            fail_sub_ordinal[key] = fail_sub_ordinal.get(key, 0) + 1
+            phase = hashlib.sha256(
+                "|".join([
+                    "sprint18-failure-subtype-v3", str(hcfg.seed), robot_id,
+                    cohort,
+                ]).encode()
+            ).digest()[0]
+            return labels[
+                (fail_sub_ordinal[key] + phase) % len(labels)]
 
         def _next_id(kind: str) -> str:
             key = f"{robot_id}:{kind}"
@@ -488,11 +516,21 @@ class RobotHealthProcess:
                         subtype = "A1" if rng.random() < 0.5 else "A2"
                     sev_level = (1.0, 2.0, 4.0)[int(rng.integers(3))]
                 elif fired is not None:
-                    assert open_degradation is not None and open_deg_id is not None
                     cohort_id = fired.cohort_id
-                    subtype = open_degradation.subtype
+                    assert open_degradation is not None and open_deg_id is not None
+                    episode_subtype = open_degradation.subtype
+                    assert episode_subtype is None or episode_subtype in (
+                        by_id[cohort_id].subtypes
+                    ), (
+                        f"episode subtype {episode_subtype!r} not declared "
+                        f"by cohort {cohort_id!r}")
+                    subtype = (
+                        _draw_pw_failure_subtype(cohort_id)
+                        if getattr(hcfg, "stratified_subtype_emission", False)
+                        else episode_subtype
+                    )
                     assert subtype is None or subtype in by_id[cohort_id].subtypes, (
-                        f"episode subtype {subtype!r} not declared by "
+                        f"failure subtype {subtype!r} not declared by "
                         f"cohort {cohort_id!r}")
                     onset = open_degradation.start_time
                     duration_d = (event.end_time - onset) / 86400.0

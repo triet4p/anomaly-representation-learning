@@ -185,6 +185,49 @@ def test_sprint18_iterative_profile_changes_only_reviewed_exposure_leaves():
                ("factory", "scheduler", "health", "signal", "temporal"))
 
 
+
+def test_sprint18_iterative_v3_factory_preserves_reviewed_exposure():
+    from synth.chronicle import (
+        S18_ITERATIVE_V3_CONTRACT_ID,
+        S18_ITERATIVE_V3_PROFILE,
+        sprint18_iterative_v1_history_config,
+        sprint18_iterative_v3_history_config,
+    )
+
+    legacy_profile = sprint18_iterative_v1_history_config(seed=94100)
+    v3 = sprint18_iterative_v3_history_config(seed=94100)
+    assert asdict(v3) == asdict(legacy_profile)
+    assert S18_ITERATIVE_V3_PROFILE == "sprint18-iterative-v3"
+    assert S18_ITERATIVE_V3_CONTRACT_ID == (
+        "sprint18-iterative-data-contract-v3"
+    )
+    assert v3.health.stratified_subtype_emission is True
+    assert (v3.factory.span_days, v3.factory.dev_cutoff_days) == (450.0, 225.0)
+    assert v3.scheduler.n_units == 2880
+
+
+def test_sprint18_iterative_v2_factory_is_retired_diagnostic_alias():
+    from synth.chronicle import (
+        S18_ITERATIVE_V2_CONTRACT_ID,
+        S18_ITERATIVE_V2_PROFILE,
+        sprint18_iterative_v1_history_config,
+        sprint18_iterative_v2_history_config,
+    )
+
+    legacy_profile = sprint18_iterative_v1_history_config(seed=94100)
+    v2 = sprint18_iterative_v2_history_config(seed=94100)
+    assert asdict(v2) == asdict(legacy_profile)
+    assert S18_ITERATIVE_V2_PROFILE == "sprint18-iterative-v2"
+    assert S18_ITERATIVE_V2_CONTRACT_ID == (
+        "sprint18-iterative-data-contract-v2"
+    )
+    assert v2.health.stratified_subtype_emission is True
+
+
+def test_sprint18_iterative_v2_factory_preserves_reviewed_exposure():
+    test_sprint18_iterative_v2_factory_is_retired_diagnostic_alias()
+
+
 def test_cli_chronological_client_profile(tmp_path):
     """The public CLI materializes the routed client dataset end to end."""
     root = tmp_path / "client"

@@ -359,9 +359,13 @@ class FailureEvent:
     ``T``; ``cohort`` is one of ``P`` (progressive), ``W`` (weak-precursor),
     or ``A`` (abrupt/no-precursor). Abrupt events carry no degradation onset
     and zero duration by construction, with subtype ``A1``/``A2``.
-    Non-abrupt events carry the precursor-manifestation subtype of their
-    episode (``P1``/``P2`` for progressive, ``W1``/``W2`` for weak-precursor;
-    legacy records without subtype emission carry None).
+    Non-abrupt events carry the subtype assigned to the actual failure event:
+    fixed-phase failure-ordinal P/W alternation (one deterministic phase per
+    ``(seed, robot, cohort)`` group, ordinal excluded from the hash preimage)
+    under ``stratified_subtype_emission=True``, or the episode-opening label
+    otherwise. The linked HealthEpisode retains its original opening-time
+    subtype for diagnostic continuity. Legacy records without subtype
+    emission carry None.
     ``degradation_onset`` is the drawn manifest onset
     (``failure_time - duration_d``) for P/W. ``severity`` is
     the ordered support level in {1.0, 2.0, 4.0}.
