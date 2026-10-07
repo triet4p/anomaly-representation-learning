@@ -54,3 +54,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Fixed Sprint 18 Task 68 source checks to accept only declared UTF-8 text LF/CRLF checkout conversion while binding canonical hashes, tracked Git blobs, and the corrected Main checkpoint receipt.
 - Bound Sprint 18 Task 68 to the observed PyTorch `2.14.0+cu130` runtime and the exact locked-venv/source-path entrypoint.
 - Fixed the Sprint 18 bound entrypoint's experiment imports by binding the repository root alongside `src` and `experiments` while retaining exact-path enforcement.
+- Froze Sprint 18 candidate `S18-ITER-0003` (seeds `32032–32047`) on the reviewed `sprint18-iterative-v3` fixed-phase method with its exact 16-role binding, 52-file source closure, and fail-closed guards; candidates `S18-ITER-0001`/`S18-ITER-0002` stay retired without replay.

@@ -1,89 +1,108 @@
 {
   "schema_id": "sprint18-iterative-binding-v1",
-  "binding_sha256": "aaa8eadd5eba49fce9a37500664a502740aed4261dbcefa3fb5a4de9bd0f3577",
-  "candidate_id": "S18-ITER-0002",
-  "candidate_number": 2,
+  "candidate_id": "S18-ITER-0003",
+  "candidate_number": 3,
   "contact_authorized": false,
   "status": "FROZEN_PENDING_PRECONTACT_REVIEW",
   "provenance": {
     "task67_evidence": {
       "path": "artifacts/sprint-18/task-67.md",
-      "sha256": "3758a28f4f27676dbf1014c6290ea5acd9fa27c8054fd0899b1d07bccc85aa3a",
+      "sha256": "e576debdd048c780ca6c25d91923014705bc8b3723e70566e8dd99c947139867",
       "reference": "accepted Task67 evidence; provenance only, not a deployable source"
     },
     "accepted_task68_lineage": {
       "task68_a02_checkpoint_commit": "1b708542aeaba7a69c883893deb90ff591ce9d5f",
       "task68_a02_checkpoint_parent": "cd04a0a018c73ae91593ea4041742f05829041a6",
-      "task66_contract_sha256": "056105f87b1097c45244287636bcef8c2fc790f3fd894775b9105fbdbfb59e9d"
+      "task66_contract_sha256": "544de84bc201a07140559058d100c991cd148b698f93058dbd37d7fe4dc3c929",
+      "task67_checkpoint_commit": "a17bfad5d5c625e2c8745c0d7b6feff4ee928eb4",
+      "task67_checkpoint_parent": "820d724893341cee60f2a911b65881be2761b3e1",
+      "task67_review_snapshot_sha256": "cd1d26b1c5e6d3556823f943b632ddcff4e36ab6b87299780b9b3469df540842"
     },
     "task68_a02_raw_source_identity_scheme": "raw-byte-sha256-v1",
     "task68_a02_raw_source_closure_sha256": "e9a50ec7764d8a9cf869a522fbd00ca462beec16bd53ba6308dcb84b1863dd99",
     "task68_a02_raw_sha256_by_path": {
-      "docs/BENCHMARK_MEASURABILITY_EXIT_GATES_V2.md":"d294762331ded4fd213f6870e563e32e17e12c632d7cb11a80373478ede34e1c",
-      "experiments/sprint15-benchmark-protocol-v7.md":"a1fc09db2e246ed79d0595aec953a7788fd1b47c4981fbe1d92017d944b8d7b6",
-      "experiments/sprint15-observable-probe-v7.md":"4d4c2b53b3879efdf92935e362956c87d16892feba8276367f1e5aa13aa4a51a",
-      "experiments/sprint18-data-method-c2-v1.md":"f4cc8901c2e59f615ebcaaa3509fd654773efd06f7f6fd6a55faeab6b3ba4b9b",
-      "experiments/sprint18-iterative-data-contract-v1.md":"056105f87b1097c45244287636bcef8c2fc790f3fd894775b9105fbdbfb59e9d",
-      "experiments/sprint18_iterative_candidate_v1.py":"f5f224e80be92a5890982b613ebee058ca9ee659f8ecb67de532baff4481627d",
-      "experiments/sprint18_task5_measurability.py":"0ee9e3ff9ae884dfa5a19efdfa921417ae52304c01e7f8293740a5dc4aa059b9",
-      "experiments/sprint22-pilot-binding-v1.json":"6117d2b2ff816c9776a4d0aaac0dc1b50ce3d14d2f28d19a73e4733f48ece11d",
-      "pyproject.toml":"30292a091a273d0d58958701f792ad30af9a9bbd7454480275dedd73d1421d01",
-      "src/synth/__init__.py":"00ae4b0f62e007a6bbeafe11d41dd5501b9ad682bf0e48c52658c83c142fb7db",
-      "src/synth/anomalies/__init__.py":"4185ee9d09f8b3c1bcd937dac5630a33882d972b9992797a338f6088ea4db5c5",
-      "src/synth/anomalies/base.py":"b98c8727168e7f4e6eb88d0474b2f51a26df0ed5d26bdeae1abe39ca1a5df206",
-      "src/synth/anomalies/contextual.py":"551dad79ba4266b3524f3e261e740c43818a7eb4ba3d8462880d726e9ee050b1",
-      "src/synth/anomalies/cross_channel.py":"f40ed7c447e85726ad17248f6d165e3dd38203ad4e2f4ea039935bf4fc3421ca",
-      "src/synth/anomalies/drift.py":"8bece76574231c58b85e309f8c879d54d3ee87ab50f4634e6ad58c23aa6190ba",
-      "src/synth/anomalies/duration.py":"f7b4e0a324554dd4379f951a1223c00b12c624695f8bd92a088d085b3fb129d9",
-      "src/synth/anomalies/easy_sanity.py":"41efd72d17ee7167d8b7ef4c6fb9ebfde29e37dc6ff43de951fbfb21b97a0e01",
-      "src/synth/anomalies/freq_phase.py":"83eb1454f9e8d3015647525baf8d3f2fc36a2a0531eebd0a12a865c4da84ebcb",
-      "src/synth/anomalies/missing_event.py":"464fa9daed5cfdbf13186e5ab406b960a6dcb4e028c584ec0cd683937fcd5549",
-      "src/synth/anomalies/registry.py":"7d34156b920bf9c79486e2c1610d28706e6073c73b7363608c9798efdf1561d1",
-      "src/synth/anomalies/regularity.py":"3bb17a410df99bce933dad7cf2f0d208c23197c06b5683e4ffec499a138cce7d",
-      "src/synth/anomalies/stuck.py":"9c7e14ac4a6c9cbb7af3cfa8df0b90240e4eaaf74df7badd54dc8c4988e399c8",
-      "src/synth/anomalies/transition.py":"1a92b361dfeff2df80939f95de84c7bbf59ebd0ccbc3629ab326bccee87be704",
-      "src/synth/balanced.py":"d62de3422bd51f870d39d18b1a8bb942f9ca73fc0044d8f23cc2d0948bd35a43",
-      "src/synth/chronicle.py":"74a2068e541ca3c72fc88d4d85a6082c16522a91fd42726d168c4dfd25706491",
-      "src/synth/cli.py":"d1b92ae6e4d1bd036bf13204acb618cca0ee4e1742614cffd5d8919ee0ad9e94",
-      "src/synth/config.py":"f8098fb7f373f303e9e6eb8d76d008ef7e925bb9ef275c484a80d56c589a15c6",
-      "src/synth/contrastive.py":"af1a2ded1ce5bc9cc7fef9572599d0d75443c168b58b3907660c56deb7ac9e71",
-      "src/synth/dataset.py":"375029c48e3a19d2e1e30f986bde5339fb597474e9f0685405fd548c0bc0e662",
-      "src/synth/diagnostics.py":"1cd87aa40893e710e3b645749eed1cb84e8a8f3f8b9a21f0e97eb006c40f8eb6",
-      "src/synth/events.py":"85100f5e0aca47dd2e8b01a08c58f39d32be4f1eab469cdc38e4a4b57768169d",
-      "src/synth/generator.py":"32cd227943cb00c165c43aeb75835f14433a57c60ca9adca0e5c20d21e654403",
-      "src/synth/health.py":"e5854641fb85eb9b88e05ee9d8e503c69a9432b13177d8c62ad38c3494e7fc6d",
-      "src/synth/masking.py":"b73843b1fd6fd7a925d3dc6e58967bdb744de89cc1ca61927958040db0513a2c",
-      "src/synth/normal.py":"a8203b2b9fe9f0489c249e2694dde4c17752976c6402ddc5907d0b94c565d6ac",
-      "src/synth/patchify.py":"4b7e6876d6c43c76848d7b179a02e19f1c065aaecbfbd1eb159d448c45bc8d49",
-      "src/synth/physics/__init__.py":"4e0d2ca9e0bec699cbd23dde004fcbfd8a422814d7a264fc11b05aa78b885a4b",
-      "src/synth/physics/causal.py":"6e97fbe655fe0a1c55433e04eb23fb1922ce28537ec061875fda2632c6c8d183",
-      "src/synth/physics/noise.py":"cf3f51ad9a571a3cf77c3c40aaf2e0d69b96afda860615edf9751b9f9f063d54",
-      "src/synth/preflight15.py":"88761dbf588a1584055a595e9a4a18040f62708b68f528efbf5100e80761304e",
-      "src/synth/probe15.py":"a08b3d5fb83001e1f5c43f4c56ff536bae85e41d494db289304aeb33a339242b",
-      "src/synth/regimes.py":"e0287d2dc7aadf1ca50c0bf63151f1d79b11a7d7a14c68ee7eec0a21a981cafd",
-      "src/synth/scheduled.py":"feb76b9d10c500e3dbea7fda2237e7daf8d1b41abe6cf8a7e6d38a9e73c72ce7",
-      "src/synth/scheduler.py":"4659b94c31f3a2628f57d0fd789ea8f7d42c5f82abfc0f7dc01ffa2e7bf3e3af",
-      "src/synth/schema.py":"6d6b001c2199933c14dbd019d9eaf8ded5c3dddc3d33997420f62175ee230203",
-      "src/synth/splits.py":"0abace7461b2d5da9e2b616748f539e03aac8ef0e7b65fe4325f14a719fc0316",
-      "src/synth/strength.py":"6b23db6b529e4c873e41ec8f25785412ce113184b1a29847e35571cf749c786f",
-      "src/synth/temporal.py":"02a8ea8d7698794e5fbc0ec499e94d7a25e4fe7a3e888e1295cc13c567f36e18",
-      "uv.lock":"4a7866878c81cdd8f5ba283cd8d0a772073bfc75941f73ec761ede5eeb2e239a"
+      "docs/BENCHMARK_MEASURABILITY_EXIT_GATES_V2.md": "d294762331ded4fd213f6870e563e32e17e12c632d7cb11a80373478ede34e1c",
+      "experiments/sprint15-benchmark-protocol-v7.md": "a1fc09db2e246ed79d0595aec953a7788fd1b47c4981fbe1d92017d944b8d7b6",
+      "experiments/sprint15-observable-probe-v7.md": "4d4c2b53b3879efdf92935e362956c87d16892feba8276367f1e5aa13aa4a51a",
+      "experiments/sprint18-data-method-c2-v1.md": "f4cc8901c2e59f615ebcaaa3509fd654773efd06f7f6fd6a55faeab6b3ba4b9b",
+      "experiments/sprint18-iterative-data-contract-v1.md": "056105f87b1097c45244287636bcef8c2fc790f3fd894775b9105fbdbfb59e9d",
+      "experiments/sprint18_iterative_candidate_v1.py": "f5f224e80be92a5890982b613ebee058ca9ee659f8ecb67de532baff4481627d",
+      "experiments/sprint18_task5_measurability.py": "0ee9e3ff9ae884dfa5a19efdfa921417ae52304c01e7f8293740a5dc4aa059b9",
+      "experiments/sprint22-pilot-binding-v1.json": "6117d2b2ff816c9776a4d0aaac0dc1b50ce3d14d2f28d19a73e4733f48ece11d",
+      "pyproject.toml": "30292a091a273d0d58958701f792ad30af9a9bbd7454480275dedd73d1421d01",
+      "src/synth/__init__.py": "00ae4b0f62e007a6bbeafe11d41dd5501b9ad682bf0e48c52658c83c142fb7db",
+      "src/synth/anomalies/__init__.py": "4185ee9d09f8b3c1bcd937dac5630a33882d972b9992797a338f6088ea4db5c5",
+      "src/synth/anomalies/base.py": "b98c8727168e7f4e6eb88d0474b2f51a26df0ed5d26bdeae1abe39ca1a5df206",
+      "src/synth/anomalies/contextual.py": "551dad79ba4266b3524f3e261e740c43818a7eb4ba3d8462880d726e9ee050b1",
+      "src/synth/anomalies/cross_channel.py": "f40ed7c447e85726ad17248f6d165e3dd38203ad4e2f4ea039935bf4fc3421ca",
+      "src/synth/anomalies/drift.py": "8bece76574231c58b85e309f8c879d54d3ee87ab50f4634e6ad58c23aa6190ba",
+      "src/synth/anomalies/duration.py": "f7b4e0a324554dd4379f951a1223c00b12c624695f8bd92a088d085b3fb129d9",
+      "src/synth/anomalies/easy_sanity.py": "41efd72d17ee7167d8b7ef4c6fb9ebfde29e37dc6ff43de951fbfb21b97a0e01",
+      "src/synth/anomalies/freq_phase.py": "83eb1454f9e8d3015647525baf8d3f2fc36a2a0531eebd0a12a865c4da84ebcb",
+      "src/synth/anomalies/missing_event.py": "464fa9daed5cfdbf13186e5ab406b960a6dcb4e028c584ec0cd683937fcd5549",
+      "src/synth/anomalies/registry.py": "7d34156b920bf9c79486e2c1610d28706e6073c73b7363608c9798efdf1561d1",
+      "src/synth/anomalies/regularity.py": "3bb17a410df99bce933dad7cf2f0d208c23197c06b5683e4ffec499a138cce7d",
+      "src/synth/anomalies/stuck.py": "9c7e14ac4a6c9cbb7af3cfa8df0b90240e4eaaf74df7badd54dc8c4988e399c8",
+      "src/synth/anomalies/transition.py": "1a92b361dfeff2df80939f95de84c7bbf59ebd0ccbc3629ab326bccee87be704",
+      "src/synth/balanced.py": "d62de3422bd51f870d39d18b1a8bb942f9ca73fc0044d8f23cc2d0948bd35a43",
+      "src/synth/chronicle.py": "74a2068e541ca3c72fc88d4d85a6082c16522a91fd42726d168c4dfd25706491",
+      "src/synth/cli.py": "d1b92ae6e4d1bd036bf13204acb618cca0ee4e1742614cffd5d8919ee0ad9e94",
+      "src/synth/config.py": "f8098fb7f373f303e9e6eb8d76d008ef7e925bb9ef275c484a80d56c589a15c6",
+      "src/synth/contrastive.py": "af1a2ded1ce5bc9cc7fef9572599d0d75443c168b58b3907660c56deb7ac9e71",
+      "src/synth/dataset.py": "375029c48e3a19d2e1e30f986bde5339fb597474e9f0685405fd548c0bc0e662",
+      "src/synth/diagnostics.py": "1cd87aa40893e710e3b645749eed1cb84e8a8f3f8b9a21f0e97eb006c40f8eb6",
+      "src/synth/events.py": "85100f5e0aca47dd2e8b01a08c58f39d32be4f1eab469cdc38e4a4b57768169d",
+      "src/synth/generator.py": "32cd227943cb00c165c43aeb75835f14433a57c60ca9adca0e5c20d21e654403",
+      "src/synth/health.py": "e5854641fb85eb9b88e05ee9d8e503c69a9432b13177d8c62ad38c3494e7fc6d",
+      "src/synth/masking.py": "b73843b1fd6fd7a925d3dc6e58967bdb744de89cc1ca61927958040db0513a2c",
+      "src/synth/normal.py": "a8203b2b9fe9f0489c249e2694dde4c17752976c6402ddc5907d0b94c565d6ac",
+      "src/synth/patchify.py": "4b7e6876d6c43c76848d7b179a02e19f1c065aaecbfbd1eb159d448c45bc8d49",
+      "src/synth/physics/__init__.py": "4e0d2ca9e0bec699cbd23dde004fcbfd8a422814d7a264fc11b05aa78b885a4b",
+      "src/synth/physics/causal.py": "6e97fbe655fe0a1c55433e04eb23fb1922ce28537ec061875fda2632c6c8d183",
+      "src/synth/physics/noise.py": "cf3f51ad9a571a3cf77c3c40aaf2e0d69b96afda860615edf9751b9f9f063d54",
+      "src/synth/preflight15.py": "88761dbf588a1584055a595e9a4a18040f62708b68f528efbf5100e80761304e",
+      "src/synth/probe15.py": "a08b3d5fb83001e1f5c43f4c56ff536bae85e41d494db289304aeb33a339242b",
+      "src/synth/regimes.py": "e0287d2dc7aadf1ca50c0bf63151f1d79b11a7d7a14c68ee7eec0a21a981cafd",
+      "src/synth/scheduled.py": "feb76b9d10c500e3dbea7fda2237e7daf8d1b41abe6cf8a7e6d38a9e73c72ce7",
+      "src/synth/scheduler.py": "4659b94c31f3a2628f57d0fd789ea8f7d42c5f82abfc0f7dc01ffa2e7bf3e3af",
+      "src/synth/schema.py": "6d6b001c2199933c14dbd019d9eaf8ded5c3dddc3d33997420f62175ee230203",
+      "src/synth/splits.py": "0abace7461b2d5da9e2b616748f539e03aac8ef0e7b65fe4325f14a719fc0316",
+      "src/synth/strength.py": "6b23db6b529e4c873e41ec8f25785412ce113184b1a29847e35571cf749c786f",
+      "src/synth/temporal.py": "02a8ea8d7698794e5fbc0ec499e94d7a25e4fe7a3e888e1295cc13c567f36e18",
+      "uv.lock": "4a7866878c81cdd8f5ba283cd8d0a772073bfc75941f73ec761ede5eeb2e239a"
     }
   },
   "seed_block": {
-    "first_seed": 32016,
+    "first_seed": 32032,
     "size": 16,
     "stride": 1,
-    "seeds": [32016, 32017, 32018, 32019, 32020, 32021, 32022, 32023, 32024, 32025, 32026, 32027, 32028, 32029, 32030, 32031],
+    "seeds": [
+      32032,
+      32033,
+      32034,
+      32035,
+      32036,
+      32037,
+      32038,
+      32039,
+      32040,
+      32041,
+      32042,
+      32043,
+      32044,
+      32045,
+      32046,
+      32047
+    ],
     "replacement_or_search": false
   },
-  "profile_id": "sprint18-iterative-v1",
+  "profile_id": "sprint18-iterative-v3",
   "generator_protocol_id": "sprint15-benchmark-protocol-v7",
-  "contract_id": "sprint18-iterative-data-contract-v1",
-  "contract_sha256": "056105f87b1097c45244287636bcef8c2fc790f3fd894775b9105fbdbfb59e9d",
+  "contract_id": "sprint18-iterative-data-contract-v3",
+  "contract_sha256": "544de84bc201a07140559058d100c991cd148b698f93058dbd37d7fe4dc3c929",
   "method": {
-    "method_id": "sprint18-iterative-v1",
-    "source_factory": "synth.chronicle.sprint18_iterative_v1_history_config(seed)",
+    "method_id": "sprint18-iterative-v3",
+    "source_factory": "synth.chronicle.sprint18_iterative_v3_history_config(seed)",
     "base_method_id": "sprint18-c2",
     "base_method_sha256": "f4cc8901c2e59f615ebcaaa3509fd654773efd06f7f6fd6a55faeab6b3ba4b9b",
     "calendar_span_days": 450,
@@ -93,60 +112,444 @@
     "qualification": "unchanged Task66 contract gates; fixed Sprint15-v7 DGP probe only",
     "no_candidate_feasibility_guarantee": true
   },
-  "candidate_root_relative": "data/generated/sprint18-iterative-v1/S18-ITER-0002",
+  "candidate_root_relative": "data/generated/sprint18-iterative-v1/S18-ITER-0003",
   "role_binding": [
-    {"role":"DESIGN","history_id":"S18I-ITER-0002-DESIGN-01","data_seed":32016,"directory":"data/generated/sprint18-iterative-v1/S18-ITER-0002/DESIGN/S18I-ITER-0002-DESIGN-01","permitted_use":"Integrity, causal, construction, and unchanged structural qualification; diagnostics only. No Fit/Calibration use or history selection.","config_hash":"640345ec77ed"},
-    {"role":"DESIGN","history_id":"S18I-ITER-0002-DESIGN-02","data_seed":32017,"directory":"data/generated/sprint18-iterative-v1/S18-ITER-0002/DESIGN/S18I-ITER-0002-DESIGN-02","permitted_use":"Integrity, causal, construction, and unchanged structural qualification; diagnostics only. No Fit/Calibration use or history selection.","config_hash":"3c7ba9373742"},
-    {"role":"DESIGN","history_id":"S18I-ITER-0002-DESIGN-03","data_seed":32018,"directory":"data/generated/sprint18-iterative-v1/S18-ITER-0002/DESIGN/S18I-ITER-0002-DESIGN-03","permitted_use":"Integrity, causal, construction, and unchanged structural qualification; diagnostics only. No Fit/Calibration use or history selection.","config_hash":"3c1566e3d704"},
-    {"role":"DESIGN","history_id":"S18I-ITER-0002-DESIGN-04","data_seed":32019,"directory":"data/generated/sprint18-iterative-v1/S18-ITER-0002/DESIGN/S18I-ITER-0002-DESIGN-04","permitted_use":"Integrity, causal, construction, and unchanged structural qualification; diagnostics only. No Fit/Calibration use or history selection.","config_hash":"946929cfd76d"},
-    {"role":"FIT","history_id":"S18I-ITER-0002-FIT-01","data_seed":32020,"directory":"data/generated/sprint18-iterative-v1/S18-ITER-0002/FIT/S18I-ITER-0002-FIT-01","permitted_use":"Verified-healthy eligibility; fit only the fixed probe's feature mean/std and healthy centroid. No representation training, bank, alternate scorer, or non-probe fitting.","config_hash":"fd20b57c2e77"},
-    {"role":"FIT","history_id":"S18I-ITER-0002-FIT-02","data_seed":32021,"directory":"data/generated/sprint18-iterative-v1/S18-ITER-0002/FIT/S18I-ITER-0002-FIT-02","permitted_use":"Verified-healthy eligibility; fit only the fixed probe's feature mean/std and healthy centroid. No representation training, bank, alternate scorer, or non-probe fitting.","config_hash":"7184cf03e026"},
-    {"role":"FIT","history_id":"S18I-ITER-0002-FIT-03","data_seed":32022,"directory":"data/generated/sprint18-iterative-v1/S18-ITER-0002/FIT/S18I-ITER-0002-FIT-03","permitted_use":"Verified-healthy eligibility; fit only the fixed probe's feature mean/std and healthy centroid. No representation training, bank, alternate scorer, or non-probe fitting.","config_hash":"043db4e933b8"},
-    {"role":"CALIBRATION","history_id":"S18I-ITER-0002-CALIBRATION-01","data_seed":32023,"directory":"data/generated/sprint18-iterative-v1/S18-ITER-0002/CALIBRATION/S18I-ITER-0002-CALIBRATION-01","permitted_use":"Verified-healthy eligibility; score with frozen Fit probe values and choose only the fixed probe q95. No fitting or retuning.","config_hash":"0f376a8c641a"},
-    {"role":"DEVELOPMENT","history_id":"S18I-ITER-0002-DEVELOPMENT-01","data_seed":32024,"directory":"data/generated/sprint18-iterative-v1/S18-ITER-0002/DEVELOPMENT/S18I-ITER-0002-DEVELOPMENT-01","permitted_use":"Structural qualification and one fixed-probe evaluation using frozen Fit/Calibration values. No selection, promotion, pruning, or tuning.","config_hash":"87a7f816ed44"},
-    {"role":"DEVELOPMENT","history_id":"S18I-ITER-0002-DEVELOPMENT-02","data_seed":32025,"directory":"data/generated/sprint18-iterative-v1/S18-ITER-0002/DEVELOPMENT/S18I-ITER-0002-DEVELOPMENT-02","permitted_use":"Structural qualification and one fixed-probe evaluation using frozen Fit/Calibration values. No selection, promotion, pruning, or tuning.","config_hash":"f6971a276f41"},
-    {"role":"DEVELOPMENT","history_id":"S18I-ITER-0002-DEVELOPMENT-03","data_seed":32026,"directory":"data/generated/sprint18-iterative-v1/S18-ITER-0002/DEVELOPMENT/S18I-ITER-0002-DEVELOPMENT-03","permitted_use":"Structural qualification and one fixed-probe evaluation using frozen Fit/Calibration values. No selection, promotion, pruning, or tuning.","config_hash":"ed8fe69eacfb"},
-    {"role":"DEVELOPMENT","history_id":"S18I-ITER-0002-DEVELOPMENT-04","data_seed":32027,"directory":"data/generated/sprint18-iterative-v1/S18-ITER-0002/DEVELOPMENT/S18I-ITER-0002-DEVELOPMENT-04","permitted_use":"Structural qualification and one fixed-probe evaluation using frozen Fit/Calibration values. No selection, promotion, pruning, or tuning.","config_hash":"93b3c6c23b90"},
-    {"role":"CONFIRMATION","history_id":"S18I-ITER-0002-CONFIRMATION-01","data_seed":32028,"directory":"data/generated/sprint18-iterative-v1/S18-ITER-0002/CONFIRMATION/S18I-ITER-0002-CONFIRMATION-01","permitted_use":"After Task69 preceding-role PASS and Main release: structural certification and one fixed-probe evaluation using frozen Fit/Calibration values. No fitting, recalibration, retuning, rescue, or model score.","config_hash":"5bd79993a8fe"},
-    {"role":"CONFIRMATION","history_id":"S18I-ITER-0002-CONFIRMATION-02","data_seed":32029,"directory":"data/generated/sprint18-iterative-v1/S18-ITER-0002/CONFIRMATION/S18I-ITER-0002-CONFIRMATION-02","permitted_use":"After Task69 preceding-role PASS and Main release: structural certification and one fixed-probe evaluation using frozen Fit/Calibration values. No fitting, recalibration, retuning, rescue, or model score.","config_hash":"4fd4b6537d20"},
-    {"role":"CONFIRMATION","history_id":"S18I-ITER-0002-CONFIRMATION-03","data_seed":32030,"directory":"data/generated/sprint18-iterative-v1/S18-ITER-0002/CONFIRMATION/S18I-ITER-0002-CONFIRMATION-03","permitted_use":"After Task69 preceding-role PASS and Main release: structural certification and one fixed-probe evaluation using frozen Fit/Calibration values. No fitting, recalibration, retuning, rescue, or model score.","config_hash":"5a37e4f3746f"},
-    {"role":"CONFIRMATION","history_id":"S18I-ITER-0002-CONFIRMATION-04","data_seed":32031,"directory":"data/generated/sprint18-iterative-v1/S18-ITER-0002/CONFIRMATION/S18I-ITER-0002-CONFIRMATION-04","permitted_use":"After Task69 preceding-role PASS and Main release: structural certification and one fixed-probe evaluation using frozen Fit/Calibration values. No fitting, recalibration, retuning, rescue, or model score.","config_hash":"92fc7269b96e"}
+    {
+      "role": "DESIGN",
+      "history_id": "S18I-ITER-0003-DESIGN-01",
+      "data_seed": 32032,
+      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0003/DESIGN/S18I-ITER-0003-DESIGN-01",
+      "permitted_use": "Integrity, causal, construction, and unchanged structural qualification; diagnostics only. No Fit/Calibration use or history selection.",
+      "config_hash": "56403a2f0a3e"
+    },
+    {
+      "role": "DESIGN",
+      "history_id": "S18I-ITER-0003-DESIGN-02",
+      "data_seed": 32033,
+      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0003/DESIGN/S18I-ITER-0003-DESIGN-02",
+      "permitted_use": "Integrity, causal, construction, and unchanged structural qualification; diagnostics only. No Fit/Calibration use or history selection.",
+      "config_hash": "0ca5fbc63b14"
+    },
+    {
+      "role": "DESIGN",
+      "history_id": "S18I-ITER-0003-DESIGN-03",
+      "data_seed": 32034,
+      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0003/DESIGN/S18I-ITER-0003-DESIGN-03",
+      "permitted_use": "Integrity, causal, construction, and unchanged structural qualification; diagnostics only. No Fit/Calibration use or history selection.",
+      "config_hash": "7588a3b1edda"
+    },
+    {
+      "role": "DESIGN",
+      "history_id": "S18I-ITER-0003-DESIGN-04",
+      "data_seed": 32035,
+      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0003/DESIGN/S18I-ITER-0003-DESIGN-04",
+      "permitted_use": "Integrity, causal, construction, and unchanged structural qualification; diagnostics only. No Fit/Calibration use or history selection.",
+      "config_hash": "09e0552baf50"
+    },
+    {
+      "role": "FIT",
+      "history_id": "S18I-ITER-0003-FIT-01",
+      "data_seed": 32036,
+      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0003/FIT/S18I-ITER-0003-FIT-01",
+      "permitted_use": "Verified-healthy eligibility; fit only the fixed probe's feature mean/std and healthy centroid. No representation training, bank, alternate scorer, or non-probe fitting.",
+      "config_hash": "8d23b59253d2"
+    },
+    {
+      "role": "FIT",
+      "history_id": "S18I-ITER-0003-FIT-02",
+      "data_seed": 32037,
+      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0003/FIT/S18I-ITER-0003-FIT-02",
+      "permitted_use": "Verified-healthy eligibility; fit only the fixed probe's feature mean/std and healthy centroid. No representation training, bank, alternate scorer, or non-probe fitting.",
+      "config_hash": "5a7f47aeb584"
+    },
+    {
+      "role": "FIT",
+      "history_id": "S18I-ITER-0003-FIT-03",
+      "data_seed": 32038,
+      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0003/FIT/S18I-ITER-0003-FIT-03",
+      "permitted_use": "Verified-healthy eligibility; fit only the fixed probe's feature mean/std and healthy centroid. No representation training, bank, alternate scorer, or non-probe fitting.",
+      "config_hash": "87836048044a"
+    },
+    {
+      "role": "CALIBRATION",
+      "history_id": "S18I-ITER-0003-CALIBRATION-01",
+      "data_seed": 32039,
+      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0003/CALIBRATION/S18I-ITER-0003-CALIBRATION-01",
+      "permitted_use": "Verified-healthy eligibility; score with frozen Fit probe values and choose only the fixed probe q95. No fitting or retuning.",
+      "config_hash": "4c681ecdb1dc"
+    },
+    {
+      "role": "DEVELOPMENT",
+      "history_id": "S18I-ITER-0003-DEVELOPMENT-01",
+      "data_seed": 32040,
+      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0003/DEVELOPMENT/S18I-ITER-0003-DEVELOPMENT-01",
+      "permitted_use": "Structural qualification and one fixed-probe evaluation using frozen Fit/Calibration values. No selection, promotion, pruning, or tuning.",
+      "config_hash": "2ba73a3816ad"
+    },
+    {
+      "role": "DEVELOPMENT",
+      "history_id": "S18I-ITER-0003-DEVELOPMENT-02",
+      "data_seed": 32041,
+      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0003/DEVELOPMENT/S18I-ITER-0003-DEVELOPMENT-02",
+      "permitted_use": "Structural qualification and one fixed-probe evaluation using frozen Fit/Calibration values. No selection, promotion, pruning, or tuning.",
+      "config_hash": "c88437d19b6c"
+    },
+    {
+      "role": "DEVELOPMENT",
+      "history_id": "S18I-ITER-0003-DEVELOPMENT-03",
+      "data_seed": 32042,
+      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0003/DEVELOPMENT/S18I-ITER-0003-DEVELOPMENT-03",
+      "permitted_use": "Structural qualification and one fixed-probe evaluation using frozen Fit/Calibration values. No selection, promotion, pruning, or tuning.",
+      "config_hash": "7e157ab9fcd1"
+    },
+    {
+      "role": "DEVELOPMENT",
+      "history_id": "S18I-ITER-0003-DEVELOPMENT-04",
+      "data_seed": 32043,
+      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0003/DEVELOPMENT/S18I-ITER-0003-DEVELOPMENT-04",
+      "permitted_use": "Structural qualification and one fixed-probe evaluation using frozen Fit/Calibration values. No selection, promotion, pruning, or tuning.",
+      "config_hash": "707f73945f1c"
+    },
+    {
+      "role": "CONFIRMATION",
+      "history_id": "S18I-ITER-0003-CONFIRMATION-01",
+      "data_seed": 32044,
+      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0003/CONFIRMATION/S18I-ITER-0003-CONFIRMATION-01",
+      "permitted_use": "After Task69 preceding-role PASS and Main release: structural certification and one fixed-probe evaluation using frozen Fit/Calibration values. No fitting, recalibration, retuning, rescue, or model score.",
+      "config_hash": "7d265fac4f92"
+    },
+    {
+      "role": "CONFIRMATION",
+      "history_id": "S18I-ITER-0003-CONFIRMATION-02",
+      "data_seed": 32045,
+      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0003/CONFIRMATION/S18I-ITER-0003-CONFIRMATION-02",
+      "permitted_use": "After Task69 preceding-role PASS and Main release: structural certification and one fixed-probe evaluation using frozen Fit/Calibration values. No fitting, recalibration, retuning, rescue, or model score.",
+      "config_hash": "c4bbde54cd5f"
+    },
+    {
+      "role": "CONFIRMATION",
+      "history_id": "S18I-ITER-0003-CONFIRMATION-03",
+      "data_seed": 32046,
+      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0003/CONFIRMATION/S18I-ITER-0003-CONFIRMATION-03",
+      "permitted_use": "After Task69 preceding-role PASS and Main release: structural certification and one fixed-probe evaluation using frozen Fit/Calibration values. No fitting, recalibration, retuning, rescue, or model score.",
+      "config_hash": "a865524b866e"
+    },
+    {
+      "role": "CONFIRMATION",
+      "history_id": "S18I-ITER-0003-CONFIRMATION-04",
+      "data_seed": 32047,
+      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0003/CONFIRMATION/S18I-ITER-0003-CONFIRMATION-04",
+      "permitted_use": "After Task69 preceding-role PASS and Main release: structural certification and one fixed-probe evaluation using frozen Fit/Calibration values. No fitting, recalibration, retuning, rescue, or model score.",
+      "config_hash": "03b5dbbc4ae7"
+    }
   ],
   "configs": {
-    "32016":{"config_hash":"640345ec77ed","config_sha256":"92e64b6de6542c981b301cd64ff18414d8157438cd1ebd5a19a564babd17326a","seed_fields":{"factory":32016,"scheduler":32016,"health":32016,"signal":32016,"temporal":32016},"seed_independent_sha256":"e933feb61e94d39fb56a45fae742fa1222b321b238dd1f3608642418be279136"},
-    "32017":{"config_hash":"3c7ba9373742","config_sha256":"1d1e15ebcabbbafc846b4d3d02d2b5e83dbe90c912f6d4609b12de605a196a28","seed_fields":{"factory":32017,"scheduler":32017,"health":32017,"signal":32017,"temporal":32017},"seed_independent_sha256":"e933feb61e94d39fb56a45fae742fa1222b321b238dd1f3608642418be279136"},
-    "32018":{"config_hash":"3c1566e3d704","config_sha256":"f074a17edbc60b1494177bf8bac75e8906a65acb6b81f6e6d18b96873b82cc9a","seed_fields":{"factory":32018,"scheduler":32018,"health":32018,"signal":32018,"temporal":32018},"seed_independent_sha256":"e933feb61e94d39fb56a45fae742fa1222b321b238dd1f3608642418be279136"},
-    "32019":{"config_hash":"946929cfd76d","config_sha256":"194821b6ecc1acf7d2a0488ad7a6eb65ef2e9c4e96af2c6b9c76ea77f13def19","seed_fields":{"factory":32019,"scheduler":32019,"health":32019,"signal":32019,"temporal":32019},"seed_independent_sha256":"e933feb61e94d39fb56a45fae742fa1222b321b238dd1f3608642418be279136"},
-    "32020":{"config_hash":"fd20b57c2e77","config_sha256":"40ad6521fe4b2933d3532b351b7ee5fdb414e2e8888f6b79921850bbb5e99a6b","seed_fields":{"factory":32020,"scheduler":32020,"health":32020,"signal":32020,"temporal":32020},"seed_independent_sha256":"e933feb61e94d39fb56a45fae742fa1222b321b238dd1f3608642418be279136"},
-    "32021":{"config_hash":"7184cf03e026","config_sha256":"1ace59c32a1a5b8a682acb7906602228a1286982beaad57da1f1f70bfcb5e565","seed_fields":{"factory":32021,"scheduler":32021,"health":32021,"signal":32021,"temporal":32021},"seed_independent_sha256":"e933feb61e94d39fb56a45fae742fa1222b321b238dd1f3608642418be279136"},
-    "32022":{"config_hash":"043db4e933b8","config_sha256":"e10e08450e1c6499b14ffab01605521dfee5752405c7c1a5b76d0e80208dc20d","seed_fields":{"factory":32022,"scheduler":32022,"health":32022,"signal":32022,"temporal":32022},"seed_independent_sha256":"e933feb61e94d39fb56a45fae742fa1222b321b238dd1f3608642418be279136"},
-    "32023":{"config_hash":"0f376a8c641a","config_sha256":"6264012868f2c8e128616c9678a27651603d7a5c1131898c7a8b31049c480b54","seed_fields":{"factory":32023,"scheduler":32023,"health":32023,"signal":32023,"temporal":32023},"seed_independent_sha256":"e933feb61e94d39fb56a45fae742fa1222b321b238dd1f3608642418be279136"},
-    "32024":{"config_hash":"87a7f816ed44","config_sha256":"f2cda6a7b4d83963e5f49fdcc1dffa60d4c02201d7304b117d55cf9aafa05a55","seed_fields":{"factory":32024,"scheduler":32024,"health":32024,"signal":32024,"temporal":32024},"seed_independent_sha256":"e933feb61e94d39fb56a45fae742fa1222b321b238dd1f3608642418be279136"},
-    "32025":{"config_hash":"f6971a276f41","config_sha256":"2260ec99917593fe3e4cb04cc65e1cf4eb3a784e3c8a44100d490e123771bf44","seed_fields":{"factory":32025,"scheduler":32025,"health":32025,"signal":32025,"temporal":32025},"seed_independent_sha256":"e933feb61e94d39fb56a45fae742fa1222b321b238dd1f3608642418be279136"},
-    "32026":{"config_hash":"ed8fe69eacfb","config_sha256":"5b5ab246403bbf2fec8bc018d467b6cadc71323cfaffa2af39b13cb6a2f63723","seed_fields":{"factory":32026,"scheduler":32026,"health":32026,"signal":32026,"temporal":32026},"seed_independent_sha256":"e933feb61e94d39fb56a45fae742fa1222b321b238dd1f3608642418be279136"},
-    "32027":{"config_hash":"93b3c6c23b90","config_sha256":"3069d19cd6e198932e71a0c2a2d4d7a95e35cddb1c58f67716d61436a1d4708e","seed_fields":{"factory":32027,"scheduler":32027,"health":32027,"signal":32027,"temporal":32027},"seed_independent_sha256":"e933feb61e94d39fb56a45fae742fa1222b321b238dd1f3608642418be279136"},
-    "32028":{"config_hash":"5bd79993a8fe","config_sha256":"75fd405bf16c992015299d961824f967551fef8d68df0e7f6ba49fba9747dd88","seed_fields":{"factory":32028,"scheduler":32028,"health":32028,"signal":32028,"temporal":32028},"seed_independent_sha256":"e933feb61e94d39fb56a45fae742fa1222b321b238dd1f3608642418be279136"},
-    "32029":{"config_hash":"4fd4b6537d20","config_sha256":"30c7486ee4a160c4f623eb3b3da76ecdb4a8cd013eaacff477c68715dc43fbad","seed_fields":{"factory":32029,"scheduler":32029,"health":32029,"signal":32029,"temporal":32029},"seed_independent_sha256":"e933feb61e94d39fb56a45fae742fa1222b321b238dd1f3608642418be279136"},
-    "32030":{"config_hash":"5a37e4f3746f","config_sha256":"f0d32e0584b823d74795b69b04c066109e1289181eda93e32b43c62de806784f","seed_fields":{"factory":32030,"scheduler":32030,"health":32030,"signal":32030,"temporal":32030},"seed_independent_sha256":"e933feb61e94d39fb56a45fae742fa1222b321b238dd1f3608642418be279136"},
-    "32031":{"config_hash":"92fc7269b96e","config_sha256":"b89ba460701da05c749ca0d392ce362209185f844cbaffd6e952aa9b51d562f4","seed_fields":{"factory":32031,"scheduler":32031,"health":32031,"signal":32031,"temporal":32031},"seed_independent_sha256":"e933feb61e94d39fb56a45fae742fa1222b321b238dd1f3608642418be279136"}
+    "32032": {
+      "config_hash": "56403a2f0a3e",
+      "config_sha256": "d2879d29ed670ea8ac9407da131f085c8891030cfdb9ca53f3bfe025cf2a218f",
+      "seed_fields": {
+        "factory": 32032,
+        "scheduler": 32032,
+        "health": 32032,
+        "signal": 32032,
+        "temporal": 32032
+      },
+      "seed_independent_sha256": "e933feb61e94d39fb56a45fae742fa1222b321b238dd1f3608642418be279136"
+    },
+    "32033": {
+      "config_hash": "0ca5fbc63b14",
+      "config_sha256": "573a9f0712868cc6764281309fe83720c733eaee63eb9ef10e04155bdbe9aa4f",
+      "seed_fields": {
+        "factory": 32033,
+        "scheduler": 32033,
+        "health": 32033,
+        "signal": 32033,
+        "temporal": 32033
+      },
+      "seed_independent_sha256": "e933feb61e94d39fb56a45fae742fa1222b321b238dd1f3608642418be279136"
+    },
+    "32034": {
+      "config_hash": "7588a3b1edda",
+      "config_sha256": "0a9fabbf9460e32c1af29811a47ecd29a46d58e69fa277544f8b5002e3f8efe1",
+      "seed_fields": {
+        "factory": 32034,
+        "scheduler": 32034,
+        "health": 32034,
+        "signal": 32034,
+        "temporal": 32034
+      },
+      "seed_independent_sha256": "e933feb61e94d39fb56a45fae742fa1222b321b238dd1f3608642418be279136"
+    },
+    "32035": {
+      "config_hash": "09e0552baf50",
+      "config_sha256": "b51a50b9e6a742fdd9b6f4e1b48db88b1ff0f49fa1b580d5194796c31b1f9831",
+      "seed_fields": {
+        "factory": 32035,
+        "scheduler": 32035,
+        "health": 32035,
+        "signal": 32035,
+        "temporal": 32035
+      },
+      "seed_independent_sha256": "e933feb61e94d39fb56a45fae742fa1222b321b238dd1f3608642418be279136"
+    },
+    "32036": {
+      "config_hash": "8d23b59253d2",
+      "config_sha256": "530e693de53b29e283bdff2d891eb98f8322a8d3c5a7a0f8b76aa9dc2e95cd5f",
+      "seed_fields": {
+        "factory": 32036,
+        "scheduler": 32036,
+        "health": 32036,
+        "signal": 32036,
+        "temporal": 32036
+      },
+      "seed_independent_sha256": "e933feb61e94d39fb56a45fae742fa1222b321b238dd1f3608642418be279136"
+    },
+    "32037": {
+      "config_hash": "5a7f47aeb584",
+      "config_sha256": "728ae9a90bc8716e38b10238755cff428706d088fbe8618ddb0296b0d9ac5e86",
+      "seed_fields": {
+        "factory": 32037,
+        "scheduler": 32037,
+        "health": 32037,
+        "signal": 32037,
+        "temporal": 32037
+      },
+      "seed_independent_sha256": "e933feb61e94d39fb56a45fae742fa1222b321b238dd1f3608642418be279136"
+    },
+    "32038": {
+      "config_hash": "87836048044a",
+      "config_sha256": "83e3385c883c1a9c72b31bf6fcbf0a7f1458682a5853a11028575a3eb4093676",
+      "seed_fields": {
+        "factory": 32038,
+        "scheduler": 32038,
+        "health": 32038,
+        "signal": 32038,
+        "temporal": 32038
+      },
+      "seed_independent_sha256": "e933feb61e94d39fb56a45fae742fa1222b321b238dd1f3608642418be279136"
+    },
+    "32039": {
+      "config_hash": "4c681ecdb1dc",
+      "config_sha256": "24bd377655c238befdfb21ce6ab6ed6487f3cda2564f9d020c5548d64e13520a",
+      "seed_fields": {
+        "factory": 32039,
+        "scheduler": 32039,
+        "health": 32039,
+        "signal": 32039,
+        "temporal": 32039
+      },
+      "seed_independent_sha256": "e933feb61e94d39fb56a45fae742fa1222b321b238dd1f3608642418be279136"
+    },
+    "32040": {
+      "config_hash": "2ba73a3816ad",
+      "config_sha256": "52723f2031729631688addeb30d0c43562a3802605bacaa6fbbdf9b6600f7e74",
+      "seed_fields": {
+        "factory": 32040,
+        "scheduler": 32040,
+        "health": 32040,
+        "signal": 32040,
+        "temporal": 32040
+      },
+      "seed_independent_sha256": "e933feb61e94d39fb56a45fae742fa1222b321b238dd1f3608642418be279136"
+    },
+    "32041": {
+      "config_hash": "c88437d19b6c",
+      "config_sha256": "c7759735afd5db8d249db66a33a5dfd2ad28cca5128556d54abcfb3a5c280605",
+      "seed_fields": {
+        "factory": 32041,
+        "scheduler": 32041,
+        "health": 32041,
+        "signal": 32041,
+        "temporal": 32041
+      },
+      "seed_independent_sha256": "e933feb61e94d39fb56a45fae742fa1222b321b238dd1f3608642418be279136"
+    },
+    "32042": {
+      "config_hash": "7e157ab9fcd1",
+      "config_sha256": "40ff4664e65ff82cd42235baaf8a85acf94c2800aaafc952cc20d9b7ee2ff9bb",
+      "seed_fields": {
+        "factory": 32042,
+        "scheduler": 32042,
+        "health": 32042,
+        "signal": 32042,
+        "temporal": 32042
+      },
+      "seed_independent_sha256": "e933feb61e94d39fb56a45fae742fa1222b321b238dd1f3608642418be279136"
+    },
+    "32043": {
+      "config_hash": "707f73945f1c",
+      "config_sha256": "367d880a2057eca820646559c324b295c5047286679c979db5aa5048dda6c2aa",
+      "seed_fields": {
+        "factory": 32043,
+        "scheduler": 32043,
+        "health": 32043,
+        "signal": 32043,
+        "temporal": 32043
+      },
+      "seed_independent_sha256": "e933feb61e94d39fb56a45fae742fa1222b321b238dd1f3608642418be279136"
+    },
+    "32044": {
+      "config_hash": "7d265fac4f92",
+      "config_sha256": "ebc9f7682a0af89fc0a3178173ef5dd851bbfb4b92b45f919dfad5ec34979aec",
+      "seed_fields": {
+        "factory": 32044,
+        "scheduler": 32044,
+        "health": 32044,
+        "signal": 32044,
+        "temporal": 32044
+      },
+      "seed_independent_sha256": "e933feb61e94d39fb56a45fae742fa1222b321b238dd1f3608642418be279136"
+    },
+    "32045": {
+      "config_hash": "c4bbde54cd5f",
+      "config_sha256": "48fa3f18c7710b90a964112182041995c5f859413f17b1ec818181861e5a8578",
+      "seed_fields": {
+        "factory": 32045,
+        "scheduler": 32045,
+        "health": 32045,
+        "signal": 32045,
+        "temporal": 32045
+      },
+      "seed_independent_sha256": "e933feb61e94d39fb56a45fae742fa1222b321b238dd1f3608642418be279136"
+    },
+    "32046": {
+      "config_hash": "a865524b866e",
+      "config_sha256": "c8a8126d8112141de712dbe973d5985f43d5891b89efc6038f0db8b6d3e32cf7",
+      "seed_fields": {
+        "factory": 32046,
+        "scheduler": 32046,
+        "health": 32046,
+        "signal": 32046,
+        "temporal": 32046
+      },
+      "seed_independent_sha256": "e933feb61e94d39fb56a45fae742fa1222b321b238dd1f3608642418be279136"
+    },
+    "32047": {
+      "config_hash": "03b5dbbc4ae7",
+      "config_sha256": "3d6a3777648206f79c6a7354f65e50b8f8c8e2d6f225a1be1f4c9e038a11a7af",
+      "seed_fields": {
+        "factory": 32047,
+        "scheduler": 32047,
+        "health": 32047,
+        "signal": 32047,
+        "temporal": 32047
+      },
+      "seed_independent_sha256": "e933feb61e94d39fb56a45fae742fa1222b321b238dd1f3608642418be279136"
+    }
   },
   "collision_catalog": {
     "catalog_id": "S22-DISTINCT-H32-STATIC-CATALOG-v1",
     "source_catalog_path": "experiments/sprint22-pilot-binding-v1.json",
     "source_catalog_sha256": "eb47cf4c51e03bb9cdfce2c216fbee5fe8b90121e71e999ec3b8c541c1a380f6",
     "provenance_sha256": "6b1a69ad6cd0d89d8d332d21a41870859c895c2e12a103941dc97a160e9cd57a",
-    "exclusions_sha256": "2f4dfe4c37241ac75f3395617f9bf542e350f4ee5bb63c1304eb5f4e9cdfaac9",
+    "exclusions_sha256": "4602f0feb6c4621e3217490b92a7a9327d2e24de31ed748ad4edb2abd1324d91",
     "scope": "Static source-bound identities only, including historical Sprint15 Sealed seeds as identifiers; no generated-data roots, no Sealed contents, no actual-root freshness claim.",
     "prior_data_seed_ranges": [
-      {"first":742,"last":797}, {"first":910,"last":933}, {"first":1000,"last":1017}, {"first":1100,"last":1117},
-      {"first":1200,"last":1217}, {"first":1300,"last":1317}, {"first":1400,"last":1417}, {"first":1500,"last":1517},
-      {"first":1600,"last":1617}, {"first":2700,"last":2715}, {"first":2800,"last":2815}, {"first":31800,"last":31847},
-      {"first":32000,"last":32015}, {"first":918000,"last":918015}, {"first":918100,"last":918107}, {"first":921000,"last":921031}
+      {
+        "first": 742,
+        "last": 797
+      },
+      {
+        "first": 910,
+        "last": 933
+      },
+      {
+        "first": 1000,
+        "last": 1017
+      },
+      {
+        "first": 1100,
+        "last": 1117
+      },
+      {
+        "first": 1200,
+        "last": 1217
+      },
+      {
+        "first": 1300,
+        "last": 1317
+      },
+      {
+        "first": 1400,
+        "last": 1417
+      },
+      {
+        "first": 1500,
+        "last": 1517
+      },
+      {
+        "first": 1600,
+        "last": 1617
+      },
+      {
+        "first": 2700,
+        "last": 2715
+      },
+      {
+        "first": 2800,
+        "last": 2815
+      },
+      {
+        "first": 31800,
+        "last": 31847
+      },
+      {
+        "first": 32000,
+        "last": 32031
+      },
+      {
+        "first": 918000,
+        "last": 918015
+      },
+      {
+        "first": 918100,
+        "last": 918107
+      },
+      {
+        "first": 921000,
+        "last": 921031
+      }
     ],
-    "prior_model_seed_ranges": [{"first":171701,"last":171703}, {"first":181801,"last":181803}],
-    "prior_single_seeds": [0, 9000, 9001, 93058, 93061, 220001, 6820038, 829471962, 928089417],
-    "excluded_unique_count": 373,
-    "candidate_seeds": [32016, 32017, 32018, 32019, 32020, 32021, 32022, 32023, 32024, 32025, 32026, 32027, 32028, 32029, 32030, 32031],
+    "prior_model_seed_ranges": [
+      {
+        "first": 171701,
+        "last": 171703
+      },
+      {
+        "first": 181801,
+        "last": 181803
+      }
+    ],
+    "prior_single_seeds": [
+      0,
+      9000,
+      9001,
+      93058,
+      93061,
+      220001,
+      6820038,
+      829471962,
+      928089417
+    ],
+    "excluded_unique_count": 389,
+    "candidate_seeds": [
+      32032,
+      32033,
+      32034,
+      32035,
+      32036,
+      32037,
+      32038,
+      32039,
+      32040,
+      32041,
+      32042,
+      32043,
+      32044,
+      32045,
+      32046,
+      32047
+    ],
     "candidate_seed_count": 16,
     "candidate_intersection": []
   },
@@ -154,108 +557,114 @@
     "identity_scheme": "git-tracked-utf8-text-lf-sha256-v1",
     "unknown_scheme_policy": "reject",
     "non_text_policy": "reject; require a separately versioned identity scheme",
-    "closure_sha256": "7ee6840f62754ea0c958047a50a9f7c96ca13cb01ea4b1cb5353c40834fb3130",
+    "closure_sha256": "7002ebb68889695527df95f3603ea2d64eb0c1f2d80f847d4d092b8da9a9d840",
     "sha256_by_path": {
-      "docs/BENCHMARK_MEASURABILITY_EXIT_GATES_V2.md":"d294762331ded4fd213f6870e563e32e17e12c632d7cb11a80373478ede34e1c",
-      "experiments/sprint15-benchmark-protocol-v7.md":"a1fc09db2e246ed79d0595aec953a7788fd1b47c4981fbe1d92017d944b8d7b6",
-      "experiments/sprint15-observable-probe-v7.md":"d83f8fd90560cc6237fa906419b84bcaa787a6690799c7a7ef7e3ad5c814ef74",
-      "experiments/sprint18-data-method-c2-v1.md":"f4cc8901c2e59f615ebcaaa3509fd654773efd06f7f6fd6a55faeab6b3ba4b9b",
-      "experiments/sprint18-iterative-data-contract-v1.md":"056105f87b1097c45244287636bcef8c2fc790f3fd894775b9105fbdbfb59e9d",
-      "experiments/sprint18_iterative_candidate_v1.py":"de7b3006f44900bb6db7d5354135049c0b80c2bc7123baf9143285f5d8208b98",
-      "experiments/sprint18_task5_measurability.py":"0ee9e3ff9ae884dfa5a19efdfa921417ae52304c01e7f8293740a5dc4aa059b9",
-      "experiments/sprint22-pilot-binding-v1.json":"eb47cf4c51e03bb9cdfce2c216fbee5fe8b90121e71e999ec3b8c541c1a380f6",
-      "pyproject.toml":"30292a091a273d0d58958701f792ad30af9a9bbd7454480275dedd73d1421d01",
-      "src/synth/__init__.py":"00ae4b0f62e007a6bbeafe11d41dd5501b9ad682bf0e48c52658c83c142fb7db",
-      "src/synth/anomalies/__init__.py":"4185ee9d09f8b3c1bcd937dac5630a33882d972b9992797a338f6088ea4db5c5",
-      "src/synth/anomalies/base.py":"b98c8727168e7f4e6eb88d0474b2f51a26df0ed5d26bdeae1abe39ca1a5df206",
-      "src/synth/anomalies/contextual.py":"551dad79ba4266b3524f3e261e740c43818a7eb4ba3d8462880d726e9ee050b1",
-      "src/synth/anomalies/cross_channel.py":"f40ed7c447e85726ad17248f6d165e3dd38203ad4e2f4ea039935bf4fc3421ca",
-      "src/synth/anomalies/drift.py":"8bece76574231c58b85e309f8c879d54d3ee87ab50f4634e6ad58c23aa6190ba",
-      "src/synth/anomalies/duration.py":"f7b4e0a324554dd4379f951a1223c00b12c624695f8bd92a088d085b3fb129d9",
-      "src/synth/anomalies/easy_sanity.py":"41efd72d17ee7167d8b7ef4c6fb9ebfde29e37dc6ff43de951fbfb21b97a0e01",
-      "src/synth/anomalies/freq_phase.py":"83eb1454f9e8d3015647525baf8d3f2fc36a2a0531eebd0a12a865c4da84ebcb",
-      "src/synth/anomalies/missing_event.py":"464fa9daed5cfdbf13186e5ab406b960a6dcb4e028c584ec0cd683937fcd5549",
-      "src/synth/anomalies/registry.py":"7d34156b920bf9c79486e2c1610d28706e6073c73b7363608c9798efdf1561d1",
-      "src/synth/anomalies/regularity.py":"3bb17a410df99bce933dad7cf2f0d208c23197c06b5683e4ffec499a138cce7d",
-      "src/synth/anomalies/stuck.py":"9c7e14ac4a6c9cbb7af3cfa8df0b90240e4eaaf74df7badd54dc8c4988e399c8",
-      "src/synth/anomalies/transition.py":"1a92b361dfeff2df80939f95de84c7bbf59ebd0ccbc3629ab326bccee87be704",
-      "src/synth/balanced.py":"d62de3422bd51f870d39d18b1a8bb942f9ca73fc0044d8f23cc2d0948bd35a43",
-      "src/synth/chronicle.py":"74a2068e541ca3c72fc88d4d85a6082c16522a91fd42726d168c4dfd25706491",
-      "src/synth/cli.py":"d1b92ae6e4d1bd036bf13204acb618cca0ee4e1742614cffd5d8919ee0ad9e94",
-      "src/synth/config.py":"f8098fb7f373f303e9e6eb8d76d008ef7e925bb9ef275c484a80d56c589a15c6",
-      "src/synth/contrastive.py":"af1a2ded1ce5bc9cc7fef9572599d0d75443c168b58b3907660c56deb7ac9e71",
-      "src/synth/dataset.py":"375029c48e3a19d2e1e30f986bde5339fb597474e9f0685405fd548c0bc0e662",
-      "src/synth/diagnostics.py":"1cd87aa40893e710e3b645749eed1cb84e8a8f3f8b9a21f0e97eb006c40f8eb6",
-      "src/synth/events.py":"85100f5e0aca47dd2e8b01a08c58f39d32be4f1eab469cdc38e4a4b57768169d",
-      "src/synth/generator.py":"32cd227943cb00c165c43aeb75835f14433a57c60ca9adca0e5c20d21e654403",
-      "src/synth/health.py":"e5854641fb85eb9b88e05ee9d8e503c69a9432b13177d8c62ad38c3494e7fc6d",
-      "src/synth/masking.py":"b73843b1fd6fd7a925d3dc6e58967bdb744de89cc1ca61927958040db0513a2c",
-      "src/synth/normal.py":"a8203b2b9fe9f0489c249e2694dde4c17752976c6402ddc5907d0b94c565d6ac",
-      "src/synth/patchify.py":"4b7e6876d6c43c76848d7b179a02e19f1c065aaecbfbd1eb159d448c45bc8d49",
-      "src/synth/physics/__init__.py":"4e0d2ca9e0bec699cbd23dde004fcbfd8a422814d7a264fc11b05aa78b885a4b",
-      "src/synth/physics/causal.py":"6e97fbe655fe0a1c55433e04eb23fb1922ce28537ec061875fda2632c6c8d183",
-      "src/synth/physics/noise.py":"cf3f51ad9a571a3cf77c3c40aaf2e0d69b96afda860615edf9751b9f9f063d54",
-      "src/synth/preflight15.py":"88761dbf588a1584055a595e9a4a18040f62708b68f528efbf5100e80761304e",
-      "src/synth/probe15.py":"a08b3d5fb83001e1f5c43f4c56ff536bae85e41d494db289304aeb33a339242b",
-      "src/synth/regimes.py":"e0287d2dc7aadf1ca50c0bf63151f1d79b11a7d7a14c68ee7eec0a21a981cafd",
-      "src/synth/scheduled.py":"feb76b9d10c500e3dbea7fda2237e7daf8d1b41abe6cf8a7e6d38a9e73c72ce7",
-      "src/synth/scheduler.py":"4659b94c31f3a2628f57d0fd789ea8f7d42c5f82abfc0f7dc01ffa2e7bf3e3af",
-      "src/synth/schema.py":"6d6b001c2199933c14dbd019d9eaf8ded5c3dddc3d33997420f62175ee230203",
-      "src/synth/splits.py":"0abace7461b2d5da9e2b616748f539e03aac8ef0e7b65fe4325f14a719fc0316",
-      "src/synth/strength.py":"6b23db6b529e4c873e41ec8f25785412ce113184b1a29847e35571cf749c786f",
-      "src/synth/temporal.py":"02a8ea8d7698794e5fbc0ec499e94d7a25e4fe7a3e888e1295cc13c567f36e18",
-      "uv.lock":"4a7866878c81cdd8f5ba283cd8d0a772073bfc75941f73ec761ede5eeb2e239a"
+      "docs/BENCHMARK_MEASURABILITY_EXIT_GATES_V2.md": "d294762331ded4fd213f6870e563e32e17e12c632d7cb11a80373478ede34e1c",
+      "experiments/sprint15-benchmark-protocol-v7.md": "a1fc09db2e246ed79d0595aec953a7788fd1b47c4981fbe1d92017d944b8d7b6",
+      "experiments/sprint15-observable-probe-v7.md": "d83f8fd90560cc6237fa906419b84bcaa787a6690799c7a7ef7e3ad5c814ef74",
+      "experiments/sprint18-data-method-c2-v1.md": "f4cc8901c2e59f615ebcaaa3509fd654773efd06f7f6fd6a55faeab6b3ba4b9b",
+      "experiments/sprint18-iterative-data-contract-v1.md": "056105f87b1097c45244287636bcef8c2fc790f3fd894775b9105fbdbfb59e9d",
+      "experiments/sprint18-iterative-data-contract-v3.md": "544de84bc201a07140559058d100c991cd148b698f93058dbd37d7fe4dc3c929",
+      "experiments/sprint18-task67-attempt-S18-T67-A05.json": "a9dc94782c92c34981e8612ddab5b301e81a48560fbead1dc5b6051861497a34",
+      "experiments/sprint18-task67-attempt-S18-T67-A05.md": "705a2cf3c957cdf98a84d0bd7283f964acc7abc83cef30b02ce70c80bef429a6",
+      "experiments/sprint18_iterative_candidate_v1.py": "b20125222ea3e0569236c87cdc2c343ba1b96911945976158dad6c9c387f31a7",
+      "experiments/sprint18_task5_measurability.py": "0ee9e3ff9ae884dfa5a19efdfa921417ae52304c01e7f8293740a5dc4aa059b9",
+      "experiments/sprint22-pilot-binding-v1.json": "eb47cf4c51e03bb9cdfce2c216fbee5fe8b90121e71e999ec3b8c541c1a380f6",
+      "pyproject.toml": "30292a091a273d0d58958701f792ad30af9a9bbd7454480275dedd73d1421d01",
+      "src/synth/__init__.py": "073a5b687c0e914e4762b488179cb141d96ffdb26bd678558393120094ae924e",
+      "src/synth/anomalies/__init__.py": "4185ee9d09f8b3c1bcd937dac5630a33882d972b9992797a338f6088ea4db5c5",
+      "src/synth/anomalies/base.py": "b98c8727168e7f4e6eb88d0474b2f51a26df0ed5d26bdeae1abe39ca1a5df206",
+      "src/synth/anomalies/contextual.py": "551dad79ba4266b3524f3e261e740c43818a7eb4ba3d8462880d726e9ee050b1",
+      "src/synth/anomalies/cross_channel.py": "f40ed7c447e85726ad17248f6d165e3dd38203ad4e2f4ea039935bf4fc3421ca",
+      "src/synth/anomalies/drift.py": "8bece76574231c58b85e309f8c879d54d3ee87ab50f4634e6ad58c23aa6190ba",
+      "src/synth/anomalies/duration.py": "f7b4e0a324554dd4379f951a1223c00b12c624695f8bd92a088d085b3fb129d9",
+      "src/synth/anomalies/easy_sanity.py": "41efd72d17ee7167d8b7ef4c6fb9ebfde29e37dc6ff43de951fbfb21b97a0e01",
+      "src/synth/anomalies/freq_phase.py": "83eb1454f9e8d3015647525baf8d3f2fc36a2a0531eebd0a12a865c4da84ebcb",
+      "src/synth/anomalies/missing_event.py": "464fa9daed5cfdbf13186e5ab406b960a6dcb4e028c584ec0cd683937fcd5549",
+      "src/synth/anomalies/registry.py": "7d34156b920bf9c79486e2c1610d28706e6073c73b7363608c9798efdf1561d1",
+      "src/synth/anomalies/regularity.py": "3bb17a410df99bce933dad7cf2f0d208c23197c06b5683e4ffec499a138cce7d",
+      "src/synth/anomalies/stuck.py": "9c7e14ac4a6c9cbb7af3cfa8df0b90240e4eaaf74df7badd54dc8c4988e399c8",
+      "src/synth/anomalies/transition.py": "1a92b361dfeff2df80939f95de84c7bbf59ebd0ccbc3629ab326bccee87be704",
+      "src/synth/balanced.py": "d62de3422bd51f870d39d18b1a8bb942f9ca73fc0044d8f23cc2d0948bd35a43",
+      "src/synth/chronicle.py": "f20c2385a7b1e33c0b86cf8d70e45ecb593dba463f5e77c5eec9f7b46f1203e6",
+      "src/synth/cli.py": "b4e1d530652d9a3b325e934f27a40802e725af0595e46335b31093f48490a16c",
+      "src/synth/config.py": "f8098fb7f373f303e9e6eb8d76d008ef7e925bb9ef275c484a80d56c589a15c6",
+      "src/synth/contrastive.py": "af1a2ded1ce5bc9cc7fef9572599d0d75443c168b58b3907660c56deb7ac9e71",
+      "src/synth/dataset.py": "375029c48e3a19d2e1e30f986bde5339fb597474e9f0685405fd548c0bc0e662",
+      "src/synth/diagnostics.py": "1cd87aa40893e710e3b645749eed1cb84e8a8f3f8b9a21f0e97eb006c40f8eb6",
+      "src/synth/events.py": "85100f5e0aca47dd2e8b01a08c58f39d32be4f1eab469cdc38e4a4b57768169d",
+      "src/synth/generator.py": "32cd227943cb00c165c43aeb75835f14433a57c60ca9adca0e5c20d21e654403",
+      "src/synth/health.py": "5b5ead5f8d021c621cb0b5321be8fdf2b37980447d4dbc1c3a883c6b68f6fdff",
+      "src/synth/masking.py": "b73843b1fd6fd7a925d3dc6e58967bdb744de89cc1ca61927958040db0513a2c",
+      "src/synth/normal.py": "a8203b2b9fe9f0489c249e2694dde4c17752976c6402ddc5907d0b94c565d6ac",
+      "src/synth/patchify.py": "4b7e6876d6c43c76848d7b179a02e19f1c065aaecbfbd1eb159d448c45bc8d49",
+      "src/synth/physics/__init__.py": "4e0d2ca9e0bec699cbd23dde004fcbfd8a422814d7a264fc11b05aa78b885a4b",
+      "src/synth/physics/causal.py": "6e97fbe655fe0a1c55433e04eb23fb1922ce28537ec061875fda2632c6c8d183",
+      "src/synth/physics/noise.py": "cf3f51ad9a571a3cf77c3c40aaf2e0d69b96afda860615edf9751b9f9f063d54",
+      "src/synth/preflight15.py": "4228d18a87891a7989c4e8384c7d82211c6adfd027d134b11f20a37b221b244b",
+      "src/synth/probe15.py": "a08b3d5fb83001e1f5c43f4c56ff536bae85e41d494db289304aeb33a339242b",
+      "src/synth/regimes.py": "e0287d2dc7aadf1ca50c0bf63151f1d79b11a7d7a14c68ee7eec0a21a981cafd",
+      "src/synth/scheduled.py": "feb76b9d10c500e3dbea7fda2237e7daf8d1b41abe6cf8a7e6d38a9e73c72ce7",
+      "src/synth/scheduler.py": "4659b94c31f3a2628f57d0fd789ea8f7d42c5f82abfc0f7dc01ffa2e7bf3e3af",
+      "src/synth/schema.py": "dd64ad5999856aba7192238cbc01d35a968c6d9d765ae6395811a6851b189e5b",
+      "src/synth/splits.py": "0abace7461b2d5da9e2b616748f539e03aac8ef0e7b65fe4325f14a719fc0316",
+      "src/synth/strength.py": "6b23db6b529e4c873e41ec8f25785412ce113184b1a29847e35571cf749c786f",
+      "src/synth/temporal.py": "02a8ea8d7698794e5fbc0ec499e94d7a25e4fe7a3e888e1295cc13c567f36e18",
+      "uv.lock": "4a7866878c81cdd8f5ba283cd8d0a772073bfc75941f73ec761ede5eeb2e239a"
     },
     "git_blob_oid_by_path": {
-      "docs/BENCHMARK_MEASURABILITY_EXIT_GATES_V2.md":"8b1083fc369751ee2a855caab83a18761d9198bf",
-      "experiments/sprint15-benchmark-protocol-v7.md":"515fcc7c2f7d3362bd459d639eac405337dfaccc",
-      "experiments/sprint15-observable-probe-v7.md":"b5af9534a9d5804178f4f816a70ae715c17219a8",
-      "experiments/sprint18-data-method-c2-v1.md":"3d9052dc07841b65fa76f6942f161c4b40dfaaf0",
-      "experiments/sprint18-iterative-data-contract-v1.md":"2309ef18e6bc56df839783da40afa5cf3df5747a",
-      "experiments/sprint18_iterative_candidate_v1.py":"9b05c05552d5b864b9ea8dc80e867e4b86a81568",
-      "experiments/sprint18_task5_measurability.py":"5b6a499ce6f488f3b9817e1217c1c07f50a8a4c5",
-      "experiments/sprint22-pilot-binding-v1.json":"552c0e2ecf020156b5f05a1fe3cb9e42127d35a7",
-      "pyproject.toml":"c5db30eb601289871d9aa19d5ff48283aa6438ef",
-      "src/synth/__init__.py":"81a5358c5b607e8e8b293f466a3e408a0902c73b",
-      "src/synth/anomalies/__init__.py":"62d57d22fa863fc359bfb5be04688df69622d365",
-      "src/synth/anomalies/base.py":"4835afcb6697d13327d510806d7211141ac9ea66",
-      "src/synth/anomalies/contextual.py":"91ad593595854515274c1ba5eefe8bc901b54087",
-      "src/synth/anomalies/cross_channel.py":"7e965b6d1a2fd80850a163446f3bdd7b6228d0a5",
-      "src/synth/anomalies/drift.py":"66d6d459601e1b0f9080d272c92e57fc810f7f48",
-      "src/synth/anomalies/duration.py":"7fe54fecbd3e3b41b69885df1f61a5d8c20fc99f",
-      "src/synth/anomalies/easy_sanity.py":"a14c2cf1acb2832a6cc310994805e41f6c3e34be",
-      "src/synth/anomalies/freq_phase.py":"26622edc4f5c06037f4f825a71e4c9b88f3bd5f0",
-      "src/synth/anomalies/missing_event.py":"526c7a9379a81f2fe0e83345a7390adbd18bc427",
-      "src/synth/anomalies/registry.py":"36f197284b031b961f51d45405c5f630443dc73d",
-      "src/synth/anomalies/regularity.py":"0378f2e9e215ba65e54d65aa72f087df600aa083",
-      "src/synth/anomalies/stuck.py":"0bb8c3fa0ce96b2513c7fcf4b3b14002c520f6bf",
-      "src/synth/anomalies/transition.py":"ea7d18376fd6bfb853b907e38fbe246897f34014",
-      "src/synth/balanced.py":"3b05340077ec49230290ceef5188959275aa7e37",
-      "src/synth/chronicle.py":"03dded3c6b6ea710ded7ae3aade14839134d967f",
-      "src/synth/cli.py":"3847332f908abef2f31cd182fb221b3fae6e1da7",
-      "src/synth/config.py":"05b293826e105067e4c2cac4b1dd1004187ade08",
-      "src/synth/contrastive.py":"061845d5bf3332e59da9bafa2d2501b88e42337b",
-      "src/synth/dataset.py":"c3ade6feed1fe26b741317c95ee6adf9280cc676",
-      "src/synth/diagnostics.py":"70587278a4681ba6601982d592ff4ff237453c3e",
-      "src/synth/events.py":"9a5dfd945b85e09d882121e2b637ab9603f1cde5",
-      "src/synth/generator.py":"9f280763b02b8e87e38e7f417a6060fda67410fa",
-      "src/synth/health.py":"a33e99ea60328a9e996ad16b1052ee116d584bf5",
-      "src/synth/masking.py":"49f96264e81c0e1349cf5a575c2250b8bf98bb1d",
-      "src/synth/normal.py":"7731d020a6849b197550cd5efbc6afb73e4c2bee",
-      "src/synth/patchify.py":"2f372988d34dcfdde959350c455349190c6b7685",
-      "src/synth/physics/__init__.py":"db8250f6ce92782c8fbc592b20bfabea964ea40a",
-      "src/synth/physics/causal.py":"5f930cb2ee8f295c7beb015acb44371798f64a3a",
-      "src/synth/physics/noise.py":"22abd06cc8a2072e4453dd659077c2939de051df",
-      "src/synth/preflight15.py":"54e83b191e8e9797b1b4521e3ea2e9c07333ae26",
-      "src/synth/probe15.py":"d15f0dea526c9f9cfeb72f54e2443f7e7317303b",
-      "src/synth/regimes.py":"4edf8166526aecd9484b9d0c120cf073c67ffa72",
-      "src/synth/scheduled.py":"21dd28ff2d1421f30e829a0bbc252144a0a7d8fb",
-      "src/synth/scheduler.py":"bb34e240ffca61e8b2a1adee6027430e54c32092",
-      "src/synth/schema.py":"fd2d313e6a5f1af3ebbd21ab798a9bb598a7cda1",
-      "src/synth/splits.py":"f6f0d5525280c50fa6f395b0efd93a9d58a571d2",
-      "src/synth/strength.py":"802938402faeb378281f0a441f5c9066f102d7cc",
-      "src/synth/temporal.py":"a85b545c3dac8a42fd228303843837b8f4cb11c8",
-      "uv.lock":"ad42b7c40222f75b34a943b9b3293d52792f7cec"
+      "docs/BENCHMARK_MEASURABILITY_EXIT_GATES_V2.md": "8b1083fc369751ee2a855caab83a18761d9198bf",
+      "experiments/sprint15-benchmark-protocol-v7.md": "515fcc7c2f7d3362bd459d639eac405337dfaccc",
+      "experiments/sprint15-observable-probe-v7.md": "b5af9534a9d5804178f4f816a70ae715c17219a8",
+      "experiments/sprint18-data-method-c2-v1.md": "3d9052dc07841b65fa76f6942f161c4b40dfaaf0",
+      "experiments/sprint18-iterative-data-contract-v1.md": "2309ef18e6bc56df839783da40afa5cf3df5747a",
+      "experiments/sprint18-iterative-data-contract-v3.md": "5ea324777e4427d19f38c1dd701114ff46ee317a",
+      "experiments/sprint18-task67-attempt-S18-T67-A05.json": "1c2ef1a76d8484633b213f37255ed18a421afefb",
+      "experiments/sprint18-task67-attempt-S18-T67-A05.md": "c6fadf04644e6eb377a71d446b9f87a16379231f",
+      "experiments/sprint18_iterative_candidate_v1.py": "1d6f9fda0b43eccc2ebef59a456934d2bc8c2e5e",
+      "experiments/sprint18_task5_measurability.py": "5b6a499ce6f488f3b9817e1217c1c07f50a8a4c5",
+      "experiments/sprint22-pilot-binding-v1.json": "552c0e2ecf020156b5f05a1fe3cb9e42127d35a7",
+      "pyproject.toml": "c5db30eb601289871d9aa19d5ff48283aa6438ef",
+      "src/synth/__init__.py": "2301bf484c1de6aabe3f6ed919223e3f609657f3",
+      "src/synth/anomalies/__init__.py": "62d57d22fa863fc359bfb5be04688df69622d365",
+      "src/synth/anomalies/base.py": "4835afcb6697d13327d510806d7211141ac9ea66",
+      "src/synth/anomalies/contextual.py": "91ad593595854515274c1ba5eefe8bc901b54087",
+      "src/synth/anomalies/cross_channel.py": "7e965b6d1a2fd80850a163446f3bdd7b6228d0a5",
+      "src/synth/anomalies/drift.py": "66d6d459601e1b0f9080d272c92e57fc810f7f48",
+      "src/synth/anomalies/duration.py": "7fe54fecbd3e3b41b69885df1f61a5d8c20fc99f",
+      "src/synth/anomalies/easy_sanity.py": "a14c2cf1acb2832a6cc310994805e41f6c3e34be",
+      "src/synth/anomalies/freq_phase.py": "26622edc4f5c06037f4f825a71e4c9b88f3bd5f0",
+      "src/synth/anomalies/missing_event.py": "526c7a9379a81f2fe0e83345a7390adbd18bc427",
+      "src/synth/anomalies/registry.py": "36f197284b031b961f51d45405c5f630443dc73d",
+      "src/synth/anomalies/regularity.py": "0378f2e9e215ba65e54d65aa72f087df600aa083",
+      "src/synth/anomalies/stuck.py": "0bb8c3fa0ce96b2513c7fcf4b3b14002c520f6bf",
+      "src/synth/anomalies/transition.py": "ea7d18376fd6bfb853b907e38fbe246897f34014",
+      "src/synth/balanced.py": "3b05340077ec49230290ceef5188959275aa7e37",
+      "src/synth/chronicle.py": "3563c41e5362ecb7b3a00f8d161929ccd3d427fe",
+      "src/synth/cli.py": "b6b86d81bab818beb4d67b1669f9adf12a45b0b0",
+      "src/synth/config.py": "05b293826e105067e4c2cac4b1dd1004187ade08",
+      "src/synth/contrastive.py": "061845d5bf3332e59da9bafa2d2501b88e42337b",
+      "src/synth/dataset.py": "c3ade6feed1fe26b741317c95ee6adf9280cc676",
+      "src/synth/diagnostics.py": "70587278a4681ba6601982d592ff4ff237453c3e",
+      "src/synth/events.py": "9a5dfd945b85e09d882121e2b637ab9603f1cde5",
+      "src/synth/generator.py": "9f280763b02b8e87e38e7f417a6060fda67410fa",
+      "src/synth/health.py": "e59ffdba15a708df61f7db8a568d39d7a5e98cc8",
+      "src/synth/masking.py": "49f96264e81c0e1349cf5a575c2250b8bf98bb1d",
+      "src/synth/normal.py": "7731d020a6849b197550cd5efbc6afb73e4c2bee",
+      "src/synth/patchify.py": "2f372988d34dcfdde959350c455349190c6b7685",
+      "src/synth/physics/__init__.py": "db8250f6ce92782c8fbc592b20bfabea964ea40a",
+      "src/synth/physics/causal.py": "5f930cb2ee8f295c7beb015acb44371798f64a3a",
+      "src/synth/physics/noise.py": "22abd06cc8a2072e4453dd659077c2939de051df",
+      "src/synth/preflight15.py": "9df413ea02746dd4d1b59260d3d9da396366ea01",
+      "src/synth/probe15.py": "d15f0dea526c9f9cfeb72f54e2443f7e7317303b",
+      "src/synth/regimes.py": "4edf8166526aecd9484b9d0c120cf073c67ffa72",
+      "src/synth/scheduled.py": "21dd28ff2d1421f30e829a0bbc252144a0a7d8fb",
+      "src/synth/scheduler.py": "bb34e240ffca61e8b2a1adee6027430e54c32092",
+      "src/synth/schema.py": "a9215501c2256834091738d1ccdc572474e2faf8",
+      "src/synth/splits.py": "f6f0d5525280c50fa6f395b0efd93a9d58a571d2",
+      "src/synth/strength.py": "802938402faeb378281f0a441f5c9066f102d7cc",
+      "src/synth/temporal.py": "a85b545c3dac8a42fd228303843837b8f4cb11c8",
+      "uv.lock": "ad42b7c40222f75b34a943b9b3293d52792f7cec"
     }
   },
   "runtime": {
@@ -269,11 +678,19 @@
     "approved_branch": "sprint18-task68-a02-runtime",
     "origin_url": "https://github.com/triet4p/anomaly-representation-learning.git",
     "output_root": "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/data/generated",
-    "candidate_root": "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/data/generated/sprint18-iterative-v1/S18-ITER-0002",
-    "python_version": [3, 12, 13],
+    "candidate_root": "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/data/generated/sprint18-iterative-v1/S18-ITER-0003",
+    "python_version": [
+      3,
+      12,
+      13
+    ],
     "python_executable": "/home/trietlm/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/bin/python3.12",
     "python_prefix": "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/.venv",
-    "package_versions": {"numpy":"2.5.2","scipy":"1.18.1","torch":"2.14.0+cu130"},
+    "package_versions": {
+      "numpy": "2.5.2",
+      "scipy": "1.18.1",
+      "torch": "2.14.0+cu130"
+    },
     "entrypoint_environment": {
       "PYTHONDONTWRITEBYTECODE": "1",
       "PYTHONPATH": [
@@ -286,10 +703,10 @@
     "cuda_device": "NVIDIA GeForce RTX 4060 Ti",
     "cuda_device_total_mib": 15947,
     "dependency_origins": {
-      "numpy":"/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/.venv/lib/python3.12/site-packages/numpy/__init__.py",
-      "scipy":"/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/.venv/lib/python3.12/site-packages/scipy/__init__.py",
-      "torch":"/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/.venv/lib/python3.12/site-packages/torch/__init__.py",
-      "synth":"/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/src/synth/__init__.py"
+      "numpy": "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/.venv/lib/python3.12/site-packages/numpy/__init__.py",
+      "scipy": "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/.venv/lib/python3.12/site-packages/scipy/__init__.py",
+      "torch": "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/.venv/lib/python3.12/site-packages/torch/__init__.py",
+      "synth": "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/src/synth/__init__.py"
     },
     "uv_version": "0.12.20",
     "uv_build": "2274b80d6",
@@ -304,19 +721,27 @@
       "eligible_for_candidate_contact": false,
       "candidate_root_checked": false,
       "worktree_deployed_or_modified": false,
-      "python_version": [3, 12, 13],
+      "python_version": [
+        3,
+        12,
+        13
+      ],
       "python_executable": "/home/trietlm/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/bin/python3.12",
       "python_prefix": "/home/trietlm/anomaly-representation-learning/.venv",
-      "package_versions": {"numpy":"2.5.2","scipy":"1.18.1","torch":"2.14.0+cu130"},
+      "package_versions": {
+        "numpy": "2.5.2",
+        "scipy": "1.18.1",
+        "torch": "2.14.0+cu130"
+      },
       "cuda_device": "NVIDIA GeForce RTX 4060 Ti",
       "cuda_device_total_mib": 15947,
       "dependency_origins": {
-        "numpy":"/home/trietlm/anomaly-representation-learning/.venv/lib/python3.12/site-packages/numpy/__init__.py",
-        "scipy":"/home/trietlm/anomaly-representation-learning/.venv/lib/python3.12/site-packages/scipy/__init__.py",
-        "torch":"/home/trietlm/anomaly-representation-learning/.venv/lib/python3.12/site-packages/torch/__init__.py"
+        "numpy": "/home/trietlm/anomaly-representation-learning/.venv/lib/python3.12/site-packages/numpy/__init__.py",
+        "scipy": "/home/trietlm/anomaly-representation-learning/.venv/lib/python3.12/site-packages/scipy/__init__.py",
+        "torch": "/home/trietlm/anomaly-representation-learning/.venv/lib/python3.12/site-packages/torch/__init__.py"
       }
     },
-    "release_prerequisite": "After Main's Task68 evidence PASS and exact checkpoint directly parented by development master 4ad4f66c2e47eb9c702145a9a7585edceb9151dc, deploy that checkpoint in the existing clean execution worktree on sprint18-task68-a02-runtime without resetting the user-owned canonical checkout. Reuse the existing locked .venv; do not recreate it. Verify its exact provider, package versions/origins, and uv.lock identity, then issue a new Main receipt for S18-ITER-0002. Candidate contact remains blocked until that receipt is supplied."
+    "release_prerequisite": "After Main evidence PASS and exact checkpoint directly parented by current master a17bfad5d5c625e2c8745c0d7b6feff4ee928eb4, deploy that checkpoint in the existing clean execution worktree on sprint18-task68-a02-runtime without resetting the user-owned canonical checkout. Reuse the existing locked .venv; do not recreate it. Verify its exact provider, package versions/origins, and uv.lock identity, then issue a new Main receipt for S18-ITER-0003. Candidate contact remains forbidden until release."
   },
   "attempt_policy": {
     "attempt_number": 1,
@@ -330,18 +755,49 @@
     "next_candidate_policy": "continue without a candidate-count cap; diagnose the observed cause, prospectively fix without gate relaxation, independently review, and bind a fresh complete candidate before any next contact"
   },
   "preflight": {
-    "entrypoint": "synth.preflight15.run_preflight_iterative_v1(seeds, roles)",
-    "profile_id": "sprint18-iterative-v1",
+    "entrypoint": "synth.preflight15.run_preflight_iterative_v3(seeds, roles)",
+    "profile_id": "sprint18-iterative-v3",
     "protocol_id": "sprint15-benchmark-protocol-v7",
     "fixed_order": "all 16 role_binding entries in order exactly once",
     "waveforms": "actual build_chronological waveform generation in memory, no candidate role roots/shards/manifests or promotion",
     "qualification": "reject-only; fail if any source-computable construction or structural check misses"
   },
   "materialization": {
-    "public_cli": ["<boundroot>/.venv/bin/python", "-m", "synth.cli", "--chronological", "--profile", "sprint18-iterative-v1", "--seed", "<bound data_seed>", "--role", "<bound history_id>", "--protocol", "sprint15-benchmark-protocol-v7", "--channels", "6", "--shard-size", "64", "--output", "<bound absolute role path>"],
+    "public_cli": [
+      "<boundroot>/.venv/bin/python",
+      "-m",
+      "synth.cli",
+      "--chronological",
+      "--profile",
+      "sprint18-iterative-v3",
+      "--seed",
+      "<bound data_seed>",
+      "--role",
+      "<bound history_id>",
+      "--protocol",
+      "sprint15-benchmark-protocol-v7",
+      "--channels",
+      "6",
+      "--shard-size",
+      "64",
+      "--output",
+      "<bound absolute role path>"
+    ],
     "consumer_loader": "synth.chronicle.load_chronological",
-    "loader_checks": ["manifest role == bound history_id", "manifest protocol == sprint15-benchmark-protocol-v7", "manifest config_hash == bound config_hash", "manifest file SHA-256 recorded", "actual loader sample count recorded"],
-    "role_groups": {"DESIGN":4,"FIT":3,"CALIBRATION":1,"DEVELOPMENT":4,"CONFIRMATION":4},
+    "loader_checks": [
+      "manifest role == bound history_id",
+      "manifest protocol == sprint15-benchmark-protocol-v7",
+      "manifest config_hash == bound config_hash",
+      "manifest file SHA-256 recorded",
+      "actual loader sample count recorded"
+    ],
+    "role_groups": {
+      "DESIGN": 4,
+      "FIT": 3,
+      "CALIBRATION": 1,
+      "DEVELOPMENT": 4,
+      "CONFIRMATION": 4
+    },
     "confirmation_gate": "Confirmation materialization requires exact Task69 preceding-role PASS record, exact separate Main Task69 release, Task69 checkpoint directly following Task68 checkpoint, and current clean worktree at that Task69 checkpoint."
   },
   "release_policy": {
@@ -349,12 +805,29 @@
     "required_status": "RELEASED_BY_MAIN",
     "required_review_verdict": "PASS",
     "required_actionable_findings": 0,
-    "required_checkpoint_parent": "4ad4f66c2e47eb9c702145a9a7585edceb9151dc",
+    "required_checkpoint_parent": "a17bfad5d5c625e2c8745c0d7b6feff4ee928eb4",
     "required_scope": "Task69-preflight-and-nonconfirmation",
-    "receipt_must_bind": ["candidate_id", "canonical binding_sha256", "raw binding file SHA-256", "source_closure_sha256", "source identity scheme", "Task67 evidence path/SHA/reference as provenance-only identity", "base commit", "Task68 checkpoint commit", "review verdict/ref and zero findings"],
+    "receipt_must_bind": [
+      "candidate_id",
+      "canonical binding_sha256",
+      "raw binding file SHA-256",
+      "source_closure_sha256",
+      "source identity scheme",
+      "Task67 evidence path/SHA/reference as provenance-only identity",
+      "base commit",
+      "Task68 checkpoint commit",
+      "review verdict/ref and zero findings"
+    ],
     "task69_confirmation_release_schema_id": "sprint18-task69-main-release-v1",
     "task69_confirmation_scope": "Task70-confirmation-after-Task69-PASS",
-    "task69_confirmation_receipt_must_bind": ["candidate_id", "binding_sha256", "qualification_sha256", "Task68 checkpoint", "Task67 evidence path/SHA/reference as provenance-only identity", "Task69 PASS, review ref, zero findings, and direct-child checkpoint"],
+    "task69_confirmation_receipt_must_bind": [
+      "candidate_id",
+      "binding_sha256",
+      "qualification_sha256",
+      "Task68 checkpoint",
+      "Task67 evidence path/SHA/reference as provenance-only identity",
+      "Task69 PASS, review ref, zero findings, and direct-child checkpoint"
+    ],
     "candidate_contact_authorized_by_this_file": false
   },
   "iteration": {
@@ -363,5 +836,6 @@
     "next_candidate_seed_start_formula": "32000 + 16 * (N - 1)",
     "new_binding_and_fresh_review_required_for_every_candidate": true,
     "no_gate_relaxation_or_seed_selection": true
-  }
+  },
+  "binding_sha256": "37b14f545237d13010fd5a230c34782918b090123eabc7ff68814393e87cea29"
 }

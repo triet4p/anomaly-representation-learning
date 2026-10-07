@@ -24,7 +24,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 BINDING_DEFAULT = ROOT / "experiments" / "sprint18-iterative-binding-v1.json"
-BASE_COMMIT = "4ad4f66c2e47eb9c702145a9a7585edceb9151dc"
+BASE_COMMIT = "a17bfad5d5c625e2c8745c0d7b6feff4ee928eb4"
 TASK68_A02_CHECKPOINT_COMMIT = "1b708542aeaba7a69c883893deb90ff591ce9d5f"
 ACCEPTED_METHOD_LINEAGE_COMMIT = "cd04a0a018c73ae91593ea4041742f05829041a6"
 TASK68_A02_SOURCE_CLOSURE_SHA256 = "e9a50ec7764d8a9cf869a522fbd00ca462beec16bd53ba6308dcb84b1863dd99"
@@ -32,17 +32,16 @@ SOURCE_IDENTITY_SCHEME = "git-tracked-utf8-text-lf-sha256-v1"
 UNKNOWN_SOURCE_IDENTITY_POLICY = "reject"
 NON_TEXT_SOURCE_POLICY = "reject; require a separately versioned identity scheme"
 MAIN_RELEASE_SCHEMA_ID = "sprint18-main-candidate-release-v2"
-PROFILE = "sprint18-iterative-v1"
+PROFILE = "sprint18-iterative-v3"
 EXECUTION_ROOT = "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree"
 GIT_STORAGE_ROOT = "/home/trietlm/anomaly-representation-learning"
 APPROVED_BRANCH = "sprint18-task68-a02-runtime"
 PYTHON_PROVIDER = "/home/trietlm/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/bin/python3.12"
 LOCKED_PACKAGE_VERSIONS = {"numpy": "2.5.2", "scipy": "1.18.1", "torch": "2.14.0+cu130"}
 
-
 TASK67_EVIDENCE = {
     "path": "artifacts/sprint-18/task-67.md",
-    "sha256": "3758a28f4f27676dbf1014c6290ea5acd9fa27c8054fd0899b1d07bccc85aa3a",
+    "sha256": "e576debdd048c780ca6c25d91923014705bc8b3723e70566e8dd99c947139867",
     "reference": "accepted Task67 evidence; provenance only, not a deployable source",
 }
 TASK67_EVIDENCE_PATH = TASK67_EVIDENCE["path"]
@@ -67,6 +66,60 @@ PERMISSIONS = {
 }
 SEED_FIELDS = ("factory", "scheduler", "health", "signal", "temporal")
 EXPECTED_SOURCE_PATHS = frozenset({
+    "docs/BENCHMARK_MEASURABILITY_EXIT_GATES_V2.md",
+    "experiments/sprint15-benchmark-protocol-v7.md",
+    "experiments/sprint15-observable-probe-v7.md",
+    "experiments/sprint18-data-method-c2-v1.md",
+    "experiments/sprint18-iterative-data-contract-v1.md",
+    "experiments/sprint18-iterative-data-contract-v3.md",
+    "experiments/sprint18-task67-attempt-S18-T67-A05.json",
+    "experiments/sprint18-task67-attempt-S18-T67-A05.md",
+    "experiments/sprint18_iterative_candidate_v1.py",
+    "experiments/sprint18_task5_measurability.py",
+    "experiments/sprint22-pilot-binding-v1.json",
+    "pyproject.toml",
+    "src/synth/__init__.py",
+    "src/synth/anomalies/__init__.py",
+    "src/synth/anomalies/base.py",
+    "src/synth/anomalies/contextual.py",
+    "src/synth/anomalies/cross_channel.py",
+    "src/synth/anomalies/drift.py",
+    "src/synth/anomalies/duration.py",
+    "src/synth/anomalies/easy_sanity.py",
+    "src/synth/anomalies/freq_phase.py",
+    "src/synth/anomalies/missing_event.py",
+    "src/synth/anomalies/registry.py",
+    "src/synth/anomalies/regularity.py",
+    "src/synth/anomalies/stuck.py",
+    "src/synth/anomalies/transition.py",
+    "src/synth/balanced.py",
+    "src/synth/chronicle.py",
+    "src/synth/cli.py",
+    "src/synth/config.py",
+    "src/synth/contrastive.py",
+    "src/synth/dataset.py",
+    "src/synth/diagnostics.py",
+    "src/synth/events.py",
+    "src/synth/generator.py",
+    "src/synth/health.py",
+    "src/synth/masking.py",
+    "src/synth/normal.py",
+    "src/synth/patchify.py",
+    "src/synth/physics/__init__.py",
+    "src/synth/physics/causal.py",
+    "src/synth/physics/noise.py",
+    "src/synth/preflight15.py",
+    "src/synth/probe15.py",
+    "src/synth/regimes.py",
+    "src/synth/scheduled.py",
+    "src/synth/scheduler.py",
+    "src/synth/schema.py",
+    "src/synth/splits.py",
+    "src/synth/strength.py",
+    "src/synth/temporal.py",
+    "uv.lock",
+})
+HISTORICAL_SOURCE_PATHS = frozenset({
     "docs/BENCHMARK_MEASURABILITY_EXIT_GATES_V2.md",
     "experiments/sprint15-benchmark-protocol-v7.md",
     "experiments/sprint15-observable-probe-v7.md",
@@ -117,7 +170,6 @@ EXPECTED_SOURCE_PATHS = frozenset({
     "src/synth/temporal.py",
     "uv.lock",
 })
-HISTORICAL_SOURCE_PATHS = EXPECTED_SOURCE_PATHS
 
 
 class GuardError(RuntimeError):
@@ -279,7 +331,7 @@ def verify_source_closure(binding: dict[str, Any], root: Path) -> None:
     if not isinstance(sources, dict) or not isinstance(blob_oids, dict):
         raise GuardError("source closure must bind text hashes and Git blob identities")
     if set(sources) != EXPECTED_SOURCE_PATHS or set(blob_oids) != EXPECTED_SOURCE_PATHS:
-        raise GuardError("source closure path set differs from the exact 49-file catalog")
+        raise GuardError("source closure path set differs from the exact 52-file catalog")
     if TASK67_EVIDENCE_PATH in sources:
         raise GuardError("Task67 evidence is provenance, not a runtime source")
     if closure.get("closure_sha256") != _source_closure_digest(closure):
@@ -366,11 +418,11 @@ def validate_binding(
 ) -> None:
     if binding.get("schema_id") != "sprint18-iterative-binding-v1":
         raise GuardError("unsupported candidate binding schema")
-    if binding.get("candidate_id") != "S18-ITER-0002" and not disposable:
-        raise GuardError("candidate identity differs from the frozen second block")
+    if binding.get("candidate_id") != "S18-ITER-0003" and not disposable:
+        raise GuardError("candidate identity differs from the frozen third block")
     if binding.get("profile_id") != PROFILE or binding.get("generator_protocol_id") != PROTOCOL:
         raise GuardError("profile or protocol identity mismatch")
-    if binding.get("contract_sha256") != "056105f87b1097c45244287636bcef8c2fc790f3fd894775b9105fbdbfb59e9d":
+    if binding.get("contract_sha256") != "544de84bc201a07140559058d100c991cd148b698f93058dbd37d7fe4dc3c929":
         raise GuardError("accepted Task66 contract digest mismatch")
     if binding.get("binding_sha256") != _candidate_digest(binding):
         raise GuardError("canonical binding SHA-256 mismatch")
@@ -382,6 +434,9 @@ def validate_binding(
         "task68_a02_checkpoint_commit": TASK68_A02_CHECKPOINT_COMMIT,
         "task68_a02_checkpoint_parent": ACCEPTED_METHOD_LINEAGE_COMMIT,
         "task66_contract_sha256": binding["contract_sha256"],
+        "task67_checkpoint_commit": "a17bfad5d5c625e2c8745c0d7b6feff4ee928eb4",
+        "task67_checkpoint_parent": "820d724893341cee60f2a911b65881be2761b3e1",
+        "task67_review_snapshot_sha256": "cd1d26b1c5e6d3556823f943b632ddcff4e36ab6b87299780b9b3469df540842",
     }:
         raise GuardError("accepted Task68/Task66 checkpoint lineage mismatch")
     historical = provenance.get("task68_a02_raw_sha256_by_path")
@@ -424,8 +479,8 @@ def validate_binding(
         raise GuardError("invalid first seed")
     if not disposable:
         number = binding.get("candidate_number")
-        if number != 2 or first_seed != 32016 or seeds != list(range(32016, 32032)):
-            raise GuardError("candidate number or fixed 32016–32031 seed block mismatch")
+        if number != 3 or first_seed != 32032 or seeds != list(range(32032, 32048)):
+            raise GuardError("candidate number or fixed 32032–32047 seed block mismatch")
     elif seeds != list(range(first_seed, first_seed + 16)):
         raise GuardError("disposable smoke seed block must remain contiguous and ordered")
 
@@ -438,7 +493,7 @@ def validate_binding(
         role = expected_roles[index]
         ordinal = sum(1 for prior in expected_roles[:index] if prior == role) + 1
         if not disposable:
-            wanted_id = f"S18I-ITER-0002-{ROLE_SUFFIX[role]}-{ordinal:02d}"
+            wanted_id = f"S18I-ITER-0003-{ROLE_SUFFIX[role]}-{ordinal:02d}"
             if entry.get("history_id") != wanted_id:
                 raise GuardError(f"history identity/order mismatch at roster position {index}")
         expected_path = f"{root_relative}/{role}/{entry['history_id']}"
@@ -477,12 +532,12 @@ def validate_binding(
             if "sprint22" in item.lower() and ("source" in item.lower() or "hist" in item.lower()):
                 raise GuardError("historical Sprint22 source fallback is on sys.path")
         from dataclasses import asdict
-        from synth.chronicle import sprint18_iterative_v1_history_config
+        from synth.chronicle import sprint18_iterative_v3_history_config
 
         semantic_hashes: set[str] = set()
         for entry in entries:
             seed = entry["data_seed"]
-            cfg = sprint18_iterative_v1_history_config(seed=seed)
+            cfg = sprint18_iterative_v3_history_config(seed=seed)
             resolved = asdict(cfg)
             actual_short = cfg.hash()
             actual_full = sha256_bytes(canonical_json(resolved))
@@ -515,7 +570,7 @@ def validate_runtime_binding(binding: dict[str, Any]) -> None:
         "synth": worktree / "src/synth/__init__.py",
     }
     output_root = worktree / "data/generated"
-    candidate_root = output_root / "sprint18-iterative-v1/S18-ITER-0002"
+    candidate_root = output_root / "sprint18-iterative-v1/S18-ITER-0003"
     expected_entrypoint_environment = {
         "PYTHONDONTWRITEBYTECODE": "1",
         "PYTHONPATH": [
@@ -869,8 +924,8 @@ def run_preflight(binding: dict[str, Any], root: Path) -> int:
         "role_order": [entry["role"] for entry in binding["role_binding"]],
     })
     try:
-        from synth.preflight15 import run_preflight_iterative_v1
-        result = run_preflight_iterative_v1(
+        from synth.preflight15 import run_preflight_iterative_v3
+        result = run_preflight_iterative_v3(
             [entry["data_seed"] for entry in binding["role_binding"]],
             [entry["role"] for entry in binding["role_binding"]],
         )
@@ -1193,7 +1248,7 @@ def _runtime_observation() -> dict[str, Any]:
 def _smoke_binding(binding: dict[str, Any], root: Path) -> dict[str, Any]:
     """Build a disposable validation-only binding without writing any paths."""
     from dataclasses import asdict
-    from synth.chronicle import sprint18_iterative_v1_history_config
+    from synth.chronicle import sprint18_iterative_v3_history_config
 
     fixture = copy.deepcopy(binding)
     fixture["candidate_id"] = "S18-ITER-SMOKE-0001"
@@ -1208,7 +1263,7 @@ def _smoke_binding(binding: dict[str, Any], root: Path) -> dict[str, Any]:
         ordinal = sum(1 for prior in roles[:index] if prior == role) + 1
         history_id = f"S18I-ITER-SMOKE-0001-{ROLE_SUFFIX[role]}-{ordinal:02d}"
         directory = f"{fixture['candidate_root_relative']}/{role}/{history_id}"
-        cfg = sprint18_iterative_v1_history_config(seed=seed)
+        cfg = sprint18_iterative_v3_history_config(seed=seed)
         resolved = asdict(cfg)
         fixture["configs"][str(seed)] = {
             "config_hash": cfg.hash(),
@@ -1231,21 +1286,21 @@ def _smoke_binding(binding: dict[str, Any], root: Path) -> dict[str, Any]:
 
 
 def run_no_contact_smoke(binding: dict[str, Any], root: Path) -> None:
-    expected_seeds = list(range(32016, 32032))
+    expected_seeds = list(range(32032, 32048))
     entries = _role_entries(binding)
     expected_history_ids: list[str] = []
     ordinals: dict[str, int] = {}
     for role in ROLE_IDS:
         ordinals[role] = ordinals.get(role, 0) + 1
         expected_history_ids.append(
-            f"S18I-ITER-0002-{ROLE_SUFFIX[role]}-{ordinals[role]:02d}"
+            f"S18I-ITER-0003-{ROLE_SUFFIX[role]}-{ordinals[role]:02d}"
         )
     seed_block = binding.get("seed_block", {})
     if (
-        binding.get("candidate_id") != "S18-ITER-0002"
-        or binding.get("candidate_number") != 2
+        binding.get("candidate_id") != "S18-ITER-0003"
+        or binding.get("candidate_number") != 3
         or binding.get("contact_authorized") is not False
-        or seed_block.get("first_seed") != 32016
+        or seed_block.get("first_seed") != 32032
         or seed_block.get("size") != 16
         or seed_block.get("stride") != 1
         or seed_block.get("seeds") != expected_seeds
@@ -1253,7 +1308,7 @@ def run_no_contact_smoke(binding: dict[str, Any], root: Path) -> None:
         or [entry.get("data_seed") for entry in entries] != expected_seeds
         or [entry.get("history_id") for entry in entries] != expected_history_ids
     ):
-        raise GuardError("no-contact smoke requires the exact unreleased candidate-2 binding")
+        raise GuardError("no-contact smoke requires the exact unreleased candidate-3 binding")
     validate_binding(binding, root, disposable=True, check_sources=False)
     fixture = _smoke_binding(binding, root)
     validate_binding(fixture, root, disposable=True, check_sources=True)
@@ -1352,8 +1407,8 @@ def run_no_contact_smoke(binding: dict[str, Any], root: Path) -> None:
         relative: oid for relative, oid in bound_git_blobs.items()
         if relative != runner_relative
     }
-    if len(unchanged_git_blobs) != 48:
-        raise GuardError("source closure does not contain exactly 48 unchanged blob members")
+    if len(unchanged_git_blobs) != 51:
+        raise GuardError("source closure does not contain exactly 51 unchanged blob members")
     verify_git_source_blobs(
         {"source_closure": {"git_blob_oid_by_path": unchanged_git_blobs}}, root,
     )
@@ -1627,7 +1682,7 @@ def run_no_contact_smoke(binding: dict[str, Any], root: Path) -> None:
         "positive_binding_and_release": "PASS",
         "task69_release_identity_and_direct_parent": "PASS",
         "source_identity_variants": source_identity_passes,
-        "source_identity_git_blob_smoke": "PASS_48_BASE_TREE_RUNNER_FILTERED_EXPECTATION",
+        "source_identity_git_blob_smoke": "PASS_51_BASE_TREE_RUNNER_FILTERED_EXPECTATION",
         "negative_cases": (
             [label for label, _ in mutations]
             + ["release-identity", "release-parent", "historical-release-schema", "task69-evidence-provenance", "task69-wrong-parent"]
