@@ -1,0 +1,95 @@
+{
+  "schema_id": "sprint18-task68-proof-v1",
+  "task_id": "S18-T68",
+  "attempt_id": "S18-T68-A09",
+  "agent_id": "S18Task68A09",
+  "base": "cdfc8263f1683dba7c4402709744d3cb6437ae1b",
+  "candidate": {
+    "id": "S18-ITER-0003",
+    "seeds": "32032-32047",
+    "contact_in_this_attempt": false,
+    "resume_performed": false
+  },
+  "binding": {
+    "binding_sha256": "f019aad1d288b735f4ea7eb45cd557f2ded758131e2f2fcadfde2210cfe51c5a",
+    "binding_file_sha256": "2161d6fe1b70f7310baefc25b28d52a2c9cb0e3d759a1e3bdf170e646e7efb5c",
+    "bytes": 42994,
+    "closure_sha256": "53f0ffc25b84176bfaa311edfd87a7fa945d1872ac9d40bb9de8746d0f85d184",
+    "closure_members": 52,
+    "runner_blob_oid": "fc73ce702f99cfa76fa992d96a801acff24987ac",
+    "runner_canonical_sha256": "55f2e8278022f2be4505cef85a9d22365c7f0c63d84068a2e0c2fc0f11ec83fd",
+    "runner_raw_sha256": "325fb3b654086c3f2cb4274d6feb86d4e67f56c5736058ac3a47bc9735bf9674",
+    "uv_version": "0.12.21",
+    "uv_build": "7af826859",
+    "required_checkpoint_parent": "cdfc8263f1683dba7c4402709744d3cb6437ae1b",
+    "no_resume": false
+  },
+  "policy": {
+    "path": "experiments/sprint18-iterative-resume-policy-v1.json",
+    "sha256": "b601e8d79ac20a3014130d7e790f43a5c30515c72c4ccd1b26126913670e1fef",
+    "bytes": 15787,
+    "schema_id": "sprint18-iterative-resume-policy-v1"
+  },
+  "old_identity": {
+    "binding_sha256": "37b14f545237d13010fd5a230c34782918b090123eabc7ff68814393e87cea29",
+    "binding_file_sha256": "f706e9ee4ff0323604cc248bbc6c39de649bfea3535786be69d83f52c4bb6102",
+    "source_closure_sha256": "7002ebb68889695527df95f3603ea2d64eb0c1f2d80f847d4d092b8da9a9d840",
+    "runner_blob_oid": "1d6f9fda0b43eccc2ebef59a456934d2bc8c2e5e",
+    "runner_canonical_sha256": "b20125222ea3e0569236c87cdc2c343ba1b96911945976158dad6c9c387f31a7",
+    "receipt_sha256": "f68d3fb83c8f8a3c135e7ec062142f7c452be553e24bde77fa59096eca727e0b",
+    "preflight_raw_sha256": "8d6503f4a29cbb3a05e7883c61a3844a7d5e94f55510d46c37f73f155254e1a8",
+    "ledger_sha256": "503840c73a6d8cf32d9a49b44282d60634180ae9140c77a1e82c8d678f0e2516",
+    "marker_sha256": "ac97872c59827757982439c651db124b38be622cbd010b1bfa928aa4ae3798a7"
+  },
+  "hash_graph": "policy binds immutable old identities plus shared generation digests plus new base/runtime/allowed scope; policy contains no hash of its own bytes and no new binding digest value; new binding closure hashes the policy file bytes; new closure digest hashes into the new binding digest; future Main release receipt binds new binding/closure/checkpoint; live guards cross-check both directions before any write",
+  "proof": {
+    "entrypoint": "exact 3-prefix PYTHONPATH with PYTHONDONTWRITEBYTECODE=1 and .venv/bin/python -B",
+    "no_contact_smoke": {
+      "rc": 0,
+      "mode": "disposable-static-no-contact"
+    },
+    "regression": {
+      "file": "tests/synth/test_sprint18_stage_ledger_path.py",
+      "tests": 6,
+      "result": "6 passed"
+    },
+    "decisive_disposable": {
+      "old_state": "marker/ledger/raw/receipt bytes reconstructed from verified A05 identities; marker ac97872c, ledger 503840c7, raw 8d6503f4, receipt f68d3fb8 all match",
+      "gate": "enforce_freeze_only_resume_policy PASS on pure old state",
+      "adopt": "load_stage_state adopts old identity only through policy; fresh path strict; resume_adopted appended once; reload preserves verified prefix plus adoption",
+      "materialize": {
+        "entry": "S18I-ITER-0003-DESIGN-01",
+        "seed": 32032,
+        "rc": 0,
+        "samples": 6522,
+        "manifest_sha256": "9bd37fd994c5a80b",
+        "wall_s": 165.8,
+        "path": "genuine public CLI plus public reload inside disposable root"
+      },
+      "reload_after_write": "load_stage_state plus verify_preflight_pass PASS with 6 events",
+      "mutations": {
+        "oldmarker-mut": "refused",
+        "rawpreflight-mut": "refused",
+        "ledgerprefix-mut": "refused",
+        "receipt-mut": "refused",
+        "configclosure-mut": "refused",
+        "dirtyroot-overwrite": "refused",
+        "newlineage-staleparent": "refused",
+        "newlineage-correctedparent": "identity PASS",
+        "missingpolicy": "refused",
+        "retiredcandidate": "refused"
+      }
+    }
+  },
+  "changed_paths": [
+    "experiments/sprint18_iterative_candidate_v1.py",
+    "experiments/sprint18-iterative-binding-v1.json",
+    "experiments/sprint18-iterative-resume-policy-v1.json",
+    "tests/synth/test_sprint18_stage_ledger_path.py",
+    "CHANGELOG.md",
+    "experiments/sprint18-task68-attempt-S18-T68-A09-proof.json",
+    "experiments/sprint18-task68-attempt-S18-T68-A09-proof.md"
+  ],
+  "review_scope": "the 5 versioned product/test/policy paths above plus CHANGELOG against base cdfc8263; task-68.md appendix and proof records are evidence only",
+  "future_task69_limit": "strict: after future fresh Task68 checkpoint, Task69 success checkpoint must directly parent that checkpoint; only 12 non-Confirmation roles until Task69 PASS plus checkpoint plus Main release; no Confirmation stage until then"
+}

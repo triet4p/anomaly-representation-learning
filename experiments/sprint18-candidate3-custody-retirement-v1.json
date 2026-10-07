@@ -1,0 +1,63 @@
+{
+  "action": "RETIRE_WHOLE_CANDIDATE_FOR_CUSTODY",
+  "allowed_future": "whole-fresh S18-ITER-0004 (seeds 32048-32063) only; no resume, promotion, preflight credit, or local raw-dataset reuse of S18-ITER-0003",
+  "candidate_id": "S18-ITER-0003",
+  "candidate_number": 3,
+  "candidate_seeds": [
+    32032,
+    32033,
+    32034,
+    32035,
+    32036,
+    32037,
+    32038,
+    32039,
+    32040,
+    32041,
+    32042,
+    32043,
+    32044,
+    32045,
+    32046,
+    32047
+  ],
+  "decided_by": "Main custody decision (not worker discretion)",
+  "forbids": [
+    "resume",
+    "promotion",
+    "preflight credit",
+    "local raw-dataset reuse",
+    "replay",
+    "reseed",
+    "subset replacement"
+  ],
+  "observed_identities": {
+    "old_attempt_marker_sha256": "ac97872c59827757982439c651db124b38be622cbd010b1bfa928aa4ae3798a7",
+    "old_binding_canonical_sha256": "f019aad1d288b735f4ea7eb45cd557f2ded758131e2f2fcadfde2210cfe51c5a",
+    "old_binding_file_sha256": "2161d6fe1b70f7310baefc25b28d52a2c9cb0e3d759a1e3bdf170e646e7efb5c",
+    "old_ledger_sha256": "503840c73a6d8cf32d9a49b44282d60634180ae9140c77a1e82c8d678f0e2516",
+    "old_ledger_events": [
+      "attempt_started",
+      "preflight_started",
+      "preflight_recorded"
+    ],
+    "old_materialized_roles": 0,
+    "old_preflight_raw_sha256": "8d6503f4a29cbb3a05e7883c61a3844a7d5e94f55510d46c37f73f155254e1a8",
+    "old_preflight_verdict": "PREFLIGHT-PASS 16/16 (preserved honestly as historical failed-attempt evidence)",
+    "old_receipt_path": "artifacts/sprint-18/S18-ITER-0003-main-task68-release-v1.json",
+    "old_receipt_sha256": "f68d3fb83c8f8a3c135e7ec062142f7c452be553e24bde77fa59096eca727e0b",
+    "old_resume_policy_path": "experiments/sprint18-iterative-resume-policy-v1.json",
+    "old_resume_policy_sha256": "b601e8d79ac20a3014130d7e790f43a5c30515c72c4ccd1b26126913670e1fef",
+    "old_source_closure_sha256": "53f0ffc25b84176bfaa311edfd87a7fa945d1872ac9d40bb9de8746d0f85d184"
+  },
+  "primary_evidence": "history://S18Task68A09 turns 604/648: genuine public CLI materialization of S18I-ITER-0003-DESIGN-01 (seed 32032) exited 0 (6522 samples, manifest 9bd37fd994c5a80b) under a throwaway root while the artifact claimed contact_in_this_attempt:false",
+  "reason": "R08 HIGH Finding 1: A09 generated and inspected bound candidate-3 seed 32032 locally while claiming zero contact, breaching the contact-zero invariant; retirement is for scientific custody, not a scientific quota/probe failure",
+  "recorded_by": "S18-T68-A11 / S18Task68A11 (gold-task)",
+  "retired_candidates_after_this_record": [
+    "S18-ITER-0001",
+    "S18-ITER-0002",
+    "S18-ITER-0003"
+  ],
+  "schema_id": "sprint18-candidate-custody-retirement-v1",
+  "success_only_note": "This success-only intermediate failure does NOT finish DATA."
+}

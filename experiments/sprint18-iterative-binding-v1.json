@@ -1,7 +1,7 @@
 {
   "schema_id": "sprint18-iterative-binding-v1",
-  "candidate_id": "S18-ITER-0003",
-  "candidate_number": 3,
+  "candidate_id": "S18-ITER-0004",
+  "candidate_number": 4,
   "contact_authorized": false,
   "status": "FROZEN_PENDING_PRECONTACT_REVIEW",
   "provenance": {
@@ -70,29 +70,34 @@
       "src/synth/strength.py": "6b23db6b529e4c873e41ec8f25785412ce113184b1a29847e35571cf749c786f",
       "src/synth/temporal.py": "02a8ea8d7698794e5fbc0ec499e94d7a25e4fe7a3e888e1295cc13c567f36e18",
       "uv.lock": "4a7866878c81cdd8f5ba283cd8d0a772073bfc75941f73ec761ede5eeb2e239a"
+    },
+    "candidate3_custody_retirement": {
+      "record": "experiments/sprint18-candidate3-custody-retirement-v1.json",
+      "candidate_id": "S18-ITER-0003",
+      "reason": "Main custody retirement after R08 contact-zero breach; not a scientific failure"
     }
   },
   "seed_block": {
-    "first_seed": 32032,
+    "first_seed": 32048,
     "size": 16,
     "stride": 1,
     "seeds": [
-      32032,
-      32033,
-      32034,
-      32035,
-      32036,
-      32037,
-      32038,
-      32039,
-      32040,
-      32041,
-      32042,
-      32043,
-      32044,
-      32045,
-      32046,
-      32047
+      32048,
+      32049,
+      32050,
+      32051,
+      32052,
+      32053,
+      32054,
+      32055,
+      32056,
+      32057,
+      32058,
+      32059,
+      32060,
+      32061,
+      32062,
+      32063
     ],
     "replacement_or_search": false
   },
@@ -112,327 +117,327 @@
     "qualification": "unchanged Task66 contract gates; fixed Sprint15-v7 DGP probe only",
     "no_candidate_feasibility_guarantee": true
   },
-  "candidate_root_relative": "data/generated/sprint18-iterative-v1/S18-ITER-0003",
+  "candidate_root_relative": "data/generated/sprint18-iterative-v1/S18-ITER-0004",
   "role_binding": [
     {
       "role": "DESIGN",
-      "history_id": "S18I-ITER-0003-DESIGN-01",
-      "data_seed": 32032,
-      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0003/DESIGN/S18I-ITER-0003-DESIGN-01",
+      "history_id": "S18I-ITER-0004-DESIGN-01",
+      "data_seed": 32048,
+      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0004/DESIGN/S18I-ITER-0004-DESIGN-01",
       "permitted_use": "Integrity, causal, construction, and unchanged structural qualification; diagnostics only. No Fit/Calibration use or history selection.",
-      "config_hash": "56403a2f0a3e"
+      "config_hash": "5531879ce27b"
     },
     {
       "role": "DESIGN",
-      "history_id": "S18I-ITER-0003-DESIGN-02",
-      "data_seed": 32033,
-      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0003/DESIGN/S18I-ITER-0003-DESIGN-02",
+      "history_id": "S18I-ITER-0004-DESIGN-02",
+      "data_seed": 32049,
+      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0004/DESIGN/S18I-ITER-0004-DESIGN-02",
       "permitted_use": "Integrity, causal, construction, and unchanged structural qualification; diagnostics only. No Fit/Calibration use or history selection.",
-      "config_hash": "0ca5fbc63b14"
+      "config_hash": "8334a8e754af"
     },
     {
       "role": "DESIGN",
-      "history_id": "S18I-ITER-0003-DESIGN-03",
-      "data_seed": 32034,
-      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0003/DESIGN/S18I-ITER-0003-DESIGN-03",
+      "history_id": "S18I-ITER-0004-DESIGN-03",
+      "data_seed": 32050,
+      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0004/DESIGN/S18I-ITER-0004-DESIGN-03",
       "permitted_use": "Integrity, causal, construction, and unchanged structural qualification; diagnostics only. No Fit/Calibration use or history selection.",
-      "config_hash": "7588a3b1edda"
+      "config_hash": "6625917d1c34"
     },
     {
       "role": "DESIGN",
-      "history_id": "S18I-ITER-0003-DESIGN-04",
-      "data_seed": 32035,
-      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0003/DESIGN/S18I-ITER-0003-DESIGN-04",
+      "history_id": "S18I-ITER-0004-DESIGN-04",
+      "data_seed": 32051,
+      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0004/DESIGN/S18I-ITER-0004-DESIGN-04",
       "permitted_use": "Integrity, causal, construction, and unchanged structural qualification; diagnostics only. No Fit/Calibration use or history selection.",
-      "config_hash": "09e0552baf50"
+      "config_hash": "a7f9c65c8e51"
     },
     {
       "role": "FIT",
-      "history_id": "S18I-ITER-0003-FIT-01",
-      "data_seed": 32036,
-      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0003/FIT/S18I-ITER-0003-FIT-01",
+      "history_id": "S18I-ITER-0004-FIT-01",
+      "data_seed": 32052,
+      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0004/FIT/S18I-ITER-0004-FIT-01",
       "permitted_use": "Verified-healthy eligibility; fit only the fixed probe's feature mean/std and healthy centroid. No representation training, bank, alternate scorer, or non-probe fitting.",
-      "config_hash": "8d23b59253d2"
+      "config_hash": "60d956699b82"
     },
     {
       "role": "FIT",
-      "history_id": "S18I-ITER-0003-FIT-02",
-      "data_seed": 32037,
-      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0003/FIT/S18I-ITER-0003-FIT-02",
+      "history_id": "S18I-ITER-0004-FIT-02",
+      "data_seed": 32053,
+      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0004/FIT/S18I-ITER-0004-FIT-02",
       "permitted_use": "Verified-healthy eligibility; fit only the fixed probe's feature mean/std and healthy centroid. No representation training, bank, alternate scorer, or non-probe fitting.",
-      "config_hash": "5a7f47aeb584"
+      "config_hash": "976d4420b110"
     },
     {
       "role": "FIT",
-      "history_id": "S18I-ITER-0003-FIT-03",
-      "data_seed": 32038,
-      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0003/FIT/S18I-ITER-0003-FIT-03",
+      "history_id": "S18I-ITER-0004-FIT-03",
+      "data_seed": 32054,
+      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0004/FIT/S18I-ITER-0004-FIT-03",
       "permitted_use": "Verified-healthy eligibility; fit only the fixed probe's feature mean/std and healthy centroid. No representation training, bank, alternate scorer, or non-probe fitting.",
-      "config_hash": "87836048044a"
+      "config_hash": "8c0d3e6c08a4"
     },
     {
       "role": "CALIBRATION",
-      "history_id": "S18I-ITER-0003-CALIBRATION-01",
-      "data_seed": 32039,
-      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0003/CALIBRATION/S18I-ITER-0003-CALIBRATION-01",
+      "history_id": "S18I-ITER-0004-CALIBRATION-01",
+      "data_seed": 32055,
+      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0004/CALIBRATION/S18I-ITER-0004-CALIBRATION-01",
       "permitted_use": "Verified-healthy eligibility; score with frozen Fit probe values and choose only the fixed probe q95. No fitting or retuning.",
-      "config_hash": "4c681ecdb1dc"
+      "config_hash": "923c502c0847"
     },
     {
       "role": "DEVELOPMENT",
-      "history_id": "S18I-ITER-0003-DEVELOPMENT-01",
-      "data_seed": 32040,
-      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0003/DEVELOPMENT/S18I-ITER-0003-DEVELOPMENT-01",
+      "history_id": "S18I-ITER-0004-DEVELOPMENT-01",
+      "data_seed": 32056,
+      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0004/DEVELOPMENT/S18I-ITER-0004-DEVELOPMENT-01",
       "permitted_use": "Structural qualification and one fixed-probe evaluation using frozen Fit/Calibration values. No selection, promotion, pruning, or tuning.",
-      "config_hash": "2ba73a3816ad"
+      "config_hash": "7879fabfb834"
     },
     {
       "role": "DEVELOPMENT",
-      "history_id": "S18I-ITER-0003-DEVELOPMENT-02",
-      "data_seed": 32041,
-      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0003/DEVELOPMENT/S18I-ITER-0003-DEVELOPMENT-02",
+      "history_id": "S18I-ITER-0004-DEVELOPMENT-02",
+      "data_seed": 32057,
+      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0004/DEVELOPMENT/S18I-ITER-0004-DEVELOPMENT-02",
       "permitted_use": "Structural qualification and one fixed-probe evaluation using frozen Fit/Calibration values. No selection, promotion, pruning, or tuning.",
-      "config_hash": "c88437d19b6c"
+      "config_hash": "5203edac8f5d"
     },
     {
       "role": "DEVELOPMENT",
-      "history_id": "S18I-ITER-0003-DEVELOPMENT-03",
-      "data_seed": 32042,
-      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0003/DEVELOPMENT/S18I-ITER-0003-DEVELOPMENT-03",
+      "history_id": "S18I-ITER-0004-DEVELOPMENT-03",
+      "data_seed": 32058,
+      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0004/DEVELOPMENT/S18I-ITER-0004-DEVELOPMENT-03",
       "permitted_use": "Structural qualification and one fixed-probe evaluation using frozen Fit/Calibration values. No selection, promotion, pruning, or tuning.",
-      "config_hash": "7e157ab9fcd1"
+      "config_hash": "a9aa77f9d578"
     },
     {
       "role": "DEVELOPMENT",
-      "history_id": "S18I-ITER-0003-DEVELOPMENT-04",
-      "data_seed": 32043,
-      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0003/DEVELOPMENT/S18I-ITER-0003-DEVELOPMENT-04",
+      "history_id": "S18I-ITER-0004-DEVELOPMENT-04",
+      "data_seed": 32059,
+      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0004/DEVELOPMENT/S18I-ITER-0004-DEVELOPMENT-04",
       "permitted_use": "Structural qualification and one fixed-probe evaluation using frozen Fit/Calibration values. No selection, promotion, pruning, or tuning.",
-      "config_hash": "707f73945f1c"
+      "config_hash": "b9485cbbf7ed"
     },
     {
       "role": "CONFIRMATION",
-      "history_id": "S18I-ITER-0003-CONFIRMATION-01",
-      "data_seed": 32044,
-      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0003/CONFIRMATION/S18I-ITER-0003-CONFIRMATION-01",
+      "history_id": "S18I-ITER-0004-CONFIRMATION-01",
+      "data_seed": 32060,
+      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0004/CONFIRMATION/S18I-ITER-0004-CONFIRMATION-01",
       "permitted_use": "After Task69 preceding-role PASS and Main release: structural certification and one fixed-probe evaluation using frozen Fit/Calibration values. No fitting, recalibration, retuning, rescue, or model score.",
-      "config_hash": "7d265fac4f92"
+      "config_hash": "9af69c486efc"
     },
     {
       "role": "CONFIRMATION",
-      "history_id": "S18I-ITER-0003-CONFIRMATION-02",
-      "data_seed": 32045,
-      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0003/CONFIRMATION/S18I-ITER-0003-CONFIRMATION-02",
+      "history_id": "S18I-ITER-0004-CONFIRMATION-02",
+      "data_seed": 32061,
+      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0004/CONFIRMATION/S18I-ITER-0004-CONFIRMATION-02",
       "permitted_use": "After Task69 preceding-role PASS and Main release: structural certification and one fixed-probe evaluation using frozen Fit/Calibration values. No fitting, recalibration, retuning, rescue, or model score.",
-      "config_hash": "c4bbde54cd5f"
+      "config_hash": "2d0bf7b2636e"
     },
     {
       "role": "CONFIRMATION",
-      "history_id": "S18I-ITER-0003-CONFIRMATION-03",
-      "data_seed": 32046,
-      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0003/CONFIRMATION/S18I-ITER-0003-CONFIRMATION-03",
+      "history_id": "S18I-ITER-0004-CONFIRMATION-03",
+      "data_seed": 32062,
+      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0004/CONFIRMATION/S18I-ITER-0004-CONFIRMATION-03",
       "permitted_use": "After Task69 preceding-role PASS and Main release: structural certification and one fixed-probe evaluation using frozen Fit/Calibration values. No fitting, recalibration, retuning, rescue, or model score.",
-      "config_hash": "a865524b866e"
+      "config_hash": "bf88bd9bce23"
     },
     {
       "role": "CONFIRMATION",
-      "history_id": "S18I-ITER-0003-CONFIRMATION-04",
-      "data_seed": 32047,
-      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0003/CONFIRMATION/S18I-ITER-0003-CONFIRMATION-04",
+      "history_id": "S18I-ITER-0004-CONFIRMATION-04",
+      "data_seed": 32063,
+      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0004/CONFIRMATION/S18I-ITER-0004-CONFIRMATION-04",
       "permitted_use": "After Task69 preceding-role PASS and Main release: structural certification and one fixed-probe evaluation using frozen Fit/Calibration values. No fitting, recalibration, retuning, rescue, or model score.",
-      "config_hash": "03b5dbbc4ae7"
+      "config_hash": "be7c512f87e3"
     }
   ],
   "configs": {
-    "32032": {
-      "config_hash": "56403a2f0a3e",
-      "config_sha256": "d2879d29ed670ea8ac9407da131f085c8891030cfdb9ca53f3bfe025cf2a218f",
+    "32048": {
+      "config_hash": "5531879ce27b",
+      "config_sha256": "02bcd2061e9c4784eb3480b4d59e0666881d7ab8356118ba910229b58528e1a0",
       "seed_fields": {
-        "factory": 32032,
-        "scheduler": 32032,
-        "health": 32032,
-        "signal": 32032,
-        "temporal": 32032
+        "factory": 32048,
+        "scheduler": 32048,
+        "health": 32048,
+        "signal": 32048,
+        "temporal": 32048
       },
       "seed_independent_sha256": "e933feb61e94d39fb56a45fae742fa1222b321b238dd1f3608642418be279136"
     },
-    "32033": {
-      "config_hash": "0ca5fbc63b14",
-      "config_sha256": "573a9f0712868cc6764281309fe83720c733eaee63eb9ef10e04155bdbe9aa4f",
+    "32049": {
+      "config_hash": "8334a8e754af",
+      "config_sha256": "3c877c6dc32ce5786ad20b01eab3cf9898aa4eaa4f1a577e87e71a2f9c51eb3d",
       "seed_fields": {
-        "factory": 32033,
-        "scheduler": 32033,
-        "health": 32033,
-        "signal": 32033,
-        "temporal": 32033
+        "factory": 32049,
+        "scheduler": 32049,
+        "health": 32049,
+        "signal": 32049,
+        "temporal": 32049
       },
       "seed_independent_sha256": "e933feb61e94d39fb56a45fae742fa1222b321b238dd1f3608642418be279136"
     },
-    "32034": {
-      "config_hash": "7588a3b1edda",
-      "config_sha256": "0a9fabbf9460e32c1af29811a47ecd29a46d58e69fa277544f8b5002e3f8efe1",
+    "32050": {
+      "config_hash": "6625917d1c34",
+      "config_sha256": "d77afbd0aa9959449a29cfcf7ae247a73f1002315005d84735a5b30c0f5512fb",
       "seed_fields": {
-        "factory": 32034,
-        "scheduler": 32034,
-        "health": 32034,
-        "signal": 32034,
-        "temporal": 32034
+        "factory": 32050,
+        "scheduler": 32050,
+        "health": 32050,
+        "signal": 32050,
+        "temporal": 32050
       },
       "seed_independent_sha256": "e933feb61e94d39fb56a45fae742fa1222b321b238dd1f3608642418be279136"
     },
-    "32035": {
-      "config_hash": "09e0552baf50",
-      "config_sha256": "b51a50b9e6a742fdd9b6f4e1b48db88b1ff0f49fa1b580d5194796c31b1f9831",
+    "32051": {
+      "config_hash": "a7f9c65c8e51",
+      "config_sha256": "fb660781d604fef2c03fa619fc96601de015f9125bb0d5774517304fc3b8c042",
       "seed_fields": {
-        "factory": 32035,
-        "scheduler": 32035,
-        "health": 32035,
-        "signal": 32035,
-        "temporal": 32035
+        "factory": 32051,
+        "scheduler": 32051,
+        "health": 32051,
+        "signal": 32051,
+        "temporal": 32051
       },
       "seed_independent_sha256": "e933feb61e94d39fb56a45fae742fa1222b321b238dd1f3608642418be279136"
     },
-    "32036": {
-      "config_hash": "8d23b59253d2",
-      "config_sha256": "530e693de53b29e283bdff2d891eb98f8322a8d3c5a7a0f8b76aa9dc2e95cd5f",
+    "32052": {
+      "config_hash": "60d956699b82",
+      "config_sha256": "0f6e78bc4459b0ed867106ead92e96fdcc50f1f26563e4d41941a94c6738d050",
       "seed_fields": {
-        "factory": 32036,
-        "scheduler": 32036,
-        "health": 32036,
-        "signal": 32036,
-        "temporal": 32036
+        "factory": 32052,
+        "scheduler": 32052,
+        "health": 32052,
+        "signal": 32052,
+        "temporal": 32052
       },
       "seed_independent_sha256": "e933feb61e94d39fb56a45fae742fa1222b321b238dd1f3608642418be279136"
     },
-    "32037": {
-      "config_hash": "5a7f47aeb584",
-      "config_sha256": "728ae9a90bc8716e38b10238755cff428706d088fbe8618ddb0296b0d9ac5e86",
+    "32053": {
+      "config_hash": "976d4420b110",
+      "config_sha256": "2c6f7c84adb2fd84fea42659744f44a719c3ecd631dd5657d185abb8c6ddf061",
       "seed_fields": {
-        "factory": 32037,
-        "scheduler": 32037,
-        "health": 32037,
-        "signal": 32037,
-        "temporal": 32037
+        "factory": 32053,
+        "scheduler": 32053,
+        "health": 32053,
+        "signal": 32053,
+        "temporal": 32053
       },
       "seed_independent_sha256": "e933feb61e94d39fb56a45fae742fa1222b321b238dd1f3608642418be279136"
     },
-    "32038": {
-      "config_hash": "87836048044a",
-      "config_sha256": "83e3385c883c1a9c72b31bf6fcbf0a7f1458682a5853a11028575a3eb4093676",
+    "32054": {
+      "config_hash": "8c0d3e6c08a4",
+      "config_sha256": "15f634591b313818ce125d44546028954d87ac0980b7d7d70b3594291e9413d0",
       "seed_fields": {
-        "factory": 32038,
-        "scheduler": 32038,
-        "health": 32038,
-        "signal": 32038,
-        "temporal": 32038
+        "factory": 32054,
+        "scheduler": 32054,
+        "health": 32054,
+        "signal": 32054,
+        "temporal": 32054
       },
       "seed_independent_sha256": "e933feb61e94d39fb56a45fae742fa1222b321b238dd1f3608642418be279136"
     },
-    "32039": {
-      "config_hash": "4c681ecdb1dc",
-      "config_sha256": "24bd377655c238befdfb21ce6ab6ed6487f3cda2564f9d020c5548d64e13520a",
+    "32055": {
+      "config_hash": "923c502c0847",
+      "config_sha256": "f8d59ed952488e99229e0a4d8768604e75851ee73a8be3b5d1f11269b771ece1",
       "seed_fields": {
-        "factory": 32039,
-        "scheduler": 32039,
-        "health": 32039,
-        "signal": 32039,
-        "temporal": 32039
+        "factory": 32055,
+        "scheduler": 32055,
+        "health": 32055,
+        "signal": 32055,
+        "temporal": 32055
       },
       "seed_independent_sha256": "e933feb61e94d39fb56a45fae742fa1222b321b238dd1f3608642418be279136"
     },
-    "32040": {
-      "config_hash": "2ba73a3816ad",
-      "config_sha256": "52723f2031729631688addeb30d0c43562a3802605bacaa6fbbdf9b6600f7e74",
+    "32056": {
+      "config_hash": "7879fabfb834",
+      "config_sha256": "3c04942294a18c70eca2ea1b96142c108888d1551e198b37e42819e36ea32211",
       "seed_fields": {
-        "factory": 32040,
-        "scheduler": 32040,
-        "health": 32040,
-        "signal": 32040,
-        "temporal": 32040
+        "factory": 32056,
+        "scheduler": 32056,
+        "health": 32056,
+        "signal": 32056,
+        "temporal": 32056
       },
       "seed_independent_sha256": "e933feb61e94d39fb56a45fae742fa1222b321b238dd1f3608642418be279136"
     },
-    "32041": {
-      "config_hash": "c88437d19b6c",
-      "config_sha256": "c7759735afd5db8d249db66a33a5dfd2ad28cca5128556d54abcfb3a5c280605",
+    "32057": {
+      "config_hash": "5203edac8f5d",
+      "config_sha256": "fb35dfa2a97f882a45f367b9b366c8be5fb1cab73480cc307d698ea1f96cbf50",
       "seed_fields": {
-        "factory": 32041,
-        "scheduler": 32041,
-        "health": 32041,
-        "signal": 32041,
-        "temporal": 32041
+        "factory": 32057,
+        "scheduler": 32057,
+        "health": 32057,
+        "signal": 32057,
+        "temporal": 32057
       },
       "seed_independent_sha256": "e933feb61e94d39fb56a45fae742fa1222b321b238dd1f3608642418be279136"
     },
-    "32042": {
-      "config_hash": "7e157ab9fcd1",
-      "config_sha256": "40ff4664e65ff82cd42235baaf8a85acf94c2800aaafc952cc20d9b7ee2ff9bb",
+    "32058": {
+      "config_hash": "a9aa77f9d578",
+      "config_sha256": "36de369de5c67fd50a884907e5c689dae23dc390dcad585191759bcf81e7bcbb",
       "seed_fields": {
-        "factory": 32042,
-        "scheduler": 32042,
-        "health": 32042,
-        "signal": 32042,
-        "temporal": 32042
+        "factory": 32058,
+        "scheduler": 32058,
+        "health": 32058,
+        "signal": 32058,
+        "temporal": 32058
       },
       "seed_independent_sha256": "e933feb61e94d39fb56a45fae742fa1222b321b238dd1f3608642418be279136"
     },
-    "32043": {
-      "config_hash": "707f73945f1c",
-      "config_sha256": "367d880a2057eca820646559c324b295c5047286679c979db5aa5048dda6c2aa",
+    "32059": {
+      "config_hash": "b9485cbbf7ed",
+      "config_sha256": "c22444b86007c5bd54172980eb3425840c520db0559d3718b41e37c97e38657e",
       "seed_fields": {
-        "factory": 32043,
-        "scheduler": 32043,
-        "health": 32043,
-        "signal": 32043,
-        "temporal": 32043
+        "factory": 32059,
+        "scheduler": 32059,
+        "health": 32059,
+        "signal": 32059,
+        "temporal": 32059
       },
       "seed_independent_sha256": "e933feb61e94d39fb56a45fae742fa1222b321b238dd1f3608642418be279136"
     },
-    "32044": {
-      "config_hash": "7d265fac4f92",
-      "config_sha256": "ebc9f7682a0af89fc0a3178173ef5dd851bbfb4b92b45f919dfad5ec34979aec",
+    "32060": {
+      "config_hash": "9af69c486efc",
+      "config_sha256": "edbe77ba2af45d41a07bf7257c1d19370874dfba64611344308e47985c79f8ec",
       "seed_fields": {
-        "factory": 32044,
-        "scheduler": 32044,
-        "health": 32044,
-        "signal": 32044,
-        "temporal": 32044
+        "factory": 32060,
+        "scheduler": 32060,
+        "health": 32060,
+        "signal": 32060,
+        "temporal": 32060
       },
       "seed_independent_sha256": "e933feb61e94d39fb56a45fae742fa1222b321b238dd1f3608642418be279136"
     },
-    "32045": {
-      "config_hash": "c4bbde54cd5f",
-      "config_sha256": "48fa3f18c7710b90a964112182041995c5f859413f17b1ec818181861e5a8578",
+    "32061": {
+      "config_hash": "2d0bf7b2636e",
+      "config_sha256": "c6b457b618de1f9ddcf1947a1e28ef0f5be73ed0ecf6b7a601dec2856feace16",
       "seed_fields": {
-        "factory": 32045,
-        "scheduler": 32045,
-        "health": 32045,
-        "signal": 32045,
-        "temporal": 32045
+        "factory": 32061,
+        "scheduler": 32061,
+        "health": 32061,
+        "signal": 32061,
+        "temporal": 32061
       },
       "seed_independent_sha256": "e933feb61e94d39fb56a45fae742fa1222b321b238dd1f3608642418be279136"
     },
-    "32046": {
-      "config_hash": "a865524b866e",
-      "config_sha256": "c8a8126d8112141de712dbe973d5985f43d5891b89efc6038f0db8b6d3e32cf7",
+    "32062": {
+      "config_hash": "bf88bd9bce23",
+      "config_sha256": "ceb6b9fe140bb5d6b2afc089cca78d5f4433148300c6ea1d968ec4ee99879827",
       "seed_fields": {
-        "factory": 32046,
-        "scheduler": 32046,
-        "health": 32046,
-        "signal": 32046,
-        "temporal": 32046
+        "factory": 32062,
+        "scheduler": 32062,
+        "health": 32062,
+        "signal": 32062,
+        "temporal": 32062
       },
       "seed_independent_sha256": "e933feb61e94d39fb56a45fae742fa1222b321b238dd1f3608642418be279136"
     },
-    "32047": {
-      "config_hash": "03b5dbbc4ae7",
-      "config_sha256": "3d6a3777648206f79c6a7354f65e50b8f8c8e2d6f225a1be1f4c9e038a11a7af",
+    "32063": {
+      "config_hash": "be7c512f87e3",
+      "config_sha256": "211c2c7061511faaaff403d84e978df3285b399e6ef74e178ea9711aec26001e",
       "seed_fields": {
-        "factory": 32047,
-        "scheduler": 32047,
-        "health": 32047,
-        "signal": 32047,
-        "temporal": 32047
+        "factory": 32063,
+        "scheduler": 32063,
+        "health": 32063,
+        "signal": 32063,
+        "temporal": 32063
       },
       "seed_independent_sha256": "e933feb61e94d39fb56a45fae742fa1222b321b238dd1f3608642418be279136"
     }
@@ -442,7 +447,7 @@
     "source_catalog_path": "experiments/sprint22-pilot-binding-v1.json",
     "source_catalog_sha256": "eb47cf4c51e03bb9cdfce2c216fbee5fe8b90121e71e999ec3b8c541c1a380f6",
     "provenance_sha256": "6b1a69ad6cd0d89d8d332d21a41870859c895c2e12a103941dc97a160e9cd57a",
-    "exclusions_sha256": "4602f0feb6c4621e3217490b92a7a9327d2e24de31ed748ad4edb2abd1324d91",
+    "exclusions_sha256": "f1a5d0b6979259948ea7f5faf5c49788e82537fe44f72da7be7908dd0c55f85a",
     "scope": "Static source-bound identities only, including historical Sprint15 Sealed seeds as identifiers; no generated-data roots, no Sealed contents, no actual-root freshness claim.",
     "prior_data_seed_ranges": [
       {
@@ -495,7 +500,7 @@
       },
       {
         "first": 32000,
-        "last": 32031
+        "last": 32047
       },
       {
         "first": 918000,
@@ -531,24 +536,24 @@
       829471962,
       928089417
     ],
-    "excluded_unique_count": 389,
+    "excluded_unique_count": 405,
     "candidate_seeds": [
-      32032,
-      32033,
-      32034,
-      32035,
-      32036,
-      32037,
-      32038,
-      32039,
-      32040,
-      32041,
-      32042,
-      32043,
-      32044,
-      32045,
-      32046,
-      32047
+      32048,
+      32049,
+      32050,
+      32051,
+      32052,
+      32053,
+      32054,
+      32055,
+      32056,
+      32057,
+      32058,
+      32059,
+      32060,
+      32061,
+      32062,
+      32063
     ],
     "candidate_seed_count": 16,
     "candidate_intersection": []
@@ -557,17 +562,18 @@
     "identity_scheme": "git-tracked-utf8-text-lf-sha256-v1",
     "unknown_scheme_policy": "reject",
     "non_text_policy": "reject; require a separately versioned identity scheme",
-    "closure_sha256": "7002ebb68889695527df95f3603ea2d64eb0c1f2d80f847d4d092b8da9a9d840",
+    "closure_sha256": "2f939672793a37650b288df949c59406aaad2a786dc271679017b263d6a58b32",
     "sha256_by_path": {
       "docs/BENCHMARK_MEASURABILITY_EXIT_GATES_V2.md": "d294762331ded4fd213f6870e563e32e17e12c632d7cb11a80373478ede34e1c",
       "experiments/sprint15-benchmark-protocol-v7.md": "a1fc09db2e246ed79d0595aec953a7788fd1b47c4981fbe1d92017d944b8d7b6",
       "experiments/sprint15-observable-probe-v7.md": "d83f8fd90560cc6237fa906419b84bcaa787a6690799c7a7ef7e3ad5c814ef74",
+      "experiments/sprint18-candidate3-custody-retirement-v1.json": "d07d829b9c330e14027876043d33d6a7243faff9974189514a6a920c706a75c3",
       "experiments/sprint18-data-method-c2-v1.md": "f4cc8901c2e59f615ebcaaa3509fd654773efd06f7f6fd6a55faeab6b3ba4b9b",
       "experiments/sprint18-iterative-data-contract-v1.md": "056105f87b1097c45244287636bcef8c2fc790f3fd894775b9105fbdbfb59e9d",
       "experiments/sprint18-iterative-data-contract-v3.md": "544de84bc201a07140559058d100c991cd148b698f93058dbd37d7fe4dc3c929",
       "experiments/sprint18-task67-attempt-S18-T67-A05.json": "a9dc94782c92c34981e8612ddab5b301e81a48560fbead1dc5b6051861497a34",
       "experiments/sprint18-task67-attempt-S18-T67-A05.md": "705a2cf3c957cdf98a84d0bd7283f964acc7abc83cef30b02ce70c80bef429a6",
-      "experiments/sprint18_iterative_candidate_v1.py": "b20125222ea3e0569236c87cdc2c343ba1b96911945976158dad6c9c387f31a7",
+      "experiments/sprint18_iterative_candidate_v1.py": "f7b6aab70673c87f6c6965bedb1cfdab78674c04961ccb3d6e6043e6cf6167ef",
       "experiments/sprint18_task5_measurability.py": "0ee9e3ff9ae884dfa5a19efdfa921417ae52304c01e7f8293740a5dc4aa059b9",
       "experiments/sprint22-pilot-binding-v1.json": "eb47cf4c51e03bb9cdfce2c216fbee5fe8b90121e71e999ec3b8c541c1a380f6",
       "pyproject.toml": "30292a091a273d0d58958701f792ad30af9a9bbd7454480275dedd73d1421d01",
@@ -621,7 +627,6 @@
       "experiments/sprint18-iterative-data-contract-v3.md": "5ea324777e4427d19f38c1dd701114ff46ee317a",
       "experiments/sprint18-task67-attempt-S18-T67-A05.json": "1c2ef1a76d8484633b213f37255ed18a421afefb",
       "experiments/sprint18-task67-attempt-S18-T67-A05.md": "c6fadf04644e6eb377a71d446b9f87a16379231f",
-      "experiments/sprint18_iterative_candidate_v1.py": "1d6f9fda0b43eccc2ebef59a456934d2bc8c2e5e",
       "experiments/sprint18_task5_measurability.py": "5b6a499ce6f488f3b9817e1217c1c07f50a8a4c5",
       "experiments/sprint22-pilot-binding-v1.json": "552c0e2ecf020156b5f05a1fe3cb9e42127d35a7",
       "pyproject.toml": "c5db30eb601289871d9aa19d5ff48283aa6438ef",
@@ -664,7 +669,9 @@
       "src/synth/splits.py": "f6f0d5525280c50fa6f395b0efd93a9d58a571d2",
       "src/synth/strength.py": "802938402faeb378281f0a441f5c9066f102d7cc",
       "src/synth/temporal.py": "a85b545c3dac8a42fd228303843837b8f4cb11c8",
-      "uv.lock": "ad42b7c40222f75b34a943b9b3293d52792f7cec"
+      "uv.lock": "ad42b7c40222f75b34a943b9b3293d52792f7cec",
+      "experiments/sprint18_iterative_candidate_v1.py": "71f0cbd91cbc4a5cd4f7fe72e3125d50323fe93f",
+      "experiments/sprint18-candidate3-custody-retirement-v1.json": "93a707213efb421dffa3bd86172a757097784f0c"
     }
   },
   "runtime": {
@@ -678,7 +685,7 @@
     "approved_branch": "sprint18-task68-a02-runtime",
     "origin_url": "https://github.com/triet4p/anomaly-representation-learning.git",
     "output_root": "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/data/generated",
-    "candidate_root": "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/data/generated/sprint18-iterative-v1/S18-ITER-0003",
+    "candidate_root": "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/data/generated/sprint18-iterative-v1/S18-ITER-0004",
     "python_version": [
       3,
       12,
@@ -708,8 +715,8 @@
       "torch": "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/.venv/lib/python3.12/site-packages/torch/__init__.py",
       "synth": "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/src/synth/__init__.py"
     },
-    "uv_version": "0.12.20",
-    "uv_build": "2274b80d6",
+    "uv_version": "0.12.21",
+    "uv_build": "7af826859",
     "uv_lock_sha256": "4a7866878c81cdd8f5ba283cd8d0a772073bfc75941f73ec761ede5eeb2e239a",
     "environment_status_at_binding": "EXISTING_LOCKED_ENVIRONMENT_VERIFIED",
     "prebinding_observation": {
@@ -741,7 +748,7 @@
         "torch": "/home/trietlm/anomaly-representation-learning/.venv/lib/python3.12/site-packages/torch/__init__.py"
       }
     },
-    "release_prerequisite": "After Main evidence PASS and exact checkpoint directly parented by current master a17bfad5d5c625e2c8745c0d7b6feff4ee928eb4, deploy that checkpoint in the existing clean execution worktree on sprint18-task68-a02-runtime without resetting the user-owned canonical checkout. Reuse the existing locked .venv; do not recreate it. Verify its exact provider, package versions/origins, and uv.lock identity, then issue a new Main receipt for S18-ITER-0003. Candidate contact remains forbidden until release."
+    "release_prerequisite": "After Main evidence PASS and exact checkpoint directly parented by current master cdfc8263f1683dba7c4402709744d3cb6437ae1b, deploy that checkpoint in the existing clean execution worktree on sprint18-task68-a02-runtime without resetting the user-owned canonical checkout. Reuse the existing locked .venv; do not recreate it. Verify its exact provider, package versions/origins, and uv.lock identity, then issue a new Main receipt for S18-ITER-0004. Candidate contact remains forbidden until release."
   },
   "attempt_policy": {
     "attempt_number": 1,
@@ -752,7 +759,8 @@
     "ledger_format": "canonical JSONL; append-only SHA-256 previous-event chain; fsync each record and directory",
     "no_resume": true,
     "failure_action": "preserve every started record/root; retire this entire 16-history candidate; Task69 remains active; do not retry, reseed, substitute, pool, or promote",
-    "next_candidate_policy": "continue without a candidate-count cap; diagnose the observed cause, prospectively fix without gate relaxation, independently review, and bind a fresh complete candidate before any next contact"
+    "next_candidate_policy": "continue without a candidate-count cap; diagnose the observed cause, prospectively fix without gate relaxation, independently review, and bind a fresh complete candidate before any next contact",
+    "no_resume_rule": "whole-fresh candidate: no resume, adoption, alias, fallback, or replay of any retired candidate (S18-ITER-0001/0002/0003); interrupted roots retire the candidate"
   },
   "preflight": {
     "entrypoint": "synth.preflight15.run_preflight_iterative_v3(seeds, roles)",
@@ -805,7 +813,7 @@
     "required_status": "RELEASED_BY_MAIN",
     "required_review_verdict": "PASS",
     "required_actionable_findings": 0,
-    "required_checkpoint_parent": "a17bfad5d5c625e2c8745c0d7b6feff4ee928eb4",
+    "required_checkpoint_parent": "cdfc8263f1683dba7c4402709744d3cb6437ae1b",
     "required_scope": "Task69-preflight-and-nonconfirmation",
     "receipt_must_bind": [
       "candidate_id",
@@ -837,5 +845,5 @@
     "new_binding_and_fresh_review_required_for_every_candidate": true,
     "no_gate_relaxation_or_seed_selection": true
   },
-  "binding_sha256": "37b14f545237d13010fd5a230c34782918b090123eabc7ff68814393e87cea29"
+  "binding_sha256": "a5908b53e8567a0ed5cb9baace3415e135681c99c99e70145d2e6354dccd3dd1"
 }

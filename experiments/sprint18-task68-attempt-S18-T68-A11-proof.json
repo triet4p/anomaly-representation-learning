@@ -1,0 +1,150 @@
+{
+  "agent_id": "S18Task68A11",
+  "attempt_id": "S18-T68-A11",
+  "base": "cdfc8263f1683dba7c4402709744d3cb6437ae1b",
+  "binding": {
+    "binding_file_sha256": "612899fe496740745f7d3ef2621fad82c20897b1499012aca66656543a1bc78a",
+    "binding_sha256": "a5908b53e8567a0ed5cb9baace3415e135681c99c99e70145d2e6354dccd3dd1",
+    "bytes": 43980,
+    "closure_members": 53,
+    "closure_sha256": "2f939672793a37650b288df949c59406aaad2a786dc271679017b263d6a58b32",
+    "collision_excluded_unique_count": 405,
+    "collision_exclusions_sha256": "f1a5d0b6979259948ea7f5faf5c49788e82537fe44f72da7be7908dd0c55f85a",
+    "common_seed_independent_sha256": "e933feb61e94d39fb56a45fae742fa1222b321b238dd1f3608642418be279136",
+    "config_shorts": {
+      "32048": "5531879ce27b",
+      "32063": "be7c512f87e3"
+    },
+    "no_resume": true,
+    "required_checkpoint_parent": "cdfc8263f1683dba7c4402709744d3cb6437ae1b",
+    "runner_blob_oid": "71f0cbd91cbc4a5cd4f7fe72e3125d50323fe93f",
+    "runner_canonical_sha256": "f7b6aab70673c87f6c6965bedb1cfdab78674c04961ccb3d6e6043e6cf6167ef",
+    "runner_raw_sha256": "fc6dc83adb9ecc29dab5a2df052ba0032504e317868b2d36e8ef195b17e8e599",
+    "uv_build": "7af826859",
+    "uv_version": "0.12.21"
+  },
+  "candidate": {
+    "contact_in_this_attempt": false,
+    "final_candidate_path_contact": false,
+    "final_candidate_seeds_probed": [],
+    "id": "S18-ITER-0004",
+    "number": 4,
+    "resume_performed": false,
+    "seeds": "32048-32063"
+  },
+  "changed_paths": [
+    "experiments/sprint18_iterative_candidate_v1.py",
+    "experiments/sprint18-iterative-binding-v1.json",
+    "experiments/sprint18-candidate3-custody-retirement-v1.json",
+    "tests/synth/test_sprint18_stage_ledger_path.py",
+    "CHANGELOG.md",
+    "experiments/sprint18-task68-attempt-S18-T68-A11-proof.json",
+    "experiments/sprint18-task68-attempt-S18-T68-A11-proof.md"
+  ],
+  "custody_retirement": {
+    "action": "RETIRE_WHOLE_CANDIDATE_FOR_CUSTODY (Main decision; not a scientific quota/probe failure)",
+    "allows": "whole-fresh S18-ITER-0004 only; no resume/promotion/preflight credit/local raw reuse of S18-ITER-0003",
+    "forbids": [
+      "resume",
+      "promotion",
+      "preflight credit",
+      "local raw-dataset reuse",
+      "replay",
+      "reseed",
+      "subset replacement"
+    ],
+    "old_attempt_marker_sha256": "ac97872c59827757982439c651db124b38be622cbd010b1bfa928aa4ae3798a7",
+    "old_binding_canonical_sha256": "f019aad1d288b735f4ea7eb45cd557f2ded758131e2f2fcadfde2210cfe51c5a",
+    "old_ledger_events": [
+      "attempt_started",
+      "preflight_started",
+      "preflight_recorded"
+    ],
+    "old_ledger_sha256": "503840c73a6d8cf32d9a49b44282d60634180ae9140c77a1e82c8d678f0e2516",
+    "old_materialized_roles": 0,
+    "old_preflight_raw_sha256": "8d6503f4a29cbb3a05e7883c61a3844a7d5e94f55510d46c37f73f155254e1a8",
+    "old_preflight_verdict": "PREFLIGHT-PASS 16/16 preserved honestly as historical failed-attempt evidence",
+    "old_receipt_sha256": "f68d3fb83c8f8a3c135e7ec062142f7c452be553e24bde77fa59096eca727e0b",
+    "old_source_closure_sha256": "53f0ffc25b84176bfaa311edfd87a7fa945d1872ac9d40bb9de8746d0f85d184",
+    "primary_evidence": "history://S18Task68A09 turns 604/648: genuine public CLI materialization of S18I-ITER-0003-DESIGN-01 (seed 32032) exited 0 (6522 samples, manifest 9bd37fd994c5a80b) under a throwaway root while claiming contact_in_this_attempt:false",
+    "record": "experiments/sprint18-candidate3-custody-retirement-v1.json",
+    "record_canonical_sha256": "d07d829b9c330e14027876043d33d6a7243faff9974189514a6a920c706a75c3",
+    "record_raw_sha256": "1901c3c617bb95b4c7c66ed0fe0bbe7198699c75ea810e651a81a04017373e98",
+    "retired_after": [
+      "S18-ITER-0001",
+      "S18-ITER-0002",
+      "S18-ITER-0003"
+    ]
+  },
+  "future_task69_limit": "strict: after future fresh Task68 checkpoint (parent cdfc8263), Task69 success checkpoint must directly parent that checkpoint; later Task69 Main release permits all-16 one-shot in-memory preflight incl Conf, then ONLY 12 non-Conf materialization/Task5 qual/hard/healthyFit>=200files/6000patches/Cal>=40/new-59 fixed causal Fit stats/std-1e-6/centroid-Cal-q95-freeze-before-Dev-EG4; Conf materialization/probe ONLY after all-12 Task69 PASS + checkpoint + Main Task70 release",
+  "hash_graph": "retirement record binds immutable old identities + Main decision/reason/R08 evidence (no hash of its own bytes, no new binding digest value); new 53-member closure hashes the retirement record and current runner bytes; new closure digest hashes into the new binding digest; future Main release receipt binds new binding/closure/checkpoint; strict whole-fresh guards refuse any retired seed before any write",
+  "method": "sprint18-iterative-v3 unchanged (450-day, 225 cutoff, 2880 units, fixed-phase v3 hash, Hazard RNG, rates/count/noise/cadence/routes/maintenance, support-mix/lead/quota controls-min-48-allows-49+/hard-25/Design-32/full-ELIGIBLE-15-60/PW12A8)",
+  "preserved_bytes": [
+    "experiments/sprint18-iterative-resume-policy-v1.json (failed-policy historical record, no ACTIVE references)",
+    "experiments/sprint18-task68-attempt-S18-T68-A08-proof.json/.md",
+    "experiments/sprint18-task68-attempt-S18-T68-A09-proof.json/.md",
+    "old markers/3 events/raw receipt bytes"
+  ],
+  "proof": {
+    "decisive_disposable": {
+      "dispatch": "dispatch_stage(binding, proof_root, 'materialize-nonconfirmation') end-to-end through the PUBLIC dispatcher (load \u2192 guard \u2192 loop \u2192 reload, current bytecode); CLI --stage delegates to the same function",
+      "disjointness": "fixture {94100,94101} arithmetically disjoint from ALL bound/retired seeds 32000..32063 (intersection [] verified BEFORE any data); fixture role IDs S18I-PROOF-0001-* never slice final binding roles",
+      "entrypoint": "exact 3-prefix PYTHONPATH with PYTHONDONTWRITEBYTECODE=1 and .venv/Scripts/python -B for every child",
+      "followup": "_load_stage_state reload PASS (2 role_materialized) + public load_chronological reload of both roots with role/protocol/config_hash checks PASS",
+      "guards": "retired-seed (32032) load PASS_REFUSED; tampered-marker load PASS_REFUSED",
+      "preflight": "run_preflight_iterative_v3 over [94100,94101]/[DESIGN,FIT] in-memory PASS 2/2, no writes",
+      "proof_root": "C:\\Users\\admin\\AppData\\Local\\Temp\\s18-t68-a11-proof-hessouyz (removed after durable proof)",
+      "public_cli_writes": [
+        {
+          "config_hash": "c617a40430e5",
+          "history_id": "S18I-PROOF-0001-DESIGN-01",
+          "manifest_sha256": "e8c5f47fa37944614481bf704ea62286ea0ca6eba0fac7edd1fe78bd5e5d5300",
+          "rc": 0,
+          "samples": 6472,
+          "seed": 94100
+        },
+        {
+          "config_hash": "34b32b360dd4",
+          "history_id": "S18I-PROOF-0001-FIT-01",
+          "manifest_sha256": "7641c60d5f712a344fb5dd276a3d77c436e301e9db87d221536f6b6aff43c370",
+          "rc": 0,
+          "samples": 6451,
+          "seed": 94101
+        }
+      ],
+      "reload_samples": [
+        6472,
+        6451
+      ],
+      "stage_event_types": [
+        "attempt_started",
+        "preflight_started",
+        "preflight_recorded",
+        "role_materialization_started",
+        "role_materialized",
+        "role_materialization_started",
+        "role_materialized"
+      ],
+      "stage_rc": 0,
+      "wall_s": 422.76
+    },
+    "entrypoint_env": "exact 3-prefix PYTHONPATH with PYTHONDONTWRITEBYTECODE=1 and .venv/Scripts/python -B for every child",
+    "guard_paths": {
+      "interrupted_materialization": "retires candidate; no resume (exercised)",
+      "stale_uv_pin_0.12.20": "refused (exercised)",
+      "tampered_marker": "refused (exercised)"
+    },
+    "no_contact_smoke": {
+      "mode": "disposable-static-no-contact",
+      "rc": 0
+    },
+    "regression": {
+      "file": "tests/synth/test_sprint18_stage_ledger_path.py",
+      "result": "7 passed",
+      "tests": 7
+    }
+  },
+  "review_scope": "the 4 versioned product/test/record paths above plus CHANGELOG against base cdfc8263; task-68.md appendix and proof records are evidence only; historical policy/A08/A09 proofs preserved but not ACTIVE scope",
+  "schema_id": "sprint18-task68-proof-v1",
+  "task_id": "S18-T68"
+}

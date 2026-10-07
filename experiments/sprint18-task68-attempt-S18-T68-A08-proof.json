@@ -1,0 +1,76 @@
+{
+  "artifact": "artifacts/sprint-18/task-68.md#A08",
+  "attempt_id": "S18-T68-A08",
+  "base": "cdfc8263f1683dba7c4402709744d3cb6437ae1b",
+  "binding": {
+    "binding_sha256": "246de042482e87adbea1e25e871bd9f7120d00a1beb83422a58bb29fed8f2c0f",
+    "binding_file_sha256": "1ebb73daf78c1c7c60c498a41352b33227e912e59c1b52f331187d9a45d4d972",
+    "bytes": 43276,
+    "closure_sha256": "9bdf0e3579e8d5d919c36afa3aaa1d8ed7d03155cc6956de3d25597a2d8e33db",
+    "closure_members": 52,
+    "runner_blob_oid": "2d6347028fb2f5fd9b012f7d1aca5d49e7307593",
+    "runner_canonical_sha256": "c6c50a14398b80f613f3fa576dea9fed461e7f136d6a301da6b47e2837536f61",
+    "uv_build": "7af826859",
+    "uv_version": "0.12.21"
+  },
+  "candidate": {
+    "contact_in_this_attempt": false,
+    "id": "S18-ITER-0003",
+    "resume_performed": false,
+    "seeds": "32032-32047"
+  },
+  "changed_paths": [
+    "experiments/sprint18_iterative_candidate_v1.py",
+    "experiments/sprint18-iterative-binding-v1.json",
+    "tests/synth/test_sprint18_stage_ledger_path.py",
+    "CHANGELOG.md",
+    "artifacts/sprint-18/task-68.md#A08",
+    "experiments/sprint18-task68-attempt-S18-T68-A08-proof.json",
+    "experiments/sprint18-task68-attempt-S18-T68-A08-proof.md"
+  ],
+  "proof": {
+    "fresh_process_materialize": {
+      "config_match": true,
+      "dispatch_ledger_events": 3,
+      "ledger_tail": [
+        "role_materialization_started",
+        "role_materialized"
+      ],
+      "loader_role": "S18I-ITER-SMOKE-0001-DESIGN-01",
+      "loader_samples": 6463,
+      "manifest_written": true,
+      "rc": 0,
+      "role_root_written": true,
+      "seed": 93000,
+      "wall_time_s": 191.48
+    },
+    "host_uv_guard": {
+      "pinned_accept": {
+        "build": "7af826859",
+        "version": "0.12.21"
+      },
+      "real_local_probe": {
+        "build": "0adb44480",
+        "version": "0.9.7"
+      },
+      "real_local_refusal": "GuardError host uv toolchain differs from the bound provider",
+      "stale_pin_refusal": "GuardError binding does not carry the observed host uv provider pin"
+    },
+    "ledger_path_contract": {
+      "interrupted_retire": "GuardError no resume + candidate_rejected appended",
+      "old_list_pattern": "AttributeError 'list' object has no attribute 'is_symlink' reproduced",
+      "reread_path_ok": true
+    },
+    "regression": {
+      "note": "focused suite 29 passed 1 skipped 59.49s observed before final non-behavioral doc/hash sync; final file-state regression 3 passed; no rerun after hash-only updates per assignment",
+      "tests": 3
+    },
+    "resume_policy": {
+      "accept": "POLICY_ACCEPT_OK on exact 3-event ledger",
+      "dirty_refusal": "GuardError zero-materialized-roles",
+      "drift_refusal": "GuardError",
+      "forbids_confirmation_until_task69": true
+    }
+  },
+  "task_id": "S18-T68"
+}

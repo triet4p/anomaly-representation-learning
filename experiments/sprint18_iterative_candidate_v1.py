@@ -24,7 +24,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 BINDING_DEFAULT = ROOT / "experiments" / "sprint18-iterative-binding-v1.json"
-BASE_COMMIT = "a17bfad5d5c625e2c8745c0d7b6feff4ee928eb4"
+BASE_COMMIT = "cdfc8263f1683dba7c4402709744d3cb6437ae1b"
 TASK68_A02_CHECKPOINT_COMMIT = "1b708542aeaba7a69c883893deb90ff591ce9d5f"
 ACCEPTED_METHOD_LINEAGE_COMMIT = "cd04a0a018c73ae91593ea4041742f05829041a6"
 TASK68_A02_SOURCE_CLOSURE_SHA256 = "e9a50ec7764d8a9cf869a522fbd00ca462beec16bd53ba6308dcb84b1863dd99"
@@ -69,6 +69,7 @@ EXPECTED_SOURCE_PATHS = frozenset({
     "docs/BENCHMARK_MEASURABILITY_EXIT_GATES_V2.md",
     "experiments/sprint15-benchmark-protocol-v7.md",
     "experiments/sprint15-observable-probe-v7.md",
+    "experiments/sprint18-candidate3-custody-retirement-v1.json",
     "experiments/sprint18-data-method-c2-v1.md",
     "experiments/sprint18-iterative-data-contract-v1.md",
     "experiments/sprint18-iterative-data-contract-v3.md",
@@ -331,7 +332,7 @@ def verify_source_closure(binding: dict[str, Any], root: Path) -> None:
     if not isinstance(sources, dict) or not isinstance(blob_oids, dict):
         raise GuardError("source closure must bind text hashes and Git blob identities")
     if set(sources) != EXPECTED_SOURCE_PATHS or set(blob_oids) != EXPECTED_SOURCE_PATHS:
-        raise GuardError("source closure path set differs from the exact 52-file catalog")
+        raise GuardError("source closure path set differs from the exact 53-file catalog")
     if TASK67_EVIDENCE_PATH in sources:
         raise GuardError("Task67 evidence is provenance, not a runtime source")
     if closure.get("closure_sha256") != _source_closure_digest(closure):
@@ -418,8 +419,8 @@ def validate_binding(
 ) -> None:
     if binding.get("schema_id") != "sprint18-iterative-binding-v1":
         raise GuardError("unsupported candidate binding schema")
-    if binding.get("candidate_id") != "S18-ITER-0003" and not disposable:
-        raise GuardError("candidate identity differs from the frozen third block")
+    if binding.get("candidate_id") != "S18-ITER-0004" and not disposable:
+        raise GuardError("candidate identity differs from the frozen fourth block")
     if binding.get("profile_id") != PROFILE or binding.get("generator_protocol_id") != PROTOCOL:
         raise GuardError("profile or protocol identity mismatch")
     if binding.get("contract_sha256") != "544de84bc201a07140559058d100c991cd148b698f93058dbd37d7fe4dc3c929":
@@ -479,8 +480,8 @@ def validate_binding(
         raise GuardError("invalid first seed")
     if not disposable:
         number = binding.get("candidate_number")
-        if number != 3 or first_seed != 32032 or seeds != list(range(32032, 32048)):
-            raise GuardError("candidate number or fixed 32032–32047 seed block mismatch")
+        if number != 4 or first_seed != 32048 or seeds != list(range(32048, 32064)):
+            raise GuardError("candidate number or fixed 32048–32063 seed block mismatch")
     elif seeds != list(range(first_seed, first_seed + 16)):
         raise GuardError("disposable smoke seed block must remain contiguous and ordered")
 
@@ -493,7 +494,7 @@ def validate_binding(
         role = expected_roles[index]
         ordinal = sum(1 for prior in expected_roles[:index] if prior == role) + 1
         if not disposable:
-            wanted_id = f"S18I-ITER-0003-{ROLE_SUFFIX[role]}-{ordinal:02d}"
+            wanted_id = f"S18I-ITER-0004-{ROLE_SUFFIX[role]}-{ordinal:02d}"
             if entry.get("history_id") != wanted_id:
                 raise GuardError(f"history identity/order mismatch at roster position {index}")
         expected_path = f"{root_relative}/{role}/{entry['history_id']}"
@@ -570,7 +571,7 @@ def validate_runtime_binding(binding: dict[str, Any]) -> None:
         "synth": worktree / "src/synth/__init__.py",
     }
     output_root = worktree / "data/generated"
-    candidate_root = output_root / "sprint18-iterative-v1/S18-ITER-0003"
+    candidate_root = output_root / "sprint18-iterative-v1/S18-ITER-0004"
     expected_entrypoint_environment = {
         "PYTHONDONTWRITEBYTECODE": "1",
         "PYTHONPATH": [
@@ -603,10 +604,46 @@ def validate_runtime_binding(binding: dict[str, Any]) -> None:
     sources = binding.get("source_closure", {}).get("sha256_by_path", {})
     if runtime.get("uv_lock_sha256") != sources.get("uv.lock"):
         raise GuardError("runtime environment is not bound to the frozen uv.lock")
-    if (runtime.get("uv_version") != "0.12.20"
-            or runtime.get("uv_build") != "2274b80d6"):
+    if (runtime.get("uv_version") != HOST_UV_VERSION
+            or runtime.get("uv_build") != HOST_UV_BUILD):
         raise GuardError("runtime environment requires the observed locked uv provider")
 
+
+HOST_UV_VERSION = "0.12.21"
+HOST_UV_BUILD = "7af826859"
+HOST_UV_PLATFORM = "x86_64-unknown-linux-gnu"
+HOST_UV_DATE = "2026-09-29"
+
+
+def _host_uv_callsign() -> dict[str, str]:
+    try:
+        completed = subprocess.run(
+            ["uv", "--version"], check=False, capture_output=True, text=True,
+        )
+    except OSError as exc:
+        raise GuardError(f"host uv toolchain is unavailable: {exc}") from exc
+    if completed.returncode != 0:
+        raise GuardError("host uv toolchain refused its version probe")
+    tokens = completed.stdout.strip().split()
+    if len(tokens) not in (4, 5) or tokens[0] != "uv" or not tokens[2].startswith("(") or not tokens[-1].endswith(")"):
+        raise GuardError("host uv version probe has an unexpected shape")
+    version, build = tokens[1], tokens[2].lstrip("(")
+    parts = version.strip().split(".")
+    if len(parts) != 3 or not all(part.isdigit() for part in parts):
+        raise GuardError(f"host uv version is not a pinned triple: {version!r}")
+    if not build or any(char not in "0123456789abcdef" for char in build):
+        raise GuardError(f"host uv build is not a pinned hash: {build!r}")
+    return {"uv_version": version, "uv_build": build}
+
+
+def _validate_host_uv_toolchain(binding: dict[str, Any]) -> dict[str, str]:
+    runtime = binding.get("runtime", {})
+    if runtime.get("uv_version") != HOST_UV_VERSION or runtime.get("uv_build") != HOST_UV_BUILD:
+        raise GuardError("binding does not carry the observed host uv provider pin")
+    observed = _host_uv_callsign()
+    if observed.get("uv_version") != HOST_UV_VERSION or observed.get("uv_build") != HOST_UV_BUILD:
+        raise GuardError("host uv toolchain differs from the bound provider; refusing before contact")
+    return observed
 
 
 def _validate_runtime_dependencies(
@@ -861,6 +898,10 @@ def _expected_config_fields(binding: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+
+
+
+
 def _load_stage_state(binding: dict[str, Any], root: Path) -> tuple[Path, Path, list[dict[str, Any]]]:
     candidate_root, attempt_root, ledger_path = _candidate_paths(binding, root)
     _assert_safe_candidate_path(root, candidate_root)
@@ -888,8 +929,8 @@ def _load_stage_state(binding: dict[str, Any], root: Path) -> tuple[Path, Path, 
     return candidate_root, attempt_root, events
 
 
-def _fail_candidate(ledger: Path, binding: dict[str, Any], reason: str) -> None:
-    append_event(ledger, "candidate_rejected", {
+def _fail_candidate(ledger_path: Path, binding: dict[str, Any], reason: str) -> None:
+    append_event(ledger_path, "candidate_rejected", {
         "candidate_id": binding["candidate_id"],
         "binding_sha256": binding["binding_sha256"],
         "reason": reason,
@@ -897,7 +938,7 @@ def _fail_candidate(ledger: Path, binding: dict[str, Any], reason: str) -> None:
 
 
 def run_preflight(binding: dict[str, Any], root: Path) -> int:
-    candidate_root, attempt_root, ledger = _candidate_paths(binding, root)
+    candidate_root, attempt_root, preflight_ledger = _candidate_paths(binding, root)
     _assert_safe_candidate_path(root, candidate_root)
     _assert_safe_candidate_path(root, attempt_root)
     candidate_root.parent.mkdir(parents=True, exist_ok=True)
@@ -914,8 +955,8 @@ def run_preflight(binding: dict[str, Any], root: Path) -> int:
         handle.flush()
         os.fsync(handle.fileno())
     _fsync_directory_chain(attempt_root, root)
-    append_event(ledger, "attempt_started", marker)
-    append_event(ledger, "preflight_started", {
+    append_event(preflight_ledger, "attempt_started", marker)
+    append_event(preflight_ledger, "preflight_started", {
         "candidate_id": binding["candidate_id"], "profile_id": PROFILE,
         "protocol_id": PROTOCOL,
         "in_memory_waveforms_expected": True,
@@ -936,7 +977,7 @@ def run_preflight(binding: dict[str, Any], root: Path) -> int:
             handle.flush()
             os.fsync(handle.fileno())
         digest = sha256_bytes(raw)
-        append_event(ledger, "preflight_recorded", {
+        append_event(preflight_ledger, "preflight_recorded", {
             "result_path": str(output), "result_sha256": digest,
             "verdict": result.get("verdict"),
             "feasible_count": result.get("feasible_count"),
@@ -946,11 +987,11 @@ def run_preflight(binding: dict[str, Any], root: Path) -> int:
             "persisted_candidate_manifests": False,
         })
         if result.get("verdict") != "PREFLIGHT-PASS":
-            _fail_candidate(ledger, binding, "fixed_16_history_preflight_rejected")
+            _fail_candidate(preflight_ledger, binding, "fixed_16_history_preflight_rejected")
             return 2
         return 0
     except BaseException as exc:
-        _fail_candidate(ledger, binding, f"preflight_exception:{type(exc).__name__}:{exc}")
+        _fail_candidate(preflight_ledger, binding, f"preflight_exception:{type(exc).__name__}:{exc}")
         raise
 
 def _release_stage_precondition(release: dict[str, Any], stage: str) -> None:
@@ -969,7 +1010,7 @@ def _verify_preflight_pass(
         event for event in events if event.get("event_type") == "preflight_recorded"
     ]
     if len(recorded_events) != 1 or recorded_events[0].get("verdict") != "PREFLIGHT-PASS":
-        raise GuardError("all-16 fixed-order preflight has not passed exactly once")
+        raise GuardError("fixed-order preflight has not passed exactly once")
     raw_path = attempt_root / "preflight-raw.json"
     _assert_safe_candidate_path(attempt_root, raw_path)
     recorded = recorded_events[0]
@@ -979,13 +1020,14 @@ def _verify_preflight_pass(
     entries = binding["role_binding"]
     expected_seeds = [entry["data_seed"] for entry in entries]
     expected_roles = [entry["role"] for entry in entries]
+    expected_count = f"{len(entries)}/{len(entries)}"
     results = result.get("results")
     if (result.get("protocol") != PROTOCOL
             or result.get("seeds") != expected_seeds
-            or result.get("feasible_count") != "16/16"
+            or result.get("feasible_count") != expected_count
             or result.get("verdict") != "PREFLIGHT-PASS"
             or not isinstance(results, list)
-            or len(results) != 16):
+            or len(results) != len(entries)):
         raise GuardError("raw preflight record is not the exact fixed roster PASS")
     for index, (item, seed, role) in enumerate(zip(results, expected_seeds, expected_roles, strict=True)):
         qualification = item.get("qualification")
@@ -1002,7 +1044,7 @@ def _verify_preflight_pass(
 
 
 def _materialize_entries(
-    binding: dict[str, Any], root: Path, attempt_root: Path, ledger: Path,
+    binding: dict[str, Any], root: Path, attempt_root: Path, ledger_path: Path,
     events: list[dict[str, Any]], entries: list[dict[str, Any]],
 ) -> int:
     completed = [event for event in events if event.get("event_type") == "role_materialized"]
@@ -1010,7 +1052,7 @@ def _materialize_entries(
     completed_ids = [event.get("history_id") for event in completed]
     started_ids = [event.get("history_id") for event in started]
     if started_ids != completed_ids:
-        _fail_candidate(ledger, binding, "interrupted_materialization_no_resume")
+        _fail_candidate(ledger_path, binding, "interrupted_materialization_no_resume")
         raise GuardError("interrupted materialization retires candidate; no resume")
     expected_ids = [entry["history_id"] for entry in binding["role_binding"]]
     if completed_ids != expected_ids[:len(completed_ids)]:
@@ -1023,9 +1065,9 @@ def _materialize_entries(
         target = root / entry["directory"]
         _assert_safe_candidate_path(root, target)
         if target.is_symlink() or target.exists():
-            _fail_candidate(ledger, binding, f"role_output_already_exists:{entry['history_id']}")
+            _fail_candidate(ledger_path, binding, f"role_output_already_exists:{entry['history_id']}")
             raise GuardError("bound role output exists; no overwrite or replacement")
-        append_event(ledger, "role_materialization_started", {
+        append_event(ledger_path, "role_materialization_started", {
             "candidate_id": binding["candidate_id"],
             "history_id": entry["history_id"], "role": entry["role"],
             "data_seed": entry["data_seed"], "directory": str(target),
@@ -1039,7 +1081,7 @@ def _materialize_entries(
         env = _entrypoint_child_environment(root)
         completed_process = subprocess.run(command, cwd=root, env=env, check=False)
         if completed_process.returncode != 0:
-            _fail_candidate(ledger, binding, f"public_cli_failed:{entry['history_id']}:{completed_process.returncode}")
+            _fail_candidate(ledger_path, binding, f"public_cli_failed:{entry['history_id']}:{completed_process.returncode}")
             return completed_process.returncode
         try:
             manifest = target / "manifest.json"
@@ -1053,9 +1095,9 @@ def _materialize_entries(
             if loaded_manifest.get("config_hash") != entry["config_hash"]:
                 raise GuardError("public loader returned a different config hash")
         except BaseException as exc:
-            _fail_candidate(ledger, binding, f"public_loader_failed:{entry['history_id']}:{type(exc).__name__}:{exc}")
+            _fail_candidate(ledger_path, binding, f"public_loader_failed:{entry['history_id']}:{type(exc).__name__}:{exc}")
             raise
-        append_event(ledger, "role_materialized", {
+        append_event(ledger_path, "role_materialized", {
             "candidate_id": binding["candidate_id"],
             "history_id": entry["history_id"], "role": entry["role"],
             "data_seed": entry["data_seed"], "directory": str(target),
@@ -1063,8 +1105,9 @@ def _materialize_entries(
             "loader_manifest_role": loaded_manifest["role"],
         })
         next_index += 1
-        events = read_ledger(ledger)
+        events = read_ledger(ledger_path)
     return 0
+
 
 
 def _verify_qualification_record(
@@ -1105,7 +1148,7 @@ def record_nonconfirmation_result(
     binding: dict[str, Any], root: Path, record_path: Path,
     expected_sha256: str,
 ) -> int:
-    _, attempt_root, ledger = _candidate_paths(binding, root)
+    _, attempt_root, pass_ledger_path = _candidate_paths(binding, root)
     _, _, events = _load_stage_state(binding, root)
     _verify_preflight_pass(binding, attempt_root, events)
     materialized = [event for event in events if event.get("event_type") == "role_materialized"]
@@ -1118,9 +1161,9 @@ def record_nonconfirmation_result(
     try:
         record = _verify_qualification_record(binding, record_path, expected_sha256)
     except GuardError as exc:
-        _fail_candidate(ledger, binding, f"nonconfirmation_qualification_rejected:{exc}")
+        _fail_candidate(pass_ledger_path, binding, f"nonconfirmation_qualification_rejected:{exc}")
         raise
-    append_event(ledger, "nonconfirmation_qualification_pass", {
+    append_event(pass_ledger_path, "nonconfirmation_qualification_pass", {
         "candidate_id": binding["candidate_id"],
         "qualification_path": str(record_path),
         "qualification_sha256": expected_sha256,
@@ -1190,8 +1233,8 @@ def run_confirmation(
     task69_release = verify_task69_release(
         binding, record_sha256, task69_release_path, task68_checkpoint, root,
     )
-    _, attempt_root, ledger = _load_stage_state(binding, root)
-    events = read_ledger(ledger)
+    _, attempt_root, confirmation_ledger_path = _candidate_paths(binding, root)
+    _, _, events = _load_stage_state(binding, root)
     if not any(event.get("event_type") == "nonconfirmation_qualification_pass"
                and event.get("qualification_sha256") == record_sha256 for event in events):
         raise GuardError("Task69 preceding-role PASS is not durably recorded")
@@ -1220,22 +1263,22 @@ def run_confirmation(
         for event in events
     )
     if confirmation_started and not authorized:
-        _fail_candidate(ledger, binding, "confirmation_materialization_without_release")
+        _fail_candidate(confirmation_ledger_path, binding, "confirmation_materialization_without_release")
         raise GuardError("Confirmation started without its separate Main authorization")
     if authorized:
         if (len(confirmation_completed) == 4 and len(confirmation_started) == 4
                 and [event.get("history_id") for event in confirmation_completed] == confirmation_ids):
             raise GuardError("Confirmation is already materialized; do not replay it")
-        _fail_candidate(ledger, binding, "interrupted_confirmation_no_resume")
+        _fail_candidate(confirmation_ledger_path, binding, "interrupted_confirmation_no_resume")
         raise GuardError("interrupted Confirmation attempt retires candidate; no resume")
-    append_event(ledger, "confirmation_materialization_authorized", {
+    append_event(confirmation_ledger_path, "confirmation_materialization_authorized", {
         "candidate_id": binding["candidate_id"],
         "qualification_sha256": record_sha256,
         "task69_release_path": str(task69_release_path),
         "task69_checkpoint_commit": task69_release["task69_checkpoint_commit"],
     })
     return _materialize_entries(
-        binding, root, attempt_root, ledger, read_ledger(ledger),
+        binding, root, attempt_root, confirmation_ledger_path, read_ledger(confirmation_ledger_path),
         binding["role_binding"][12:],
     )
 
@@ -1280,27 +1323,28 @@ def _smoke_binding(binding: dict[str, Any], root: Path) -> dict[str, Any]:
             "config_hash": cfg.hash(),
         })
     fixture["collision_catalog"]["candidate_intersection"] = []
+    fixture["runtime"]["uv_version"] = HOST_UV_VERSION
+    fixture["runtime"]["uv_build"] = HOST_UV_BUILD
     fixture.pop("binding_sha256", None)
     fixture["binding_sha256"] = _candidate_digest(fixture)
     return fixture
 
-
 def run_no_contact_smoke(binding: dict[str, Any], root: Path) -> None:
-    expected_seeds = list(range(32032, 32048))
+    expected_seeds = list(range(32048, 32064))
     entries = _role_entries(binding)
     expected_history_ids: list[str] = []
     ordinals: dict[str, int] = {}
     for role in ROLE_IDS:
         ordinals[role] = ordinals.get(role, 0) + 1
         expected_history_ids.append(
-            f"S18I-ITER-0003-{ROLE_SUFFIX[role]}-{ordinals[role]:02d}"
+            f"S18I-ITER-0004-{ROLE_SUFFIX[role]}-{ordinals[role]:02d}"
         )
     seed_block = binding.get("seed_block", {})
     if (
-        binding.get("candidate_id") != "S18-ITER-0003"
-        or binding.get("candidate_number") != 3
+        binding.get("candidate_id") != "S18-ITER-0004"
+        or binding.get("candidate_number") != 4
         or binding.get("contact_authorized") is not False
-        or seed_block.get("first_seed") != 32032
+        or seed_block.get("first_seed") != 32048
         or seed_block.get("size") != 16
         or seed_block.get("stride") != 1
         or seed_block.get("seeds") != expected_seeds
@@ -1308,7 +1352,7 @@ def run_no_contact_smoke(binding: dict[str, Any], root: Path) -> None:
         or [entry.get("data_seed") for entry in entries] != expected_seeds
         or [entry.get("history_id") for entry in entries] != expected_history_ids
     ):
-        raise GuardError("no-contact smoke requires the exact unreleased candidate-3 binding")
+        raise GuardError("no-contact smoke requires the exact unreleased candidate-4 binding")
     validate_binding(binding, root, disposable=True, check_sources=False)
     fixture = _smoke_binding(binding, root)
     validate_binding(fixture, root, disposable=True, check_sources=True)
@@ -1402,10 +1446,11 @@ def run_no_contact_smoke(binding: dict[str, Any], root: Path) -> None:
         else:
             raise GuardError("NUL-containing source unexpectedly passed")
     runner_relative = Path(__file__).resolve().relative_to(root.resolve()).as_posix()
+    retirement_relative = "experiments/sprint18-candidate3-custody-retirement-v1.json"
     bound_git_blobs = binding["source_closure"]["git_blob_oid_by_path"]
     unchanged_git_blobs = {
         relative: oid for relative, oid in bound_git_blobs.items()
-        if relative != runner_relative
+        if relative not in (runner_relative, retirement_relative)
     }
     if len(unchanged_git_blobs) != 51:
         raise GuardError("source closure does not contain exactly 51 unchanged blob members")
@@ -1418,6 +1463,12 @@ def run_no_contact_smoke(binding: dict[str, Any], root: Path) -> None:
     ).stdout.strip()
     if runner_blob_oid != bound_git_blobs[runner_relative]:
         raise GuardError("expected path-filtered runner Git blob differs from its frozen identity")
+    retirement_blob_oid = subprocess.run(
+        ["git", "hash-object", f"--path={retirement_relative}", retirement_relative],
+        cwd=root, check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    if retirement_blob_oid != bound_git_blobs[retirement_relative]:
+        raise GuardError("expected path-filtered retirement Git blob differs from its frozen identity")
     bad_git_blobs = copy.deepcopy(unchanged_git_blobs)
     bad_git_blobs["src/synth/chronicle.py"] = "0" * 40
     try:
@@ -1481,7 +1532,36 @@ def run_no_contact_smoke(binding: dict[str, Any], root: Path) -> None:
             raise GuardError(f"negative runtime dependency smoke unexpectedly passed: {label}")
 
     entrypoint_negative_cases: list[str] = []
+    host_uv_negative_cases: list[str] = []
+    stale_binding = copy.deepcopy(fixture)
+    stale_binding["runtime"]["uv_version"] = "0.12.20"
+    stale_binding["runtime"]["uv_build"] = "2274b80d6"
+    try:
+        _validate_host_uv_toolchain(stale_binding)
+    except GuardError:
+        host_uv_negative_cases.append("host-uv-stale-binding-pin")
+    else:
+        raise GuardError("stale host uv binding pin unexpectedly passed")
+    wrong_version = copy.deepcopy(fixture)
+    wrong_version["runtime"]["uv_version"] = "0.0.0"
+    wrong_version["runtime"]["uv_build"] = HOST_UV_BUILD
+    try:
+        _validate_host_uv_toolchain(wrong_version)
+    except GuardError:
+        host_uv_negative_cases.append("host-uv-wrong-version-pin")
+    else:
+        raise GuardError("wrong host uv version pin unexpectedly passed")
+    wrong_build = copy.deepcopy(fixture)
+    wrong_build["runtime"]["uv_version"] = HOST_UV_VERSION
+    wrong_build["runtime"]["uv_build"] = "0" * 9
+    try:
+        _validate_host_uv_toolchain(wrong_build)
+    except GuardError:
+        host_uv_negative_cases.append("host-uv-wrong-build-pin")
+    else:
+        raise GuardError("wrong host uv build pin unexpectedly passed")
     expected_pythonpath = _entrypoint_pythonpath(root)
+    saved_environ = dict(os.environ)
     for label, key, invalid_value in (
         ("entrypoint-missing-pythonpath", "PYTHONPATH", None),
         (
@@ -1508,6 +1588,8 @@ def run_no_contact_smoke(binding: dict[str, Any], root: Path) -> None:
                 os.environ[key] = previous if previous is not None else ""
             else:
                 os.environ.pop(key, None)
+    os.environ.clear()
+    os.environ.update(saved_environ)
 
     raw_sha = sha256_bytes(canonical_json(fixture) + b"\n")
     release = {
@@ -1682,17 +1764,21 @@ def run_no_contact_smoke(binding: dict[str, Any], root: Path) -> None:
         "positive_binding_and_release": "PASS",
         "task69_release_identity_and_direct_parent": "PASS",
         "source_identity_variants": source_identity_passes,
-        "source_identity_git_blob_smoke": "PASS_51_BASE_TREE_RUNNER_FILTERED_EXPECTATION",
+        "source_identity_git_blob_smoke": "PASS_51_BASE_TREE_RUNNER_RETIREMENT_FILTERED_EXPECTATION",
         "negative_cases": (
             [label for label, _ in mutations]
             + ["release-identity", "release-parent", "historical-release-schema", "task69-evidence-provenance", "task69-wrong-parent"]
             + source_negative_cases
             + runtime_negative_cases
+            + host_uv_negative_cases
             + entrypoint_negative_cases
         ),
         "runtime_binding_status": "PASS_PROSPECTIVE_ONLY",
         "entrypoint_environment_status": "PASS_DISPOSABLE_SOURCE_CONTRACT",
         "child_source_origin_smoke": child_source_origin_smoke,
+        "host_uv_binding_status": "PASS_PIN_ONLY_WINDOWS_STATIC_SMOKE",
+        "host_uv_version": HOST_UV_VERSION,
+        "host_uv_build": HOST_UV_BUILD,
         "runtime_dependency_metadata_status": "PASS_RECORDED_A02_METADATA_ONLY",
         "runtime_environment_binding_status": fixture["runtime"]["environment_status_at_binding"],
         "runtime_observation": _runtime_observation(),
@@ -1720,6 +1806,34 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def dispatch_stage(binding: dict[str, Any], root: Path, stage: str) -> int:
+    """Run one public candidate stage end-to-end through the live dispatcher.
+
+    This is the public stage dispatcher: it performs the full
+    load → guard → loop → reload control flow for the requested stage using
+    the current module bytecode (not a private helper slice). The CLI
+    `--stage` entry delegates to this function so both paths are identical.
+    """
+    if stage == "materialize-nonconfirmation":
+        _, attempt_root, nonconfirmation_ledger_path = _candidate_paths(binding, root)
+        _, _, events = _load_stage_state(binding, root)
+        _verify_preflight_pass(binding, attempt_root, events)
+        if any(event.get("event_type") == "role_materialization_started" for event in events):
+            started = [event for event in events if event.get("event_type") == "role_materialization_started"]
+            materialized = [event for event in events if event.get("event_type") == "role_materialized"]
+            if len(started) != len(materialized):
+                _fail_candidate(nonconfirmation_ledger_path, binding, "interrupted_materialization_no_resume")
+                raise GuardError("incomplete candidate roots are preserved; no resume")
+        completed = [event["history_id"] for event in events if event.get("event_type") == "role_materialized"]
+        expected = [entry["history_id"] for entry in binding["role_binding"][:12]]
+        if completed and completed != expected[:len(completed)]:
+            raise GuardError("non-Confirmation materialization is not an ordered prefix")
+        return _materialize_entries(
+            binding, root, attempt_root, nonconfirmation_ledger_path, events,
+            binding["role_binding"][len(completed):12],
+        )
+    raise GuardError(f"unsupported stage {stage}")
+
 def main() -> int:
     args = parse_args()
     try:
@@ -1735,12 +1849,15 @@ def main() -> int:
             return 0
         if args.stage == "validate":
             validate_runtime(binding, ROOT)
+            host_uv = _validate_host_uv_toolchain(binding)
             print(json.dumps({
                 "result": "STATIC_BINDING_PASS", "candidate_id": binding["candidate_id"],
                 "binding_sha256": binding["binding_sha256"],
                 "binding_file_sha256": sha256_bytes(binding_bytes),
                 "source_closure_sha256": binding["source_closure"]["closure_sha256"],
                 "contacted": False,
+                "host_uv_version": host_uv["uv_version"],
+                "host_uv_build": host_uv["uv_build"],
             }, indent=2))
             return 0
         if args.release is None:
@@ -1763,27 +1880,12 @@ def main() -> int:
             stage=args.stage, task69_release=task69_release,
         )
         _release_stage_precondition(release, args.stage)
+        _validate_host_uv_toolchain(binding)
         validate_runtime(binding, ROOT)
         if args.stage == "preflight":
             return run_preflight(binding, ROOT)
         if args.stage == "materialize-nonconfirmation":
-            _, attempt_root, ledger = _load_stage_state(binding, ROOT)
-            events = read_ledger(ledger)
-            _verify_preflight_pass(binding, attempt_root, events)
-            if any(event.get("event_type") == "role_materialization_started" for event in events):
-                started = [event for event in events if event.get("event_type") == "role_materialization_started"]
-                materialized = [event for event in events if event.get("event_type") == "role_materialized"]
-                if len(started) != len(materialized):
-                    _fail_candidate(ledger, binding, "interrupted_materialization_no_resume")
-                    raise GuardError("incomplete candidate roots are preserved; no resume")
-            completed = [event["history_id"] for event in events if event.get("event_type") == "role_materialized"]
-            expected = [entry["history_id"] for entry in binding["role_binding"][:12]]
-            if completed and completed != expected[:len(completed)]:
-                raise GuardError("non-Confirmation materialization is not an ordered prefix")
-            return _materialize_entries(
-                binding, ROOT, attempt_root, ledger, events,
-                binding["role_binding"][len(completed):12],
-            )
+            return dispatch_stage(binding, ROOT, "materialize-nonconfirmation")
         if args.stage == "record-nonconfirmation-pass":
             if args.qualification_record is None or args.qualification_sha256 is None:
                 raise GuardError("Task69 record stage requires its exact path and SHA-256")
