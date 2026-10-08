@@ -2,11 +2,54 @@
 from __future__ import annotations
 
 import argparse
-from importlib.metadata import version
+import sys
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
 
 _DISTRIBUTION_NAME = "anomaly-representation-learning"
+
+
+class _LazyDistributionVersionAction(argparse.Action):
+    """Print the installed distribution version only when --version is used.
+
+    The version string is resolved lazily inside ``__call__`` so that every
+    other CLI invocation (including ``--help`` and all generation commands)
+    works from a plain source checkout without installed package metadata.
+    On success the version is printed to stdout exactly like the standard
+    ``argparse`` version action (exit 0, no side effects). When metadata is
+    absent, ``--version`` reports the honest missing-metadata error on
+    stderr (exit 2) instead of a fabricated fallback version.
+    """
+
+    def __init__(
+        self,
+        option_strings: list[str],
+        dest: str = argparse.SUPPRESS,
+        default: str = argparse.SUPPRESS,
+        help: str | None = None,
+    ) -> None:
+        super().__init__(
+            option_strings,
+            dest=dest,
+            default=default,
+            nargs=0,
+            help=help,
+        )
+
+    def __call__(
+        self,
+        parser: argparse.ArgumentParser,
+        namespace: argparse.Namespace,
+        values: str | list[object] | None,
+        option_string: str | None = None,
+    ) -> None:
+        try:
+            resolved = version(_DISTRIBUTION_NAME)
+        except PackageNotFoundError as exc:
+            parser.error(f"package metadata is unavailable: {exc}")
+        print(resolved, file=sys.stdout)
+        parser.exit()
 
 
 def _load_generation_dependencies():
@@ -20,8 +63,7 @@ def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="Generate coherent synthetic anomaly data")
     p.add_argument(
         "--version",
-        action="version",
-        version=version(_DISTRIBUTION_NAME),
+        action=_LazyDistributionVersionAction,
         help="show the project version and exit",
     )
     p.add_argument("--output", type=Path, required=True, help="output directory")

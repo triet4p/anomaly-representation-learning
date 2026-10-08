@@ -1,7 +1,7 @@
 """Consumer regression: stage ledger-Path contract and whole-fresh no-resume.
 
 Guards the Task-69 R06 ledger-Path defect at the consumer boundary plus the
-Task-68 candidate-4 whole-fresh cutover:
+Task-68 candidate-5 whole-fresh cutover:
 
 - Stage callers carry the ledger as a Path from _candidate_paths while the
   event list comes from _load_stage_state (passing the list as a Path raised
@@ -9,10 +9,20 @@ Task-68 candidate-4 whole-fresh cutover:
 - The public dispatcher `dispatch_stage` runs the full load → guard → loop
   control flow (not a private-helper slice); the `--stage` CLI delegates to
   it so both paths are identical.
-- The binding is whole-fresh: candidate S18-ITER-0004 seeds 32048–32063,
+- The binding is whole-fresh: candidate S18-ITER-0005 seeds 32064–32079,
   strict no-resume on interruption, exact 16-role order/permissions/paths,
   and collision catalog disjointness from all retired seeds.
 - A stale host-uv binding pin still refuses.
+- The public CLI parser builds without installed package metadata: an eager
+  ``--version`` probe inside ``build_parser()`` (Task-69 A06) refused every
+  CLI invocation on runtimes whose environment lacks the application
+  distribution, including plain ``--help``. ``build_parser()`` must succeed
+  with the distribution masked, while ``--version`` alone resolves the real
+  installed version (or reports the honest missing-metadata error).
+- The pre-contact runtime guard runs the real same-interpreter public CLI
+  parser child (``python -m synth.cli --help`` plus the bound origin probe)
+  before contact (Task-69 R07 MEDIUM gap); a parser refusal fails closed
+  naming the child exit instead of retiring a candidate.
 
 No candidate contact: all ledger/marker state lives under tmp_path, using a
 tiny disposable binding whose seed block is disjoint from every bound roster.
@@ -23,6 +33,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -172,17 +183,17 @@ def test_host_uv_guard_rejects_stale_binding_pin() -> None:
         runner._validate_host_uv_toolchain(stale)
 
 
-def test_binding_is_whole_fresh_candidate4() -> None:
+def test_binding_is_whole_fresh_candidate5() -> None:
     binding = json.loads(
         (REPO_ROOT / "experiments" / "sprint18-iterative-binding-v1.json")
         .read_text(encoding="utf-8")
     )
-    assert binding["candidate_id"] == "S18-ITER-0004"
-    assert binding["candidate_number"] == 4
+    assert binding["candidate_id"] == "S18-ITER-0005"
+    assert binding["candidate_number"] == 5
     assert binding["contact_authorized"] is False
-    assert binding["seed_block"]["seeds"] == list(range(32048, 32064))
+    assert binding["seed_block"]["seeds"] == list(range(32064, 32080))
     assert [e["data_seed"] for e in binding["role_binding"]] == list(
-        range(32048, 32064)
+        range(32064, 32080)
     )
     assert [e["role"] for e in binding["role_binding"]] == (
         ["DESIGN"] * 4 + ["FIT"] * 3 + ["CALIBRATION"]
@@ -191,9 +202,9 @@ def test_binding_is_whole_fresh_candidate4() -> None:
     assert binding["attempt_policy"]["no_resume"] is True
     assert "resume_rule" not in binding["attempt_policy"]
     catalog = binding["collision_catalog"]
-    assert catalog["candidate_seeds"] == list(range(32048, 32064))
+    assert catalog["candidate_seeds"] == list(range(32064, 32080))
     assert catalog["candidate_intersection"] == []
-    assert catalog["excluded_unique_count"] == 405
+    assert catalog["excluded_unique_count"] == 421
     excluded: set[int] = set()
     for item in catalog["prior_data_seed_ranges"]:
         excluded.update(range(item["first"], item["last"] + 1))
@@ -201,7 +212,8 @@ def test_binding_is_whole_fresh_candidate4() -> None:
         excluded.update(range(item["first"], item["last"] + 1))
     excluded.update(catalog["prior_single_seeds"])
     assert 32032 in excluded and 32047 in excluded
-    assert sorted(set(range(32048, 32064)) & excluded) == []
+    assert 32048 in excluded and 32063 in excluded
+    assert sorted(set(range(32064, 32080)) & excluded) == []
     assert (
         hashlib.sha256(
             runner.canonical_json(sorted(excluded))
@@ -242,3 +254,84 @@ def test_release_receipt_rejects_stale_checkpoint_parent() -> None:
     )
     with pytest.raises(runner.GuardError, match="does not follow"):
         runner._validate_task69_checkpoint_parent("d" * 40, "c" * 40)
+
+
+def test_public_cli_parser_needs_no_installed_package_metadata(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """build_parser() must not probe distribution metadata; only --version may.
+
+    Regression for the Task-69 A06 boundary: an eager
+    ``version(_DISTRIBUTION_NAME)`` call inside ``build_parser()`` raised
+    ``PackageNotFoundError`` for EVERY CLI invocation (including ``--help``
+    and all generation commands) on the deployed runtime whose environment
+    has third-party distributions but no application ``dist-info``. The
+    parser must construct with the distribution masked, while ``--version``
+    alone resolves the real installed version (or, when truly absent, exits
+    non-zero naming the missing metadata instead of a fabricated fallback).
+    """
+    import importlib.metadata
+
+    import synth.cli as cli
+
+    real_version = importlib.metadata.version
+
+    def _masked(name: str, *args: object, **kwargs: object) -> str:
+        if name == cli._DISTRIBUTION_NAME:
+            raise importlib.metadata.PackageNotFoundError(name)
+        return real_version(name, *args, **kwargs)  # type: ignore[call-arg]
+
+    monkeypatch.setattr(importlib.metadata, "version", _masked)
+    # Parser construction is the A06 failure point: it must not probe metadata.
+    parser = cli.build_parser()
+    args = parser.parse_args(["--output", "dummy"])
+    assert args.output.name == "dummy"
+    assert "--version" in parser.format_help()
+    # Ordinary parsing still works while metadata is absent.
+    chronological = parser.parse_args([
+        "--chronological", "--profile", "sprint18-iterative-v3",
+        "--output", "dummy",
+    ])
+    assert chronological.profile == "sprint18-iterative-v3"
+    assert chronological.output.name == "dummy"
+
+    monkeypatch.undo()
+    # With real metadata, --version alone reports the installed version.
+    expected = importlib.metadata.version(cli._DISTRIBUTION_NAME)
+    with pytest.raises(SystemExit) as exit_info:
+        cli.main(["--version"])
+    assert exit_info.value.code == 0
+    assert expected == "0.1.0"
+
+
+def test_runtime_guard_exercises_real_cli_entrypoint_before_contact(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """validate_runtime must run the real SAME-interpreter CLI parser child.
+
+    Regression for the Task-69 R07 MEDIUM gap: ``validate_runtime`` passed
+    with exit 0 on the deployed runtime even though no CLI invocation could
+    succeed there. The guard now runs ``python -m synth.cli --help`` (plus a
+    same-interpreter origin probe asserting the child imported the live
+    checkout ``src/synth/cli.py`` that owns the guard) as a real subprocess
+    before contact; a parser failure must refuse with the child exit named.
+    No mocks: the child is the genuine public entrypoint.
+    """
+    binding = _tiny_binding()
+    observed = runner._validate_public_cli_entrypoint(binding, tmp_path)
+    expected_cli = (REPO_ROOT / "src" / "synth" / "cli.py").resolve()
+    assert Path(observed["cli_module_origin"]).resolve() == expected_cli
+    assert observed["cli_help_returncode"] == 0
+    assert observed["cli_profile_exposed"] == runner.PROFILE
+
+    real_run = subprocess.run
+
+    def _refusing_run(*args: object, **kwargs: object):  # type: ignore[no-untyped-def]
+        completed = real_run(*args, **kwargs)
+        completed.returncode = 1
+        completed.stderr = "importlib.metadata.PackageNotFoundError: No package metadata"
+        return completed
+
+    monkeypatch.setattr(subprocess, "run", _refusing_run)
+    with pytest.raises(runner.GuardError, match="public CLI entrypoint parser refused"):
+        runner._validate_public_cli_entrypoint(binding, tmp_path)

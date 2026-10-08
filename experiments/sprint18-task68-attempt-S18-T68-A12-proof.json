@@ -1,0 +1,169 @@
+{
+  "agent_id": "S18Task68A12",
+  "artifact_section": "artifacts/sprint-18/task-68.md#A12",
+  "attempt_id": "S18-T68-A12",
+  "base": "2b1bf310d15bb682e0278ae59ae64f62bb67589c",
+  "binding": {
+    "binding_file_bytes": 45046,
+    "binding_file_sha256": "c903f04bb3a64a30e66ee0cc02d91d02c23e432cb5a5d4ad79ea09d2b3a2086b",
+    "binding_sha256": "10e8bbbfe91951296536a2e5032162d4dd3f97bdda121d5d89ca787df4f5f532",
+    "candidate_root_relative": "data/generated/sprint18-iterative-v1/S18-ITER-0005",
+    "closure_members": 53,
+    "closure_sha256": "73f9125c3b28f9ff7127393f2a63d8c15baca53091ac7fe450788335ae1c10a6",
+    "collision_excluded_unique_count": 421,
+    "collision_exclusions_sha256": "410459391975b383e08fac64e4dee1e86e1828b07f676a257324014fb98aba6e",
+    "common_seed_independent_sha256": "e933feb61e94d39fb56a45fae742fa1222b321b238dd1f3608642418be279136",
+    "config_shorts": {
+      "32064": "aae5e52747a7",
+      "32065": "184e601edc70",
+      "32066": "4eae0187d333",
+      "32067": "eba370f48dc3",
+      "32068": "2d7524242fd4",
+      "32069": "8d51d85bb920",
+      "32070": "8c19eaeb8712",
+      "32071": "a33f48db784f",
+      "32072": "ea6d2254d6d3",
+      "32073": "cfe48c2960db",
+      "32074": "efdcfa19b506",
+      "32075": "e33293cdf1cd",
+      "32076": "b2315511312e",
+      "32077": "925d262fcc01",
+      "32078": "928cddace62f",
+      "32079": "f5ffb05669f0"
+    },
+    "no_resume": true,
+    "required_checkpoint_parent": "2b1bf310d15bb682e0278ae59ae64f62bb67589c",
+    "runner_blob_oid": "5d105014781932e2b4870ffb08d72f980f998493",
+    "runner_canonical_sha256": "a2b2113871ada9f2124d82e64b89edd936461bcd00bdb1f25ed1e64772686d80",
+    "cli_blob_oid": "2ad003f8722f356965fb05682387dcc3f6a5a83e",
+    "cli_canonical_sha256": "a8a6da7338b44f70a8041d74f37734facf0a8d1000138a6528c987b8e4bd0c5a",
+    "uv_build": "7af826859",
+    "uv_version": "0.12.21"
+  },
+  "candidate": {
+    "contact_in_this_attempt": false,
+    "final_candidate_path_contact": false,
+    "final_candidate_seeds_probed": [],
+    "id": "S18-ITER-0005",
+    "number": 5,
+    "resume_performed": false,
+    "seeds": "32064-32079"
+  },
+  "changed_paths": [
+    "src/synth/cli.py",
+    "experiments/sprint18_iterative_candidate_v1.py",
+    "experiments/sprint18-iterative-binding-v1.json",
+    "experiments/sprint18-candidate4-operational-retirement-v1.json",
+    "tests/synth/test_sprint18_stage_ledger_path.py",
+    "CHANGELOG.md",
+    ".agents/memory/decisions.md",
+    ".agents/memory/lessons-learned.md",
+    "experiments/sprint18-task68-attempt-S18-T68-A12-proof.json",
+    "experiments/sprint18-task68-attempt-S18-T68-A12-proof.md"
+  ],
+  "custody_retirement": {
+    "ledger_events": 5,
+    "ledger_reason": "public_cli_failed:S18I-ITER-0004-DESIGN-01:1",
+    "ledger_sha256": "8da8d907a1006c8ae852cd89877d0d50412d8793f6d7d80ebe2065175ace9d75",
+    "marker_sha256": "5a4d9884634363a78ed23c59b60b75e36114ee7749b8268eccbe7f31c3aff24f",
+    "materialized_roles": 0,
+    "preflight": "PREFLIGHT-PASS 16/16 preserved as historical failed-attempt evidence",
+    "preflight_raw_sha256": "de3ef9f5759faaec7d31f59dd7bc8ac4e8afd1f76729697184649154e937aa79",
+    "receipt_path": "artifacts/sprint-18/S18-ITER-0004-main-task68-release-v1.json",
+    "receipt_sha256": "2b21ffb19243b904449966e0d180c3c6c75a581c5e5e2ed2c110ad3a49b8ce18",
+    "record": "experiments/sprint18-candidate4-operational-retirement-v1.json",
+    "record_sha256": "b3a616897c453984acc5855a39ede891742feab421b261035f2e8175700737e9",
+    "retired_after": [
+      "S18-ITER-0001",
+      "S18-ITER-0002",
+      "S18-ITER-0003",
+      "S18-ITER-0004"
+    ]
+  },
+  "discarded_proofs": [
+    "copied-checkout snapshot harness v1 (s18-t68-a12-proof-harness.py + v2): --help exit 0 proven but --version leaked 0.1.0 via src/*.egg-info on the discovery path; FORBIDDEN copied/export-tree method, zero proof credit, harness deleted",
+    "first isolated venv (s18-t68-a12-isoprobe) + symlink-driver syntax-damaged iteration: boundary re-proven under approved junction method; envs removed"
+  ],
+  "future_task69_limit": "strict: after A12 review PASS + checkpoint (parent 2b1bf310) + deploy + new Main receipt for S18-ITER-0005, Task69 success checkpoint must directly parent the new Task68 checkpoint; later Task69 Main release permits all-16 one-shot in-memory preflight incl Conf, then ONLY 12 non-Conf materialization/Task5 qual/hard/healthyFit>=200files/6000patches/Cal>=40/new-59 fixed causal Fit stats/std-1e-6/centroid-Cal-q95-freeze-before-Dev-EG4; Conf materialization/probe ONLY after all-12 Task69 PASS + checkpoint + Main Task70 release",
+  "hash_graph": "retirement record binds immutable A06 identities + Main decision/reason/R07 evidence (no hash of its own bytes); new 53-member closure (candidate4 operational record swaps candidate3 custody record; old record preserved on disk as historical evidence) hashes the retirement record and current cli/runner bytes; new closure digest hashes into the new binding digest; future Main release receipt binds new binding/closure/checkpoint; strict whole-fresh guards refuse any retired seed before any write",
+  "method": "sprint18-iterative-v3 unchanged (450-day, 225 cutoff, 2880 units, fixed-phase v3 hash, Hazard RNG, rates/count/noise/cadence/routes/maintenance, support-mix/lead/quota controls-min-48-allows-49+/hard-25/Design-32/full-ELIGIBLE-15-60/PW12A8)",
+  "preserved_bytes": [
+    "experiments/sprint18-iterative-resume-policy-v1.json",
+    "experiments/sprint18-task68-attempt-S18-T68-A08-proof.json/.md",
+    "experiments/sprint18-task68-attempt-S18-T68-A09-proof.json/.md",
+    "experiments/sprint18-task68-attempt-S18-T68-A11-proof.json/.md",
+    "all candidate-1..4 markers/ledgers/receipts"
+  ],
+  "proof": {
+    "decisive_disposable": {
+      "child_interpreter": "C:/Users/admin/AppData/Local/Temp/s18-t68-a12-iso/Scripts/python.exe (isolated disposable venv: numpy 2.5.2 / scipy 1.18.1 / torch 2.14.0+cpu, app dist-info ABSENT verified by real PackageNotFoundError)",
+      "config_hashes": {
+        "94102": "8446fb2f74b4",
+        "94103": "1b6c03f8c311"
+      },
+      "dispatch": "dispatch_stage(fixture, proofwork, 'materialize-nonconfirmation') end-to-end through the PUBLIC dispatcher (load -> guard -> loop -> reload, current bytecode); CLI --stage delegates to the same function",
+      "disjointness": "fixture {94102,94103} arithmetically disjoint from ALL bound/retired seeds 32000..32079 (intersection [] verified BEFORE any data; min distance 62023); fixture role IDs S18I-PROOF-A12B-* never slice final binding roles",
+      "entrypoint": "exact derived PYTHONPATH proofwork/src:proofwork/experiments:proofwork with PYTHONDONTWRITEBYTECODE=1; sys.executable children are the isolated interpreter throughout",
+      "followup": "public load_chronological reload of both roots with role/protocol/config-hash checks PASS (6489 + 6479 samples)",
+      "guards": "honest --version exit 2 naming missing metadata with empty stdout (no fallback); installed-contract --version exit 0 == 0.1.0 on stdout in project venv",
+      "ledger_event_types": [
+        "attempt_started",
+        "preflight_started",
+        "preflight_recorded",
+        "role_materialization_started",
+        "role_materialized",
+        "role_materialization_started",
+        "role_materialized"
+      ],
+      "links": "junctions (rmdir-removable, zero byte copies): import-root/synth -> live repo src/synth; proofwork/src/synth -> live repo src/synth; proofwork/experiments -> live repo experiments; Path(__file__).resolve() equality asserted for cli.py/runner",
+      "loader_manifests": {
+        "DESIGN": "ccb68534595e67a22fcc3be86ef5dfd4c9ab42e08e5f5bed57d7c16bd481a9d4",
+        "FIT": "781b2a07712441d1cf9b124f1cdac069ecb06b80cf332eb95db1002f229bf9c8"
+      },
+      "materialized_roles": 2,
+      "preflight": "run_preflight_iterative_v3 over [94102,94103]/[DESIGN,FIT] in-memory PASS 2/2, no writes",
+      "public_cli_writes": [
+        {
+          "history_id": "S18I-PROOF-A12B-DESIGN-01",
+          "seed": 94102,
+          "samples": 6489,
+          "manifest_sha256": "502ae97ea47b28f7c1118d462542efaaa2b408bb1760fe8361ca4457a465a85e",
+          "config_hash": "8446fb2f74b4",
+          "rc": 0
+        },
+        {
+          "history_id": "S18I-PROOF-A12B-FIT-02",
+          "seed": 94103,
+          "samples": 6479,
+          "manifest_sha256": "0f557211458180e52c6c641cb923f8736600da51829561d7009a8343b3ba9ddc",
+          "config_hash": "1b6c03f8c311",
+          "rc": 0
+        }
+      ],
+      "reload_samples": [
+        6489,
+        6479
+      ],
+      "stage_rc": 0,
+      "ledger_sha256": "65fd39a5f9fd24258c45994208fa698eb524736110870de174845b4d9fa332f4"
+    },
+    "entrypoint_env": "exact derived PYTHONPATH with PYTHONDONTWRITEBYTECODE=1 for every child; default production stages use sys.executable (no interpreter parameter; A12 API expansion reverted)",
+    "guard_paths": {
+      "interrupted_materialization": "retires candidate; no resume (exercised)",
+      "stale_uv_pin_0.12.20": "refused (exercised)",
+      "tampered_marker": "refused (exercised)"
+    },
+    "no_contact_smoke": {
+      "mode": "disposable-static-no-contact",
+      "rc": 0
+    },
+    "regression": {
+      "file": "tests/synth/test_sprint18_stage_ledger_path.py",
+      "result": "9 passed (2 new: CLI metadata boundary + real CLI entrypoint guard)"
+    }
+  },
+  "review_scope": "src/synth/cli.py + experiments/sprint18_iterative_candidate_v1.py + experiments/sprint18-iterative-binding-v1.json + experiments/sprint18-candidate4-operational-retirement-v1.json + tests/synth/test_sprint18_stage_ledger_path.py + CHANGELOG.md against base 2b1bf310; task-68.md appendix and proof records are evidence only; historical policy/A08/A09/A11 proofs preserved but not ACTIVE scope",
+  "role": "explicit gold-task (Gold); received selector opencode-go/muse-spark-1.3-contributor:xhigh (blocking: false; provider-applied effort/quota unknown); no ranking claim; advisor_needed false throughout",
+  "schema_id": "sprint18-task68-proof-v1",
+  "task_id": "S18-T68"
+}

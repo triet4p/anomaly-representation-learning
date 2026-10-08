@@ -24,7 +24,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 BINDING_DEFAULT = ROOT / "experiments" / "sprint18-iterative-binding-v1.json"
-BASE_COMMIT = "cdfc8263f1683dba7c4402709744d3cb6437ae1b"
+BASE_COMMIT = "2b1bf310d15bb682e0278ae59ae64f62bb67589c"
 TASK68_A02_CHECKPOINT_COMMIT = "1b708542aeaba7a69c883893deb90ff591ce9d5f"
 ACCEPTED_METHOD_LINEAGE_COMMIT = "cd04a0a018c73ae91593ea4041742f05829041a6"
 TASK68_A02_SOURCE_CLOSURE_SHA256 = "e9a50ec7764d8a9cf869a522fbd00ca462beec16bd53ba6308dcb84b1863dd99"
@@ -69,7 +69,7 @@ EXPECTED_SOURCE_PATHS = frozenset({
     "docs/BENCHMARK_MEASURABILITY_EXIT_GATES_V2.md",
     "experiments/sprint15-benchmark-protocol-v7.md",
     "experiments/sprint15-observable-probe-v7.md",
-    "experiments/sprint18-candidate3-custody-retirement-v1.json",
+    "experiments/sprint18-candidate4-operational-retirement-v1.json",
     "experiments/sprint18-data-method-c2-v1.md",
     "experiments/sprint18-iterative-data-contract-v1.md",
     "experiments/sprint18-iterative-data-contract-v3.md",
@@ -419,8 +419,8 @@ def validate_binding(
 ) -> None:
     if binding.get("schema_id") != "sprint18-iterative-binding-v1":
         raise GuardError("unsupported candidate binding schema")
-    if binding.get("candidate_id") != "S18-ITER-0004" and not disposable:
-        raise GuardError("candidate identity differs from the frozen fourth block")
+    if binding.get("candidate_id") != "S18-ITER-0005" and not disposable:
+        raise GuardError("candidate identity differs from the frozen fifth block")
     if binding.get("profile_id") != PROFILE or binding.get("generator_protocol_id") != PROTOCOL:
         raise GuardError("profile or protocol identity mismatch")
     if binding.get("contract_sha256") != "544de84bc201a07140559058d100c991cd148b698f93058dbd37d7fe4dc3c929":
@@ -480,8 +480,8 @@ def validate_binding(
         raise GuardError("invalid first seed")
     if not disposable:
         number = binding.get("candidate_number")
-        if number != 4 or first_seed != 32048 or seeds != list(range(32048, 32064)):
-            raise GuardError("candidate number or fixed 32048–32063 seed block mismatch")
+        if number != 5 or first_seed != 32064 or seeds != list(range(32064, 32080)):
+            raise GuardError("candidate number or fixed 32064–32079 seed block mismatch")
     elif seeds != list(range(first_seed, first_seed + 16)):
         raise GuardError("disposable smoke seed block must remain contiguous and ordered")
 
@@ -494,7 +494,7 @@ def validate_binding(
         role = expected_roles[index]
         ordinal = sum(1 for prior in expected_roles[:index] if prior == role) + 1
         if not disposable:
-            wanted_id = f"S18I-ITER-0004-{ROLE_SUFFIX[role]}-{ordinal:02d}"
+            wanted_id = f"S18I-ITER-0005-{ROLE_SUFFIX[role]}-{ordinal:02d}"
             if entry.get("history_id") != wanted_id:
                 raise GuardError(f"history identity/order mismatch at roster position {index}")
         expected_path = f"{root_relative}/{role}/{entry['history_id']}"
@@ -571,7 +571,7 @@ def validate_runtime_binding(binding: dict[str, Any]) -> None:
         "synth": worktree / "src/synth/__init__.py",
     }
     output_root = worktree / "data/generated"
-    candidate_root = output_root / "sprint18-iterative-v1/S18-ITER-0004"
+    candidate_root = output_root / "sprint18-iterative-v1/S18-ITER-0005"
     expected_entrypoint_environment = {
         "PYTHONDONTWRITEBYTECODE": "1",
         "PYTHONPATH": [
@@ -683,6 +683,74 @@ def _validate_runtime_observation(
         raise GuardError("runtime CUDA device identity mismatch")
 
 
+def _validate_public_cli_entrypoint(binding: dict[str, Any], root: Path) -> dict[str, Any]:
+    """Exercise the REAL SAME-INTERPRETER public CLI parser in a subprocess.
+
+    Runs the actual bound entrypoint environment (``sys.executable`` with the
+    exact three-prefix ``PYTHONPATH``) as ``python -m synth.cli --help`` in a
+    child process. ``--help`` performs no generation and requires no installed
+    package metadata, so it must exit 0 on every conforming runtime; this
+    fails closed BEFORE candidate contact when the child cannot even build
+    its argument parser (the exact A06 boundary: an eager ``--version``
+    metadata probe raised ``PackageNotFoundError`` for every CLI invocation).
+    The returned mapping records the exact child origin/interpreter identity
+    for durable evidence. No mocks: a tautological in-process import is not
+    sufficient — the real module entrypoint must parse in the child.
+    """
+    command = [sys.executable, "-m", "synth.cli", "--help"]
+    completed = subprocess.run(
+        command, cwd=root, env=_entrypoint_child_environment(root),
+        check=False, capture_output=True, text=True,
+    )
+    if completed.returncode != 0:
+        raise GuardError(
+            "public CLI entrypoint parser refused before contact: "
+            f"--help exited {completed.returncode}: {completed.stderr[-2000:]}"
+        )
+    if "sprint18-iterative-v3" not in completed.stdout:
+        raise GuardError(
+            "public CLI entrypoint does not expose the bound iterative profile"
+        )
+    # The child resolves `synth` through the entrypoint PYTHONPATH. In the
+    # bound deployment layout the first hit is <root>/src/synth/cli.py;
+    # in a bare disposable root (no src tree) Python falls through to the
+    # ambient project source, which the caller must pass as `root`. The
+    # probe therefore asserts the child origin equals THIS runner's live
+    # checkout file (the same bytecode that owns this guard), plus the
+    # same-interpreter identity and a successful parser build.
+    probe = subprocess.run(
+        [
+            sys.executable, "-c",
+            ("import sys; "
+             "import synth.cli as cli; "
+             "print(cli.__file__); "
+             "print(sys.executable); "
+             "print(cli.build_parser() is not None)"),
+        ],
+        cwd=root, env=_entrypoint_child_environment(root),
+        check=False, capture_output=True, text=True,
+    )
+    lines = probe.stdout.splitlines()
+    expected_cli = (ROOT / "src" / "synth" / "cli.py").resolve()
+    if (
+        probe.returncode != 0
+        or len(lines) != 3
+        or Path(lines[0]).resolve() != expected_cli
+        or Path(lines[1]).resolve() != Path(sys.executable).resolve()
+        or lines[2] != "True"
+    ):
+        raise GuardError(
+            "public CLI origin/interpreter probe refused before contact: "
+            f"exit {probe.returncode}: {probe.stderr[-2000:]}"
+        )
+    return {
+        "cli_module_origin": str(expected_cli),
+        "cli_child_interpreter": str(Path(sys.executable).resolve()),
+        "cli_help_returncode": completed.returncode,
+        "cli_profile_exposed": PROFILE,
+    }
+
+
 def validate_runtime(binding: dict[str, Any], root: Path) -> None:
     import numpy
     import scipy
@@ -712,6 +780,8 @@ def validate_runtime(binding: dict[str, Any], root: Path) -> None:
         ),
     }
     _validate_runtime_observation(binding, root, observed)
+    cli_probe = _validate_public_cli_entrypoint(binding, root)
+    observed["public_cli_entrypoint"] = cli_probe
 
 
 def validate_release_receipt(
@@ -1330,21 +1400,21 @@ def _smoke_binding(binding: dict[str, Any], root: Path) -> dict[str, Any]:
     return fixture
 
 def run_no_contact_smoke(binding: dict[str, Any], root: Path) -> None:
-    expected_seeds = list(range(32048, 32064))
+    expected_seeds = list(range(32064, 32080))
     entries = _role_entries(binding)
     expected_history_ids: list[str] = []
     ordinals: dict[str, int] = {}
     for role in ROLE_IDS:
         ordinals[role] = ordinals.get(role, 0) + 1
         expected_history_ids.append(
-            f"S18I-ITER-0004-{ROLE_SUFFIX[role]}-{ordinals[role]:02d}"
+            f"S18I-ITER-0005-{ROLE_SUFFIX[role]}-{ordinals[role]:02d}"
         )
     seed_block = binding.get("seed_block", {})
     if (
-        binding.get("candidate_id") != "S18-ITER-0004"
-        or binding.get("candidate_number") != 4
+        binding.get("candidate_id") != "S18-ITER-0005"
+        or binding.get("candidate_number") != 5
         or binding.get("contact_authorized") is not False
-        or seed_block.get("first_seed") != 32048
+        or seed_block.get("first_seed") != 32064
         or seed_block.get("size") != 16
         or seed_block.get("stride") != 1
         or seed_block.get("seeds") != expected_seeds
@@ -1352,7 +1422,7 @@ def run_no_contact_smoke(binding: dict[str, Any], root: Path) -> None:
         or [entry.get("data_seed") for entry in entries] != expected_seeds
         or [entry.get("history_id") for entry in entries] != expected_history_ids
     ):
-        raise GuardError("no-contact smoke requires the exact unreleased candidate-4 binding")
+        raise GuardError("no-contact smoke requires the exact unreleased candidate-5 binding")
     validate_binding(binding, root, disposable=True, check_sources=False)
     fixture = _smoke_binding(binding, root)
     validate_binding(fixture, root, disposable=True, check_sources=True)
@@ -1384,6 +1454,10 @@ def run_no_contact_smoke(binding: dict[str, Any], root: Path) -> None:
             "child import smoke did not resolve bound synth and both experiment import forms"
         )
     child_source_origin_smoke = "PASS_REAL_SUBPROCESS_BOUND_SYNTH_AND_EXPERIMENTS"
+    cli_probe = _validate_public_cli_entrypoint(binding, root)
+    if cli_probe["cli_profile_exposed"] != PROFILE:
+        raise GuardError("public CLI entrypoint does not expose the bound iterative profile")
+    child_cli_origin_smoke = "PASS_REAL_SUBPROCESS_PUBLIC_CLI_PARSER"
     source_identity_passes: list[str] = []
     for newline_style in ("LF", "CRLF"):
         with tempfile.TemporaryDirectory(prefix="s18-source-identity-") as temp:
@@ -1446,14 +1520,15 @@ def run_no_contact_smoke(binding: dict[str, Any], root: Path) -> None:
         else:
             raise GuardError("NUL-containing source unexpectedly passed")
     runner_relative = Path(__file__).resolve().relative_to(root.resolve()).as_posix()
-    retirement_relative = "experiments/sprint18-candidate3-custody-retirement-v1.json"
+    retirement_relative = "experiments/sprint18-candidate4-operational-retirement-v1.json"
+    cli_relative = "src/synth/cli.py"
     bound_git_blobs = binding["source_closure"]["git_blob_oid_by_path"]
     unchanged_git_blobs = {
         relative: oid for relative, oid in bound_git_blobs.items()
-        if relative not in (runner_relative, retirement_relative)
+        if relative not in (runner_relative, retirement_relative, cli_relative)
     }
-    if len(unchanged_git_blobs) != 51:
-        raise GuardError("source closure does not contain exactly 51 unchanged blob members")
+    if len(unchanged_git_blobs) != 50:
+        raise GuardError("source closure does not contain exactly 50 unchanged blob members")
     verify_git_source_blobs(
         {"source_closure": {"git_blob_oid_by_path": unchanged_git_blobs}}, root,
     )
@@ -1463,6 +1538,12 @@ def run_no_contact_smoke(binding: dict[str, Any], root: Path) -> None:
     ).stdout.strip()
     if runner_blob_oid != bound_git_blobs[runner_relative]:
         raise GuardError("expected path-filtered runner Git blob differs from its frozen identity")
+    cli_blob_oid = subprocess.run(
+        ["git", "hash-object", f"--path={cli_relative}", cli_relative],
+        cwd=root, check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    if cli_blob_oid != bound_git_blobs[cli_relative]:
+        raise GuardError("expected path-filtered CLI Git blob differs from its frozen identity")
     retirement_blob_oid = subprocess.run(
         ["git", "hash-object", f"--path={retirement_relative}", retirement_relative],
         cwd=root, check=True, capture_output=True, text=True,
@@ -1764,7 +1845,7 @@ def run_no_contact_smoke(binding: dict[str, Any], root: Path) -> None:
         "positive_binding_and_release": "PASS",
         "task69_release_identity_and_direct_parent": "PASS",
         "source_identity_variants": source_identity_passes,
-        "source_identity_git_blob_smoke": "PASS_51_BASE_TREE_RUNNER_RETIREMENT_FILTERED_EXPECTATION",
+        "source_identity_git_blob_smoke": "PASS_50_BASE_TREE_RUNNER_CLI_RETIREMENT_FILTERED_EXPECTATION",
         "negative_cases": (
             [label for label, _ in mutations]
             + ["release-identity", "release-parent", "historical-release-schema", "task69-evidence-provenance", "task69-wrong-parent"]
@@ -1776,6 +1857,8 @@ def run_no_contact_smoke(binding: dict[str, Any], root: Path) -> None:
         "runtime_binding_status": "PASS_PROSPECTIVE_ONLY",
         "entrypoint_environment_status": "PASS_DISPOSABLE_SOURCE_CONTRACT",
         "child_source_origin_smoke": child_source_origin_smoke,
+        "child_cli_origin_smoke": child_cli_origin_smoke,
+        "public_cli_entrypoint": cli_probe,
         "host_uv_binding_status": "PASS_PIN_ONLY_WINDOWS_STATIC_SMOKE",
         "host_uv_version": HOST_UV_VERSION,
         "host_uv_build": HOST_UV_BUILD,
