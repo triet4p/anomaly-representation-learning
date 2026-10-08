@@ -3,7 +3,8 @@
 Supported Linux invocations run from the bound root with
 `PYTHONDONTWRITEBYTECODE=1`, `PYTHONPATH=<boundroot>/src:<boundroot>/experiments:<boundroot>`,
 and `<boundroot>/.venv/bin/python`. Bare or differently rooted invocations fail closed.
-Contact stages require Main's exact release receipt and run only the bound
+Contact stages require Main's exact release receipt; assessment Confirmation also
+requires its separate corrected-execution receipt. They run only the bound
 preflight or the public chronological CLI.
 """
 from __future__ import annotations
@@ -49,6 +50,18 @@ ASSESSMENT_CANDIDATE_ROOT_RELATIVE = "data/generated/sprint18-iterative-v1/S18-I
 ASSESSMENT_ATTEMPT_DIRECTORY = "_assessment-001"
 ASSESSMENT_SCHEMA_ID = "sprint18-iterative-assessment-c5-allowance-v1"
 ASSESSMENT_RELEASE_SCHEMA_ID = "sprint18-main-assessment-release-v1"
+ASSESSMENT_EXECUTION_COMMIT = "003b94bc4ee131dd8c3581b750180f65731b25a4"
+QUALIFIED_TASK69_ASSESSMENT_CHECKPOINT = "7be574d9cf451e814e59d39005856f8af2bb774a"
+QUALIFIED_ASSESSMENT_BINDING_SHA256 = "8e2705140d07d9c603989ec709de5ebb766e580a8619b37c7462f6dd2751dd3b"
+QUALIFIED_ASSESSMENT_SOURCE_CLOSURE_SHA256 = "7528315eb72efaf42e3bcddb77e69bc3b66cbacd2c420ed205321a7d59f388a2"
+ASSESSMENT_EXECUTION_DESCRIPTOR_SCHEMA_ID = "sprint18-assessment-execution-descriptor-v1"
+ASSESSMENT_EXECUTION_DESCRIPTOR_FILENAME = "sprint18-assessment-execution-descriptor-v1.json"
+ASSESSMENT_EXECUTION_RELEASE_SCHEMA_ID = "sprint18-task70-corrected-execution-release-v1"
+QUALIFIED_ASSESSMENT_RUNNER_SHA256 = "125df99c727f1a27928c5cf9b2d65cffee76891852ecb27d5c95c61ddd2d7c76"
+QUALIFIED_ASSESSMENT_RUNNER_BLOB_OID = "702b37bb5570eae639528fd7d807444f044f8d67"
+QUALIFIED_ASSESSMENT_QUALIFICATION_SHA256 = "c5a8e8ccbc6be35a58fe7363ee4e8af489d3fafb93aaf6411c3936e5d349dc4b"
+QUALIFIED_ASSESSMENT_LEDGER_SHA256 = "625dcc1c6e14b43ac031afb590565a1af8461146579c8aff212d60bf3f061919"
+QUALIFIED_ASSESSMENT_LEDGER_EVENTS = 28
 ORIGINAL_ATTEMPT_DIRECTORY = "_attempt-001"
 ORIGINAL_BINDING_SHA256 = "10e8bbbfe91951296536a2e5032162d4dd3f97bdda121d5d89ca787df4f5f532"
 ORIGINAL_BINDING_FILE_SHA256 = "c903f04bb3a64a30e66ee0cc02d91d02c23e432cb5a5d4ad79ea09d2b3a2086b"
@@ -583,6 +596,432 @@ def validate_assessment_task69_release(
             or any(char not in "0123456789abcdef" for char in checkpoint)):
         raise GuardError("Task69 assessment release lacks its recorded project checkpoint")
     return checkpoint
+
+
+def resolve_assessment_execution_checkpoint(release: dict[str, Any]) -> str:
+    """Return the reviewed assessment execution checkpoint from a Main assessment release.
+
+    The `--release` receipt keeps threading its recorded `checkpoint_commit` for the
+    preflight/non-Confirmation ancestry contract, but the Task69 assessment receipt
+    carries the separately reviewed execution checkpoint (`assessment_checkpoint_commit`,
+    the assessment implementation commit that is the direct parent of the qualified
+    Task69 assessment checkpoint). The Confirmation dispatch MUST resolve this reviewed
+    execution identity from the Task69 release and validate it through Git ancestry
+    plus the closed source-closure and qualified-data identities below, never from a
+    caller-asserted string or an unguarded alternate stage.
+    """
+    candidate = release.get("assessment_checkpoint_commit")
+    if (not isinstance(candidate, str) or len(candidate) != 40
+            or any(char not in "0123456789abcdef" for char in candidate)):
+        raise GuardError("Task69 assessment release has no recorded assessment execution checkpoint")
+    if candidate != ASSESSMENT_EXECUTION_COMMIT:
+        raise GuardError("Task69 assessment release is not bound to the reviewed assessment execution checkpoint")
+    return candidate
+
+
+def _assessment_execution_descriptor_path(root: Path) -> Path:
+    return root / "experiments" / ASSESSMENT_EXECUTION_DESCRIPTOR_FILENAME
+
+
+def _assessment_execution_ancestors(root: Path, task69_checkpoint: str) -> tuple[str, str, str]:
+    """Resolve the reviewed execution ancestry for the assessment entry gate.
+
+    Returns `(execution_checkpoint, committed_runner_blob, head_runner_blob)` where the
+    execution checkpoint is the direct Git parent of the qualified Task69 checkpoint.
+    Refuses when the parent is not the reviewed `003b94bc…` execution commit, so a
+    foreign member/hash/parent can never authenticate through this path.
+    """
+    parent = subprocess.run(
+        ["git", "-C", str(root), "rev-parse", f"{task69_checkpoint}^"], check=True,
+        capture_output=True, text=True,
+    ).stdout.strip()
+    if parent != ASSESSMENT_EXECUTION_COMMIT:
+        raise GuardError("Task69 assessment checkpoint does not follow the reviewed execution checkpoint")
+    committed_blob = subprocess.run(
+        ["git", "-C", str(root), "rev-parse", f"{parent}:experiments/sprint18_iterative_candidate_v1.py"],
+        check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    head_blob = subprocess.run(
+        ["git", "-C", str(root), "rev-parse", "HEAD:experiments/sprint18_iterative_candidate_v1.py"],
+        check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    return parent, committed_blob, head_blob
+
+
+def _verify_assessment_execution_descriptor(
+    binding: dict[str, Any], root: Path, release: dict[str, Any], task69_release: dict[str, Any],
+) -> dict[str, Any]:
+    """Authenticate the sealed assessment EXECUTION descriptor (C-side) against B-side ancestry.
+
+    Three-identity contract (never conflated):
+
+    - A (immutable QUALIFIED DATA SOURCE, checkpoint `003b94bc…`): the old qualified
+      runner bytes (`702b37bb…`/`125df99c…`), frozen DATA binding (`8e270514…`), raw
+      (`b8448292…`), closure (`7528315e…`), record (`c5a8e8cc…`), ledger
+      (`625dcc1c…`, 28 events). Authenticates historical DATA/closed science only.
+    - B (Task69 OUTCOME, checkpoint `7be574d9…`, parent A): the six actual scientific
+      result carriers plus review R10; pins the qualified DATA identity above.
+    - C (CORRECTED EXECUTION, future Bronze commit, child of B): the NEW corrected
+      runner bytes. The descriptor MUST bind the NEW runner blob/canonical digests,
+      which MUST DIFFER from the old A-side runner identities above. A C blob is
+      never compared to the A blob for equality; A authenticates history, C
+      authenticates the new code under review.
+
+    This verifier therefore: (1) pins A/B DATA fields from the Main Task69 release
+    and the qualified constants; (2) resolves A/B ancestry through
+    `_assessment_execution_ancestors` (parent of `7be574d9…` is `003b94bc…`, whose
+    committed runner blob is the OLD `702b37bb…`, pinned for the A-side history
+    check only); (3) requires the descriptor's `corrected_runner` to DIFFER from
+    the old A bytes (C MUST differ from A; never compared for equality);
+    (4) requires the descriptor's corrected blob/canonical digests to equal the
+    CURRENT WORKING-TREE runner blob/canonical bytes in the reviewed worktree
+    (worktree mode: the corrected source is under review and not yet committed,
+    so `HEAD:` still carries the old A blob by construction; the committed-C
+    equality is enforced AFTER the reviewed checkpoint by the separate Main
+    execution-release runtime guard, never here); (5) keeps the old 52-member
+    DATA closure check on every non-runner member. Any A/B/C swap, foreign
+    parent/member/hash, drifted roster/config/catalog/method/profile/policy/
+    record/ledger/probe/threshold/source entry refuses. The descriptor is
+    AUTHORED NOW as a worktree product (never minted by the Bronze checkpoint
+    executor); only the future C commit SHA is pinned later in the separate
+    Main execution-release receipt after review+checkpoint.
+    """
+    try:
+        descriptor = read_json(_assessment_execution_descriptor_path(root))
+    except (GuardError, OSError) as exc:
+        raise GuardError(f"assessment execution descriptor is absent or unreadable: {exc}") from exc
+    if not isinstance(descriptor, dict):
+        raise GuardError("assessment execution descriptor JSON root must be an object")
+    if descriptor.get("schema_id") != ASSESSMENT_EXECUTION_DESCRIPTOR_SCHEMA_ID:
+        raise GuardError("assessment execution descriptor schema mismatch")
+    if descriptor.get("candidate_id") != binding.get("candidate_id"):
+        raise GuardError("assessment execution descriptor candidate mismatch")
+    for key in ("binding_sha256", "qualification_sha256",
+                "task69_assessment_checkpoint_commit", "assessment_checkpoint_commit",
+                "evidence_review_ref", "release_scope"):
+        if descriptor.get(key) != task69_release.get(key):
+            raise GuardError(
+                f"assessment execution descriptor drift from the Task69 assessment release: {key}")
+    if descriptor.get("source_closure_sha256") != binding.get("source_closure", {}).get("closure_sha256"):
+        raise GuardError("assessment execution descriptor drift from the assessment binding closure")
+    if descriptor.get("assessment_checkpoint_commit") != ASSESSMENT_EXECUTION_COMMIT:
+        raise GuardError("assessment execution descriptor is not bound to the reviewed execution checkpoint")
+    if descriptor.get("task69_assessment_checkpoint_commit") != QUALIFIED_TASK69_ASSESSMENT_CHECKPOINT:
+        raise GuardError("assessment execution descriptor does not carry the qualified Task69 checkpoint")
+    if descriptor.get("execution_checkpoint_source") != "task69-assessment-release+git-ancestry":
+        raise GuardError("assessment execution descriptor has an unreviewed execution source")
+    runner_entry = descriptor.get("corrected_runner")
+    if not isinstance(runner_entry, dict):
+        raise GuardError("assessment execution descriptor lacks its corrected runner identity")
+    if runner_entry.get("path") != "experiments/sprint18_iterative_candidate_v1.py":
+        raise GuardError("assessment execution descriptor binds an unexpected runner path")
+    for key in ("git_blob_oid", "canonical_sha256"):
+        value = runner_entry.get(key)
+        if not isinstance(value, str) or not value:
+            raise GuardError(f"assessment execution descriptor runner identity is malformed: {key}")
+        if any(char not in "0123456789abcdef" for char in value):
+            raise GuardError(f"assessment execution descriptor runner identity is not lowercase hex: {key}")
+    if len(runner_entry["git_blob_oid"]) != 40 or len(runner_entry["canonical_sha256"]) != 64:
+        raise GuardError("assessment execution descriptor runner identity has an unexpected digest length")
+    if (runner_entry.get("git_blob_oid") == QUALIFIED_ASSESSMENT_RUNNER_BLOB_OID
+            or runner_entry.get("canonical_sha256") == QUALIFIED_ASSESSMENT_RUNNER_SHA256):
+        raise GuardError("assessment execution descriptor still binds the superseded qualified runner bytes")
+    data_identity = descriptor.get("data_identity")
+    if not isinstance(data_identity, dict):
+        raise GuardError("assessment execution descriptor lacks its DATA identity block")
+    if data_identity.get("binding_sha256") != QUALIFIED_ASSESSMENT_BINDING_SHA256:
+        raise GuardError("assessment execution descriptor DATA binding identity differs from the qualified binding")
+    if data_identity.get("binding_raw_sha256") != "b8448292b023c9268f64886e5ca68a393c36ff5f2c41573ff160d50ce8ee6c58":
+        raise GuardError("assessment execution descriptor DATA raw bytes differ from the qualified binding")
+    if data_identity.get("source_closure_sha256") != QUALIFIED_ASSESSMENT_SOURCE_CLOSURE_SHA256:
+        raise GuardError("assessment execution descriptor DATA closure differs from the qualified closure")
+    if data_identity.get("qualification_sha256") != QUALIFIED_ASSESSMENT_QUALIFICATION_SHA256:
+        raise GuardError("assessment execution descriptor DATA record differs from the qualified record")
+    if data_identity.get("ledger_sha256") != QUALIFIED_ASSESSMENT_LEDGER_SHA256:
+        raise GuardError("assessment execution descriptor DATA ledger differs from the qualified ledger")
+    if data_identity.get("ledger_events") != QUALIFIED_ASSESSMENT_LEDGER_EVENTS:
+        raise GuardError("assessment execution descriptor DATA ledger count differs from the qualified state")
+    if data_identity.get("runner_blob_oid") != QUALIFIED_ASSESSMENT_RUNNER_BLOB_OID:
+        raise GuardError("assessment execution descriptor DATA runner blob differs from the qualified closure")
+    if data_identity.get("runner_sha256") != QUALIFIED_ASSESSMENT_RUNNER_SHA256:
+        raise GuardError("assessment execution descriptor DATA runner bytes differ from the qualified closure")
+    task69_checkpoint = task69_release.get("task69_assessment_checkpoint_commit")
+    execution_checkpoint = task69_release.get("assessment_checkpoint_commit")
+    if task69_checkpoint != QUALIFIED_TASK69_ASSESSMENT_CHECKPOINT:
+        raise GuardError("Task69 assessment release does not carry the qualified Task69 checkpoint")
+    if execution_checkpoint != ASSESSMENT_EXECUTION_COMMIT:
+        raise GuardError("Task69 assessment release is not bound to the reviewed assessment execution checkpoint")
+    parent, committed_blob, head_blob = _assessment_execution_ancestors(root, task69_checkpoint)
+    if parent != execution_checkpoint:
+        raise GuardError("Task69 assessment checkpoint does not follow the reviewed execution checkpoint")
+    if committed_blob != QUALIFIED_ASSESSMENT_RUNNER_BLOB_OID:
+        raise GuardError("reviewed execution commit does not carry the qualified runner bytes")
+    if head_blob == runner_entry["git_blob_oid"]:
+        raise GuardError("assessment execution descriptor anticipates an unreviewed commit")
+    if head_blob != QUALIFIED_ASSESSMENT_RUNNER_BLOB_OID:
+        raise GuardError("deployed HEAD does not carry the qualified runner bytes")
+    worktree_blob = subprocess.run(
+        ["git", "-C", str(root), "hash-object",
+         "experiments/sprint18_iterative_candidate_v1.py"],
+        check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    if worktree_blob != runner_entry["git_blob_oid"]:
+        raise GuardError("assessment execution runner differs from the sealed execution identity")
+    runner_bytes = _source_path(root, "experiments/sprint18_iterative_candidate_v1.py").read_bytes()
+    if sha256_bytes(canonical_source_bytes(
+            "experiments/sprint18_iterative_candidate_v1.py", runner_bytes)) != runner_entry["canonical_sha256"]:
+        raise GuardError("assessment execution runner bytes differ from the sealed execution identity")
+    if runner_entry["canonical_sha256"] == QUALIFIED_ASSESSMENT_RUNNER_SHA256:
+        raise GuardError("assessment execution descriptor still binds the superseded qualified runner bytes")
+    allowed_commands = descriptor.get("allowed_commands")
+    if allowed_commands != ["--assessment --stage validate", "--assessment --stage materialize-confirmation"]:
+        raise GuardError("assessment execution descriptor allows an unreviewed entry command")
+    release_scope = release.get("release_scope")
+    if release_scope != "Task69-assessment-preflight-and-nonconfirmation":
+        raise GuardError("Main assessment release does not authorize this assessment stage")
+    review_ref = descriptor.get("review_ref")
+    if review_ref is not None and (not isinstance(review_ref, str) or not review_ref):
+        raise GuardError("assessment execution descriptor review reference is malformed")
+    return descriptor
+
+def _assessment_execution_release_path(root: Path) -> Path:
+    return root / "artifacts" / "sprint-18" / "S18-ITER-0005-TASK70-corrected-execution-release-v1.json"
+
+
+def validate_assessment_execution_release(
+    descriptor: dict[str, Any], root: Path, release_path: Path | None = None,
+) -> dict[str, Any]:
+    """Validate the separate Main-minted corrected-EXECUTION release (C-side, runtime only).
+
+    This is the RUNTIME guard for the future corrected checkpoint C (child of B):
+    Main mints this receipt ONLY AFTER the reviewed C checkpoint exists, pinning the
+    exact C commit SHA plus the reviewed descriptor blob/bytes. It MUST NOT be
+    authored by the worker, the Bronze checkpoint executor, or the descriptor
+    itself (no self-reference, no hardcoded future SHA, no placeholder). Until
+    Main mints it, the static entry gate above is the complete product proof;
+    this function then refuses `execution-release-absent` exactly. After C it
+    additionally requires: C's recorded parent is B (`7be574d9…`), C is an
+    ancestor of (or equal to) the deployed `HEAD`, the C-committed runner blob
+    equals the descriptor `corrected_runner.git_blob_oid`, and the C commit
+    message/subject carries the reviewed correction scope (not a generic retry).
+    Arbitrary HEADs, short hashes, self-asserted digests, and enforced-alias
+    commits never authenticate.
+    """
+    if release_path is None:
+        release_path = _assessment_execution_release_path(root)
+    try:
+        release = read_json(release_path)
+    except (GuardError, OSError) as exc:
+        raise GuardError(f"corrected execution release is absent (expected until Main mints it): {exc}") from exc
+    if release.get("schema_id") != ASSESSMENT_EXECUTION_RELEASE_SCHEMA_ID:
+        raise GuardError("corrected execution release schema mismatch")
+    if release.get("candidate_id") != descriptor.get("candidate_id"):
+        raise GuardError("corrected execution release candidate mismatch")
+    if release.get("status") != "RELEASED_BY_MAIN":
+        raise GuardError("corrected execution release is not Main-released")
+    if release.get("release_scope") != "Task70-corrected-execution-after-review":
+        raise GuardError("corrected execution release scope mismatch")
+    for key in ("binding_sha256", "qualification_sha256",
+                "task69_assessment_checkpoint_commit", "assessment_checkpoint_commit",
+                "execution_descriptor_sha256", "execution_descriptor_blob_oid"):
+        if not isinstance(release.get(key), str) or not release[key]:
+            raise GuardError(f"corrected execution release lacks its pinned identity: {key}")
+    if release.get("task69_assessment_checkpoint_commit") != QUALIFIED_TASK69_ASSESSMENT_CHECKPOINT:
+        raise GuardError("corrected execution release does not carry the qualified Task69 checkpoint")
+    if release.get("assessment_checkpoint_commit") != ASSESSMENT_EXECUTION_COMMIT:
+        raise GuardError("corrected execution release is not bound to the reviewed execution checkpoint")
+    if release.get("binding_sha256") != QUALIFIED_ASSESSMENT_BINDING_SHA256:
+        raise GuardError("corrected execution release DATA binding differs from the qualified binding")
+    if release.get("qualification_sha256") != QUALIFIED_ASSESSMENT_QUALIFICATION_SHA256:
+        raise GuardError("corrected execution release DATA record differs from the qualified record")
+    corrected = release.get("corrected_execution_commit")
+    if (not isinstance(corrected, str) or len(corrected) != 40
+            or any(char not in "0123456789abcdef" for char in corrected)):
+        raise GuardError("corrected execution release has no recorded corrected checkpoint")
+    descriptor_bytes = _assessment_execution_descriptor_path(root).read_bytes()
+    if sha256_bytes(descriptor_bytes) != release["execution_descriptor_sha256"]:
+        raise GuardError("corrected execution release descriptor bytes differ from the deployed descriptor")
+    committed_descriptor_blob = subprocess.run(
+        ["git", "-C", str(root), "rev-parse",
+         f"{corrected}:experiments/{ASSESSMENT_EXECUTION_DESCRIPTOR_FILENAME}"],
+        check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    if committed_descriptor_blob != release["execution_descriptor_blob_oid"]:
+        raise GuardError("corrected execution release descriptor blob differs from the corrected commit")
+    corrected_parent = subprocess.run(
+        ["git", "-C", str(root), "rev-parse", f"{corrected}^"], check=True,
+        capture_output=True, text=True,
+    ).stdout.strip()
+    if corrected_parent != QUALIFIED_TASK69_ASSESSMENT_CHECKPOINT:
+        raise GuardError("corrected execution checkpoint does not follow the qualified Task69 checkpoint")
+    subprocess.run(
+        ["git", "-C", str(root), "merge-base", "--is-ancestor", corrected, "HEAD"],
+        check=True, capture_output=True, text=True,
+    )
+    corrected_blob = subprocess.run(
+        ["git", "-C", str(root), "rev-parse",
+         f"{corrected}:experiments/sprint18_iterative_candidate_v1.py"],
+        check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    runner_entry = descriptor.get("corrected_runner")
+    if not isinstance(runner_entry, dict) or corrected_blob != runner_entry.get("git_blob_oid"):
+        raise GuardError("corrected execution runner blob differs from the sealed execution identity")
+    subject = subprocess.run(
+        ["git", "-C", str(root), "log", "-1", "--format=%s", corrected],
+        check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    if "S18-T70" not in subject and "assessment" not in subject.lower():
+        raise GuardError("corrected execution commit does not carry the reviewed correction scope")
+    return release
+
+
+def _verify_qualified_assessment_ledger_shape(
+    binding: dict[str, Any], events: list[dict[str, Any]], record_sha256: str,
+) -> None:
+    """Verify the qualified old ledger's authorization shape (no custody rewrite)."""
+    if len(events) != QUALIFIED_ASSESSMENT_LEDGER_EVENTS:
+        raise GuardError("qualified assessment ledger event count differs from the reviewed state")
+    if any(event.get("event_type") in {"confirmation_materialization_authorized",
+                                       "candidate_rejected", "candidate_retired"} for event in events):
+        raise GuardError("qualified assessment state already authorizes Confirmation or is retired")
+    completed = [event for event in events if event.get("event_type") == "role_materialized"]
+    if [event.get("history_id") for event in completed] != [
+            entry["history_id"] for entry in binding["role_binding"][:12]]:
+        raise GuardError("qualified assessment ledger is not the exact 12-role ordered prefix")
+    qualified_pass = [event for event in events
+                      if event.get("event_type") == "nonconfirmation_qualification_pass"]
+    if len(qualified_pass) != 1 or qualified_pass[0].get("qualification_sha256") != record_sha256:
+        raise GuardError("qualified assessment PASS is not durably recorded for this record")
+    previous = "0" * 64
+    for index, event in enumerate(events):
+        if (event.get("sequence") != index + 1
+                or event.get("previous_event_sha256") != previous
+                or event.get("event_sha256") != sha256_bytes(canonical_json(_canonical_record(event)))):
+            raise GuardError(f"qualified assessment ledger hash chain mismatch at event {index}")
+        previous = event["event_sha256"]
+
+
+def _assert_qualified_assessment_execution_state(
+    binding: dict[str, Any], root: Path, record_sha256: str,
+) -> None:
+    """Authorize the corrected execution's read of the qualified old state (no rewrite).
+
+    Late-entry correction custody: at the Confirmation authorization boundary the
+    corrected runner MUST see the legitimate accepted qualified Task69 DATA identity —
+    the immutable reviewed binding (`8e270514…`), its closed source closure
+    (`7528315e…`), the qualified record (`c5a8e8cc…`), and the 28-event ordered
+    ledger hash chain with the same raw bytes (`625dcc1c…`), carrying the same
+    12-role ordered prefix, the same durable `nonconfirmation_qualification_pass`,
+    and no `confirmation_materialization_authorized`, rejected, or retired event.
+    Every scientific DATA section (roster/configs/catalog/method/profile/policy/
+    assessment-linkage, all 53 closure members) MUST equal the frozen qualified
+    carrier byte-for-byte, INCLUDING this runner's own old closure member
+    (`125df99c…`/`702b37bb…`): the qualified DATA identity is authenticated by the
+    reviewed immutable qualification/checkpoint/closure, never by accepting a
+    refreshed binding digest. The corrected execution code is authenticated
+    separately through the normal released-source validation after the reviewed
+    checkpoint/deploy. This check performs NO write and changes NO custody bytes;
+    any drifted, refreshed, or tampered state refuses exactly as before.
+    """
+    if binding.get("binding_sha256") != QUALIFIED_ASSESSMENT_BINDING_SHA256:
+        raise GuardError("corrected execution does not carry the qualified assessment binding identity")
+    if binding.get("binding_sha256") != _candidate_digest(binding):
+        raise GuardError("corrected execution binding SHA-256 mismatch")
+    closure = binding.get("source_closure")
+    if not isinstance(closure, dict):
+        raise GuardError("corrected execution binding has no source closure")
+    if closure.get("closure_sha256") != QUALIFIED_ASSESSMENT_SOURCE_CLOSURE_SHA256:
+        raise GuardError("corrected execution source closure differs from the qualified closure")
+    if closure.get("closure_sha256") != _source_closure_digest(closure):
+        raise GuardError("corrected execution source-closure manifest digest mismatch")
+    qualified_path = _source_path(root, "experiments/sprint18-iterative-assessment-c5-allowance-v1.json")
+    qualified_binding = read_json(qualified_path)
+    if qualified_binding.get("binding_sha256") != QUALIFIED_ASSESSMENT_BINDING_SHA256:
+        raise GuardError("qualified assessment carrier differs from the reviewed binding identity")
+    for key in ("schema_id", "candidate_id", "candidate_number", "contact_authorized", "status",
+                "provenance", "seed_block", "profile_id", "generator_protocol_id", "contract_id",
+                "contract_sha256", "method", "candidate_root_relative", "role_binding", "configs",
+                "collision_catalog", "runtime", "attempt_policy", "preflight", "materialization",
+                "release_policy", "iteration", "policy_revision", "assessment_of", "source_closure"):
+        if binding.get(key) != qualified_binding.get(key):
+            raise GuardError(f"corrected execution binding drift from the qualified carrier: {key}")
+    if binding.get("source_closure", {}).get("sha256_by_path", {}).get(
+            "experiments/sprint18_iterative_candidate_v1.py") != QUALIFIED_ASSESSMENT_RUNNER_SHA256:
+        raise GuardError("corrected execution runner source text differs from the qualified closure")
+    if binding.get("source_closure", {}).get("git_blob_oid_by_path", {}).get(
+            "experiments/sprint18_iterative_candidate_v1.py") != QUALIFIED_ASSESSMENT_RUNNER_BLOB_OID:
+        raise GuardError("corrected execution runner Git blob differs from the qualified closure")
+    if record_sha256 != QUALIFIED_ASSESSMENT_QUALIFICATION_SHA256:
+        raise GuardError("corrected execution qualification record differs from the qualified record")
+    record_path = root / "experiments" / "sprint18-task69-assessment-S18-ITER-0005-A09-qualification-record.json"
+    try:
+        actual_record = sha256_file(record_path)
+    except OSError as exc:
+        raise GuardError(f"qualified assessment record is absent: {exc}") from exc
+    if actual_record != QUALIFIED_ASSESSMENT_QUALIFICATION_SHA256:
+        raise GuardError("qualified assessment record bytes differ from the reviewed qualification")
+    _, _, events = _load_stage_state(binding, root)
+    _verify_qualified_assessment_ledger_shape(binding, events, record_sha256)
+    ledger_path = _candidate_paths(binding, root)[2]
+    try:
+        ledger_raw = ledger_path.read_bytes()
+    except OSError as exc:
+        raise GuardError(f"qualified assessment ledger is absent: {exc}") from exc
+    if sha256_bytes(ledger_raw) != QUALIFIED_ASSESSMENT_LEDGER_SHA256:
+        raise GuardError("qualified assessment ledger bytes differ from the reviewed state")
+
+
+def _validate_assessment_entry_binding(
+    binding: dict[str, Any], root: Path, live: dict[str, Any], release: dict[str, Any],
+    task69_release: dict[str, Any],
+) -> dict[str, Any]:
+    """Run the corrected `--assessment` entry gate for the sealed execution identity.
+
+    Normal `--assessment` stages authenticate in this order: the assessment DATA binding
+    itself (`validate_assessment_binding`, byte-identical to the qualified carrier), then
+    the sealed EXECUTION descriptor (`_verify_assessment_execution_descriptor`, C-side
+    runner blob/canonical bytes bound to the worktree `HEAD:` blob + working-tree
+    bytes, which MUST DIFFER from the old A-side `702b37bb…`/`125df99c…`), and only
+    then the 52 unchanged DATA closure members (every catalog member except the
+    single reviewed runner member, each verified against BOTH the working-tree
+    canonical bytes AND the current `HEAD:` Git blob, so a tampered worktree file
+    or a tampered commit both refuse). The two frozen binding carriers are never
+    rewritten here; any drifted roster/config/catalog/method/profile/policy/
+    record/ledger/probe/threshold/source entry refuses exactly as the pre-existing
+    validators require.
+    """
+    validate_assessment_binding(binding, root, live)
+    descriptor = _verify_assessment_execution_descriptor(binding, root, release, task69_release)
+    closure = live.get("source_closure")
+    if not isinstance(closure, dict):
+        raise GuardError("live binding has no source closure")
+    sources = closure.get("sha256_by_path")
+    blob_oids = closure.get("git_blob_oid_by_path")
+    if not isinstance(sources, dict) or not isinstance(blob_oids, dict):
+        raise GuardError("live source closure must bind text hashes and Git blob identities")
+    if set(sources) != EXPECTED_SOURCE_PATHS or set(blob_oids) != EXPECTED_SOURCE_PATHS:
+        raise GuardError("live source closure path set differs from the exact 53-file catalog")
+    for relative, expected in sources.items():
+        if relative == "experiments/sprint18_iterative_candidate_v1.py":
+            continue
+        actual = sha256_bytes(canonical_source_bytes(
+            relative, _source_path(root, relative).read_bytes(),
+        ))
+        if actual != expected:
+            raise GuardError(
+                f"frozen source mismatch: {relative}: expected {expected}, got {actual}"
+            )
+        committed = subprocess.run(
+            ["git", "-C", str(root), "rev-parse", f"HEAD:{relative}"],
+            check=True, capture_output=True, text=True,
+        ).stdout.strip()
+        if committed != blob_oids[relative]:
+            raise GuardError(
+                f"tracked source blob differs from the frozen closure: {relative}"
+            )
+    if len(sources) != 53 or (len(sources) - 1) != 52:
+        raise GuardError("live source closure does not carry the exact 53-file catalog")
+    return descriptor
 
 
 def validate_binding(
@@ -1539,17 +1978,32 @@ def run_assessment_confirmation(
     must directly follow that checkpoint), then authorizes and materializes the 4 Confirmation
     roles through the shared ``_materialize_entries`` public-CLI/reload path. Without that
     release the stage refuses; the live candidate path is untouched.
+
+    The `assessment_checkpoint` argument is the reviewed execution identity resolved from
+    the Task69 release (`assessment_checkpoint_commit`, the assessment implementation
+    commit), NOT the threaded preflight `--release` checkpoint, so the legitimate Task69
+    checkpoint remains publicly reachable behind the corrected reviewed execution code.
+    Before any ledger append the runner additionally authenticates the presented binding
+    as the byte-identical qualified Task69 DATA/binding identity (canonical binding, raw
+    file, closed source closure, qualification record, 28-event ledger chain); any
+    drifted or tampered state refuses exactly as before.
     """
     record = _verify_qualification_record(binding, record_path, record_sha256)
     release = read_json(task69_release_path)
+    execution_checkpoint = resolve_assessment_execution_checkpoint(release)
+    if execution_checkpoint != assessment_checkpoint:
+        raise GuardError("Task69 assessment release execution checkpoint differs from the dispatched execution identity")
+    _assert_qualified_assessment_execution_state(binding, root, record_sha256)
     task69_checkpoint = validate_assessment_task69_release(
-        binding, record_sha256, release, assessment_checkpoint,
+        binding, record_sha256, release, execution_checkpoint,
     )
+    if task69_checkpoint != QUALIFIED_TASK69_ASSESSMENT_CHECKPOINT:
+        raise GuardError("Task69 assessment release does not carry the qualified Task69 checkpoint")
     parent = subprocess.run(
         ["git", "-C", str(root), "rev-parse", f"{task69_checkpoint}^"], check=True,
         capture_output=True, text=True,
     ).stdout.strip()
-    if parent != assessment_checkpoint:
+    if parent != execution_checkpoint:
         raise GuardError("Task69 assessment checkpoint does not follow the assessment checkpoint")
     _, attempt_root, confirmation_ledger_path = _candidate_paths(binding, root)
     _, _, events = _load_stage_state(binding, root)
@@ -2133,6 +2587,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--qualification-record", type=Path)
     parser.add_argument("--qualification-sha256")
     parser.add_argument("--task69-release", type=Path)
+    parser.add_argument(
+        "--execution-release", type=Path,
+        help="Main-minted corrected-execution receipt required for assessment Confirmation",
+    )
     parser.add_argument("--smoke-no-contact", action="store_true")
     parser.add_argument("--assessment", action="store_true",
                         help="run the separate amended-policy assessment binding "
@@ -2177,13 +2635,31 @@ def main() -> int:
         binding = json.loads(binding_bytes.decode("utf-8"))
         if not isinstance(binding, dict):
             raise GuardError("binding JSON root must be an object")
+        if args.execution_release is not None and (
+                not args.assessment or args.stage != "materialize-confirmation"):
+            raise GuardError(
+                "--execution-release is only valid for assessment materialize-confirmation")
         if args.assessment:
             if args.smoke_no_contact:
                 raise GuardError("no-contact smoke accepts no assessment mode")
             live = read_json(BINDING_DEFAULT)
-            validate_assessment_binding(binding, ROOT, live)
-            validate_binding(live, ROOT, disposable=True)
-            if args.stage == "validate":
+            if args.release is None and args.task69_release is None:
+                if args.stage != "validate":
+                    raise GuardError("assessment contact stage requires Main's exact assessment release receipt")
+                if args.qualification_record is not None or args.qualification_sha256 is not None:
+                    raise GuardError("assessment validate accepts no Task69 result path")
+                _validate_assessment_entry_binding(
+                    binding, ROOT, live,
+                    {"release_scope": "Task69-assessment-preflight-and-nonconfirmation"},
+                    {
+                        "task69_assessment_checkpoint_commit": QUALIFIED_TASK69_ASSESSMENT_CHECKPOINT,
+                        "assessment_checkpoint_commit": ASSESSMENT_EXECUTION_COMMIT,
+                        "binding_sha256": QUALIFIED_ASSESSMENT_BINDING_SHA256,
+                        "qualification_sha256": QUALIFIED_ASSESSMENT_QUALIFICATION_SHA256,
+                        "evidence_review_ref": "agent://S18Task69R10",
+                        "release_scope": "Task70-assessment-confirmation-after-Task69-PASS",
+                    },
+                )
                 validate_runtime(live, ROOT)
                 host_uv = _validate_host_uv_toolchain(live)
                 print(json.dumps({
@@ -2201,8 +2677,6 @@ def main() -> int:
                     "host_uv_build": host_uv["uv_build"],
                 }, indent=2))
                 return 0
-            if args.release is None:
-                raise GuardError("assessment contact stage requires Main's exact assessment release receipt")
             assessment_release = read_json(args.release)
             assessment_checkpoint = validate_assessment_release(
                 binding, sha256_bytes(binding_bytes), assessment_release)
@@ -2212,8 +2686,24 @@ def main() -> int:
             ).stdout.strip()
             if parent != BASE_COMMIT:
                 raise GuardError("Main assessment checkpoint does not directly follow the frozen Task68 correction base")
-            if assessment_release.get("release_scope") != "Task69-assessment-preflight-and-nonconfirmation":
-                raise GuardError("Main assessment release does not authorize this stage")
+            if args.task69_release is None:
+                if args.stage == "materialize-confirmation":
+                    raise GuardError("Assessment Confirmation requires the exact Task69 assessment result and Main release")
+                if args.qualification_record is not None or args.qualification_sha256 is not None:
+                    raise GuardError("assessment stage accepts no Task69 result without its Main release")
+                validate_assessment_binding(binding, ROOT, live)
+                validate_binding(live, ROOT, disposable=True)
+            else:
+                execution_release = read_json(args.task69_release)
+                descriptor = _validate_assessment_entry_binding(
+                    binding, ROOT, live, assessment_release, execution_release)
+                if args.stage == "materialize-confirmation":
+                    if args.execution_release is None:
+                        raise GuardError(
+                            "Assessment Confirmation requires Main's corrected execution "
+                            "release via --execution-release")
+                    validate_assessment_execution_release(
+                        descriptor, ROOT, args.execution_release)
             _validate_host_uv_toolchain(live)
             validate_runtime(live, ROOT)
             if args.stage == "preflight":
@@ -2230,10 +2720,12 @@ def main() -> int:
                 if (args.qualification_record is None or args.qualification_sha256 is None
                         or args.task69_release is None):
                     raise GuardError("Assessment Confirmation requires the exact Task69 assessment result and Main release")
+                execution_release = read_json(args.task69_release)
+                execution_checkpoint = resolve_assessment_execution_checkpoint(execution_release)
                 return run_assessment_confirmation(
                     binding, ROOT, args.qualification_record,
                     args.qualification_sha256, args.task69_release,
-                    assessment_checkpoint,
+                    execution_checkpoint,
                 )
             raise GuardError(f"unsupported stage {args.stage}")
         if args.smoke_no_contact:

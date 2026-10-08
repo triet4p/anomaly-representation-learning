@@ -700,8 +700,8 @@ def _assessment_task69_release(assessment: dict, qualification_sha256: str) -> d
         "task67_evidence_path": runner.TASK67_EVIDENCE_PATH,
         "task67_evidence_sha256": runner.TASK67_EVIDENCE_SHA256,
         "task67_evidence_reference": runner.TASK67_EVIDENCE_REFERENCE,
+        "evidence_review_ref": "agent://S18Task69R10",
         "evidence_review_verdict": "PASS",
-        "evidence_review_ref": "disposable-task69-assessment-regression",
         "actionable_findings": 0,
         "verdict": "PASS",
         "release_scope": "Task70-assessment-confirmation-after-Task69-PASS",
@@ -732,3 +732,449 @@ def test_assessment_confirmation_gate_needs_exact_task69_release(tmp_path: Path)
         runner.run_assessment_confirmation(
             assessment, tmp_path, tmp_path / "nope.json", "0" * 64,
             tmp_path / "rel.json", "a" * 40)
+
+
+def _qualified_assessment_state(tmp_path: Path) -> tuple[dict, Path, Path, str, dict]:
+    """Seed a tmp assessment root carrying the reviewed qualified DATA identity.
+
+    Consumer-visible custody regression for the S18-T70-C01 late-entry correction:
+    the corrected execution MUST keep reading the legitimate accepted qualified old
+    state (12-role ordered prefix, durable qualification PASS, 28-event chain) while
+    still refusing tampered bindings/records/ledgers and the generic rejected resume.
+    Uses the frozen qualified hashes from the runner; no final Confirmation contact.
+    """
+    assessment = _assessment_binding()
+    candidate_root, attempt_root, _ = runner._candidate_paths(assessment, tmp_path)
+    candidate_root.mkdir(parents=True)
+    attempt_root.mkdir(parents=True)
+    fixture_experiments = tmp_path / "experiments"
+    fixture_experiments.mkdir(parents=True, exist_ok=True)
+    (fixture_experiments / "sprint18-iterative-assessment-c5-allowance-v1.json").write_bytes(
+        (runner.ROOT / "experiments" / "sprint18-iterative-assessment-c5-allowance-v1.json").read_bytes())
+    (fixture_experiments / "sprint18-task69-assessment-S18-ITER-0005-A09-qualification-record.json").write_bytes(
+        (runner.ROOT / "experiments" / "sprint18-task69-assessment-S18-ITER-0005-A09-qualification-record.json").read_bytes())
+    marker = dict(runner._expected_config_fields(assessment))
+    marker.update({
+        "schema_id": "sprint18-iterative-pre-attempt-v1",
+        "started_utc": "2026-10-08T03:00:00+00:00",
+    })
+    (attempt_root / "attempt.json").write_bytes(runner.canonical_json(marker) + b"\n")
+    _, _, ledger_path = runner._candidate_paths(assessment, tmp_path)
+    runner.append_event(ledger_path, "attempt_started", marker)
+    runner.append_event(ledger_path, "preflight_started", {
+        "candidate_id": assessment["candidate_id"], "profile_id": runner.PROFILE,
+        "protocol_id": runner.PROTOCOL,
+        "in_memory_waveforms_expected": True,
+        "persisted_role_roots_expected": False,
+        "seed_order": [entry["data_seed"] for entry in assessment["role_binding"]],
+        "role_order": [entry["role"] for entry in assessment["role_binding"]],
+    })
+    runner.append_event(ledger_path, "preflight_recorded", {
+        "result_path": "preflight", "result_sha256": "0" * 64,
+        "verdict": "PREFLIGHT-PASS", "feasible_count": "16/16",
+        "in_memory_waveforms_generated": True,
+        "persisted_candidate_role_roots": False,
+        "persisted_candidate_shards": False,
+        "persisted_candidate_manifests": False,
+    })
+    for entry in assessment["role_binding"][:12]:
+        runner.append_event(ledger_path, "role_materialization_started", {
+            "candidate_id": assessment["candidate_id"],
+            "history_id": entry["history_id"], "role": entry["role"],
+            "data_seed": entry["data_seed"], "directory": entry["directory"],
+        })
+        runner.append_event(ledger_path, "role_materialized", {
+            "candidate_id": assessment["candidate_id"],
+            "history_id": entry["history_id"], "role": entry["role"],
+            "data_seed": entry["data_seed"], "directory": entry["directory"],
+            "manifest_sha256": "0" * 64, "sample_count": 1,
+            "loader_manifest_role": entry["history_id"],
+        })
+    qualification_sha256 = runner.QUALIFIED_ASSESSMENT_QUALIFICATION_SHA256
+    runner.append_event(ledger_path, "nonconfirmation_qualification_pass", {
+        "candidate_id": assessment["candidate_id"],
+        "qualification_path": "record", "qualification_sha256": qualification_sha256,
+        "fit_probe_summary_sha256": "0" * 64,
+        "calibration_summary_sha256": "0" * 64,
+        "development_summary_sha256": "0" * 64,
+    })
+    release = _assessment_task69_release(assessment, qualification_sha256)
+    return assessment, attempt_root, ledger_path, qualification_sha256, release
+
+
+def test_corrected_execution_resolves_reviewed_checkpoint_from_task69_release() -> None:
+    """The Task69 release authenticates the reviewed execution checkpoint, not an allowlist."""
+    assessment = _assessment_binding()
+    release = _assessment_task69_release(assessment, "c" * 64)
+    release["assessment_checkpoint_commit"] = runner.ASSESSMENT_EXECUTION_COMMIT
+    assert runner.resolve_assessment_execution_checkpoint(release) == runner.ASSESSMENT_EXECUTION_COMMIT
+    foreign = dict(release, assessment_checkpoint_commit="d" * 40)
+    with pytest.raises(runner.GuardError):
+        runner.resolve_assessment_execution_checkpoint(foreign)
+    missing = dict(release)
+    del missing["assessment_checkpoint_commit"]
+    with pytest.raises(runner.GuardError):
+        runner.resolve_assessment_execution_checkpoint(missing)
+    short = dict(release, assessment_checkpoint_commit="003b94bc")
+    with pytest.raises(runner.GuardError):
+        runner.resolve_assessment_execution_checkpoint(short)
+
+
+def test_corrected_execution_authorizes_qualified_old_ledger_shape_without_rewrite(tmp_path: Path) -> None:
+    """The qualified 28-event authorization shape passes with no ledger rewrite."""
+    assessment, _, ledger_path, _, _ = _qualified_assessment_state(tmp_path)
+    before = runner.read_ledger(ledger_path)
+    runner._verify_qualified_assessment_ledger_shape(
+        assessment, before, runner.QUALIFIED_ASSESSMENT_QUALIFICATION_SHA256)
+    after = runner.read_ledger(ledger_path)
+    assert [event["event_sha256"] for event in after] == [
+        event["event_sha256"] for event in before]
+    tampered = copy.deepcopy(before)
+    tampered[5] = dict(tampered[5])
+    tampered[5]["previous_event_sha256"] = "0" * 64
+    with pytest.raises(runner.GuardError):
+        runner._verify_qualified_assessment_ledger_shape(
+            assessment, tampered, runner.QUALIFIED_ASSESSMENT_QUALIFICATION_SHA256)
+
+
+def test_corrected_execution_rejects_drifted_qualified_data_identity(tmp_path: Path) -> None:
+    """Every drifted binding/roster/closure/record identity refuses without rewriting state."""
+    assessment, _, _, _, _ = _qualified_assessment_state(tmp_path)
+    drifted_roster = copy.deepcopy(assessment)
+    drifted_roster["role_binding"][0]["data_seed"] = 99999
+    drifted_roster["binding_sha256"] = runner._candidate_digest(drifted_roster)
+    with pytest.raises(runner.GuardError):
+        runner._assert_qualified_assessment_execution_state(
+            drifted_roster, tmp_path, runner.QUALIFIED_ASSESSMENT_QUALIFICATION_SHA256)
+    with pytest.raises(runner.GuardError):
+        runner._assert_qualified_assessment_execution_state(
+            assessment, tmp_path, "d" * 64)
+    tampered_closure = copy.deepcopy(assessment)
+    tampered_closure["source_closure"] = copy.deepcopy(tampered_closure["source_closure"])
+    tampered_closure["source_closure"]["sha256_by_path"]["src/synth/chronicle.py"] = "0" * 64
+    tampered_closure["binding_sha256"] = runner._candidate_digest(tampered_closure)
+    with pytest.raises(runner.GuardError):
+        runner._assert_qualified_assessment_execution_state(
+            tampered_closure, tmp_path, runner.QUALIFIED_ASSESSMENT_QUALIFICATION_SHA256)
+
+
+def test_assessment_confirmation_refuses_mismatched_and_tampered_branches(tmp_path: Path) -> None:
+    """Mismatched checkpoint/parent/roster/closure/record/tamper all refuse before any write."""
+    assessment, _, ledger_path, qualification_sha256, release = _qualified_assessment_state(tmp_path)
+    record_path = tmp_path / "record.json"
+    record = {
+        "schema_id": "sprint18-iterative-nonconfirmation-pass-v1",
+        "candidate_id": assessment["candidate_id"],
+        "binding_sha256": assessment["binding_sha256"],
+        "role_ids": [entry["history_id"] for entry in assessment["role_binding"][:12]],
+        "verdict": "PASS", "all_nonconfirmation_gates_pass": True,
+        "fit_probe_fit_history_ids": [
+            entry["history_id"] for entry in assessment["role_binding"] if entry["role"] == "FIT"],
+        "probe_calibration_history_id": next(
+            entry["history_id"] for entry in assessment["role_binding"] if entry["role"] == "CALIBRATION"),
+        "confirmation_contacted": False,
+        "checks_by_history": {
+            entry["history_id"]: {"gate": True}
+            for entry in assessment["role_binding"][:12]},
+    }
+    record_path.write_bytes(runner.canonical_json(record) + b"\n")
+    release_path = tmp_path / "task69-release.json"
+    good_release = dict(
+        release, assessment_checkpoint_commit=runner.ASSESSMENT_EXECUTION_COMMIT,
+        task69_assessment_checkpoint_commit=runner.QUALIFIED_TASK69_ASSESSMENT_CHECKPOINT,
+        binding_sha256=assessment["binding_sha256"],
+    )
+    before = runner.read_ledger(ledger_path)
+    with pytest.raises(runner.GuardError):
+        runner.run_assessment_confirmation(
+            assessment, tmp_path, record_path, qualification_sha256,
+            release_path, runner.ASSESSMENT_EXECUTION_COMMIT)
+    release_path.write_bytes(runner.canonical_json(good_release) + b"\n")
+    wrong_checkpoint = dict(good_release, task69_assessment_checkpoint_commit="d" * 40)
+    release_path.write_bytes(runner.canonical_json(wrong_checkpoint) + b"\n")
+    with pytest.raises(runner.GuardError):
+        runner.run_assessment_confirmation(
+            assessment, tmp_path, record_path, qualification_sha256,
+            release_path, runner.ASSESSMENT_EXECUTION_COMMIT)
+    wrong_parent = dict(
+        good_release, assessment_checkpoint_commit="e" * 40,
+        task69_assessment_checkpoint_commit=runner.QUALIFIED_TASK69_ASSESSMENT_CHECKPOINT,
+    )
+    release_path.write_bytes(runner.canonical_json(wrong_parent) + b"\n")
+    with pytest.raises(runner.GuardError):
+        runner.run_assessment_confirmation(
+            assessment, tmp_path, record_path, qualification_sha256,
+            release_path, runner.ASSESSMENT_EXECUTION_COMMIT)
+    release_path.write_bytes(runner.canonical_json(good_release) + b"\n")
+    drifted_roster = copy.deepcopy(assessment)
+    drifted_roster["role_binding"][0]["data_seed"] = 99999
+    drifted_roster["binding_sha256"] = runner._candidate_digest(drifted_roster)
+    with pytest.raises(runner.GuardError):
+        runner.run_assessment_confirmation(
+            drifted_roster, tmp_path, record_path, qualification_sha256,
+            release_path, runner.ASSESSMENT_EXECUTION_COMMIT)
+    tampered_closure = copy.deepcopy(assessment)
+    tampered_closure["source_closure"] = copy.deepcopy(tampered_closure["source_closure"])
+    tampered_closure["source_closure"]["sha256_by_path"]["src/synth/chronicle.py"] = "0" * 64
+    tampered_closure["binding_sha256"] = runner._candidate_digest(tampered_closure)
+    with pytest.raises(runner.GuardError):
+        runner.run_assessment_confirmation(
+            tampered_closure, tmp_path, record_path, qualification_sha256,
+            release_path, runner.ASSESSMENT_EXECUTION_COMMIT)
+    with pytest.raises(runner.GuardError):
+        runner.run_assessment_confirmation(
+            assessment, tmp_path, record_path, "d" * 64,
+            release_path, runner.ASSESSMENT_EXECUTION_COMMIT)
+    tampered_record = dict(record)
+    tampered_record["checks_by_history"] = dict(record["checks_by_history"])
+    first_id = next(iter(tampered_record["checks_by_history"]))
+    tampered_record["checks_by_history"][first_id] = {"gate": False}
+    tampered_path = tmp_path / "tampered-record.json"
+    tampered_path.write_bytes(runner.canonical_json(tampered_record) + b"\n")
+    with pytest.raises(runner.GuardError):
+        runner.run_assessment_confirmation(
+            assessment, tmp_path, tampered_path, qualification_sha256,
+            release_path, runner.ASSESSMENT_EXECUTION_COMMIT)
+    after = runner.read_ledger(ledger_path)
+    assert [event["event_sha256"] for event in after] == [
+        event["event_sha256"] for event in before]
+
+def _sealed_execution_descriptor(
+    assessment: dict[str, Any], release: dict[str, Any], runner_blob: str, runner_sha: str,
+) -> dict[str, Any]:
+    """Build the sealed EXECUTION descriptor shape bound to the Task69 release + DATA pins."""
+    return {
+        "schema_id": runner.ASSESSMENT_EXECUTION_DESCRIPTOR_SCHEMA_ID,
+        "candidate_id": assessment["candidate_id"],
+        "binding_sha256": release["binding_sha256"],
+        "source_closure_sha256": assessment["source_closure"]["closure_sha256"],
+        "qualification_sha256": release["qualification_sha256"],
+        "assessment_checkpoint_commit": release["assessment_checkpoint_commit"],
+        "assessment_checkpoint_source": "task69-assessment-release+git-ancestry",
+        "task69_assessment_checkpoint_commit": release["task69_assessment_checkpoint_commit"],
+        "evidence_review_ref": release["evidence_review_ref"],
+        "release_scope": release["release_scope"],
+        "execution_checkpoint_source": "task69-assessment-release+git-ancestry",
+        "corrected_runner": {
+            "path": "experiments/sprint18_iterative_candidate_v1.py",
+            "git_blob_oid": runner_blob,
+            "canonical_sha256": runner_sha,
+        },
+        "data_identity": {
+            "binding_sha256": runner.QUALIFIED_ASSESSMENT_BINDING_SHA256,
+            "binding_raw_sha256": "b8448292b023c9268f64886e5ca68a393c36ff5f2c41573ff160d50ce8ee6c58",
+            "source_closure_sha256": runner.QUALIFIED_ASSESSMENT_SOURCE_CLOSURE_SHA256,
+            "qualification_sha256": runner.QUALIFIED_ASSESSMENT_QUALIFICATION_SHA256,
+            "ledger_sha256": runner.QUALIFIED_ASSESSMENT_LEDGER_SHA256,
+            "ledger_events": runner.QUALIFIED_ASSESSMENT_LEDGER_EVENTS,
+            "runner_blob_oid": runner.QUALIFIED_ASSESSMENT_RUNNER_BLOB_OID,
+            "runner_sha256": runner.QUALIFIED_ASSESSMENT_RUNNER_SHA256,
+        },
+        "allowed_commands": [
+            "--assessment --stage validate", "--assessment --stage materialize-confirmation"],
+    }
+
+
+def test_assessment_execution_ancestors_resolve_reviewed_parent_and_refuse_foreign(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Ancestry resolves 003b94bc from 7be574d9; foreign checkpoint/member/parent refuse."""
+    root = runner.ROOT
+    parent, committed_blob, head_blob = runner._assessment_execution_ancestors(
+        root, runner.QUALIFIED_TASK69_ASSESSMENT_CHECKPOINT)
+    assert parent == runner.ASSESSMENT_EXECUTION_COMMIT
+    assert committed_blob == runner.QUALIFIED_ASSESSMENT_RUNNER_BLOB_OID
+    assert head_blob == runner.QUALIFIED_ASSESSMENT_RUNNER_BLOB_OID
+    with pytest.raises(Exception):
+        runner._assessment_execution_ancestors(root, "d" * 40)
+    with pytest.raises(Exception):
+        runner._assessment_execution_ancestors(root, "b" * 40)
+    with pytest.raises(runner.GuardError):
+        runner.resolve_assessment_execution_checkpoint(
+            {"assessment_checkpoint_commit": "d" * 40})
+
+
+def test_assessment_entry_refuses_without_sealed_descriptor(tmp_path: Path) -> None:
+    """The corrected entry refuses when the sealed descriptor is absent (no bypass)."""
+    assessment = _assessment_binding()
+    live = _live_binding()
+    raw_sha = hashlib.sha256(
+        (REPO_ROOT / "experiments" / "sprint18-iterative-assessment-c5-allowance-v1.json"
+         ).read_bytes()).hexdigest()
+    release = _assessment_release(assessment, raw_sha)
+    task69_release = _assessment_task69_release(
+        assessment, runner.QUALIFIED_ASSESSMENT_QUALIFICATION_SHA256)
+    task69_release["assessment_checkpoint_commit"] = runner.ASSESSMENT_EXECUTION_COMMIT
+    task69_release["task69_assessment_checkpoint_commit"] = runner.QUALIFIED_TASK69_ASSESSMENT_CHECKPOINT
+    with pytest.raises(runner.GuardError):
+        runner._validate_assessment_entry_binding(
+            assessment, tmp_path, live, release, task69_release)
+
+
+def _write_descriptor(tmp_path: Path, descriptor: dict[str, Any]) -> None:
+    experiments_dir = tmp_path / "experiments"
+    experiments_dir.mkdir(parents=True, exist_ok=True)
+    (experiments_dir / runner.ASSESSMENT_EXECUTION_DESCRIPTOR_FILENAME).write_text(
+        json.dumps(descriptor, sort_keys=True), encoding="utf-8")
+
+
+def _worktree_descriptor_bytes() -> tuple[str, str]:
+    """Return the CURRENT worktree runner (blob, canonical) for the positive case."""
+    import subprocess as _subprocess
+    blob = _subprocess.run(
+        ["git", "-C", str(runner.ROOT), "hash-object",
+         "experiments/sprint18_iterative_candidate_v1.py"],
+        check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    raw = (runner.ROOT / "experiments" / "sprint18_iterative_candidate_v1.py").read_bytes()
+    canon = runner.sha256_bytes(
+        runner.canonical_source_bytes("experiments/sprint18_iterative_candidate_v1.py", raw))
+    assert blob != runner.QUALIFIED_ASSESSMENT_RUNNER_BLOB_OID
+    assert canon != runner.QUALIFIED_ASSESSMENT_RUNNER_SHA256
+    return blob, canon
+
+
+def test_assessment_descriptor_authenticates_reviewed_worktree_and_refuses_swaps(
+    tmp_path: Path,
+) -> None:
+    """Positive REAL descriptor auth plus deterministic A/B/C-swap negatives.
+
+    The positive case verifies the AUTHORED worktree descriptor bytes against the
+    real assessment binding + Task69 release + Git ancestry + working-tree runner
+    bytes (no mocks): the descriptor `corrected_runner` MUST DIFFER from the old
+    A-side `702b37bb…`/`125df99c…` and MUST EQUAL the current worktree blob +
+    canonical bytes. Swaps (old C blob, foreign execution, stale runner, wrong
+    DATA pins, drifted release field) all refuse; absence refuses.
+    """
+    assessment = _assessment_binding()
+    live = _live_binding()
+    raw_sha = hashlib.sha256(
+        (REPO_ROOT / "experiments" / "sprint18-iterative-assessment-c5-allowance-v1.json"
+         ).read_bytes()).hexdigest()
+    release = _assessment_release(assessment, raw_sha)
+    task69_release = _assessment_task69_release(
+        assessment, runner.QUALIFIED_ASSESSMENT_QUALIFICATION_SHA256)
+    task69_release["assessment_checkpoint_commit"] = runner.ASSESSMENT_EXECUTION_COMMIT
+    task69_release["task69_assessment_checkpoint_commit"] = runner.QUALIFIED_TASK69_ASSESSMENT_CHECKPOINT
+    worktree_blob, worktree_canon = _worktree_descriptor_bytes()
+    good = _sealed_execution_descriptor(
+        assessment, task69_release, worktree_blob, worktree_canon)
+    # Positive against the REAL repo root (Git ancestry + worktree bytes live here).
+    proven = runner._verify_assessment_execution_descriptor(
+        assessment, runner.ROOT, release, task69_release)
+    assert proven["corrected_runner"]["git_blob_oid"] == worktree_blob
+    assert proven["corrected_runner"]["canonical_sha256"] == worktree_canon
+    # Entry-level positive on the real root: DATA binding + descriptor + 52 members.
+    entered = runner._validate_assessment_entry_binding(
+        assessment, runner.ROOT, live, release, task69_release)
+    assert entered["schema_id"] == runner.ASSESSMENT_EXECUTION_DESCRIPTOR_SCHEMA_ID
+    # Negatives mutate one descriptor field at a time against the REAL root
+    # (ancestry + worktree bytes live here); the AUTHORED bytes are restored after.
+    real_path = runner.ROOT / "experiments" / runner.ASSESSMENT_EXECUTION_DESCRIPTOR_FILENAME
+    real_bytes = real_path.read_bytes()
+    try:
+        drifted = dict(good, qualification_sha256="d" * 64)
+        real_path.write_text(json.dumps(drifted, sort_keys=True), encoding="utf-8")
+        with pytest.raises(runner.GuardError):
+            runner._verify_assessment_execution_descriptor(
+                assessment, runner.ROOT, release, task69_release)
+        foreign_release = dict(task69_release, assessment_checkpoint_commit="d" * 40)
+        real_path.write_bytes(real_bytes)
+        with pytest.raises(runner.GuardError):
+            runner._verify_assessment_execution_descriptor(
+                assessment, runner.ROOT, release, foreign_release)
+        old_blob = _sealed_execution_descriptor(
+            assessment, task69_release,
+            runner.QUALIFIED_ASSESSMENT_RUNNER_BLOB_OID, runner.QUALIFIED_ASSESSMENT_RUNNER_SHA256)
+        real_path.write_text(json.dumps(old_blob, sort_keys=True), encoding="utf-8")
+        with pytest.raises(runner.GuardError):
+            runner._verify_assessment_execution_descriptor(
+                assessment, runner.ROOT, release, task69_release)
+        stale_runner = _sealed_execution_descriptor(
+            assessment, task69_release, "0" * 40, "0" * 64)
+        real_path.write_text(json.dumps(stale_runner, sort_keys=True), encoding="utf-8")
+        with pytest.raises(runner.GuardError):
+            runner._verify_assessment_execution_descriptor(
+                assessment, runner.ROOT, release, task69_release)
+        wrong_data = dict(good, data_identity=dict(good["data_identity"], binding_sha256="0" * 64))
+        real_path.write_text(json.dumps(wrong_data, sort_keys=True), encoding="utf-8")
+        with pytest.raises(runner.GuardError):
+            runner._verify_assessment_execution_descriptor(
+                assessment, runner.ROOT, release, task69_release)
+    finally:
+        real_path.write_bytes(real_bytes)
+
+
+@pytest.mark.parametrize(
+    ("receipt_kind", "expected_error"),
+    [
+        ("missing-argument", "--execution-release"),
+        ("missing-file", "corrected execution release is absent"),
+        ("unreadable", "corrected execution release is absent"),
+        ("foreign", "corrected execution release candidate mismatch"),
+    ],
+)
+def test_assessment_confirmation_cli_requires_execution_release_before_runtime_or_contact(
+    tmp_path: Path, receipt_kind: str, expected_error: str,
+) -> None:
+    """The public CLI rejects absent or foreign Main execution authority before runtime/contact."""
+    binding_path = REPO_ROOT / "experiments" / "sprint18-iterative-assessment-c5-allowance-v1.json"
+    assessment = json.loads(binding_path.read_text(encoding="utf-8"))
+    main_release_path = (
+        REPO_ROOT / "artifacts/sprint-18/S18-ITER-0005-ASSESS-main-assessment-release-v1.json"
+    )
+    task69_release_path = (
+        REPO_ROOT / "artifacts/sprint-18/S18-ITER-0005-TASK69-main-assessment-release-v2.json"
+    )
+    qualification_path = (
+        REPO_ROOT
+        / "experiments/sprint18-task69-assessment-S18-ITER-0005-A09-qualification-record.json"
+    )
+    execution_release_path = tmp_path / "execution-release.json"
+    command = [
+        sys.executable,
+        str(REPO_ROOT / "experiments/sprint18_iterative_candidate_v1.py"),
+        "--assessment",
+        "--binding", str(binding_path),
+        "--release", str(main_release_path),
+        "--stage", "materialize-confirmation",
+        "--qualification-record", str(qualification_path),
+        # A deliberately mismatched digest is a second no-contact safeguard if
+        # a future regression removes the execution-release guard.
+        "--qualification-sha256", "0" * 64,
+        "--task69-release", str(task69_release_path),
+    ]
+    if receipt_kind == "missing-file":
+        command.extend(["--execution-release", str(execution_release_path)])
+    elif receipt_kind == "unreadable":
+        execution_release_path.mkdir()
+        command.extend(["--execution-release", str(execution_release_path)])
+    elif receipt_kind == "foreign":
+        execution_release_path.write_text(json.dumps({
+            "schema_id": runner.ASSESSMENT_EXECUTION_RELEASE_SCHEMA_ID,
+            "candidate_id": "S18-ITER-FOREIGN",
+        }), encoding="utf-8")
+        command.extend(["--execution-release", str(execution_release_path)])
+    elif receipt_kind != "missing-argument":
+        raise AssertionError(f"unexpected execution receipt test case: {receipt_kind}")
+
+    _, _, ledger_path = runner._candidate_paths(assessment, REPO_ROOT)
+    ledger_before = ledger_path.read_bytes() if ledger_path.exists() else None
+    confirmation_paths = [
+        REPO_ROOT / entry["directory"] for entry in assessment["role_binding"][12:]
+    ]
+    confirmation_presence_before = [path.exists() for path in confirmation_paths]
+    result = subprocess.run(
+        command,
+        cwd=REPO_ROOT,
+        env=runner._entrypoint_child_environment(REPO_ROOT),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 2
+    assert expected_error in result.stderr
+    assert "runtime execution worktree mismatch" not in result.stderr
+    assert (ledger_path.read_bytes() if ledger_path.exists() else None) == ledger_before
+    assert [path.exists() for path in confirmation_paths] == confirmation_presence_before

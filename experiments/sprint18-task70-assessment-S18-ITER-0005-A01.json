@@ -1,0 +1,78 @@
+{
+ "agent_id": "S18Task70A01",
+ "assessment_implementation_checkpoint": "003b94bc4ee131dd8c3581b750180f65731b25a4",
+ "attempt_id": "S18-T70-A01",
+ "binding_file_sha256": "b8448292b023c9268f64886e5ca68a393c36ff5f2c41573ff160d50ce8ee6c58",
+ "binding_sha256": "8e2705140d07d9c603989ec709de5ebb766e580a8619b37c7462f6dd2751dd3b",
+ "candidate_id": "S18-ITER-0005",
+ "checkout": {
+  "commit": "7be574d9cf451e814e59d39005856f8af2bb774a",
+  "parent": "003b94bc4ee131dd8c3581b750180f65731b25a4"
+ },
+ "confirmation": {
+  "confirmation_dir_absent": true,
+  "exit": 2,
+  "ledger_events_after": 28,
+  "ledger_sha256_after": "625dcc1c6e14b43ac031afb590565a1af8461146579c8aff212d60bf3f061919",
+  "pid": 4169823,
+  "roles_materialized": 0,
+  "runs": 1,
+  "stage": "materialize-confirmation",
+  "stderr": "sprint18 candidate guard refused: Task69 assessment release does not authorize this assessment Confirmation stage",
+  "stdout_empty": true,
+  "wall_s": 2
+ },
+ "frozen_stats": {
+  "calibration_files": 1877,
+  "calibration_patches": 56889,
+  "calibration_q95": 195.7544682761532,
+  "dev_directional": "4/4",
+  "dev_lcb_pw": 0.7878251798343932,
+  "dev_macro_auc_p": 0.8155579828859764,
+  "dev_macro_auc_pw": 0.7960458054936479,
+  "dev_macro_auc_w": 0.7689558684716222,
+  "fit_centroid_norm": 2.290221527135249e-11,
+  "fit_feature_dim": 59,
+  "fit_files": 5446,
+  "fit_patches": 167419
+ },
+ "frozen_stats_digest": "181b83d18329d7ffe90b97ddffe63250c423c51c1f30e9760f1d19952ddff41e",
+ "gate_matrix": {
+  "v1_threaded_003b94bc_inprocess": "FIELD-REFUSE",
+  "v1_threaded_bf49a819": "FIELD-PASS/PARENT-FAIL",
+  "v2_threaded_003b94bc_inprocess": "FIELD-PASS/PARENT-PASS (unreachable via CLI)",
+  "v2_threaded_bf49a819_real_CLI": "FIELD-REFUSE exit2 (observed)"
+ },
+ "guards": {
+  "assessment_validate_exit": 0,
+  "assessment_validate_result": "STATIC_BINDING_PASS",
+  "cli_help_exit": 0
+ },
+ "original_failure_linkage": {
+  "attempt": "_attempt-001",
+  "immutable": true,
+  "verdict": "PREFLIGHT-FAIL 15/16 under pre-amendment policy; ledger candidate_rejected"
+ },
+ "outcome": "GUARD_BLOCKED_FAILURE_OF_ENTRY_NO_SCIENTIFIC_VERDICT_CANDIDATE_NOT_RETIRED",
+ "qualification": {
+  "confirmation_contacted": false,
+  "record_sha256": "c5a8e8ccbc6be35a58fe7363ee4e8af489d3fafb93aaf6411c3936e5d349dc4b",
+  "verdict": "PASS"
+ },
+ "schema_id": "sprint18-task70-assessment-confirmation-v1",
+ "source_closure_sha256": "7528315eb72efaf42e3bcddb77e69bc3b66cbacd2c420ed205321a7d59f388a2",
+ "task69_checkpoint": "7be574d9cf451e814e59d39005856f8af2bb774a",
+ "task69_releases": {
+  "v1_superseded": {
+   "assessment_checkpoint_commit": "bf49a81956e857563f5529022033795bd01e08bf",
+   "path": "artifacts/sprint-18/S18-ITER-0005-TASK69-main-assessment-release-v1.json",
+   "sha256": "444ac3357ae89a74a1e15ca1a9c0d1530a75a1ac4d58ef1159e1121e93c77c33"
+  },
+  "v2_corrected": {
+   "assessment_checkpoint_commit": "003b94bc4ee131dd8c3581b750180f65731b25a4",
+   "path": "artifacts/sprint-18/S18-ITER-0005-TASK69-main-assessment-release-v2.json",
+   "sha256": "217fb15ffac5addce3b6c3bf19e624ff0d163505ae2b8668f99f656e423480aa"
+  }
+ },
+ "task_id": "S18-T70"
+}
