@@ -54,9 +54,10 @@ ASSESSMENT_EXECUTION_COMMIT = "003b94bc4ee131dd8c3581b750180f65731b25a4"
 QUALIFIED_TASK69_ASSESSMENT_CHECKPOINT = "7be574d9cf451e814e59d39005856f8af2bb774a"
 QUALIFIED_ASSESSMENT_BINDING_SHA256 = "8e2705140d07d9c603989ec709de5ebb766e580a8619b37c7462f6dd2751dd3b"
 QUALIFIED_ASSESSMENT_SOURCE_CLOSURE_SHA256 = "7528315eb72efaf42e3bcddb77e69bc3b66cbacd2c420ed205321a7d59f388a2"
-ASSESSMENT_EXECUTION_DESCRIPTOR_SCHEMA_ID = "sprint18-assessment-execution-descriptor-v1"
+ASSESSMENT_EXECUTION_DESCRIPTOR_SCHEMA_ID = "sprint18-assessment-execution-descriptor-v2"
 ASSESSMENT_EXECUTION_DESCRIPTOR_FILENAME = "sprint18-assessment-execution-descriptor-v1.json"
 ASSESSMENT_EXECUTION_RELEASE_SCHEMA_ID = "sprint18-task70-corrected-execution-release-v1"
+CORRECTED_ASSESSMENT_EXECUTION_BASE_COMMIT = "9e9e22275d13e5e1e56e1f5a0b26fa4783acda6c"
 QUALIFIED_ASSESSMENT_RUNNER_SHA256 = "125df99c727f1a27928c5cf9b2d65cffee76891852ecb27d5c95c61ddd2d7c76"
 QUALIFIED_ASSESSMENT_RUNNER_BLOB_OID = "702b37bb5570eae639528fd7d807444f044f8d67"
 QUALIFIED_ASSESSMENT_QUALIFICATION_SHA256 = "c5a8e8ccbc6be35a58fe7363ee4e8af489d3fafb93aaf6411c3936e5d349dc4b"
@@ -651,9 +652,9 @@ def _assessment_execution_ancestors(root: Path, task69_checkpoint: str) -> tuple
 def _verify_assessment_execution_descriptor(
     binding: dict[str, Any], root: Path, release: dict[str, Any], task69_release: dict[str, Any],
 ) -> dict[str, Any]:
-    """Authenticate the sealed assessment EXECUTION descriptor (C-side) against B-side ancestry.
+    """Authenticate the sealed assessment EXECUTION descriptor against the reviewed base C.
 
-    Three-identity contract (never conflated):
+    Four-identity contract (never conflated):
 
     - A (immutable QUALIFIED DATA SOURCE, checkpoint `003b94bc…`): the old qualified
       runner bytes (`702b37bb…`/`125df99c…`), frozen DATA binding (`8e270514…`), raw
@@ -661,30 +662,41 @@ def _verify_assessment_execution_descriptor(
       (`625dcc1c…`, 28 events). Authenticates historical DATA/closed science only.
     - B (Task69 OUTCOME, checkpoint `7be574d9…`, parent A): the six actual scientific
       result carriers plus review R10; pins the qualified DATA identity above.
-    - C (CORRECTED EXECUTION, future Bronze commit, child of B): the NEW corrected
-      runner bytes. The descriptor MUST bind the NEW runner blob/canonical digests,
-      which MUST DIFFER from the old A-side runner identities above. A C blob is
-      never compared to the A blob for equality; A authenticates history, C
-      authenticates the new code under review.
+    - C (REVIEWED CORRECTED EXECUTION BASE, checkpoint `9e9e222…`, child of B):
+      the corrected runner bytes (`14839791…`/`e85a2244…`) committed and deployed
+      by CP01/DEP01. The authored v2 descriptor MUST pin C as
+      `corrected_execution_base_commit` plus the C descriptor blob and the
+      corrected runner identities, which MUST DIFFER from the old A-side runner
+      identities above. A C identity is never compared to A for equality; A
+      authenticates history, C authenticates the reviewed corrected code.
+    - D (FUTURE SEPARATE CORRECTION, child of C): minted only as a new commit
+      whose parent is exactly C, plus a separate Main D receipt pinned AFTER the
+      Bronze checkpoint/deploy. The descriptor never self-pins D; it pins the
+      stable reviewed base C. The D lineage is enforced by the separate Main
+      execution-release runtime guard below, never by accepting an arbitrary
+      ancestor or a stale execution.
 
     This verifier therefore: (1) pins A/B DATA fields from the Main Task69 release
     and the qualified constants; (2) resolves A/B ancestry through
     `_assessment_execution_ancestors` (parent of `7be574d9…` is `003b94bc…`, whose
     committed runner blob is the OLD `702b37bb…`, pinned for the A-side history
     check only); (3) requires the descriptor's `corrected_runner` to DIFFER from
-    the old A bytes (C MUST differ from A; never compared for equality);
-    (4) requires the descriptor's corrected blob/canonical digests to equal the
-    CURRENT WORKING-TREE runner blob/canonical bytes in the reviewed worktree
-    (worktree mode: the corrected source is under review and not yet committed,
-    so `HEAD:` still carries the old A blob by construction; the committed-C
-    equality is enforced AFTER the reviewed checkpoint by the separate Main
-    execution-release runtime guard, never here); (5) keeps the old 52-member
-    DATA closure check on every non-runner member. Any A/B/C swap, foreign
-    parent/member/hash, drifted roster/config/catalog/method/profile/policy/
-    record/ledger/probe/threshold/source entry refuses. The descriptor is
-    AUTHORED NOW as a worktree product (never minted by the Bronze checkpoint
-    executor); only the future C commit SHA is pinned later in the separate
-    Main execution-release receipt after review+checkpoint.
+    the old A bytes; (4) requires the descriptor's `corrected_execution_base_commit`
+    to equal the reviewed base C, its C-committed descriptor blob to equal
+    `<base-C>:<descriptor-path>`, and its corrected blob/canonical digests to
+    equal BOTH the base-C-committed runner blob and the current `HEAD:` runner
+    blob when HEAD is exactly base C (AUTHORED candidate state: `HEAD:` still
+    carries A by construction, so the HEAD check runs only at/after base C),
+    plus the working-tree blob+canonical bytes in every reachable state
+    (worktree mode: the corrected source is under review before the future D;
+    the DEPLOYED D state requires `HEAD:` to equal the descriptor D blob inside
+    the release guard); (5) keeps the old 52-member DATA closure check on every
+    non-runner member. Any A/B/C/D swap, foreign parent/member/hash, drifted
+    roster/config/catalog/method/profile/policy/record/ledger/probe/threshold/
+    source entry, or arbitrary-ancestor claim refuses. The descriptor is AUTHORED
+    NOW as a worktree product (never minted by the Bronze checkpoint executor);
+    only the future D commit SHA is pinned later in the separate Main
+    execution-release receipt after review+checkpoint.
     """
     try:
         descriptor = read_json(_assessment_execution_descriptor_path(root))
@@ -726,6 +738,27 @@ def _verify_assessment_execution_descriptor(
     if (runner_entry.get("git_blob_oid") == QUALIFIED_ASSESSMENT_RUNNER_BLOB_OID
             or runner_entry.get("canonical_sha256") == QUALIFIED_ASSESSMENT_RUNNER_SHA256):
         raise GuardError("assessment execution descriptor still binds the superseded qualified runner bytes")
+    if descriptor.get("corrected_execution_base_commit") != CORRECTED_ASSESSMENT_EXECUTION_BASE_COMMIT:
+        raise GuardError("assessment execution descriptor is not bound to the reviewed corrected execution base")
+    try:
+        base_descriptor_blob = subprocess.run(
+            ["git", "-C", str(root), "rev-parse",
+             f"{CORRECTED_ASSESSMENT_EXECUTION_BASE_COMMIT}:experiments/{ASSESSMENT_EXECUTION_DESCRIPTOR_FILENAME}"],
+            check=True, capture_output=True, text=True,
+        ).stdout.strip()
+        base_runner_blob = subprocess.run(
+            ["git", "-C", str(root), "rev-parse",
+             f"{CORRECTED_ASSESSMENT_EXECUTION_BASE_COMMIT}:experiments/sprint18_iterative_candidate_v1.py"],
+            check=True, capture_output=True, text=True,
+        ).stdout.strip()
+    except subprocess.CalledProcessError as exc:
+        raise GuardError("reviewed corrected execution base is absent from this checkout") from exc
+    if descriptor.get("corrected_execution_base_descriptor_blob_oid") != base_descriptor_blob:
+        raise GuardError("assessment execution descriptor bytes differ from the reviewed corrected execution base")
+    if base_runner_blob == QUALIFIED_ASSESSMENT_RUNNER_BLOB_OID:
+        raise GuardError("reviewed corrected execution base still carries the superseded qualified runner bytes")
+    if base_runner_blob == runner_entry.get("git_blob_oid"):
+        raise GuardError("assessment execution descriptor anticipates an unreviewed commit")
     data_identity = descriptor.get("data_identity")
     if not isinstance(data_identity, dict):
         raise GuardError("assessment execution descriptor lacks its DATA identity block")
@@ -756,10 +789,44 @@ def _verify_assessment_execution_descriptor(
         raise GuardError("Task69 assessment checkpoint does not follow the reviewed execution checkpoint")
     if committed_blob != QUALIFIED_ASSESSMENT_RUNNER_BLOB_OID:
         raise GuardError("reviewed execution commit does not carry the qualified runner bytes")
-    if head_blob == runner_entry["git_blob_oid"]:
-        raise GuardError("assessment execution descriptor anticipates an unreviewed commit")
-    if head_blob != QUALIFIED_ASSESSMENT_RUNNER_BLOB_OID:
-        raise GuardError("deployed HEAD does not carry the qualified runner bytes")
+    head_commit = subprocess.run(
+        ["git", "-C", str(root), "rev-parse", "HEAD"],
+        check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    base_is_ancestor = True
+    try:
+        subprocess.run(
+            ["git", "-C", str(root), "merge-base", "--is-ancestor",
+             CORRECTED_ASSESSMENT_EXECUTION_BASE_COMMIT, "HEAD"],
+            check=True, capture_output=True, text=True,
+        )
+    except subprocess.CalledProcessError:
+        base_is_ancestor = False
+    if head_commit == CORRECTED_ASSESSMENT_EXECUTION_BASE_COMMIT:
+        # HEAD is exactly the reviewed base C: the committed bytes equal base C
+        # by construction, and the descriptor pins the reviewed base-C bytes.
+        # Newer worktree bytes under review are authenticated by the
+        # worktree blob/canonical pins below, not by a HEAD equality demand.
+        if head_blob == QUALIFIED_ASSESSMENT_RUNNER_BLOB_OID:
+            raise GuardError("deployed HEAD still carries the superseded qualified runner bytes")
+    elif base_is_ancestor:
+        # DEPLOYED D state (HEAD descends from base C, e.g. the future separate
+        # correction): HEAD may carry newer review bytes than the sealed base-C
+        # runner, so the HEAD blob is NOT pinned here. The base-C runner
+        # blob/canonical pins above plus the working-tree blob/canonical pins
+        # below authenticate the deployed bytes; the exact D commit is pinned
+        # separately in the Main execution-release receipt after checkpoint.
+        if head_blob == QUALIFIED_ASSESSMENT_RUNNER_BLOB_OID:
+            raise GuardError("deployed HEAD still carries the superseded qualified runner bytes")
+    else:
+        # AUTHORED candidate state: HEAD predates the reviewed base C (the new
+        # worktree bytes are not yet committed, so `HEAD:` still carries A by
+        # construction). The base-C blob/canonical/worktree pins above plus the
+        # A/B/DATA ancestry already authenticate this state; no HEAD demand here.
+        if head_blob == runner_entry["git_blob_oid"]:
+            raise GuardError("assessment execution descriptor anticipates an unreviewed commit")
+        if head_blob != QUALIFIED_ASSESSMENT_RUNNER_BLOB_OID:
+            raise GuardError("authored HEAD does not carry the qualified runner bytes")
     worktree_blob = subprocess.run(
         ["git", "-C", str(root), "hash-object",
          "experiments/sprint18_iterative_candidate_v1.py"],
@@ -791,21 +858,24 @@ def _assessment_execution_release_path(root: Path) -> Path:
 def validate_assessment_execution_release(
     descriptor: dict[str, Any], root: Path, release_path: Path | None = None,
 ) -> dict[str, Any]:
-    """Validate the separate Main-minted corrected-EXECUTION release (C-side, runtime only).
+    """Validate the separate Main-minted corrected-EXECUTION release (D-side, runtime only).
 
-    This is the RUNTIME guard for the future corrected checkpoint C (child of B):
-    Main mints this receipt ONLY AFTER the reviewed C checkpoint exists, pinning the
-    exact C commit SHA plus the reviewed descriptor blob/bytes. It MUST NOT be
-    authored by the worker, the Bronze checkpoint executor, or the descriptor
-    itself (no self-reference, no hardcoded future SHA, no placeholder). Until
-    Main mints it, the static entry gate above is the complete product proof;
-    this function then refuses `execution-release-absent` exactly. After C it
-    additionally requires: C's recorded parent is B (`7be574d9…`), C is an
-    ancestor of (or equal to) the deployed `HEAD`, the C-committed runner blob
-    equals the descriptor `corrected_runner.git_blob_oid`, and the C commit
+    This is the RUNTIME guard for the future separate correction D (child of C):
+    Main mints this receipt ONLY AFTER the reviewed D checkpoint exists, pinning the
+    exact D commit SHA plus the reviewed descriptor blob/bytes and the descriptor's
+    reviewed base-C pins. It MUST NOT be authored by the worker, the Bronze
+    checkpoint executor, or the descriptor itself (no self-reference, no hardcoded
+    future SHA, no placeholder). Until Main mints it, the static entry gate above
+    is the complete product proof; this function then refuses
+    `execution-release-absent` exactly. After D it additionally requires: the
+    D receipt carries the exact reviewed base-C commit pinned by the descriptor,
+    D's recorded parent is exactly C (`9e9e222…`), C descends from B (`7be574d9…`)
+    which descends from A (`003b94bc…`) through one exact-parent hop each, D is an
+    ancestor of (or equal to) the deployed `HEAD`, the D-committed runner blob
+    equals the descriptor `corrected_runner.git_blob_oid`, and the D commit
     message/subject carries the reviewed correction scope (not a generic retry).
-    Arbitrary HEADs, short hashes, self-asserted digests, and enforced-alias
-    commits never authenticate.
+    Arbitrary ancestors, short hashes, self-asserted digests, stale C/base pins,
+    and enforced-alias commits never authenticate.
     """
     if release_path is None:
         release_path = _assessment_execution_release_path(root)
@@ -834,10 +904,20 @@ def validate_assessment_execution_release(
         raise GuardError("corrected execution release DATA binding differs from the qualified binding")
     if release.get("qualification_sha256") != QUALIFIED_ASSESSMENT_QUALIFICATION_SHA256:
         raise GuardError("corrected execution release DATA record differs from the qualified record")
+    if release.get("corrected_execution_base_commit") != descriptor.get("corrected_execution_base_commit"):
+        raise GuardError("corrected execution release does not carry the reviewed corrected execution base")
+    if release.get("corrected_execution_base_commit") != CORRECTED_ASSESSMENT_EXECUTION_BASE_COMMIT:
+        raise GuardError("corrected execution release is not bound to the reviewed corrected execution base")
+    if release.get("corrected_runner_git_blob_oid") != descriptor.get("corrected_runner", {}).get("git_blob_oid"):
+        raise GuardError("corrected execution release runner blob differs from the sealed execution identity")
+    if release.get("corrected_runner_canonical_sha256") != descriptor.get("corrected_runner", {}).get("canonical_sha256"):
+        raise GuardError("corrected execution release runner bytes differ from the sealed execution identity")
     corrected = release.get("corrected_execution_commit")
     if (not isinstance(corrected, str) or len(corrected) != 40
             or any(char not in "0123456789abcdef" for char in corrected)):
         raise GuardError("corrected execution release has no recorded corrected checkpoint")
+    if corrected == CORRECTED_ASSESSMENT_EXECUTION_BASE_COMMIT:
+        raise GuardError("corrected execution release still pins the superseded corrected execution base")
     descriptor_bytes = _assessment_execution_descriptor_path(root).read_bytes()
     if sha256_bytes(descriptor_bytes) != release["execution_descriptor_sha256"]:
         raise GuardError("corrected execution release descriptor bytes differ from the deployed descriptor")
@@ -852,8 +932,22 @@ def validate_assessment_execution_release(
         ["git", "-C", str(root), "rev-parse", f"{corrected}^"], check=True,
         capture_output=True, text=True,
     ).stdout.strip()
-    if corrected_parent != QUALIFIED_TASK69_ASSESSMENT_CHECKPOINT:
-        raise GuardError("corrected execution checkpoint does not follow the qualified Task69 checkpoint")
+    if corrected_parent != CORRECTED_ASSESSMENT_EXECUTION_BASE_COMMIT:
+        raise GuardError("corrected execution checkpoint does not follow the reviewed corrected execution base")
+    base_parent = subprocess.run(
+        ["git", "-C", str(root), "rev-parse",
+         f"{CORRECTED_ASSESSMENT_EXECUTION_BASE_COMMIT}^"],
+        check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    if base_parent != QUALIFIED_TASK69_ASSESSMENT_CHECKPOINT:
+        raise GuardError("reviewed corrected execution base does not follow the qualified Task69 checkpoint")
+    task69_parent = subprocess.run(
+        ["git", "-C", str(root), "rev-parse",
+         f"{QUALIFIED_TASK69_ASSESSMENT_CHECKPOINT}^"],
+        check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    if task69_parent != ASSESSMENT_EXECUTION_COMMIT:
+        raise GuardError("qualified Task69 checkpoint does not follow the reviewed execution checkpoint")
     subprocess.run(
         ["git", "-C", str(root), "merge-base", "--is-ancestor", corrected, "HEAD"],
         check=True, capture_output=True, text=True,

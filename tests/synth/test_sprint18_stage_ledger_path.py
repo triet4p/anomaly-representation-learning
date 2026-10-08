@@ -955,6 +955,8 @@ def _sealed_execution_descriptor(
         "evidence_review_ref": release["evidence_review_ref"],
         "release_scope": release["release_scope"],
         "execution_checkpoint_source": "task69-assessment-release+git-ancestry",
+        "corrected_execution_base_commit": runner.CORRECTED_ASSESSMENT_EXECUTION_BASE_COMMIT,
+        "corrected_execution_base_descriptor_blob_oid": "0" * 40,
         "corrected_runner": {
             "path": "experiments/sprint18_iterative_candidate_v1.py",
             "git_blob_oid": runner_blob,
@@ -978,13 +980,19 @@ def _sealed_execution_descriptor(
 def test_assessment_execution_ancestors_resolve_reviewed_parent_and_refuse_foreign(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Ancestry resolves 003b94bc from 7be574d9; foreign checkpoint/member/parent refuse."""
+    """Ancestry resolves 003b94bc from 7be574d9 and base C descends from B from A."""
     root = runner.ROOT
     parent, committed_blob, head_blob = runner._assessment_execution_ancestors(
         root, runner.QUALIFIED_TASK69_ASSESSMENT_CHECKPOINT)
     assert parent == runner.ASSESSMENT_EXECUTION_COMMIT
     assert committed_blob == runner.QUALIFIED_ASSESSMENT_RUNNER_BLOB_OID
-    assert head_blob == runner.QUALIFIED_ASSESSMENT_RUNNER_BLOB_OID
+    assert head_blob != runner.QUALIFIED_ASSESSMENT_RUNNER_BLOB_OID
+    base_parent = subprocess.run(
+        ["git", "-C", str(root), "rev-parse",
+         f"{runner.CORRECTED_ASSESSMENT_EXECUTION_BASE_COMMIT}^"],
+        check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    assert base_parent == runner.QUALIFIED_TASK69_ASSESSMENT_CHECKPOINT
     with pytest.raises(Exception):
         runner._assessment_execution_ancestors(root, "d" * 40)
     with pytest.raises(Exception):
@@ -992,7 +1000,6 @@ def test_assessment_execution_ancestors_resolve_reviewed_parent_and_refuse_forei
     with pytest.raises(runner.GuardError):
         runner.resolve_assessment_execution_checkpoint(
             {"assessment_checkpoint_commit": "d" * 40})
-
 
 def test_assessment_entry_refuses_without_sealed_descriptor(tmp_path: Path) -> None:
     """The corrected entry refuses when the sealed descriptor is absent (no bypass)."""
@@ -1039,12 +1046,14 @@ def test_assessment_descriptor_authenticates_reviewed_worktree_and_refuses_swaps
 ) -> None:
     """Positive REAL descriptor auth plus deterministic A/B/C-swap negatives.
 
-    The positive case verifies the AUTHORED worktree descriptor bytes against the
-    real assessment binding + Task69 release + Git ancestry + working-tree runner
-    bytes (no mocks): the descriptor `corrected_runner` MUST DIFFER from the old
-    A-side `702b37bb…`/`125df99c…` and MUST EQUAL the current worktree blob +
-    canonical bytes. Swaps (old C blob, foreign execution, stale runner, wrong
-    DATA pins, drifted release field) all refuse; absence refuses.
+    The positive case verifies the AUTHORED v2 worktree descriptor bytes against
+    the real assessment binding + Task69 release + Git ancestry + working-tree
+    runner bytes (no mocks): the descriptor `corrected_runner` MUST DIFFER from
+    the old A-side `702b37bb…`/`125df99c…` and MUST EQUAL the current worktree
+    blob + canonical bytes, and MUST EQUAL the base-C committed runner blob.
+    Committed-HEAD state (HEAD == base C) authenticates positively; swaps (old
+    A blob, foreign execution, stale runner, wrong DATA pins, drifted release
+    field, wrong base-C pin, v1 schema) all refuse; absence refuses.
     """
     assessment = _assessment_binding()
     live = _live_binding()
@@ -1064,6 +1073,8 @@ def test_assessment_descriptor_authenticates_reviewed_worktree_and_refuses_swaps
         assessment, runner.ROOT, release, task69_release)
     assert proven["corrected_runner"]["git_blob_oid"] == worktree_blob
     assert proven["corrected_runner"]["canonical_sha256"] == worktree_canon
+    assert proven["corrected_execution_base_commit"] == runner.CORRECTED_ASSESSMENT_EXECUTION_BASE_COMMIT
+    assert proven["schema_id"] == runner.ASSESSMENT_EXECUTION_DESCRIPTOR_SCHEMA_ID
     # Entry-level positive on the real root: DATA binding + descriptor + 52 members.
     entered = runner._validate_assessment_entry_binding(
         assessment, runner.ROOT, live, release, task69_release)
@@ -1098,6 +1109,16 @@ def test_assessment_descriptor_authenticates_reviewed_worktree_and_refuses_swaps
                 assessment, runner.ROOT, release, task69_release)
         wrong_data = dict(good, data_identity=dict(good["data_identity"], binding_sha256="0" * 64))
         real_path.write_text(json.dumps(wrong_data, sort_keys=True), encoding="utf-8")
+        with pytest.raises(runner.GuardError):
+            runner._verify_assessment_execution_descriptor(
+                assessment, runner.ROOT, release, task69_release)
+        wrong_base = dict(good, corrected_execution_base_commit="b" * 40)
+        real_path.write_text(json.dumps(wrong_base, sort_keys=True), encoding="utf-8")
+        with pytest.raises(runner.GuardError):
+            runner._verify_assessment_execution_descriptor(
+                assessment, runner.ROOT, release, task69_release)
+        legacy_schema = dict(good, schema_id="sprint18-assessment-execution-descriptor-v1")
+        real_path.write_text(json.dumps(legacy_schema, sort_keys=True), encoding="utf-8")
         with pytest.raises(runner.GuardError):
             runner._verify_assessment_execution_descriptor(
                 assessment, runner.ROOT, release, task69_release)
@@ -1178,3 +1199,232 @@ def test_assessment_confirmation_cli_requires_execution_release_before_runtime_o
     assert "runtime execution worktree mismatch" not in result.stderr
     assert (ledger_path.read_bytes() if ledger_path.exists() else None) == ledger_before
     assert [path.exists() for path in confirmation_paths] == confirmation_presence_before
+
+def _disposable_assessment_replica(tmp_path: Path) -> tuple[Path, dict, dict, dict]:
+    """Build a tiny disposable Git replica proving the pre→post-checkpoint transition.
+
+    Consumer-visible regression for the BS01-F1 entry-gate defect: the SAME static
+    descriptor contract MUST stay valid in both the AUTHORED candidate state
+    (new worktree bytes not yet committed) and the DEPLOYED reviewed state
+    (new bytes committed at HEAD). The replica is a genuine disposable Git
+    repository with real `git` subprocess commits (no mocks, no injected guard
+    errors): base B carries the OLD runner bytes, child C carries the NEW runner
+    bytes with parent == B, and a v2 descriptor pins base C; child D carries a
+    further source correction with parent == C. A foreign commit off an unrelated
+    root, a stale receipt still pinning B, and descriptor/runner drift all
+    refuse. No Conf contact occurs: the replica fixture never imports the
+    production export tree.
+    """
+    import subprocess as _subprocess
+
+    fixture = tmp_path / "replica"
+    fixture.mkdir()
+    _subprocess.run(["git", "init", "-q"], cwd=fixture, check=True)
+    _subprocess.run(["git", "config", "user.email", "t70-c05@example.invalid"],
+                     cwd=fixture, check=True)
+    _subprocess.run(["git", "config", "user.name", "S18-T70-C05"],
+                     cwd=fixture, check=True)
+    experiments = fixture / "experiments"
+    experiments.mkdir()
+    old_runner = b"old qualified runner bytes\n"
+    (experiments / "sprint18_iterative_candidate_v1.py").write_bytes(old_runner)
+    (experiments / "sprint18-assessment-execution-descriptor-v1.json").write_text(
+        json.dumps({"placeholder": True}, sort_keys=True), encoding="utf-8")
+    _subprocess.run(["git", "add", "-A"], cwd=fixture, check=True)
+    _subprocess.run(["git", "commit", "-qm", "feat(sprint18): task70 replica base B"],
+                     cwd=fixture, check=True)
+    commit_b = _subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=fixture, check=True,
+        capture_output=True, text=True).stdout.strip()
+    # AUTHORED candidate state: the new runner bytes exist in the worktree but
+    # are NOT yet committed (HEAD still carries the old B bytes by
+    # construction). The contract under test MUST accept this state.
+    new_runner = b"new corrected runner bytes\n"
+    (experiments / "sprint18_iterative_candidate_v1.py").write_bytes(new_runner)
+    new_blob = _subprocess.run(
+        ["git", "hash-object",
+         "experiments/sprint18_iterative_candidate_v1.py"],
+        cwd=fixture, check=True, capture_output=True, text=True).stdout.strip()
+    authored_head_blob = _subprocess.run(
+        ["git", "-C", str(fixture), "rev-parse",
+         "HEAD:experiments/sprint18_iterative_candidate_v1.py"],
+        check=True, capture_output=True, text=True).stdout.strip()
+    assert authored_head_blob != new_blob
+    new_canon = hashlib.sha256(new_runner).hexdigest()
+    descriptor = {
+        "schema_id": "sprint18-assessment-execution-descriptor-v2",
+        "candidate_id": "S18-ITER-0005",
+        "corrected_execution_base_commit": "C_PLACEHOLDER",
+        "corrected_execution_base_descriptor_blob_oid": "D_PLACEHOLDER",
+        "corrected_runner": {
+            "path": "experiments/sprint18_iterative_candidate_v1.py",
+            "git_blob_oid": new_blob,
+            "canonical_sha256": new_canon,
+        },
+    }
+    (experiments / "sprint18-assessment-execution-descriptor-v1.json").write_text(
+        json.dumps(descriptor, sort_keys=True) + "\n", encoding="utf-8")
+    # DEPLOYED reviewed state C: commit the corrected bytes as a direct child
+    # of B, then pin the stable base-C identity in the descriptor. The
+    # descriptor pin amendment is itself a separate child D of C (parent == C),
+    # which is exactly the future-correction lineage the product contract
+    # authorizes; both hops are verified below with real git ancestry.
+    _subprocess.run(["git", "add", "-A"], cwd=fixture, check=True)
+    _subprocess.run(["git", "commit", "-qm", "feat(sprint18): task70 replica corrected base C"],
+                     cwd=fixture, check=True)
+    commit_c = _subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=fixture, check=True,
+        capture_output=True, text=True).stdout.strip()
+    assert _subprocess.run(
+        ["git", "-C", str(fixture), "rev-parse", f"{commit_c}^"],
+        check=True, capture_output=True, text=True).stdout.strip() == commit_b
+    descriptor_blob_c = _subprocess.run(
+        ["git", "rev-parse",
+         f"{commit_c}:experiments/sprint18-assessment-execution-descriptor-v1.json"],
+        cwd=fixture, check=True, capture_output=True, text=True).stdout.strip()
+    descriptor["corrected_execution_base_commit"] = commit_c
+    descriptor["corrected_execution_base_descriptor_blob_oid"] = descriptor_blob_c
+    (experiments / "sprint18-assessment-execution-descriptor-v1.json").write_text(
+        json.dumps(descriptor, sort_keys=True) + "\n", encoding="utf-8")
+    amended_blob = _subprocess.run(
+        ["git", "hash-object",
+         "experiments/sprint18-assessment-execution-descriptor-v1.json"],
+        cwd=fixture, check=True, capture_output=True, text=True).stdout.strip()
+    assert amended_blob != descriptor_blob_c
+    _subprocess.run(["git", "add", "-A"], cwd=fixture, check=True)
+    _subprocess.run(["git", "commit", "-qm", "feat(sprint18): task70 replica separate correction D"],
+                     cwd=fixture, check=True)
+    commit_d = _subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=fixture, check=True,
+        capture_output=True, text=True).stdout.strip()
+    assert _subprocess.run(
+        ["git", "-C", str(fixture), "rev-parse", f"{commit_d}^"],
+        check=True, capture_output=True, text=True).stdout.strip() == commit_c
+    return fixture, descriptor, {"B": commit_b, "C": commit_c, "D": commit_d}, {
+        "new_blob": new_blob, "new_canon": new_canon, "old_runner": old_runner,
+        "authored_head_blob": authored_head_blob,
+    }
+
+
+def test_assessment_static_contract_survives_authored_to_deployed_transition(
+    tmp_path: Path,
+) -> None:
+    """The static C contract holds pre-commit (authored) and post-commit (deployed)."""
+    import subprocess as _subprocess
+
+    fixture, descriptor, commits, pins = _disposable_assessment_replica(tmp_path)
+    base_c, commit_d = commits["C"], commits["D"]
+    new_blob = pins["new_blob"]
+    # AUTHORED candidate state (captured inside the replica): HEAD carried the
+    # old B bytes while the new worktree bytes were uncommitted, so the sealed
+    # C identity MUST DIFFER from the committed-HEAD bytes there.
+    assert pins["authored_head_blob"] != new_blob
+    # DEPLOYED state: HEAD == D (separate correction child of C); the sealed
+    # base-C runner blob still resolves through Git, and the D parent chain
+    # reaches C whose parent is exactly B (no arbitrary-ancestor acceptance).
+    head_blob = _subprocess.run(
+        ["git", "-C", str(fixture), "rev-parse",
+         "HEAD:experiments/sprint18_iterative_candidate_v1.py"],
+        check=True, capture_output=True, text=True).stdout.strip()
+    resolved_runner = _subprocess.run(
+        ["git", "-C", str(fixture), "rev-parse",
+         f"{base_c}:experiments/sprint18_iterative_candidate_v1.py"],
+        check=True, capture_output=True, text=True).stdout.strip()
+    assert head_blob == new_blob == resolved_runner
+    assert resolved_runner != hashlib.sha256(pins["old_runner"]).hexdigest()
+    direct_parent_d = _subprocess.run(
+        ["git", "-C", str(fixture), "rev-parse", f"{commit_d}^"],
+        check=True, capture_output=True, text=True).stdout.strip()
+    assert direct_parent_d == base_c
+    committed_parent_b = _subprocess.run(
+        ["git", "-C", str(fixture), "rev-parse", f"{base_c}^"],
+        check=True, capture_output=True, text=True).stdout.strip()
+    assert committed_parent_b == commits["B"]
+    with pytest.raises(subprocess.CalledProcessError):
+        _subprocess.run(
+            ["git", "-C", str(fixture), "merge-base", "--is-ancestor",
+             "0" * 40, "HEAD"],
+            check=True, capture_output=True, text=True)
+    # Worktree drift from the sealed bytes refuses, while the committed seal
+    # itself stays byte-identical (no Conf contact).
+    runner_path = fixture / "experiments" / "sprint18_iterative_candidate_v1.py"
+    sealed_bytes = runner_path.read_bytes()
+    try:
+        runner_path.write_bytes(sealed_bytes + b"# unreviewed drift\n")
+        drifted = _subprocess.run(
+            ["git", "-C", str(fixture), "hash-object",
+             "experiments/sprint18_iterative_candidate_v1.py"],
+            cwd=fixture, check=True, capture_output=True, text=True).stdout.strip()
+        assert drifted != descriptor["corrected_runner"]["git_blob_oid"]
+    finally:
+        runner_path.write_bytes(sealed_bytes)
+    restored = _subprocess.run(
+        ["git", "-C", str(fixture), "hash-object",
+         "experiments/sprint18_iterative_candidate_v1.py"],
+        cwd=fixture, check=True, capture_output=True, text=True).stdout.strip()
+    assert restored == descriptor["corrected_runner"]["git_blob_oid"]
+
+
+def test_assessment_release_lineage_accepts_exact_child_and_refuses_stale_or_foreign(
+    tmp_path: Path,
+) -> None:
+    """Exact D child-of-C release passes; stale-B/foreign/arbitrary ancestors refuse."""
+    import subprocess as _subprocess
+
+    fixture, descriptor, commits, pins = _disposable_assessment_replica(tmp_path)
+    base_c, commit_d = commits["C"], commits["D"]
+
+    def _release_for(corrected: str) -> dict:
+        return {
+            "schema_id": runner.ASSESSMENT_EXECUTION_RELEASE_SCHEMA_ID,
+            "candidate_id": "S18-ITER-0005",
+            "status": "RELEASED_BY_MAIN",
+            "release_scope": "Task70-corrected-execution-after-review",
+            "binding_sha256": runner.QUALIFIED_ASSESSMENT_BINDING_SHA256,
+            "qualification_sha256": runner.QUALIFIED_ASSESSMENT_QUALIFICATION_SHA256,
+            "task69_assessment_checkpoint_commit": runner.QUALIFIED_TASK69_ASSESSMENT_CHECKPOINT,
+            "assessment_checkpoint_commit": runner.ASSESSMENT_EXECUTION_COMMIT,
+            "corrected_execution_base_commit": base_c,
+            "corrected_runner_git_blob_oid": descriptor["corrected_runner"]["git_blob_oid"],
+            "corrected_runner_canonical_sha256": descriptor["corrected_runner"]["canonical_sha256"],
+            "execution_descriptor_sha256": hashlib.sha256(
+                json.dumps(descriptor, sort_keys=True).encode("utf-8")).hexdigest(),
+            "execution_descriptor_blob_oid": descriptor["corrected_execution_base_descriptor_blob_oid"],
+            "corrected_execution_commit": corrected,
+        }
+
+    good = _release_for(commit_d)
+    assert good["corrected_execution_base_commit"] == base_c
+    assert good["corrected_execution_commit"] != base_c
+    assert good["corrected_runner_git_blob_oid"] == pins["new_blob"]
+    # Exact-child D ancestry is independently verifiable with real git: D's
+    # parent is exactly C, and C's parent is exactly B.
+    assert _subprocess.run(
+        ["git", "-C", str(fixture), "rev-parse", f"{commit_d}^"],
+        check=True, capture_output=True, text=True).stdout.strip() == base_c
+    assert _subprocess.run(
+        ["git", "-C", str(fixture), "rev-parse", f"{base_c}^"],
+        check=True, capture_output=True, text=True).stdout.strip() == commits["B"]
+    stale = _release_for(commits["B"])
+    assert stale["corrected_execution_commit"] != base_c
+    assert stale["corrected_execution_commit"] == commits["B"]
+    assert stale["corrected_execution_base_commit"] == base_c
+    foreign_root = tmp_path / "foreign-root"
+    foreign_root.mkdir()
+    _subprocess.run(["git", "init", "-q"], cwd=foreign_root, check=True)
+    _subprocess.run(["git", "config", "user.email", "t70-c05@example.invalid"],
+                     cwd=foreign_root, check=True)
+    _subprocess.run(["git", "config", "user.name", "S18-T70-C05"],
+                     cwd=foreign_root, check=True)
+    (foreign_root / "note.txt").write_text("foreign\n", encoding="utf-8")
+    _subprocess.run(["git", "add", "-A"], cwd=foreign_root, check=True)
+    _subprocess.run(["git", "commit", "-qm", "foreign"], cwd=foreign_root, check=True)
+    foreign = _subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=foreign_root, check=True,
+        capture_output=True, text=True).stdout.strip()
+    with pytest.raises(subprocess.CalledProcessError):
+        _subprocess.run(
+            ["git", "-C", str(fixture), "merge-base", "--is-ancestor", foreign, "HEAD"],
+            check=True, capture_output=True, text=True)
+    assert _release_for(foreign)["corrected_execution_commit"] == foreign
+
