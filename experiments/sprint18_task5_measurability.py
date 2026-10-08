@@ -412,12 +412,20 @@ def structural_summary(entry: dict, manifest: dict) -> dict:
 
     subtype_counts = Counter(failure["subtype"] for failure in ledger)
     cohort_counts = Counter(failure["cohort"] for failure in ledger)
+    # User-accepted policy S18-T69-B01 (DR01 provenance; nominal P upper 15d,
+    # accepted band [15d, 16d) i.e. 2 <= duration_d < 16): the nominal bound
+    # is reported, not hidden. Boundary duration_d == 16.0 and < 2.0 FAIL.
+    nominal_p_exceedances = sorted(
+        failure["duration_d"]
+        for failure in ledger
+        if failure["cohort"] == "P" and failure["duration_d"] > 15.0
+    )
     physical = all(
         (failure["duration_d"] == 0.0 and failure["degradation_onset"] is None
          and failure["subtype"] in ("A1", "A2"))
         if failure["cohort"] == "A"
         else ((failure["subtype"] in ("P1", "P2")
-               and 2.0 <= failure["duration_d"] <= 15.0)
+               and 2.0 <= failure["duration_d"] < 16.0)
               if failure["cohort"] == "P"
               else (failure["subtype"] in ("W1", "W2")
                     and 6.0 <= failure["duration_d"] <= 28.0))
@@ -553,6 +561,9 @@ def structural_summary(entry: dict, manifest: dict) -> dict:
         "checks": checks,
         "core_integrity_pass": core_pass,
         "core_integrity_failures": failures,
+        "nominal_p_upper_15d_exceedance_count": len(nominal_p_exceedances),
+        "nominal_p_upper_15d_exceedance_durations_d": list(nominal_p_exceedances),
+        "nominal_p_upper_15d_exceedance_allowance_d": 1.0,
         "nuisance": nuisance,
         "analytic_signal_margin": margin,
         "maintenance_window_count": sum(len(intervals) for intervals in wins.values()),

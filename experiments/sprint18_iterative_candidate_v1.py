@@ -38,6 +38,13 @@ GIT_STORAGE_ROOT = "/home/trietlm/anomaly-representation-learning"
 APPROVED_BRANCH = "sprint18-task68-a02-runtime"
 PYTHON_PROVIDER = "/home/trietlm/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/bin/python3.12"
 LOCKED_PACKAGE_VERSIONS = {"numpy": "2.5.2", "scipy": "1.18.1", "torch": "2.14.0+cu130"}
+POLICY_REVISION = {
+    "policy_id": "sprint18-p-duration-allowance-v1",
+    "p_per_record": "2.0 <= duration_d < 16.0",
+    "p_nominal_upper_15d": 15.0,
+    "p_accepted_exclusive_upper_16d": 16.0,
+    "provenance": "S18-T69-D01/DR01 user-accepted subday allowance",
+}
 
 TASK67_EVIDENCE = {
     "path": "artifacts/sprint-18/task-67.md",
@@ -427,6 +434,8 @@ def validate_binding(
         raise GuardError("accepted Task66 contract digest mismatch")
     if binding.get("binding_sha256") != _candidate_digest(binding):
         raise GuardError("canonical binding SHA-256 mismatch")
+    if binding.get("policy_revision") != POLICY_REVISION:
+        raise GuardError("P-duration allowance policy revision mismatch")
     if binding.get("provenance", {}).get("task67_evidence") != TASK67_EVIDENCE:
         raise GuardError("accepted Task67 evidence provenance identity mismatch")
     provenance = binding["provenance"]

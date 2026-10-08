@@ -574,7 +574,7 @@
     "identity_scheme": "git-tracked-utf8-text-lf-sha256-v1",
     "unknown_scheme_policy": "reject",
     "non_text_policy": "reject; require a separately versioned identity scheme",
-    "closure_sha256": "73f9125c3b28f9ff7127393f2a63d8c15baca53091ac7fe450788335ae1c10a6",
+    "closure_sha256": "df6eae410bf31dc146319d97a2a65264366d3fad2fd624e1a3a35fc7adeffacd",
     "sha256_by_path": {
       "docs/BENCHMARK_MEASURABILITY_EXIT_GATES_V2.md": "d294762331ded4fd213f6870e563e32e17e12c632d7cb11a80373478ede34e1c",
       "experiments/sprint15-benchmark-protocol-v7.md": "a1fc09db2e246ed79d0595aec953a7788fd1b47c4981fbe1d92017d944b8d7b6",
@@ -584,8 +584,8 @@
       "experiments/sprint18-iterative-data-contract-v3.md": "544de84bc201a07140559058d100c991cd148b698f93058dbd37d7fe4dc3c929",
       "experiments/sprint18-task67-attempt-S18-T67-A05.json": "a9dc94782c92c34981e8612ddab5b301e81a48560fbead1dc5b6051861497a34",
       "experiments/sprint18-task67-attempt-S18-T67-A05.md": "705a2cf3c957cdf98a84d0bd7283f964acc7abc83cef30b02ce70c80bef429a6",
-      "experiments/sprint18_iterative_candidate_v1.py": "a2b2113871ada9f2124d82e64b89edd936461bcd00bdb1f25ed1e64772686d80",
-      "experiments/sprint18_task5_measurability.py": "0ee9e3ff9ae884dfa5a19efdfa921417ae52304c01e7f8293740a5dc4aa059b9",
+      "experiments/sprint18_iterative_candidate_v1.py": "cb706b37d066c7338a4394b89ef1c03ce7d237197389f0eb168079cdd1c524cf",
+      "experiments/sprint18_task5_measurability.py": "32fd345f6cd6d505634d7434ee658bc8aecad7de7dbdbb355a7d8ca492696444",
       "experiments/sprint22-pilot-binding-v1.json": "eb47cf4c51e03bb9cdfce2c216fbee5fe8b90121e71e999ec3b8c541c1a380f6",
       "pyproject.toml": "30292a091a273d0d58958701f792ad30af9a9bbd7454480275dedd73d1421d01",
       "src/synth/__init__.py": "073a5b687c0e914e4762b488179cb141d96ffdb26bd678558393120094ae924e",
@@ -602,7 +602,7 @@
       "src/synth/anomalies/regularity.py": "3bb17a410df99bce933dad7cf2f0d208c23197c06b5683e4ffec499a138cce7d",
       "src/synth/anomalies/stuck.py": "9c7e14ac4a6c9cbb7af3cfa8df0b90240e4eaaf74df7badd54dc8c4988e399c8",
       "src/synth/anomalies/transition.py": "1a92b361dfeff2df80939f95de84c7bbf59ebd0ccbc3629ab326bccee87be704",
-      "src/synth/balanced.py": "d62de3422bd51f870d39d18b1a8bb942f9ca73fc0044d8f23cc2d0948bd35a43",
+      "src/synth/balanced.py": "5913a7685c827001cf5cc32ecbc776dd0395de4a1f6a5a02ed457c50b5d19921",
       "src/synth/chronicle.py": "f20c2385a7b1e33c0b86cf8d70e45ecb593dba463f5e77c5eec9f7b46f1203e6",
       "src/synth/cli.py": "a8a6da7338b44f70a8041d74f37734facf0a8d1000138a6528c987b8e4bd0c5a",
       "src/synth/config.py": "f8098fb7f373f303e9e6eb8d76d008ef7e925bb9ef275c484a80d56c589a15c6",
@@ -618,7 +618,7 @@
       "src/synth/physics/__init__.py": "4e0d2ca9e0bec699cbd23dde004fcbfd8a422814d7a264fc11b05aa78b885a4b",
       "src/synth/physics/causal.py": "6e97fbe655fe0a1c55433e04eb23fb1922ce28537ec061875fda2632c6c8d183",
       "src/synth/physics/noise.py": "cf3f51ad9a571a3cf77c3c40aaf2e0d69b96afda860615edf9751b9f9f063d54",
-      "src/synth/preflight15.py": "4228d18a87891a7989c4e8384c7d82211c6adfd027d134b11f20a37b221b244b",
+      "src/synth/preflight15.py": "8e4e91ae24cf82707ec784e391d0bc01a00fbbebfd4795aede4384d4b0dfa522",
       "src/synth/probe15.py": "a08b3d5fb83001e1f5c43f4c56ff536bae85e41d494db289304aeb33a339242b",
       "src/synth/regimes.py": "e0287d2dc7aadf1ca50c0bf63151f1d79b11a7d7a14c68ee7eec0a21a981cafd",
       "src/synth/scheduled.py": "feb76b9d10c500e3dbea7fda2237e7daf8d1b41abe6cf8a7e6d38a9e73c72ce7",
@@ -639,7 +639,7 @@
       "experiments/sprint18-iterative-data-contract-v3.md": "5ea324777e4427d19f38c1dd701114ff46ee317a",
       "experiments/sprint18-task67-attempt-S18-T67-A05.json": "1c2ef1a76d8484633b213f37255ed18a421afefb",
       "experiments/sprint18-task67-attempt-S18-T67-A05.md": "c6fadf04644e6eb377a71d446b9f87a16379231f",
-      "experiments/sprint18_task5_measurability.py": "5b6a499ce6f488f3b9817e1217c1c07f50a8a4c5",
+      "experiments/sprint18_task5_measurability.py": "ca91796b41446f248c5b2244c816dd1467b5b6f5",
       "experiments/sprint22-pilot-binding-v1.json": "552c0e2ecf020156b5f05a1fe3cb9e42127d35a7",
       "pyproject.toml": "c5db30eb601289871d9aa19d5ff48283aa6438ef",
       "src/synth/__init__.py": "2301bf484c1de6aabe3f6ed919223e3f609657f3",
@@ -656,7 +656,7 @@
       "src/synth/anomalies/regularity.py": "0378f2e9e215ba65e54d65aa72f087df600aa083",
       "src/synth/anomalies/stuck.py": "0bb8c3fa0ce96b2513c7fcf4b3b14002c520f6bf",
       "src/synth/anomalies/transition.py": "ea7d18376fd6bfb853b907e38fbe246897f34014",
-      "src/synth/balanced.py": "3b05340077ec49230290ceef5188959275aa7e37",
+      "src/synth/balanced.py": "37e52b1322e37f25e2190b1706c663601f3f95ec",
       "src/synth/chronicle.py": "3563c41e5362ecb7b3a00f8d161929ccd3d427fe",
       "src/synth/cli.py": "2ad003f8722f356965fb05682387dcc3f6a5a83e",
       "src/synth/config.py": "05b293826e105067e4c2cac4b1dd1004187ade08",
@@ -672,7 +672,7 @@
       "src/synth/physics/__init__.py": "db8250f6ce92782c8fbc592b20bfabea964ea40a",
       "src/synth/physics/causal.py": "5f930cb2ee8f295c7beb015acb44371798f64a3a",
       "src/synth/physics/noise.py": "22abd06cc8a2072e4453dd659077c2939de051df",
-      "src/synth/preflight15.py": "9df413ea02746dd4d1b59260d3d9da396366ea01",
+      "src/synth/preflight15.py": "fac96b66f55717e805cd6f6b92eeae811985c42f",
       "src/synth/probe15.py": "d15f0dea526c9f9cfeb72f54e2443f7e7317303b",
       "src/synth/regimes.py": "4edf8166526aecd9484b9d0c120cf073c67ffa72",
       "src/synth/scheduled.py": "21dd28ff2d1421f30e829a0bbc252144a0a7d8fb",
@@ -682,7 +682,7 @@
       "src/synth/strength.py": "802938402faeb378281f0a441f5c9066f102d7cc",
       "src/synth/temporal.py": "a85b545c3dac8a42fd228303843837b8f4cb11c8",
       "uv.lock": "ad42b7c40222f75b34a943b9b3293d52792f7cec",
-      "experiments/sprint18_iterative_candidate_v1.py": "5d105014781932e2b4870ffb08d72f980f998493",
+      "experiments/sprint18_iterative_candidate_v1.py": "632e65ab3e10d7e0a032453b8fa034d5eb467204",
       "experiments/sprint18-candidate4-operational-retirement-v1.json": "74400a50f79af9bacd47162a64d43f342543ed18"
     }
   },
@@ -857,5 +857,12 @@
     "new_binding_and_fresh_review_required_for_every_candidate": true,
     "no_gate_relaxation_or_seed_selection": true
   },
-  "binding_sha256": "10e8bbbfe91951296536a2e5032162d4dd3f97bdda121d5d89ca787df4f5f532"
+  "policy_revision": {
+    "policy_id": "sprint18-p-duration-allowance-v1",
+    "p_per_record": "2.0 <= duration_d < 16.0",
+    "p_nominal_upper_15d": 15.0,
+    "p_accepted_exclusive_upper_16d": 16.0,
+    "provenance": "S18-T69-D01/DR01 user-accepted subday allowance"
+  },
+  "binding_sha256": "6a1b0c359a468967b38c4d56dea89206e086d20a07e7cc6f2ac9f93ff61ba80c"
 }

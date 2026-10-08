@@ -335,3 +335,214 @@ def test_runtime_guard_exercises_real_cli_entrypoint_before_contact(
     monkeypatch.setattr(subprocess, "run", _refusing_run)
     with pytest.raises(runner.GuardError, match="public CLI entrypoint parser refused"):
         runner._validate_public_cli_entrypoint(binding, tmp_path)
+
+def _p_allowance_diagnostic_ledger(p_durations: list[float]) -> list[dict]:
+    """Build a minimal valid ledger exercising the real P-duration predicate.
+
+    Consumer-visible boundary regression for the user-accepted S18-T69-B01
+    policy (DR01 provenance): P per-record 2 <= duration_d < 16 with nominal
+    upper 15d reported, P median [5, 10], W/A gates unchanged. Uses small
+    isolated in-memory ledgers (not waveforms or seed-32076 data); the real
+    structural predicate and the real preflight qualifier decide.
+    """
+    ledger = [
+        {
+            "failure_id": "pass-robot-01-0001",
+            "robot_id": "robot-01",
+            "failure_time": 20.0 * 86400.0,
+            "cohort": "P",
+            "subtype": "P1",
+            "degradation_onset": (20.0 - 7.0) * 86400.0,
+            "duration_d": 7.0,
+            "severity": 2.0,
+        },
+        {
+            "failure_id": "pass-robot-02-0001",
+            "robot_id": "robot-02",
+            "failure_time": 30.0 * 86400.0,
+            "cohort": "P",
+            "subtype": "P2",
+            "degradation_onset": (30.0 - 7.0) * 86400.0,
+            "duration_d": 7.0,
+            "severity": 2.0,
+        },
+        {
+            "failure_id": "pass-robot-03-0001",
+            "robot_id": "robot-03",
+            "failure_time": 40.0 * 86400.0,
+            "cohort": "W",
+            "subtype": "W1",
+            "degradation_onset": (40.0 - 13.0) * 86400.0,
+            "duration_d": 13.0,
+            "severity": 2.0,
+        },
+        {
+            "failure_id": "pass-robot-04-0001",
+            "robot_id": "robot-04",
+            "failure_time": 50.0 * 86400.0,
+            "cohort": "W",
+            "subtype": "W2",
+            "degradation_onset": (50.0 - 13.0) * 86400.0,
+            "duration_d": 13.0,
+            "severity": 2.0,
+        },
+        {
+            "failure_id": "pass-robot-05-0001",
+            "robot_id": "robot-05",
+            "failure_time": 60.0 * 86400.0,
+            "cohort": "A",
+            "subtype": "A1",
+            "degradation_onset": None,
+            "duration_d": 0.0,
+            "severity": 2.0,
+        },
+    ]
+    for index, duration in enumerate(p_durations):
+        ledger.append(
+            {
+                "failure_id": f"probe-robot-06-{index:04d}",
+                "robot_id": "robot-06",
+                "failure_time": (70.0 + index) * 86400.0,
+                "cohort": "P",
+                "subtype": "P1" if index % 2 == 0 else "P2",
+                "degradation_onset": (70.0 + index - duration) * 86400.0,
+                "duration_d": duration,
+                "severity": 2.0,
+            }
+        )
+    return ledger
+
+
+def test_p_duration_subday_overshoot_accepted_with_nominal_reported() -> None:
+    """P 15.545d passes the amended predicate and reports the nominal excess."""
+    import sys
+
+    sys.path.insert(0, str(REPO_ROOT / "src"))
+    sys.path.insert(0, str(REPO_ROOT / "experiments"))
+    import sprint18_task5_measurability as meas
+
+    ledger = _p_allowance_diagnostic_ledger([15.545084957564008])
+    manifest = {
+        "files": [],
+        "failure_events": ledger,
+        "maintenance_windows": {},
+        "schedule": [],
+        "splits": {
+            "dev_train": [], "dev_val": [], "test_static": [],
+            "test_temporal": [], "quarantined": [],
+            "failed_episode_ids": [],
+        },
+        "counts": {
+            "total": 0, "normal": 0, "abnormal": 0, "dev_train": 0,
+            "dev_val": 0, "test_static": 0, "test_temporal": 0,
+            "quarantined": 0,
+        },
+        "calendar": {"cutoff_time": 0.0},
+        "resolved_config": {
+            "health": {"noise_scale": 1.0e-3},
+            "scheduler": {"routes": [{"stages": [{"duration_s": 600.0}]}]},
+        },
+    }
+    entry = {"history_id": "S18I-P-ALLOW-PROBE", "role": "CONFIRMATION", "data_seed": 32076}
+    summary = meas.structural_summary(entry, manifest)
+    assert summary["checks"]["cohort_subtype_physical_shapes_and_duration_bounds"] is True
+    assert summary["nominal_p_upper_15d_exceedance_count"] == 1
+    assert summary["nominal_p_upper_15d_exceedance_durations_d"] == [15.545084957564008]
+    assert summary["nominal_p_upper_15d_exceedance_allowance_d"] == 1.0
+
+
+def test_p_duration_hard_boundaries_still_fail() -> None:
+    """Exact 16d, above 16d, and below 2d P durations still FAIL; median intact."""
+    import sys
+
+    sys.path.insert(0, str(REPO_ROOT / "src"))
+    sys.path.insert(0, str(REPO_ROOT / "experiments"))
+    import sprint18_task5_measurability as meas
+
+    base_manifest = {
+        "files": [],
+        "maintenance_windows": {},
+        "schedule": [],
+        "splits": {
+            "dev_train": [], "dev_val": [], "test_static": [],
+            "test_temporal": [], "quarantined": [],
+            "failed_episode_ids": [],
+        },
+        "counts": {
+            "total": 0, "normal": 0, "abnormal": 0, "dev_train": 0,
+            "dev_val": 0, "test_static": 0, "test_temporal": 0,
+            "quarantined": 0,
+        },
+        "calendar": {"cutoff_time": 0.0},
+        "resolved_config": {
+            "health": {"noise_scale": 1.0e-3},
+            "scheduler": {"routes": [{"stages": [{"duration_s": 600.0}]}]},
+        },
+    }
+    entry = {"history_id": "S18I-P-ALLOW-PROBE", "role": "CONFIRMATION", "data_seed": 32076}
+    for probe in (16.0, 16.5, 1.99):
+        manifest = dict(base_manifest)
+        manifest["failure_events"] = _p_allowance_diagnostic_ledger([probe])
+        summary = meas.structural_summary(entry, manifest)
+        assert summary["checks"]["cohort_subtype_physical_shapes_and_duration_bounds"] is False
+    # The P-median gate itself is unchanged: an all-high P ledger (median 12d)
+    # fails through the real predicate even though every record is < 16d.
+    high_manifest = dict(base_manifest)
+    high_manifest["failure_events"] = _p_allowance_diagnostic_ledger([12.0, 13.0, 14.0])
+    high_summary = meas.structural_summary(entry, high_manifest)
+    assert high_summary["checks"]["cohort_subtype_physical_shapes_and_duration_bounds"] is False
+
+
+def test_p_allowance_leaves_w_a_subtype_gates_unweakened() -> None:
+    """W/A/subtype/median gates still reject; next-below-16 P still passes."""
+    import sys
+
+    sys.path.insert(0, str(REPO_ROOT / "src"))
+    sys.path.insert(0, str(REPO_ROOT / "experiments"))
+    import sprint18_task5_measurability as meas
+
+    def _manifest(ledger: list[dict]) -> dict:
+        return {
+            "files": [],
+            "failure_events": ledger,
+            "maintenance_windows": {},
+            "schedule": [],
+            "splits": {
+                "dev_train": [], "dev_val": [], "test_static": [],
+                "test_temporal": [], "quarantined": [],
+                "failed_episode_ids": [],
+            },
+            "counts": {
+                "total": 0, "normal": 0, "abnormal": 0, "dev_train": 0,
+                "dev_val": 0, "test_static": 0, "test_temporal": 0,
+                "quarantined": 0,
+            },
+            "calendar": {"cutoff_time": 0.0},
+            "resolved_config": {
+                "health": {"noise_scale": 1.0e-3},
+                "scheduler": {"routes": [{"stages": [{"duration_s": 600.0}]}]},
+            },
+        }
+
+    entry = {"history_id": "S18I-P-ALLOW-PROBE", "role": "CONFIRMATION", "data_seed": 32076}
+    base = _p_allowance_diagnostic_ledger([7.0])
+    mutated_w = [dict(record) for record in base]
+    mutated_w[2] = {**mutated_w[2], "duration_d": 28.01}
+    assert meas.structural_summary(
+        entry, _manifest(mutated_w)
+    )["checks"]["cohort_subtype_physical_shapes_and_duration_bounds"] is False
+    mutated_a = [dict(record) for record in base]
+    mutated_a[4] = {**mutated_a[4], "cohort": "W", "subtype": "W1",
+                    "degradation_onset": 59.0 * 86400.0, "duration_d": 0.5}
+    assert meas.structural_summary(
+        entry, _manifest(mutated_a)
+    )["checks"]["cohort_subtype_physical_shapes_and_duration_bounds"] is False
+    mutated_subtype = [dict(record) for record in base]
+    mutated_subtype[0] = {**mutated_subtype[0], "subtype": "W1"}
+    assert meas.structural_summary(
+        entry, _manifest(mutated_subtype)
+    )["checks"]["cohort_subtype_physical_shapes_and_duration_bounds"] is False
+    just_below = meas.structural_summary(
+        entry, _manifest(_p_allowance_diagnostic_ledger([15.999])))
+    assert just_below["checks"]["cohort_subtype_physical_shapes_and_duration_bounds"] is True
+    assert just_below["nominal_p_upper_15d_exceedance_count"] == 1

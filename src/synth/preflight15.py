@@ -380,6 +380,12 @@ def _preflight_seed_for(
             "design_promotion_checks": design_checks,
             "confirmation_hard_floor_checks": confirmation_checks,
             "applied_role_gate": role,
+            "nominal_p_upper_15d_exceedance_count": structural.get(
+                "nominal_p_upper_15d_exceedance_count", 0),
+            "nominal_p_upper_15d_exceedance_durations_d": structural.get(
+                "nominal_p_upper_15d_exceedance_durations_d", []),
+            "nominal_p_upper_15d_exceedance_allowance_d": structural.get(
+                "nominal_p_upper_15d_exceedance_allowance_d", 1.0),
             "full_eligible_cohort_mix": support["cohort_mix"],
             "full_eligible_lead_support": support["lead_support"],
             "support": support,

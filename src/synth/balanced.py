@@ -1454,7 +1454,9 @@ def audit_sprint15(
     p_durs = sorted(r["duration_d"] for r in ledger if r["cohort"] == "P")
     w_durs = sorted(r["duration_d"] for r in ledger if r["cohort"] == "W")
     if p_durs:
-        check(min(p_durs) >= 2.0 and max(p_durs) <= 15.0, "p-dist-shape")
+        # User-accepted policy S18-T69-B01 (DR01 provenance; nominal P upper
+        # 15d, accepted band [15d, 16d)): 2 <= duration_d < 16. Exact 16 FAIL.
+        check(min(p_durs) >= 2.0 and max(p_durs) < 16.0, "p-dist-shape")
         from statistics import median as _med
 
         check(5.0 <= _med(p_durs) <= 10.0, "p-dist-median")
