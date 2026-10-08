@@ -1,0 +1,77 @@
+{
+ "agent_id": "S18Task69A09",
+ "assessment_release": {
+  "path": "artifacts/sprint-18/S18-ITER-0005-ASSESS-main-assessment-release-v1.json",
+  "review_ref": "agent://S18Task69CR02",
+  "schema_id": "sprint18-main-assessment-release-v1",
+  "scope": "Task69-assessment-preflight-and-nonconfirmation",
+  "sha256": "4563267697171d84ff4372678ef3ac18481e0fe0a51f402f47c4acfc8b9b9e85"
+ },
+ "assessment_root_relative": "data/generated/sprint18-iterative-v1/S18-ITER-0005-ASSESS-P-ALLOWANCE-V1",
+ "attempt_directory": "_assessment-001",
+ "attempt_files": {
+  "attempt_json_sha256": "875a3d034c66ea2565a0416b00e2be0613d0402c8bc900369ea2cc5676850caa",
+  "ledger_sha256": "625dcc1c6e14b43ac031afb590565a1af8461146579c8aff212d60bf3f061919",
+  "preflight_raw_sha256": "3d1d774fbc307251a4a2657ed5f973375ae39146e239d94cbaf112f7da55f735"
+ },
+ "attempt_id": "S18-T69-A09",
+ "binding_file_sha256": "b8448292b023c9268f64886e5ca68a393c36ff5f2c41573ff160d50ce8ee6c58",
+ "binding_sha256": "8e2705140d07d9c603989ec709de5ebb766e580a8619b37c7462f6dd2751dd3b",
+ "candidate_id": "S18-ITER-0005",
+ "checkout": {
+  "commit": "003b94bc4ee131dd8c3581b750180f65731b25a4",
+  "parent": "ca1701273818284b8e898b1809fcb9f76676630c",
+  "review_snapshot": "2ea2a677e559cf7c75c1f7d35b57be9a07928f639686f9bfe65b416fe3bca060",
+  "tree": "53db55ab3d7c15f28c37c9e24ffd59e781cc0cda"
+ },
+ "materialization": {
+  "confirmation_dir_absent": true,
+  "ledger_events": 28,
+  "nonconfirmation_roles": 12,
+  "record_exit": 0
+ },
+ "original_failure_linkage": {
+  "attempt": "_attempt-001",
+  "ledger_sha256": "1579d9b67be2ad0e703251f7ad10abbfeb2c30032d48cb5b7247b5a6098b1683",
+  "marker_sha256": "40e2cf3bb26ad4571c2028509968b2e8e02a0b3227a76ae29f5944672e1e4f3b",
+  "preflight_raw_sha256": "9f28471eed1c3abf2795c45fd1193dfc4fcadcb7fe72a452ff7d6395368d3eef",
+  "verdict": "PREFLIGHT-FAIL 15/16 under pre-amendment policy; ledger candidate_rejected"
+ },
+ "outcome": "ASSESSMENT_NONCONFIRMATION_PASS",
+ "policy_revision": {
+  "p_accepted_exclusive_upper_16d": 16.0,
+  "p_nominal_upper_15d": 15.0,
+  "p_per_record": "2.0 <= duration_d < 16.0",
+  "policy_id": "sprint18-p-duration-allowance-v1"
+ },
+ "preflight": {
+  "exit": 0,
+  "feasible_count": "16/16",
+  "seed32076_nominal_count": 1,
+  "seed32076_nominal_durations_d": [
+   15.545084957564008
+  ],
+  "verdict": "PREFLIGHT-PASS"
+ },
+ "qualification": {
+  "calibration_files": 1877,
+  "calibration_patches": 56889,
+  "calibration_q95": 195.7544682761532,
+  "centroid_norm": 2.290221527135249e-11,
+  "development_gate_pass": true,
+  "fit_files": 5446,
+  "fit_patches": 167419,
+  "lcb_pw": 0.7878251798343932,
+  "macro_auc_p": 0.8155579828859764,
+  "macro_auc_pw": 0.7960458054936479,
+  "macro_auc_w": 0.7689558684716222,
+  "structural_12_of_12_core_pass": true
+ },
+ "qualification_record": {
+  "path": "experiments/sprint18-task69-assessment-S18-ITER-0005-A09-qualification-record.json",
+  "sha256": "c5a8e8ccbc6be35a58fe7363ee4e8af489d3fafb93aaf6411c3936e5d349dc4b"
+ },
+ "schema_id": "sprint18-task69-assessment-attempt-v1",
+ "source_closure_sha256": "7528315eb72efaf42e3bcddb77e69bc3b66cbacd2c420ed205321a7d59f388a2",
+ "task_id": "S18-T69"
+}
