@@ -129,13 +129,13 @@
     "qualification": "unchanged Task66 contract gates; fixed Sprint15-v7 DGP probe only",
     "no_candidate_feasibility_guarantee": true
   },
-  "candidate_root_relative": "data/generated/sprint18-iterative-v1/S18-ITER-0005",
+  "candidate_root_relative": "data/generated/sprint18-iterative-v1/S18-ITER-0005-ASSESS-P-ALLOWANCE-V1",
   "role_binding": [
     {
       "role": "DESIGN",
       "history_id": "S18I-ITER-0005-DESIGN-01",
       "data_seed": 32064,
-      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0005/DESIGN/S18I-ITER-0005-DESIGN-01",
+      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0005-ASSESS-P-ALLOWANCE-V1/DESIGN/S18I-ITER-0005-DESIGN-01",
       "permitted_use": "Integrity, causal, construction, and unchanged structural qualification; diagnostics only. No Fit/Calibration use or history selection.",
       "config_hash": "aae5e52747a7"
     },
@@ -143,7 +143,7 @@
       "role": "DESIGN",
       "history_id": "S18I-ITER-0005-DESIGN-02",
       "data_seed": 32065,
-      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0005/DESIGN/S18I-ITER-0005-DESIGN-02",
+      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0005-ASSESS-P-ALLOWANCE-V1/DESIGN/S18I-ITER-0005-DESIGN-02",
       "permitted_use": "Integrity, causal, construction, and unchanged structural qualification; diagnostics only. No Fit/Calibration use or history selection.",
       "config_hash": "184e601edc70"
     },
@@ -151,7 +151,7 @@
       "role": "DESIGN",
       "history_id": "S18I-ITER-0005-DESIGN-03",
       "data_seed": 32066,
-      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0005/DESIGN/S18I-ITER-0005-DESIGN-03",
+      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0005-ASSESS-P-ALLOWANCE-V1/DESIGN/S18I-ITER-0005-DESIGN-03",
       "permitted_use": "Integrity, causal, construction, and unchanged structural qualification; diagnostics only. No Fit/Calibration use or history selection.",
       "config_hash": "4eae0187d333"
     },
@@ -159,7 +159,7 @@
       "role": "DESIGN",
       "history_id": "S18I-ITER-0005-DESIGN-04",
       "data_seed": 32067,
-      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0005/DESIGN/S18I-ITER-0005-DESIGN-04",
+      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0005-ASSESS-P-ALLOWANCE-V1/DESIGN/S18I-ITER-0005-DESIGN-04",
       "permitted_use": "Integrity, causal, construction, and unchanged structural qualification; diagnostics only. No Fit/Calibration use or history selection.",
       "config_hash": "eba370f48dc3"
     },
@@ -167,7 +167,7 @@
       "role": "FIT",
       "history_id": "S18I-ITER-0005-FIT-01",
       "data_seed": 32068,
-      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0005/FIT/S18I-ITER-0005-FIT-01",
+      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0005-ASSESS-P-ALLOWANCE-V1/FIT/S18I-ITER-0005-FIT-01",
       "permitted_use": "Verified-healthy eligibility; fit only the fixed probe's feature mean/std and healthy centroid. No representation training, bank, alternate scorer, or non-probe fitting.",
       "config_hash": "2d7524242fd4"
     },
@@ -175,7 +175,7 @@
       "role": "FIT",
       "history_id": "S18I-ITER-0005-FIT-02",
       "data_seed": 32069,
-      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0005/FIT/S18I-ITER-0005-FIT-02",
+      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0005-ASSESS-P-ALLOWANCE-V1/FIT/S18I-ITER-0005-FIT-02",
       "permitted_use": "Verified-healthy eligibility; fit only the fixed probe's feature mean/std and healthy centroid. No representation training, bank, alternate scorer, or non-probe fitting.",
       "config_hash": "8d51d85bb920"
     },
@@ -183,7 +183,7 @@
       "role": "FIT",
       "history_id": "S18I-ITER-0005-FIT-03",
       "data_seed": 32070,
-      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0005/FIT/S18I-ITER-0005-FIT-03",
+      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0005-ASSESS-P-ALLOWANCE-V1/FIT/S18I-ITER-0005-FIT-03",
       "permitted_use": "Verified-healthy eligibility; fit only the fixed probe's feature mean/std and healthy centroid. No representation training, bank, alternate scorer, or non-probe fitting.",
       "config_hash": "8c19eaeb8712"
     },
@@ -191,7 +191,7 @@
       "role": "CALIBRATION",
       "history_id": "S18I-ITER-0005-CALIBRATION-01",
       "data_seed": 32071,
-      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0005/CALIBRATION/S18I-ITER-0005-CALIBRATION-01",
+      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0005-ASSESS-P-ALLOWANCE-V1/CALIBRATION/S18I-ITER-0005-CALIBRATION-01",
       "permitted_use": "Verified-healthy eligibility; score with frozen Fit probe values and choose only the fixed probe q95. No fitting or retuning.",
       "config_hash": "a33f48db784f"
     },
@@ -199,7 +199,7 @@
       "role": "DEVELOPMENT",
       "history_id": "S18I-ITER-0005-DEVELOPMENT-01",
       "data_seed": 32072,
-      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0005/DEVELOPMENT/S18I-ITER-0005-DEVELOPMENT-01",
+      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0005-ASSESS-P-ALLOWANCE-V1/DEVELOPMENT/S18I-ITER-0005-DEVELOPMENT-01",
       "permitted_use": "Structural qualification and one fixed-probe evaluation using frozen Fit/Calibration values. No selection, promotion, pruning, or tuning.",
       "config_hash": "ea6d2254d6d3"
     },
@@ -207,7 +207,7 @@
       "role": "DEVELOPMENT",
       "history_id": "S18I-ITER-0005-DEVELOPMENT-02",
       "data_seed": 32073,
-      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0005/DEVELOPMENT/S18I-ITER-0005-DEVELOPMENT-02",
+      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0005-ASSESS-P-ALLOWANCE-V1/DEVELOPMENT/S18I-ITER-0005-DEVELOPMENT-02",
       "permitted_use": "Structural qualification and one fixed-probe evaluation using frozen Fit/Calibration values. No selection, promotion, pruning, or tuning.",
       "config_hash": "cfe48c2960db"
     },
@@ -215,7 +215,7 @@
       "role": "DEVELOPMENT",
       "history_id": "S18I-ITER-0005-DEVELOPMENT-03",
       "data_seed": 32074,
-      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0005/DEVELOPMENT/S18I-ITER-0005-DEVELOPMENT-03",
+      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0005-ASSESS-P-ALLOWANCE-V1/DEVELOPMENT/S18I-ITER-0005-DEVELOPMENT-03",
       "permitted_use": "Structural qualification and one fixed-probe evaluation using frozen Fit/Calibration values. No selection, promotion, pruning, or tuning.",
       "config_hash": "efdcfa19b506"
     },
@@ -223,7 +223,7 @@
       "role": "DEVELOPMENT",
       "history_id": "S18I-ITER-0005-DEVELOPMENT-04",
       "data_seed": 32075,
-      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0005/DEVELOPMENT/S18I-ITER-0005-DEVELOPMENT-04",
+      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0005-ASSESS-P-ALLOWANCE-V1/DEVELOPMENT/S18I-ITER-0005-DEVELOPMENT-04",
       "permitted_use": "Structural qualification and one fixed-probe evaluation using frozen Fit/Calibration values. No selection, promotion, pruning, or tuning.",
       "config_hash": "e33293cdf1cd"
     },
@@ -231,7 +231,7 @@
       "role": "CONFIRMATION",
       "history_id": "S18I-ITER-0005-CONFIRMATION-01",
       "data_seed": 32076,
-      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0005/CONFIRMATION/S18I-ITER-0005-CONFIRMATION-01",
+      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0005-ASSESS-P-ALLOWANCE-V1/CONFIRMATION/S18I-ITER-0005-CONFIRMATION-01",
       "permitted_use": "After Task69 preceding-role PASS and Main release: structural certification and one fixed-probe evaluation using frozen Fit/Calibration values. No fitting, recalibration, retuning, rescue, or model score.",
       "config_hash": "b2315511312e"
     },
@@ -239,7 +239,7 @@
       "role": "CONFIRMATION",
       "history_id": "S18I-ITER-0005-CONFIRMATION-02",
       "data_seed": 32077,
-      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0005/CONFIRMATION/S18I-ITER-0005-CONFIRMATION-02",
+      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0005-ASSESS-P-ALLOWANCE-V1/CONFIRMATION/S18I-ITER-0005-CONFIRMATION-02",
       "permitted_use": "After Task69 preceding-role PASS and Main release: structural certification and one fixed-probe evaluation using frozen Fit/Calibration values. No fitting, recalibration, retuning, rescue, or model score.",
       "config_hash": "925d262fcc01"
     },
@@ -247,7 +247,7 @@
       "role": "CONFIRMATION",
       "history_id": "S18I-ITER-0005-CONFIRMATION-03",
       "data_seed": 32078,
-      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0005/CONFIRMATION/S18I-ITER-0005-CONFIRMATION-03",
+      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0005-ASSESS-P-ALLOWANCE-V1/CONFIRMATION/S18I-ITER-0005-CONFIRMATION-03",
       "permitted_use": "After Task69 preceding-role PASS and Main release: structural certification and one fixed-probe evaluation using frozen Fit/Calibration values. No fitting, recalibration, retuning, rescue, or model score.",
       "config_hash": "928cddace62f"
     },
@@ -255,7 +255,7 @@
       "role": "CONFIRMATION",
       "history_id": "S18I-ITER-0005-CONFIRMATION-04",
       "data_seed": 32079,
-      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0005/CONFIRMATION/S18I-ITER-0005-CONFIRMATION-04",
+      "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0005-ASSESS-P-ALLOWANCE-V1/CONFIRMATION/S18I-ITER-0005-CONFIRMATION-04",
       "permitted_use": "After Task69 preceding-role PASS and Main release: structural certification and one fixed-probe evaluation using frozen Fit/Calibration values. No fitting, recalibration, retuning, rescue, or model score.",
       "config_hash": "f5ffb05669f0"
     }
@@ -697,7 +697,7 @@
     "approved_branch": "sprint18-task68-a02-runtime",
     "origin_url": "https://github.com/triet4p/anomaly-representation-learning.git",
     "output_root": "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/data/generated",
-    "candidate_root": "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/data/generated/sprint18-iterative-v1/S18-ITER-0005",
+    "candidate_root": "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/data/generated/sprint18-iterative-v1/S18-ITER-0005-ASSESS-P-ALLOWANCE-V1",
     "python_version": [
       3,
       12,
@@ -764,7 +764,7 @@
   },
   "attempt_policy": {
     "attempt_number": 1,
-    "attempt_directory": "_attempt-001",
+    "attempt_directory": "_assessment-001",
     "ledger_filename": "ledger.jsonl",
     "marker_filename": "attempt.json",
     "preflight_raw_filename": "preflight-raw.json",
@@ -772,7 +772,8 @@
     "no_resume": true,
     "failure_action": "preserve every started record/root; retire this entire 16-history candidate; Task69 remains active; do not retry, reseed, substitute, pool, or promote",
     "next_candidate_policy": "continue without a candidate-count cap; diagnose the observed cause, prospectively fix without gate relaxation, independently review, and bind a fresh complete candidate before any next contact",
-    "no_resume_rule": "whole-fresh candidate: no resume, adoption, alias, fallback, or replay of any retired candidate (S18-ITER-0001/0002/0003); interrupted roots retire the candidate"
+    "no_resume_rule": "whole-fresh candidate: no resume, adoption, alias, fallback, or replay of any retired candidate (S18-ITER-0001/0002/0003); interrupted roots retire the candidate",
+    "assessment_note": "separate amended-policy assessment of candidate S18-ITER-0005; original _attempt-001 remains rejected and immutable; no generic resume"
   },
   "preflight": {
     "entrypoint": "synth.preflight15.run_preflight_iterative_v3(seeds, roles)",
@@ -864,5 +865,28 @@
     "p_accepted_exclusive_upper_16d": 16.0,
     "provenance": "S18-T69-D01/DR01 user-accepted subday allowance"
   },
-  "binding_sha256": "d5c0ffa5f1c7ebe7aba0725a6ec0fc3fc83c608d079ec259b23345e5812391d2"
+  "assessment_of": {
+    "candidate_id": "S18-ITER-0005",
+    "original_attempt_directory": "_attempt-001",
+    "original_attempt_marker_sha256": "40e2cf3bb26ad4571c2028509968b2e8e02a0b3227a76ae29f5944672e1e4f3b",
+    "original_ledger_sha256": "1579d9b67be2ad0e703251f7ad10abbfeb2c30032d48cb5b7247b5a6098b1683",
+    "original_preflight_raw_sha256": "9f28471eed1c3abf2795c45fd1193dfc4fcadcb7fe72a452ff7d6395368d3eef",
+    "original_verdict": "PREFLIGHT-FAIL 15/16 under pre-amendment policy without policy_revision; ledger candidate_rejected fixed_16_history_preflight_rejected",
+    "original_binding_sha256": "10e8bbbfe91951296536a2e5032162d4dd3f97bdda121d5d89ca787df4f5f532",
+    "original_binding_file_sha256": "c903f04bb3a64a30e66ee0cc02d91d02c23e432cb5a5d4ad79ea09d2b3a2086b",
+    "original_source_closure_sha256": "73f9125c3b28f9ff7127393f2a63d8c15baca53091ac7fe450788335ae1c10a6",
+    "original_release_receipt_sha256": "e2e4da5e45be341dd6cb2b5968b174a44175e9dfc4123b8b5fa34e1008ee603e",
+    "original_review": "S18-T69-R09 FAIL advance=false; task-69.md#A08",
+    "amendment_provenance": "user-accepted subday allowance P [2,16) nominal 15d reported; D01/DR01 provenance; implemented S18-T69-B01, reviewed BR01, checkpoint CP01 ca1701273818284b8e898b1809fcb9f76676630c, deployed DEP01, observed BS01/BSR01",
+    "assessment_policy_revision": {
+      "policy_id": "sprint18-p-duration-allowance-v1",
+      "p_per_record": "2.0 <= duration_d < 16.0",
+      "p_nominal_upper_15d": 15.0,
+      "p_accepted_exclusive_upper_16d": 16.0,
+      "provenance": "S18-T69-D01/DR01 user-accepted subday allowance"
+    },
+    "assessment_status": "NOT_YET_RUN",
+    "original_old_policy_result": "FAIL"
+  },
+  "binding_sha256": "8e2705140d07d9c603989ec709de5ebb766e580a8619b37c7462f6dd2751dd3b"
 }

@@ -235,3 +235,17 @@
 **Alternatives considered:** Keep the strict `<= 15.0` bound and retire candidate 5; grant a seed/event-specific waiver for `fail-robot-03-0001`; disable the structural integrity gate.
 **Reason:** The user explicitly accepted overshoot below one day as scientifically acceptable, and DR01 proved the 15.545-day event is real generator physics with exact annotation (not a checker/metadata/float defect), so a general reported subday allowance is the narrow honest correction.
 **Consequences:** Both live checkers (measurability structural predicate and balanced audit) enforce the amended bound; prior A08/R09 rejection stays immutable; no generator, roster, ledger, or historical record is rewritten; future candidate assessment needs a fresh review and Bronze checkpoint before any contact.
+
+## [2026-10-08] Assess same candidate-5 roster separately under the accepted P allowance
+
+**Decision:** Bind a separate amended-policy assessment (`S18-ITER-0005-ASSESS-P-ALLOWANCE-V1`, attempt `_assessment-001`) to the unchanged candidate-5 roster/configs (`32064–32079`) with explicit linkage to the immutable original `_attempt-001` old-policy FAIL, and run it through the same runner stages behind `--assessment` plus a Main assessment release (including a genuine Task69 assessment release gate for Confirmation via `run_assessment_confirmation`).
+**Alternatives considered:** Resume/retry the rejected `_attempt-001` in place; freeze a new candidate-6 seed block; leave the assessment as an unexecuted carrier with a parallel validator.
+**Reason:** The user authorized continuing the SAME candidate-5 roster under the already-approved `[2,16)` amendment; resuming the rejected attempt would break fail-closed custody, a new candidate would contradict the authorization, and a parallel validator alone would not prove stage compatibility.
+**Consequences:** The original rejection stays immutable and generic resume stays denied; assessment contact needs a fresh review, Bronze checkpoint/deploy, and Main assessment releases; Confirmation additionally needs the Task69 assessment release whose checkpoint directly follows the assessment checkpoint.
+
+## [2026-10-08] Restore the no-contact smoke dispatch beside the assessment branch
+
+**Decision:** Keep the accepted-baseline `--smoke-no-contact` block (`validate` only, no stage/release, `run_no_contact_smoke` then return) immediately after the `--assessment` branch in `main()`, with the assessment-first refusal (`no-contact smoke accepts no assessment mode`) preserved.
+**Alternatives considered:** Leave the flag parsed-but-ignored (fall-through to the runtime gate); fold the smoke into the assessment validate path; gate the smoke behind a new flag.
+**Reason:** The C01 assessment insertion orphaned a pre-existing consumer-visible dispatch while keeping its flag and function; CR01 confirmed the fall-through and Main classified it actionable. Exact baseline restoration is the narrowest fix that re-proves the no-contact contract without touching assessment or normal stage precedence.
+**Consequences:** `--smoke-no-contact` again executes the disposable static smoke with zero candidate contact; `--assessment` + `--smoke-no-contact` still refuses; both binding carriers bind the restored runner bytes; future `main()` branch insertions must preserve every sibling dispatch above the normal `validate` gate.

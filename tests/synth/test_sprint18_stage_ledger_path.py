@@ -546,3 +546,189 @@ def test_p_allowance_leaves_w_a_subtype_gates_unweakened() -> None:
         entry, _manifest(_p_allowance_diagnostic_ledger([15.999])))
     assert just_below["checks"]["cohort_subtype_physical_shapes_and_duration_bounds"] is True
     assert just_below["nominal_p_upper_15d_exceedance_count"] == 1
+
+
+def _live_binding() -> dict:
+    return json.loads(
+        (REPO_ROOT / "experiments" / "sprint18-iterative-binding-v1.json")
+        .read_text(encoding="utf-8")
+    )
+
+
+def _assessment_binding() -> dict:
+    return json.loads(
+        (REPO_ROOT / "experiments" / "sprint18-iterative-assessment-c5-allowance-v1.json")
+        .read_text(encoding="utf-8")
+    )
+
+
+def _assessment_release(assessment: dict, binding_raw_sha256: str) -> dict:
+    return {
+        "schema_id": runner.ASSESSMENT_RELEASE_SCHEMA_ID,
+        "candidate_id": assessment["candidate_id"],
+        "binding_sha256": assessment["binding_sha256"],
+        "binding_file_sha256": binding_raw_sha256,
+        "source_closure_sha256": assessment["source_closure"]["closure_sha256"],
+        "source_identity_scheme": runner.SOURCE_IDENTITY_SCHEME,
+        "task67_evidence_path": runner.TASK67_EVIDENCE_PATH,
+        "task67_evidence_sha256": runner.TASK67_EVIDENCE_SHA256,
+        "task67_evidence_reference": runner.TASK67_EVIDENCE_REFERENCE,
+        "base_commit": runner.BASE_COMMIT,
+        "checkpoint_parent": runner.BASE_COMMIT,
+        "release_scope": "Task69-assessment-preflight-and-nonconfirmation",
+        "status": "RELEASED_BY_MAIN",
+        "evidence_review_verdict": "PASS",
+        "evidence_review_ref": "disposable-assessment-regression",
+        "actionable_findings": 0,
+        "assessment_of_original_ledger_sha256": runner.ORIGINAL_LEDGER_SHA256,
+        "assessment_policy_id": runner.POLICY_REVISION["policy_id"],
+        "checkpoint_commit": "a" * 40,
+    }
+
+
+def test_assessment_binds_same_roster_under_separate_root() -> None:
+    """The assessment keeps roster/configs/catalog while isolating root/attempt."""
+    live = _live_binding()
+    assessment = _assessment_binding()
+    runner.validate_assessment_binding(assessment, REPO_ROOT, live)
+    assert assessment["candidate_id"] == "S18-ITER-0005"
+    assert assessment["candidate_number"] == 5
+    assert assessment["policy_revision"] == runner.POLICY_REVISION
+    assert assessment["source_closure"] == live["source_closure"]
+    for key in ("role", "history_id", "data_seed", "permitted_use", "config_hash"):
+        assert [e[key] for e in assessment["role_binding"]] == [
+            e[key] for e in live["role_binding"]]
+    assert [e["data_seed"] for e in assessment["role_binding"]] == list(range(32064, 32080))
+    assert assessment["seed_block"] == live["seed_block"]
+    assert assessment["configs"] == live["configs"]
+    assert assessment["collision_catalog"] == live["collision_catalog"]
+    assert assessment["candidate_root_relative"] == runner.ASSESSMENT_CANDIDATE_ROOT_RELATIVE
+    assert assessment["attempt_policy"]["attempt_directory"] == runner.ASSESSMENT_ATTEMPT_DIRECTORY
+    assert assessment["attempt_policy"]["no_resume"] is True
+    assert assessment["assessment_of"]["original_ledger_sha256"] == runner.ORIGINAL_LEDGER_SHA256
+    assert assessment["assessment_of"]["assessment_policy_revision"] == runner.POLICY_REVISION
+    candidate_root, attempt_root, _ = runner._candidate_paths(assessment, REPO_ROOT)
+    assert attempt_root.name == runner.ASSESSMENT_ATTEMPT_DIRECTORY
+    assert "_attempt-001" not in str(attempt_root) and "_attempt-001" not in str(candidate_root)
+    live_root, live_attempt, _ = runner._candidate_paths(live, REPO_ROOT)
+    assert candidate_root != live_root and attempt_root != live_attempt
+
+
+def test_assessment_refuses_missing_mismatched_amendment_and_drift(tmp_path: Path) -> None:
+    """Fail-closed: amendment, roster/config, closure, and linkage drift all refuse."""
+    live = _live_binding()
+    assessment = _assessment_binding()
+    base = copy.deepcopy(assessment)
+    mutated = copy.deepcopy(base)
+    mutated.pop("assessment_of")
+    with pytest.raises(runner.GuardError):
+        runner.validate_assessment_binding(mutated, tmp_path, live)
+    mutated = copy.deepcopy(base)
+    mutated["assessment_of"] = dict(mutated["assessment_of"])
+    mutated["assessment_of"]["original_ledger_sha256"] = "0" * 64
+    with pytest.raises(runner.GuardError):
+        runner.validate_assessment_binding(mutated, tmp_path, live)
+    mutated = copy.deepcopy(base)
+    mutated["policy_revision"] = {"policy_id": "other-policy"}
+    with pytest.raises(runner.GuardError):
+        runner.validate_assessment_binding(mutated, tmp_path, live)
+    mutated = copy.deepcopy(base)
+    mutated["role_binding"][3]["data_seed"] = 99999
+    with pytest.raises(runner.GuardError):
+        runner.validate_assessment_binding(mutated, tmp_path, live)
+    mutated = copy.deepcopy(base)
+    mutated["configs"]["32064"] = dict(mutated["configs"]["32064"])
+    mutated["configs"]["32064"]["config_hash"] = "0" * 12
+    with pytest.raises(runner.GuardError):
+        runner.validate_assessment_binding(mutated, tmp_path, live)
+    mutated = copy.deepcopy(base)
+    mutated["source_closure"] = copy.deepcopy(mutated["source_closure"])
+    mutated["source_closure"]["closure_sha256"] = "0" * 64
+    mutated["binding_sha256"] = runner._candidate_digest(mutated)
+    with pytest.raises(runner.GuardError):
+        runner.validate_assessment_binding(mutated, tmp_path, live)
+    mutated = copy.deepcopy(base)
+    mutated["binding_sha256"] = "0" * 64
+    with pytest.raises(runner.GuardError):
+        runner.validate_assessment_binding(mutated, tmp_path, live)
+    # The live binding itself is not an assessment binding.
+    with pytest.raises(runner.GuardError):
+        runner.validate_assessment_binding(live, tmp_path, live)
+
+
+def test_assessment_release_and_original_resume_stay_fail_closed(tmp_path: Path) -> None:
+    """Assessment release scope is exact; the old rejected attempt still denies resume."""
+    live = _live_binding()
+    assessment = _assessment_binding()
+    raw_sha = hashlib.sha256(
+        runner.canonical_json(
+            {k: v for k, v in assessment.items() if k != "binding_sha256"})
+        + b"\n").hexdigest()
+    release = _assessment_release(assessment, raw_sha)
+    assert runner.validate_assessment_release(assessment, raw_sha, release) == "a" * 40
+    wrong_scope = dict(release, release_scope="Task69-preflight-and-nonconfirmation")
+    with pytest.raises(runner.GuardError):
+        runner.validate_assessment_release(assessment, raw_sha, wrong_scope)
+    candidate_root, attempt_root, _ = runner._candidate_paths(live, tmp_path)
+    candidate_root.mkdir(parents=True)
+    attempt_root.mkdir(parents=True)
+    marker = dict(runner._expected_config_fields(live))
+    marker.update({
+        "schema_id": "sprint18-iterative-pre-attempt-v1",
+        "started_utc": "2026-10-08T01:51:05.763199+00:00",
+    })
+    (attempt_root / "attempt.json").write_bytes(runner.canonical_json(marker) + b"\n")
+    _, _, ledger_path = runner._candidate_paths(live, tmp_path)
+    runner.append_event(ledger_path, "attempt_started", marker)
+    runner.append_event(ledger_path, "preflight_started", {"candidate_id": live["candidate_id"]})
+    runner.append_event(ledger_path, "preflight_recorded", {
+        "verdict": "PREFLIGHT-FAIL", "feasible_count": "15/16", "result_sha256": "0" * 64})
+    runner.append_event(ledger_path, "candidate_rejected", {
+        "candidate_id": live["candidate_id"], "binding_sha256": live["binding_sha256"],
+        "reason": "fixed_16_history_preflight_rejected"})
+    with pytest.raises(runner.GuardError):
+        runner._load_stage_state(live, tmp_path)
+
+
+def _assessment_task69_release(assessment: dict, qualification_sha256: str) -> dict:
+    return {
+        "schema_id": "sprint18-task69-assessment-release-v1",
+        "candidate_id": assessment["candidate_id"],
+        "binding_sha256": assessment["binding_sha256"],
+        "qualification_sha256": qualification_sha256,
+        "assessment_checkpoint_commit": "a" * 40,
+        "task67_evidence_path": runner.TASK67_EVIDENCE_PATH,
+        "task67_evidence_sha256": runner.TASK67_EVIDENCE_SHA256,
+        "task67_evidence_reference": runner.TASK67_EVIDENCE_REFERENCE,
+        "evidence_review_verdict": "PASS",
+        "evidence_review_ref": "disposable-task69-assessment-regression",
+        "actionable_findings": 0,
+        "verdict": "PASS",
+        "release_scope": "Task70-assessment-confirmation-after-Task69-PASS",
+        "status": "RELEASED_BY_MAIN",
+        "task69_assessment_checkpoint_commit": "b" * 40,
+    }
+
+
+def test_assessment_confirmation_gate_needs_exact_task69_release(tmp_path: Path) -> None:
+    """Assessment Confirmation is a genuine Main gate, not an unconditional refusal."""
+    assessment = _assessment_binding()
+    qualification_sha256 = "c" * 64
+    release = _assessment_task69_release(assessment, qualification_sha256)
+    assert runner.validate_assessment_task69_release(
+        assessment, qualification_sha256, release, "a" * 40) == "b" * 40
+    wrong_qualification = dict(release, qualification_sha256="d" * 64)
+    with pytest.raises(runner.GuardError):
+        runner.validate_assessment_task69_release(
+            assessment, qualification_sha256, wrong_qualification, "a" * 40)
+    missing_checkpoint = dict(release)
+    del missing_checkpoint["task69_assessment_checkpoint_commit"]
+    with pytest.raises(runner.GuardError):
+        runner.validate_assessment_task69_release(
+            assessment, qualification_sha256, missing_checkpoint, "a" * 40)
+    # Without the record or release files the stage refuses fail-closed
+    # (missing record surfaces as OSError, which the runner CLI maps to refusal).
+    with pytest.raises((runner.GuardError, OSError)):
+        runner.run_assessment_confirmation(
+            assessment, tmp_path, tmp_path / "nope.json", "0" * 64,
+            tmp_path / "rel.json", "a" * 40)

@@ -45,6 +45,18 @@ POLICY_REVISION = {
     "p_accepted_exclusive_upper_16d": 16.0,
     "provenance": "S18-T69-D01/DR01 user-accepted subday allowance",
 }
+ASSESSMENT_CANDIDATE_ROOT_RELATIVE = "data/generated/sprint18-iterative-v1/S18-ITER-0005-ASSESS-P-ALLOWANCE-V1"
+ASSESSMENT_ATTEMPT_DIRECTORY = "_assessment-001"
+ASSESSMENT_SCHEMA_ID = "sprint18-iterative-assessment-c5-allowance-v1"
+ASSESSMENT_RELEASE_SCHEMA_ID = "sprint18-main-assessment-release-v1"
+ORIGINAL_ATTEMPT_DIRECTORY = "_attempt-001"
+ORIGINAL_BINDING_SHA256 = "10e8bbbfe91951296536a2e5032162d4dd3f97bdda121d5d89ca787df4f5f532"
+ORIGINAL_BINDING_FILE_SHA256 = "c903f04bb3a64a30e66ee0cc02d91d02c23e432cb5a5d4ad79ea09d2b3a2086b"
+ORIGINAL_SOURCE_CLOSURE_SHA256 = "73f9125c3b28f9ff7127393f2a63d8c15baca53091ac7fe450788335ae1c10a6"
+ORIGINAL_ATTEMPT_MARKER_SHA256 = "40e2cf3bb26ad4571c2028509968b2e8e02a0b3227a76ae29f5944672e1e4f3b"
+ORIGINAL_LEDGER_SHA256 = "1579d9b67be2ad0e703251f7ad10abbfeb2c30032d48cb5b7247b5a6098b1683"
+ORIGINAL_PREFLIGHT_RAW_SHA256 = "9f28471eed1c3abf2795c45fd1193dfc4fcadcb7fe72a452ff7d6395368d3eef"
+ORIGINAL_RELEASE_RECEIPT_SHA256 = "e2e4da5e45be341dd6cb2b5968b174a44175e9dfc4123b8b5fa34e1008ee603e"
 
 TASK67_EVIDENCE = {
     "path": "artifacts/sprint-18/task-67.md",
@@ -418,6 +430,159 @@ def _role_entries(binding: dict[str, Any]) -> list[dict[str, Any]]:
     if not isinstance(entries, list) or len(entries) != 16:
         raise GuardError("binding must contain exactly 16 role entries")
     return entries
+
+def _assessment_expected_role_paths() -> list[str]:
+    return [
+        f"{ASSESSMENT_CANDIDATE_ROOT_RELATIVE}/{role}/{history_id}"
+        for role, history_id in (
+            ("DESIGN", "S18I-ITER-0005-DESIGN-01"), ("DESIGN", "S18I-ITER-0005-DESIGN-02"),
+            ("DESIGN", "S18I-ITER-0005-DESIGN-03"), ("DESIGN", "S18I-ITER-0005-DESIGN-04"),
+            ("FIT", "S18I-ITER-0005-FIT-01"), ("FIT", "S18I-ITER-0005-FIT-02"),
+            ("FIT", "S18I-ITER-0005-FIT-03"),
+            ("CALIBRATION", "S18I-ITER-0005-CALIBRATION-01"),
+            ("DEVELOPMENT", "S18I-ITER-0005-DEVELOPMENT-01"),
+            ("DEVELOPMENT", "S18I-ITER-0005-DEVELOPMENT-02"),
+            ("DEVELOPMENT", "S18I-ITER-0005-DEVELOPMENT-03"),
+            ("DEVELOPMENT", "S18I-ITER-0005-DEVELOPMENT-04"),
+            ("CONFIRMATION", "S18I-ITER-0005-CONFIRMATION-01"),
+            ("CONFIRMATION", "S18I-ITER-0005-CONFIRMATION-02"),
+            ("CONFIRMATION", "S18I-ITER-0005-CONFIRMATION-03"),
+            ("CONFIRMATION", "S18I-ITER-0005-CONFIRMATION-04"),
+        )
+    ]
+
+
+def validate_assessment_binding(binding: dict[str, Any], root: Path, live: dict[str, Any]) -> None:
+    """Validate the separate amended-policy assessment binding end to end.
+
+    The assessment binds the SAME candidate-5 roster/configs/catalog/method/profile/policy/source-closure as
+    the live binding, but a SEPARATE candidate root and attempt directory plus an explicit linkage block to
+    the immutable original rejected attempt. Every mismatch refuses fail-closed; the live binding itself is
+    rejected here (it is not an assessment binding) and the assessment binding is rejected by the live
+    ``validate_binding`` root rule without ``--assessment``. The original ``_attempt-001`` state is never
+    opened, resumed, or rewritten by any assessment stage.
+    """
+    if binding.get("schema_id") != "sprint18-iterative-binding-v1":
+        raise GuardError("unsupported assessment binding schema")
+    if binding.get("candidate_id") != "S18-ITER-0005":
+        raise GuardError("assessment candidate identity differs from the frozen fifth block")
+    if binding.get("candidate_root_relative") != ASSESSMENT_CANDIDATE_ROOT_RELATIVE:
+        raise GuardError("assessment candidate output root mismatch")
+    attempt_policy = binding.get("attempt_policy", {})
+    if attempt_policy.get("attempt_directory") != ASSESSMENT_ATTEMPT_DIRECTORY:
+        raise GuardError("assessment attempt directory mismatch")
+    if attempt_policy.get("attempt_directory") == ORIGINAL_ATTEMPT_DIRECTORY:
+        raise GuardError("assessment must not reuse the original rejected attempt directory")
+    if attempt_policy.get("no_resume") is not True:
+        raise GuardError("assessment attempt policy must keep strict no-resume")
+    linkage = binding.get("assessment_of")
+    if not isinstance(linkage, dict):
+        raise GuardError("assessment binding lacks its original-failure linkage")
+    expected_linkage = {
+        "candidate_id": "S18-ITER-0005",
+        "original_attempt_directory": ORIGINAL_ATTEMPT_DIRECTORY,
+        "original_attempt_marker_sha256": ORIGINAL_ATTEMPT_MARKER_SHA256,
+        "original_ledger_sha256": ORIGINAL_LEDGER_SHA256,
+        "original_preflight_raw_sha256": ORIGINAL_PREFLIGHT_RAW_SHA256,
+        "original_binding_sha256": ORIGINAL_BINDING_SHA256,
+        "original_binding_file_sha256": ORIGINAL_BINDING_FILE_SHA256,
+        "original_source_closure_sha256": ORIGINAL_SOURCE_CLOSURE_SHA256,
+        "original_release_receipt_sha256": ORIGINAL_RELEASE_RECEIPT_SHA256,
+    }
+    for key, value in expected_linkage.items():
+        if linkage.get(key) != value:
+            raise GuardError(f"assessment original-failure linkage mismatch: {key}")
+    if linkage.get("original_verdict") != (
+        "PREFLIGHT-FAIL 15/16 under pre-amendment policy without policy_revision; "
+        "ledger candidate_rejected fixed_16_history_preflight_rejected"
+    ):
+        raise GuardError("assessment original-failure verdict linkage mismatch")
+    if linkage.get("assessment_policy_revision") != POLICY_REVISION:
+        raise GuardError("assessment policy amendment linkage mismatch")
+    if binding.get("policy_revision") != POLICY_REVISION:
+        raise GuardError("assessment P-duration allowance policy revision mismatch")
+    live_entries = live.get("role_binding")
+    entries = binding.get("role_binding")
+    if not isinstance(entries, list) or len(entries) != 16:
+        raise GuardError("assessment binding must contain exactly 16 role entries")
+    for key in ("role", "history_id", "data_seed", "permitted_use", "config_hash"):
+        if [entry.get(key) for entry in entries] != [entry.get(key) for entry in live_entries]:
+            raise GuardError(f"assessment roster drift from the live binding: {key}")
+    if [entry.get("directory") for entry in entries] != _assessment_expected_role_paths():
+        raise GuardError("assessment role paths are not rebased to the separate assessment root")
+    if any(entry.get("directory") == live_entry.get("directory")
+           for entry, live_entry in zip(entries, live_entries, strict=True)):
+        raise GuardError("assessment role path collides with the live candidate root")
+    for key in ("seed_block", "configs", "collision_catalog", "method", "profile_id",
+                "generator_protocol_id", "contract_sha256", "candidate_number"):
+        if binding.get(key) != live.get(key):
+            raise GuardError(f"assessment drift from the live binding: {key}")
+    if binding.get("binding_sha256") != _candidate_digest(binding):
+        raise GuardError("assessment canonical binding SHA-256 mismatch")
+    if binding.get("source_closure") != live.get("source_closure"):
+        raise GuardError("assessment source closure differs from the live closure")
+
+
+def validate_assessment_release(binding: dict[str, Any], binding_raw_sha256: str, release: dict[str, Any]) -> str:
+    expected = {
+        "schema_id": ASSESSMENT_RELEASE_SCHEMA_ID,
+        "candidate_id": binding["candidate_id"],
+        "binding_sha256": binding["binding_sha256"],
+        "binding_file_sha256": binding_raw_sha256,
+        "source_closure_sha256": binding["source_closure"]["closure_sha256"],
+        "source_identity_scheme": SOURCE_IDENTITY_SCHEME,
+        "task67_evidence_path": TASK67_EVIDENCE_PATH,
+        "task67_evidence_sha256": TASK67_EVIDENCE_SHA256,
+        "task67_evidence_reference": TASK67_EVIDENCE_REFERENCE,
+        "base_commit": BASE_COMMIT,
+        "checkpoint_parent": BASE_COMMIT,
+        "release_scope": "Task69-assessment-preflight-and-nonconfirmation",
+        "status": "RELEASED_BY_MAIN",
+        "evidence_review_verdict": "PASS",
+        "actionable_findings": 0,
+        "assessment_of_original_ledger_sha256": ORIGINAL_LEDGER_SHA256,
+        "assessment_policy_id": POLICY_REVISION["policy_id"],
+    }
+    for key, value in expected.items():
+        if release.get(key) != value:
+            raise GuardError(f"Main assessment release identity mismatch: {key}")
+    if not isinstance(release.get("evidence_review_ref"), str) or not release["evidence_review_ref"]:
+        raise GuardError("Main assessment release lacks its evidence-review reference")
+    checkpoint = release.get("checkpoint_commit")
+    if (not isinstance(checkpoint, str) or len(checkpoint) != 40
+            or any(char not in "0123456789abcdef" for char in checkpoint)):
+        raise GuardError("Main assessment release has no recorded full checkpoint SHA")
+    return checkpoint
+
+
+def validate_assessment_task69_release(
+    binding: dict[str, Any], qualification_sha256: str, release: dict[str, Any],
+    assessment_checkpoint: str,
+) -> str:
+    expected = {
+        "schema_id": "sprint18-task69-assessment-release-v1",
+        "candidate_id": binding["candidate_id"],
+        "binding_sha256": binding["binding_sha256"],
+        "qualification_sha256": qualification_sha256,
+        "assessment_checkpoint_commit": assessment_checkpoint,
+        "task67_evidence_path": TASK67_EVIDENCE_PATH,
+        "task67_evidence_sha256": TASK67_EVIDENCE_SHA256,
+        "task67_evidence_reference": TASK67_EVIDENCE_REFERENCE,
+        "evidence_review_verdict": "PASS",
+        "actionable_findings": 0,
+        "verdict": "PASS",
+        "release_scope": "Task70-assessment-confirmation-after-Task69-PASS",
+        "status": "RELEASED_BY_MAIN",
+    }
+    if any(release.get(key) != value for key, value in expected.items()):
+        raise GuardError("Task69 assessment release does not authorize this assessment Confirmation stage")
+    if not isinstance(release.get("evidence_review_ref"), str) or not release["evidence_review_ref"]:
+        raise GuardError("Task69 assessment release lacks its evidence-review reference")
+    checkpoint = release.get("task69_assessment_checkpoint_commit")
+    if (not isinstance(checkpoint, str) or len(checkpoint) != 40
+            or any(char not in "0123456789abcdef" for char in checkpoint)):
+        raise GuardError("Task69 assessment release lacks its recorded project checkpoint")
+    return checkpoint
 
 
 def validate_binding(
@@ -1361,6 +1526,80 @@ def run_confirmation(
         binding["role_binding"][12:],
     )
 
+
+def run_assessment_confirmation(
+    binding: dict[str, Any], root: Path, record_path: Path,
+    record_sha256: str, task69_release_path: Path, assessment_checkpoint: str,
+) -> int:
+    """Run the assessment Confirmation stage behind its genuine Main gate.
+
+    Mirrors ``run_confirmation`` on the separate assessment root/ledger: verifies the exact
+    non-Confirmation qualification record, the exact ``sprint18-task69-assessment-release-v1``
+    Main release bound to the assessment checkpoint (whose recorded Task69 assessment checkpoint
+    must directly follow that checkpoint), then authorizes and materializes the 4 Confirmation
+    roles through the shared ``_materialize_entries`` public-CLI/reload path. Without that
+    release the stage refuses; the live candidate path is untouched.
+    """
+    record = _verify_qualification_record(binding, record_path, record_sha256)
+    release = read_json(task69_release_path)
+    task69_checkpoint = validate_assessment_task69_release(
+        binding, record_sha256, release, assessment_checkpoint,
+    )
+    parent = subprocess.run(
+        ["git", "-C", str(root), "rev-parse", f"{task69_checkpoint}^"], check=True,
+        capture_output=True, text=True,
+    ).stdout.strip()
+    if parent != assessment_checkpoint:
+        raise GuardError("Task69 assessment checkpoint does not follow the assessment checkpoint")
+    _, attempt_root, confirmation_ledger_path = _candidate_paths(binding, root)
+    _, _, events = _load_stage_state(binding, root)
+    if not any(event.get("event_type") == "nonconfirmation_qualification_pass"
+               and event.get("qualification_sha256") == record_sha256 for event in events):
+        raise GuardError("Task69 preceding-role PASS is not durably recorded")
+    if record.get("confirmation_contacted") is not False:
+        raise GuardError("Task69 record must certify that Confirmation was not contacted")
+    completed = [event for event in events if event.get("event_type") == "role_materialized"]
+    completed_ids = [event.get("history_id") for event in completed]
+    expected_prefix = [entry["history_id"] for entry in binding["role_binding"][:12]]
+    if completed_ids[:12] != expected_prefix:
+        raise GuardError("all 12 preceding roles must be materialized before Confirmation")
+    confirmation_ids = [entry["history_id"] for entry in binding["role_binding"][12:]]
+    confirmation_tail = completed_ids[12:]
+    if (len(completed_ids) > 16
+            or confirmation_tail != confirmation_ids[:len(confirmation_tail)]):
+        raise GuardError("Confirmation materialization is not an ordered roster prefix")
+    confirmation_started = [
+        event for event in events
+        if event.get("event_type") == "role_materialization_started"
+        and event.get("history_id") in confirmation_ids
+    ]
+    confirmation_completed = [
+        event for event in completed if event.get("history_id") in confirmation_ids
+    ]
+    authorized = any(
+        event.get("event_type") == "confirmation_materialization_authorized"
+        for event in events
+    )
+    if confirmation_started and not authorized:
+        _fail_candidate(confirmation_ledger_path, binding, "confirmation_materialization_without_release")
+        raise GuardError("Confirmation started without its separate Main authorization")
+    if authorized:
+        if (len(confirmation_completed) == 4 and len(confirmation_started) == 4
+                and [event.get("history_id") for event in confirmation_completed] == confirmation_ids):
+            raise GuardError("Confirmation is already materialized; do not replay it")
+        _fail_candidate(confirmation_ledger_path, binding, "interrupted_confirmation_no_resume")
+        raise GuardError("interrupted Confirmation attempt retires candidate; no resume")
+    append_event(confirmation_ledger_path, "confirmation_materialization_authorized", {
+        "candidate_id": binding["candidate_id"],
+        "qualification_sha256": record_sha256,
+        "task69_release_path": str(task69_release_path),
+        "task69_checkpoint_commit": task69_checkpoint,
+    })
+    return _materialize_entries(
+        binding, root, attempt_root, confirmation_ledger_path, read_ledger(confirmation_ledger_path),
+        binding["role_binding"][12:],
+    )
+
 def _runtime_observation() -> dict[str, Any]:
     return {"hostname": socket.gethostname(), "python": sys.version.split()[0],
             "executable": str(Path(sys.executable).resolve()),
@@ -1895,6 +2134,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--qualification-sha256")
     parser.add_argument("--task69-release", type=Path)
     parser.add_argument("--smoke-no-contact", action="store_true")
+    parser.add_argument("--assessment", action="store_true",
+                        help="run the separate amended-policy assessment binding "
+                        "(S18-ITER-0005-ASSESS-P-ALLOWANCE-V1) through the same "
+                        "stages; refuses the live binding and refuses without "
+                        "an assessment Main release on contact stages")
     return parser.parse_args()
 
 
@@ -1933,7 +2177,65 @@ def main() -> int:
         binding = json.loads(binding_bytes.decode("utf-8"))
         if not isinstance(binding, dict):
             raise GuardError("binding JSON root must be an object")
-        validate_binding(binding, ROOT, disposable=args.smoke_no_contact)
+        if args.assessment:
+            if args.smoke_no_contact:
+                raise GuardError("no-contact smoke accepts no assessment mode")
+            live = read_json(BINDING_DEFAULT)
+            validate_assessment_binding(binding, ROOT, live)
+            validate_binding(live, ROOT, disposable=True)
+            if args.stage == "validate":
+                validate_runtime(live, ROOT)
+                host_uv = _validate_host_uv_toolchain(live)
+                print(json.dumps({
+                    "result": "STATIC_BINDING_PASS", "candidate_id": binding["candidate_id"],
+                    "binding_sha256": binding["binding_sha256"],
+                    "binding_file_sha256": sha256_bytes(binding_bytes),
+                    "source_closure_sha256": binding["source_closure"]["closure_sha256"],
+                    "contacted": False,
+                    "assessment": ASSESSMENT_SCHEMA_ID,
+                    "assessment_root": ASSESSMENT_CANDIDATE_ROOT_RELATIVE,
+                    "assessment_attempt": ASSESSMENT_ATTEMPT_DIRECTORY,
+                    "original_old_policy_result": "FAIL",
+                    "assessment_status": "NOT_YET_RUN",
+                    "host_uv_version": host_uv["uv_version"],
+                    "host_uv_build": host_uv["uv_build"],
+                }, indent=2))
+                return 0
+            if args.release is None:
+                raise GuardError("assessment contact stage requires Main's exact assessment release receipt")
+            assessment_release = read_json(args.release)
+            assessment_checkpoint = validate_assessment_release(
+                binding, sha256_bytes(binding_bytes), assessment_release)
+            parent = subprocess.run(
+                ["git", "-C", str(ROOT), "rev-parse", f"{assessment_checkpoint}^"], check=True,
+                capture_output=True, text=True,
+            ).stdout.strip()
+            if parent != BASE_COMMIT:
+                raise GuardError("Main assessment checkpoint does not directly follow the frozen Task68 correction base")
+            if assessment_release.get("release_scope") != "Task69-assessment-preflight-and-nonconfirmation":
+                raise GuardError("Main assessment release does not authorize this stage")
+            _validate_host_uv_toolchain(live)
+            validate_runtime(live, ROOT)
+            if args.stage == "preflight":
+                return run_preflight(binding, ROOT)
+            if args.stage == "materialize-nonconfirmation":
+                return dispatch_stage(binding, ROOT, "materialize-nonconfirmation")
+            if args.stage == "record-nonconfirmation-pass":
+                if args.qualification_record is None or args.qualification_sha256 is None:
+                    raise GuardError("Task69 record stage requires its exact path and SHA-256")
+                return record_nonconfirmation_result(
+                    binding, ROOT, args.qualification_record, args.qualification_sha256,
+                )
+            if args.stage == "materialize-confirmation":
+                if (args.qualification_record is None or args.qualification_sha256 is None
+                        or args.task69_release is None):
+                    raise GuardError("Assessment Confirmation requires the exact Task69 assessment result and Main release")
+                return run_assessment_confirmation(
+                    binding, ROOT, args.qualification_record,
+                    args.qualification_sha256, args.task69_release,
+                    assessment_checkpoint,
+                )
+            raise GuardError(f"unsupported stage {args.stage}")
         if args.smoke_no_contact:
             if args.stage != "validate" or args.release or args.qualification_record or args.task69_release:
                 raise GuardError("no-contact smoke accepts no execution stage or release path")
