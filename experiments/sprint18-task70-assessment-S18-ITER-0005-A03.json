@@ -1,0 +1,276 @@
+{
+ "agent_id": "S18Task70A03",
+ "assessment_implementation_checkpoint": "003b94bc4ee131dd8c3581b750180f65731b25a4",
+ "attempt_id": "S18-T70-A03",
+ "binding_file_sha256": "b8448292b023c9268f64886e5ca68a393c36ff5f2c41573ff160d50ce8ee6c58",
+ "binding_sha256": "8e2705140d07d9c603989ec709de5ebb766e580a8619b37c7462f6dd2751dd3b",
+ "candidate_id": "S18-ITER-0005",
+ "checkout": {
+  "commit": "8485344a2ee3143858db68fdbad3a6ed3def8890",
+  "parent": "42df4249d3b4b13067dbef4e543bca82efe5c279",
+  "parent_B": "7be574d9cf451e814e59d39005856f8af2bb774a",
+  "parent_chain": "E=8485344a -> D=42df4249 -> C=9e9e2227 -> B=7be574d9 -> A=003b94bc (one exact hop each, verified both hosts)",
+  "tree": "80a0b6ae11466853d7fc509069b6f6eecaeb4d84"
+ },
+ "confirmation": {
+  "confirmation_dirs_written": 4,
+  "confirmation_materialization_authorized": {
+   "previous_event_sha256": "c71d2755a9d9351ccd674ccaac002d8bc00eba57a90fdbb6646d842418b23c02",
+   "qualification_sha256": "c5a8e8ccbc6be35a58fe7363ee4e8af489d3fafb93aaf6411c3936e5d349dc4b",
+   "sequence": 29,
+   "task69_checkpoint_commit": "7be574d9cf451e814e59d39005856f8af2bb774a"
+  },
+  "event30": {
+   "data_seed": 32076,
+   "directory": "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/data/generated/sprint18-iterative-v1/S18-ITER-0005-ASSESS-P-ALLOWANCE-V1/CONFIRMATION/S18I-ITER-0005-CONFIRMATION-01",
+   "event_sha256": "87557f9d7b10b44054e4cd88e9d5a8eda78f83b5aec70830d01b80af188e84fd",
+   "event_type": "role_materialization_started",
+   "history_id": "S18I-ITER-0005-CONFIRMATION-01",
+   "previous_event_sha256": "31dfa35d5268316f1f5252a1f2a474038084368ab2d8e8707ffc6dfc198993bb",
+   "role": "CONFIRMATION",
+   "sequence": 30
+  },
+  "launch": {
+   "detach": "setsid nohup sh /tmp/s18t70a03-run.sh > /home/trietlm/s18t70a03-recovery.log 2>&1 < /dev/null & (launched in one SSH call; launcher pid 29880 kept OWN session and process group sid=29880 pgid=29880; verified alive after the SSH session closed with ppid=1)",
+   "launcher_pid": 29880,
+   "launched_at_utc": "2026-10-09T03:30:48Z",
+   "exit": 0,
+   "exit_evidence": "RECOVERY_EXIT=0 in /home/trietlm/s18t70a03-recovery.exit",
+   "done_at_utc": "2026-10-09T03:33:34Z",
+   "wall_seconds": 166
+  },
+  "ledger_events_after": 38,
+  "ledger_first28_prefix_sha256": "625dcc1c6e14b43ac031afb590565a1af8461146579c8aff212d60bf3f061919",
+  "ledger_sha256_after": "ac10a975ae9c161633e5dac8ef05b3d1bfa2e33487f0d84841a2439d6594f3a6",
+  "recovery_continuity_event": {
+   "sequence": 31,
+   "event_type": "confirmation_recovery_authorized",
+   "event_sha256": "a4ca695ee81ce5b5f60b089ab27d68b921fc2f8cc7e01a8fdd0be85f168b45b7",
+   "recovery_release_path": "artifacts/sprint-18/S18-ITER-0005-TASK70-interrupted-confirmation-recovery-v1.json",
+   "recovery_release_sha256": "9a42032738ea5084ac4b0684f27291fa3016d94144123bf9d3f890db51e449d4",
+   "interrupted_ledger_sha256": "05cbc0fb27dabba07805e2a85892f64b01d2c90227dca1f01f0fdbecf71ca509",
+   "qualified_ledger_sha256": "625dcc1c6e14b43ac031afb590565a1af8461146579c8aff212d60bf3f061919",
+   "resume_history_id": "S18I-ITER-0005-CONFIRMATION-01",
+   "resume_data_seed": 32076
+  },
+  "roles_materialized": 4,
+  "seeds": [
+   32076,
+   32077,
+   32078,
+   32079
+  ],
+  "stage": "materialize-confirmation"
+ },
+ "frozen_stats": {
+  "calibration_files": 1877,
+  "calibration_patches": 56889,
+  "calibration_q95": 195.7544682761532,
+  "fit_centroid_norm": 2.290221527135249e-11,
+  "fit_feature_dim": 59,
+  "fit_files": 5446,
+  "fit_patches": 167419
+ },
+ "frozen_stats_digest": "181b83d18329d7ffe90b97ddffe63250c423c51c1f30e9760f1d19952ddff41e",
+ "frozen_stats_source": "experiments/sprint18-task69-assessment-S18-ITER-0005-A09-qualification-record.json (c5a8e8cc...; re-read and independently recomputed from the frozen Fit/Calibration roots in a read-only driver before any Confirmation contact, byte-exact match; no refit/retune; the A01 derivation input for the digest string remains unrecovered - recorded as a limitation, the underlying values are verified directly)",
+ "guards": {
+  "assessment_validate_exit": 0,
+  "assessment_validate_result": "STATIC_BINDING_PASS",
+  "assessment_validate_stderr_bytes": 0,
+  "assessment_validate_wall_ms": 1332,
+  "final_public_validate_exit": 0,
+  "final_public_validate_result": "STATIC_BINDING_PASS",
+  "final_public_validate_wall_ms": 1308,
+  "final_public_validate_stderr_bytes": 0
+ },
+ "outcome": "TASK70_ALL_OBSERVABLE_CRITERIA_PASS_SCIENTIFIC_REVIEW_PENDING",
+ "outcome_detail": "The single user-authorized zero-output recovery was executed through the genuine public detached path: the launcher was fully detached (own session and process group, verified alive with ppid=1 after the SSH session closed, so the A02 SSH-session-bound mistake was not repeated), passed every release/execution/interrupted-state guard, appended exactly one legitimate append-only confirmation_recovery_authorized continuity event (sequence 31) after the byte-identical preserved 30 events, then materialized all 4 unchanged Confirmation seeds 32076..32079 exactly once through the real public synth.cli children and reloaded each through the public load_chronological consumer. The fixed observable probe was evaluated on the 4 Confirmation histories using ONLY the frozen Fit standardization/centroid (59 features, norm 2.290221527135249e-11) and the frozen Calibration q95 195.7544682761532 - no refit, no new threshold, no learned scores, no Development/Confirmation selection. Every whole-16 certification and EG4 observable gate passed.",
+ "qualification": {
+  "confirmation_contacted": false,
+  "record_sha256": "c5a8e8ccbc6be35a58fe7363ee4e8af489d3fafb93aaf6411c3936e5d349dc4b",
+  "verdict": "PASS (12/12 non-Confirmation, Task69 frozen; Confirmation remained 0/4 at qualification time)"
+ },
+ "receipts": {
+  "assess_main_v1": {
+   "path": "artifacts/sprint-18/S18-ITER-0005-ASSESS-main-assessment-release-v1.json",
+   "sha256": "4563267697171d84ff4372678ef3ac18481e0fe0a51f402f47c4acfc8b9b9e85"
+  },
+  "execution_release_v3_E": {
+   "path": "artifacts/sprint-18/S18-ITER-0005-TASK70-corrected-execution-release-v3.json",
+   "sha256": "696cbf7b1a699d93be36f1426066c81715ab0d944c0a3f8653e930e4c2be38ca"
+  },
+  "recovery_release_v1": {
+   "path": "artifacts/sprint-18/S18-ITER-0005-TASK70-interrupted-confirmation-recovery-v1.json",
+   "sha256": "9a42032738ea5084ac4b0684f27291fa3016d94144123bf9d3f890db51e449d4"
+  },
+  "task69_release_v2": {
+   "path": "artifacts/sprint-18/S18-ITER-0005-TASK69-main-assessment-release-v2.json",
+   "sha256": "217fb15ffac5addce3b6c3bf19e624ff0d163505ae2b8668f99f656e423480aa"
+  },
+  "immutable_historical": {
+   "execution_release_v2_D_sha256": "314140ee178c124f4af4c0e239879ffc0ff0019b60420727f943ffcb9895aa77",
+   "execution_release_v1_C_sha256": "4cf2ee68d7f64685b45183d99fb96798c7a2b8ac4f9b62a6a924d22987ec5ad0",
+   "all_unchanged": true
+  }
+ },
+ "role_reconciliation": {
+  "all_16_role_permissions_match_binding": true,
+  "all_16_paths_canonical_role_leaf_layout": true,
+  "no_role_directory_nested_in_another": true,
+  "seeds_exactly_32064_32079_disjoint": true,
+  "no_seed_replacement_or_search": true,
+  "12_nonconfirmation_manifests_match_task69_record": true,
+  "4_confirmation_manifests_fresh_and_distinct": true,
+  "confirmation_manifest_sha256": {
+   "S18I-ITER-0005-CONFIRMATION-01": "db2b50444cb54c8a4bce700771efcef691e147b96ceb68985997e1115d74bbd2",
+   "S18I-ITER-0005-CONFIRMATION-02": "54d787eb424066c3e8c18acb528f6ec19e2e9f4211b46e669390a3a330c8b762",
+   "S18I-ITER-0005-CONFIRMATION-03": "5c06a6613bcb7bc83b5646423f44f0440ecff8a276935b630c220ceff247ad3f",
+   "S18I-ITER-0005-CONFIRMATION-04": "50a506a4670e5da45dbfa6b29db79f74a84e947b93de6f2d47edd65613c8e840"
+  }
+ },
+ "runtime": {
+  "branch": "sprint18-task68-a02-runtime",
+  "canonical_untouched": "/home/trietlm/anomaly-representation-learning master 23642b479c826892f2de649230d47a7aa5c29ff0 + 2 geometry dirs (read-only, never executed/imported/pulled/modified; re-verified after the run)",
+  "env": "CPython 3.12.13, NumPy 2.5.2, SciPy 1.18.1, Torch 2.14.0+cu130 (CUDA 13.0), uv 0.12.21 (7af826859), 149 *.dist-info; uv run --no-sync (no install/sync/build)",
+  "gpu": "RTX 4060 Ti; 15087 MiB free / 0% during the run, 2454 MiB used / 0% at post check (no GPU consumer)",
+  "host": "di-server (trietlm@192.168.30.244, SSH BatchMode key auth; alias not configured)",
+  "post_run_ps": "no sprint18_iterative_candidate / synth.cli / s18t70a03 process (ps rc=1 after job exit)",
+  "source_unchanged": "remote porcelain 0, diff --quiet HEAD rc 0, 0 staged, stash 0, HEAD E before and after"
+ },
+ "schema_id": "sprint18-task70-assessment-confirmation-v1",
+ "source_closure_sha256": "7528315eb72efaf42e3bcddb77e69bc3b66cbacd2c420ed205321a7d59f388a2",
+ "task69_checkpoint": "7be574d9cf451e814e59d39005856f8af2bb774a",
+ "task_id": "S18-T70",
+ "whole16_certification": {
+  "carrier": "experiments/sprint18-task70-assessment-S18-ITER-0005-A03-whole16-certification.json",
+  "carrier_sha256": "1345d1c8e04c35f3fbb18bddec2b5d474f91ec24c1f1c5081040b342debe2897",
+  "checks": {
+   "all_16_manifest_schema_and_config_hash": true,
+   "all_16_public_loader_reload": true,
+   "all_16_structural_core_integrity": true,
+   "confirmation_hard_floor_4_of_4": true,
+   "confirmation_nominal_p_exception_only_seed32076": true,
+   "design_block_checks_pass": true,
+   "frozen_calibration_q95_exact": true,
+   "frozen_fit_centroid_59dims_exact": true,
+   "ledger_4_confirmation_materialized_ordered": true,
+   "ledger_first28_prefix_immutable": true,
+   "ledger_no_fail_reject_retire": true,
+   "ledger_recovery_event_exactly_one": true,
+   "probe_all_gates_pass": true,
+   "role_paths_distinct": true,
+   "roster_16_exact_binding": true,
+   "seeds_fixed_32064_32079_in_order": true,
+   "whole16_certification_pass": true
+  },
+  "observable_probe": {
+   "probe_id": "sprint15-observable-probe-v2",
+   "threshold": 195.7544682761532,
+   "macro_auc_pw": 0.7782929988054331,
+   "macro_auc_p": 0.7950602711718822,
+   "macro_auc_w": 0.7566116057485478,
+   "lcb_pw": 0.7555530669372365,
+   "directional_histories": 4,
+   "checks": {
+    "A_companion_reported": true,
+    "FAR_le_0_05": true,
+    "P_median_lead_ge_1_day": true,
+    "P_recall_ge_0_50": true,
+    "PW_history_block_LCB95_gt_0_50": true,
+    "W_median_lead_ge_0_5_day": true,
+    "W_recall_ge_0_25": true,
+    "all_gates_pass": true,
+    "all_histories_have_P_W_and_controls": true,
+    "at_least_3_of_4_PW_AUROC_gt_0_55": true,
+    "exactly_four_histories": true,
+    "macro_PW_ge_0_65": true,
+    "macro_P_ge_0_70": true,
+    "macro_W_ge_0_60": true,
+    "per_history_gates_pass": true,
+    "required_metrics_finite": true
+   },
+   "per_history": [
+    {
+     "history_id": "S18I-ITER-0005-CONFIRMATION-01",
+     "seed": 32076,
+     "auc_pw": 0.7804121151936445,
+     "auc_p": 0.8107109879963066,
+     "auc_w": 0.7451664876476907,
+     "auc_a": 0.497165991902834,
+     "recall_p": 0.7192982456140351,
+     "lead_p_median": 2.048809361832294,
+     "recall_w": 0.5918367346938775,
+     "lead_w_median": 3.8594456823982934,
+     "far": 0.02191464821222607,
+     "false_episodes": 38,
+     "robot_days": 1734
+    },
+    {
+     "history_id": "S18I-ITER-0005-CONFIRMATION-02",
+     "seed": 32077,
+     "auc_pw": 0.7472667175184338,
+     "auc_p": 0.7750278706800446,
+     "auc_w": 0.7104406980183378,
+     "auc_a": 0.4264626945786366,
+     "recall_p": 0.676923076923077,
+     "lead_p_median": 3.006081067578246,
+     "recall_w": 0.5918367346938775,
+     "lead_w_median": 4.1876163947127365,
+     "far": 0.0419494139420111,
+     "false_episodes": 68,
+     "robot_days": 1621
+    },
+    {
+     "history_id": "S18I-ITER-0005-CONFIRMATION-03",
+     "seed": 32078,
+     "auc_pw": 0.7939780109945027,
+     "auc_p": 0.8027375201288245,
+     "auc_w": 0.7796442687747036,
+     "auc_a": 0.531203785862171,
+     "recall_p": 0.6666666666666666,
+     "lead_p_median": 3.341218609482429,
+     "recall_w": 0.5909090909090909,
+     "lead_w_median": 4.660365265172834,
+     "far": 0.0264084507042254,
+     "false_episodes": 45,
+     "robot_days": 1704
+    },
+    {
+     "history_id": "S18I-ITER-0005-CONFIRMATION-04",
+     "seed": 32079,
+     "auc_pw": 0.7915151515151515,
+     "auc_p": 0.7917647058823529,
+     "auc_w": 0.7911949685534592,
+     "auc_a": 0.3797222222222222,
+     "recall_p": 0.6911764705882353,
+     "lead_p_median": 3.127425073313277,
+     "recall_w": 0.7169811320754716,
+     "lead_w_median": 4.2237754754773,
+     "far": 0.0333919156414763,
+     "false_episodes": 57,
+     "robot_days": 1707
+    }
+   ],
+   "support_sha256": "da169c1f5d57fac3d42e2e6667457b0d59cfdf91d0ae058e6db3bc57c10813bb"
+  }
+ },
+ "owned_carriers": {
+  "experiments/sprint18-task70-assessment-S18-ITER-0005-A03.json": "this outcome record",
+  "experiments/sprint18-task70-assessment-S18-ITER-0005-A03.md": {
+   "bytes": 6945,
+   "sha256": "2bae1fb8bda99fd0631435990df92e1290701308bede09d3fe2280353d33c49f",
+   "role": "bounded human-readable outcome record"
+  },
+  "experiments/sprint18-task70-assessment-S18-ITER-0005-A03-ledger.jsonl": "38-event live ledger snapshot (26619 B)",
+  "experiments/sprint18-task70-assessment-S18-ITER-0005-A03-whole16-certification.json": "whole-16 certification + fixed observable probe (42486 B)",
+  "experiments/sprint18-task70-assessment-S18-ITER-0005-A03-role-reconciliation.json": "permission/disjointness/path/seed/manifest reconciliation (6279 B)",
+  "experiments/sprint18-task70-assessment-S18-ITER-0005-A03-frozen-statistics.json": "frozen Fit/Calibration statistics carrier (8357 B)",
+  "experiments/sprint18-task70-assessment-S18-ITER-0005-A03-recovery-log.txt": "detached job log (1329 B)",
+  "artifacts/sprint-18/s18-t70-a03-attempt-proof.json": "attempt proof carrier",
+  "artifacts/sprint-18/s18-t70-a03-section-preserved-overwrite-snapshot.md": {
+   "bytes": 24198,
+   "sha256": "e85bd31ddd1a535ce053155af7e086450f859b4d176fe2a385baa63106290736",
+   "role": "accidental overwrite snapshot / recovery evidence"
+  }
+ }
+}

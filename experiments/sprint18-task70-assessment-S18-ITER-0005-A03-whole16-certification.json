@@ -1,0 +1,1266 @@
+{
+ "binding": {
+  "file_sha256": "b8448292b023c9268f64886e5ca68a393c36ff5f2c41573ff160d50ce8ee6c58",
+  "path": "experiments/sprint18-iterative-assessment-c5-allowance-v1.json",
+  "sha256": "8e2705140d07d9c603989ec709de5ebb766e580a8619b37c7462f6dd2751dd3b"
+ },
+ "checks": {
+  "all_16_manifest_schema_and_config_hash": true,
+  "all_16_public_loader_reload": true,
+  "all_16_structural_core_integrity": true,
+  "confirmation_hard_floor_4_of_4": true,
+  "confirmation_nominal_p_exception_only_seed32076": true,
+  "design_block_checks_pass": true,
+  "frozen_calibration_q95_exact": true,
+  "frozen_fit_centroid_59dims_exact": true,
+  "ledger_4_confirmation_materialized_ordered": true,
+  "ledger_first28_prefix_immutable": true,
+  "ledger_no_fail_reject_retire": true,
+  "ledger_recovery_event_exactly_one": true,
+  "no_role_symlink": true,
+  "probe_all_gates_pass": true,
+  "role_paths_distinct": true,
+  "roster_16_exact_binding": true,
+  "seeds_fixed_32064_32079_in_order": true,
+  "whole16_certification_pass": true
+ },
+ "failures": [],
+ "frozen_statistics": {
+  "calibration_healthy_files": 1877,
+  "calibration_threshold_q95": 195.7544682761532,
+  "carrier": "/tmp/s18t70a03-frozen-stats.json",
+  "fit_centroid_norm": 2.290221527135249e-11,
+  "fit_feature_dim": 59,
+  "fit_healthy_files": 5446,
+  "fit_valid_patches": 167419,
+  "probe_id": "sprint15-observable-probe-v2"
+ },
+ "immutable_qualification_record": {
+  "calibration_threshold_q95": 195.7544682761532,
+  "confirmation_contacted_at_qualification": false,
+  "fit_centroid_norm": 2.290221527135249e-11,
+  "path": "experiments/sprint18-task69-assessment-S18-ITER-0005-A09-qualification-record.json",
+  "sha256": "c5a8e8ccbc6be35a58fe7363ee4e8af489d3fafb93aaf6411c3936e5d349dc4b"
+ },
+ "ledger": {
+  "confirmation_materialized": [
+   "S18I-ITER-0005-CONFIRMATION-01",
+   "S18I-ITER-0005-CONFIRMATION-02",
+   "S18I-ITER-0005-CONFIRMATION-03",
+   "S18I-ITER-0005-CONFIRMATION-04"
+  ],
+  "confirmation_started": [
+   "S18I-ITER-0005-CONFIRMATION-01",
+   "S18I-ITER-0005-CONFIRMATION-02",
+   "S18I-ITER-0005-CONFIRMATION-03",
+   "S18I-ITER-0005-CONFIRMATION-04"
+  ],
+  "counts": {
+   "attempt_started": 1,
+   "confirmation_materialization_authorized": 1,
+   "confirmation_recovery_authorized": 1,
+   "nonconfirmation_qualification_pass": 1,
+   "preflight_recorded": 1,
+   "preflight_started": 1,
+   "role_materialization_started": 16,
+   "role_materialized": 16
+  },
+  "events": 38,
+  "first_28_prefix_immutable": true,
+  "first_28_prefix_sha256": "625dcc1c6e14b43ac031afb590565a1af8461146579c8aff212d60bf3f061919",
+  "full_sha256": "ac10a975ae9c161633e5dac8ef05b3d1bfa2e33487f0d84841a2439d6594f3a6",
+  "path": "data/generated/sprint18-iterative-v1/S18-ITER-0005-ASSESS-P-ALLOWANCE-V1/_assessment-001/ledger.jsonl",
+  "recovery_event": [
+   {
+    "candidate_id": "S18-ITER-0005",
+    "event_sha256": "a4ca695ee81ce5b5f60b089ab27d68b921fc2f8cc7e01a8fdd0be85f168b45b7",
+    "event_type": "confirmation_recovery_authorized",
+    "interrupted_ledger_sha256": "05cbc0fb27dabba07805e2a85892f64b01d2c90227dca1f01f0fdbecf71ca509",
+    "previous_event_sha256": "87557f9d7b10b44054e4cd88e9d5a8eda78f83b5aec70830d01b80af188e84fd",
+    "qualified_ledger_sha256": "625dcc1c6e14b43ac031afb590565a1af8461146579c8aff212d60bf3f061919",
+    "recovery_release_path": "artifacts/sprint-18/S18-ITER-0005-TASK70-interrupted-confirmation-recovery-v1.json",
+    "recovery_release_sha256": "9a42032738ea5084ac4b0684f27291fa3016d94144123bf9d3f890db51e449d4",
+    "resume_data_seed": 32076,
+    "resume_history_id": "S18I-ITER-0005-CONFIRMATION-01",
+    "sequence": 31,
+    "task69_checkpoint_commit": "7be574d9cf451e814e59d39005856f8af2bb774a"
+   }
+  ]
+ },
+ "observable_probe": {
+  "checks": {
+   "PW_history_block_LCB95_gt_0_50": true,
+   "all_gates_pass": true,
+   "all_histories_have_P_W_and_controls": true,
+   "all_history_ids_present": true,
+   "all_required_block_metrics_finite": true,
+   "at_least_3_of_4_PW_AUROC_gt_0_55": true,
+   "exactly_four_histories": true,
+   "macro_PW_ge_0_65": true,
+   "macro_P_ge_0_70": true,
+   "macro_W_ge_0_60": true,
+   "per_history_gates_pass": true
+  },
+  "metrics": {
+   "directional_histories": 4,
+   "lcb_pw": 0.7555530669372365,
+   "macro_auc_p": 0.7950602711718822,
+   "macro_auc_pw": 0.7782929988054331,
+   "macro_auc_w": 0.7566116057485478,
+   "per_history": [
+    {
+     "auc_a": 0.497165991902834,
+     "auc_p": 0.8107109879963066,
+     "auc_pw": 0.7804121151936445,
+     "auc_w": 0.7451664876476907,
+     "false_episodes": 38,
+     "far": 0.02191464821222607,
+     "history_id": "S18I-ITER-0005-CONFIRMATION-01",
+     "lead_p_median": 2.048809361832294,
+     "lead_w_median": 3.8594456823982934,
+     "n_p": 57,
+     "n_w": 49,
+     "recall_p": 0.7192982456140351,
+     "recall_w": 0.5918367346938775,
+     "robot_days": 1734.0
+    },
+    {
+     "auc_a": 0.4264626945786366,
+     "auc_p": 0.7750278706800446,
+     "auc_pw": 0.7472667175184338,
+     "auc_w": 0.7104406980183378,
+     "false_episodes": 68,
+     "far": 0.041949413942011106,
+     "history_id": "S18I-ITER-0005-CONFIRMATION-02",
+     "lead_p_median": 3.006081067578246,
+     "lead_w_median": 4.1876163947127365,
+     "n_p": 65,
+     "n_w": 49,
+     "recall_p": 0.676923076923077,
+     "recall_w": 0.5918367346938775,
+     "robot_days": 1621.0
+    },
+    {
+     "auc_a": 0.531203785862171,
+     "auc_p": 0.8027375201288245,
+     "auc_pw": 0.7939780109945027,
+     "auc_w": 0.7796442687747036,
+     "false_episodes": 45,
+     "far": 0.02640845070422535,
+     "history_id": "S18I-ITER-0005-CONFIRMATION-03",
+     "lead_p_median": 3.341218609482429,
+     "lead_w_median": 4.660365265172834,
+     "n_p": 72,
+     "n_w": 44,
+     "recall_p": 0.6666666666666666,
+     "recall_w": 0.5909090909090909,
+     "robot_days": 1704.0
+    },
+    {
+     "auc_a": 0.37972222222222224,
+     "auc_p": 0.7917647058823529,
+     "auc_pw": 0.7915151515151515,
+     "auc_w": 0.7911949685534592,
+     "false_episodes": 57,
+     "far": 0.033391915641476276,
+     "history_id": "S18I-ITER-0005-CONFIRMATION-04",
+     "lead_p_median": 3.127425073313277,
+     "lead_w_median": 4.2237754754773,
+     "n_p": 68,
+     "n_w": 53,
+     "recall_p": 0.6911764705882353,
+     "recall_w": 0.7169811320754716,
+     "robot_days": 1707.0
+    }
+   ],
+   "probe": "sprint15-observable-probe-v2",
+   "threshold": 195.7544682761532
+  },
+  "pass": true,
+  "per_history": [
+   {
+    "A_AUROC": 0.497165991902834,
+    "A_companion_reported": true,
+    "FAR_le_0_05": true,
+    "P_median_lead_ge_1_day": true,
+    "P_recall_ge_0_50": true,
+    "W_median_lead_ge_0_5_day": true,
+    "W_recall_ge_0_25": true,
+    "history_id": "S18I-ITER-0005-CONFIRMATION-01",
+    "metrics": {
+     "auc_a": 0.497165991902834,
+     "auc_p": 0.8107109879963066,
+     "auc_pw": 0.7804121151936445,
+     "auc_w": 0.7451664876476907,
+     "false_episodes": 38,
+     "far": 0.02191464821222607,
+     "history_id": "S18I-ITER-0005-CONFIRMATION-01",
+     "lead_p_median": 2.048809361832294,
+     "lead_w_median": 3.8594456823982934,
+     "n_p": 57,
+     "n_w": 49,
+     "recall_p": 0.7192982456140351,
+     "recall_w": 0.5918367346938775,
+     "robot_days": 1734.0
+    },
+    "required_metrics_finite": true,
+    "support": {
+     "cohort_mix": {
+      "A": 0.38011695906432746,
+      "P": 0.3333333333333333,
+      "W": 0.28654970760233917
+     },
+     "eligibility_rejections": {
+      "reset-horizon": 70
+     },
+     "eligible_anchor_count": 171,
+     "evaluable_by_subtype": {
+      "A1": 30,
+      "A2": 35,
+      "P1": 28,
+      "P2": 29,
+      "W1": 26,
+      "W2": 23
+     },
+     "evaluable_positive_events": 171,
+     "evaluable_robot_days": 1734,
+     "lead_support": {
+      "P": {
+       "eligible_events": 57,
+       "events_meeting_three_endpoints_early_endpoint_and_clean_baseline": 57,
+       "fraction": 1.0,
+       "pass_80_percent": true
+      },
+      "W": {
+       "eligible_events": 49,
+       "events_meeting_three_endpoints_early_endpoint_and_clean_baseline": 49,
+       "fraction": 1.0,
+       "pass_80_percent": true
+      }
+     },
+     "max_negative_share_by_robot": 0.17105263157894737,
+     "max_positive_share_by_robot": 0.13450292397660818,
+     "negative_contributing_robots": 9,
+     "negative_control_windows": 76,
+     "negative_controls_by_robot": {
+      "robot-01": 4,
+      "robot-02": 6,
+      "robot-03": 11,
+      "robot-04": 5,
+      "robot-05": 13,
+      "robot-06": 9,
+      "robot-07": 9,
+      "robot-08": 6,
+      "robot-09": 13
+     },
+     "positive_contributing_robots": 9,
+     "positive_events_by_robot": {
+      "robot-01": 23,
+      "robot-02": 21,
+      "robot-03": 21,
+      "robot-04": 17,
+      "robot-05": 18,
+      "robot-06": 18,
+      "robot-07": 19,
+      "robot-08": 19,
+      "robot-09": 15
+     },
+     "positives_by_cohort": {
+      "A": 65,
+      "P": 57,
+      "W": 49
+     },
+     "positives_total": 171,
+     "program_shares": {
+      "P": 0.2982456140350877,
+      "W": 0.16326530612244897
+     },
+     "programs_by_cohort": {
+      "P": [
+       "program-01",
+       "program-02",
+       "program-03",
+       "program-04",
+       "program-05",
+       "program-06",
+       "program-07",
+       "program-08"
+      ],
+      "W": [
+       "program-01",
+       "program-02",
+       "program-03",
+       "program-04",
+       "program-05",
+       "program-06",
+       "program-07",
+       "program-08"
+      ]
+     },
+     "reserved_identity_eligible_events": {
+      "reserved_P_subtype": 29,
+      "reserved_W_subtype": 23,
+      "reserved_program_P_or_W": 9,
+      "reserved_robot_P_or_W": 11
+     },
+     "support_sha256": "f0627874b8e516c5cb246c11f017b5ed970206e6dae7cf9ecba572615bbe96b5",
+     "unevaluable_positive_events": 70
+    }
+   },
+   {
+    "A_AUROC": 0.4264626945786366,
+    "A_companion_reported": true,
+    "FAR_le_0_05": true,
+    "P_median_lead_ge_1_day": true,
+    "P_recall_ge_0_50": true,
+    "W_median_lead_ge_0_5_day": true,
+    "W_recall_ge_0_25": true,
+    "history_id": "S18I-ITER-0005-CONFIRMATION-02",
+    "metrics": {
+     "auc_a": 0.4264626945786366,
+     "auc_p": 0.7750278706800446,
+     "auc_pw": 0.7472667175184338,
+     "auc_w": 0.7104406980183378,
+     "false_episodes": 68,
+     "far": 0.041949413942011106,
+     "history_id": "S18I-ITER-0005-CONFIRMATION-02",
+     "lead_p_median": 3.006081067578246,
+     "lead_w_median": 4.1876163947127365,
+     "n_p": 65,
+     "n_w": 49,
+     "recall_p": 0.676923076923077,
+     "recall_w": 0.5918367346938775,
+     "robot_days": 1621.0
+    },
+    "required_metrics_finite": true,
+    "support": {
+     "cohort_mix": {
+      "A": 0.32142857142857145,
+      "P": 0.3869047619047619,
+      "W": 0.2916666666666667
+     },
+     "eligibility_rejections": {
+      "reset-horizon": 67
+     },
+     "eligible_anchor_count": 168,
+     "evaluable_by_subtype": {
+      "A1": 28,
+      "A2": 26,
+      "P1": 32,
+      "P2": 33,
+      "W1": 27,
+      "W2": 22
+     },
+     "evaluable_positive_events": 168,
+     "evaluable_robot_days": 1621,
+     "lead_support": {
+      "P": {
+       "eligible_events": 65,
+       "events_meeting_three_endpoints_early_endpoint_and_clean_baseline": 65,
+       "fraction": 1.0,
+       "pass_80_percent": true
+      },
+      "W": {
+       "eligible_events": 49,
+       "events_meeting_three_endpoints_early_endpoint_and_clean_baseline": 49,
+       "fraction": 1.0,
+       "pass_80_percent": true
+      }
+     },
+     "max_negative_share_by_robot": 0.14492753623188406,
+     "max_positive_share_by_robot": 0.125,
+     "negative_contributing_robots": 9,
+     "negative_control_windows": 69,
+     "negative_controls_by_robot": {
+      "robot-01": 10,
+      "robot-02": 7,
+      "robot-03": 8,
+      "robot-04": 8,
+      "robot-05": 5,
+      "robot-06": 8,
+      "robot-07": 9,
+      "robot-08": 4,
+      "robot-09": 10
+     },
+     "positive_contributing_robots": 9,
+     "positive_events_by_robot": {
+      "robot-01": 17,
+      "robot-02": 18,
+      "robot-03": 19,
+      "robot-04": 17,
+      "robot-05": 21,
+      "robot-06": 18,
+      "robot-07": 21,
+      "robot-08": 18,
+      "robot-09": 19
+     },
+     "positives_by_cohort": {
+      "A": 54,
+      "P": 65,
+      "W": 49
+     },
+     "positives_total": 168,
+     "program_shares": {
+      "P": 0.24615384615384617,
+      "W": 0.22448979591836735
+     },
+     "programs_by_cohort": {
+      "P": [
+       "program-01",
+       "program-02",
+       "program-03",
+       "program-04",
+       "program-05",
+       "program-06",
+       "program-07",
+       "program-08"
+      ],
+      "W": [
+       "program-01",
+       "program-02",
+       "program-03",
+       "program-04",
+       "program-05",
+       "program-06",
+       "program-07",
+       "program-08"
+      ]
+     },
+     "reserved_identity_eligible_events": {
+      "reserved_P_subtype": 33,
+      "reserved_W_subtype": 22,
+      "reserved_program_P_or_W": 10,
+      "reserved_robot_P_or_W": 13
+     },
+     "support_sha256": "8b466b294a71fef5f417dd08e2727434b22fcb0782f21a5182a93b7a11dae906",
+     "unevaluable_positive_events": 67
+    }
+   },
+   {
+    "A_AUROC": 0.531203785862171,
+    "A_companion_reported": true,
+    "FAR_le_0_05": true,
+    "P_median_lead_ge_1_day": true,
+    "P_recall_ge_0_50": true,
+    "W_median_lead_ge_0_5_day": true,
+    "W_recall_ge_0_25": true,
+    "history_id": "S18I-ITER-0005-CONFIRMATION-03",
+    "metrics": {
+     "auc_a": 0.531203785862171,
+     "auc_p": 0.8027375201288245,
+     "auc_pw": 0.7939780109945027,
+     "auc_w": 0.7796442687747036,
+     "false_episodes": 45,
+     "far": 0.02640845070422535,
+     "history_id": "S18I-ITER-0005-CONFIRMATION-03",
+     "lead_p_median": 3.341218609482429,
+     "lead_w_median": 4.660365265172834,
+     "n_p": 72,
+     "n_w": 44,
+     "recall_p": 0.6666666666666666,
+     "recall_w": 0.5909090909090909,
+     "robot_days": 1704.0
+    },
+    "required_metrics_finite": true,
+    "support": {
+     "cohort_mix": {
+      "A": 0.296969696969697,
+      "P": 0.43636363636363634,
+      "W": 0.26666666666666666
+     },
+     "eligibility_rejections": {
+      "reset-horizon": 84
+     },
+     "eligible_anchor_count": 165,
+     "evaluable_by_subtype": {
+      "A1": 23,
+      "A2": 26,
+      "P1": 37,
+      "P2": 35,
+      "W1": 19,
+      "W2": 25
+     },
+     "evaluable_positive_events": 165,
+     "evaluable_robot_days": 1704,
+     "lead_support": {
+      "P": {
+       "eligible_events": 72,
+       "events_meeting_three_endpoints_early_endpoint_and_clean_baseline": 72,
+       "fraction": 1.0,
+       "pass_80_percent": true
+      },
+      "W": {
+       "eligible_events": 44,
+       "events_meeting_three_endpoints_early_endpoint_and_clean_baseline": 44,
+       "fraction": 1.0,
+       "pass_80_percent": true
+      }
+     },
+     "max_negative_share_by_robot": 0.17391304347826086,
+     "max_positive_share_by_robot": 0.12727272727272726,
+     "negative_contributing_robots": 9,
+     "negative_control_windows": 69,
+     "negative_controls_by_robot": {
+      "robot-01": 6,
+      "robot-02": 10,
+      "robot-03": 8,
+      "robot-04": 8,
+      "robot-05": 8,
+      "robot-06": 8,
+      "robot-07": 3,
+      "robot-08": 6,
+      "robot-09": 12
+     },
+     "positive_contributing_robots": 9,
+     "positive_events_by_robot": {
+      "robot-01": 21,
+      "robot-02": 14,
+      "robot-03": 16,
+      "robot-04": 17,
+      "robot-05": 20,
+      "robot-06": 19,
+      "robot-07": 20,
+      "robot-08": 19,
+      "robot-09": 19
+     },
+     "positives_by_cohort": {
+      "A": 49,
+      "P": 72,
+      "W": 44
+     },
+     "positives_total": 165,
+     "program_shares": {
+      "P": 0.2361111111111111,
+      "W": 0.20454545454545456
+     },
+     "programs_by_cohort": {
+      "P": [
+       "program-01",
+       "program-02",
+       "program-03",
+       "program-04",
+       "program-05",
+       "program-06",
+       "program-07",
+       "program-08"
+      ],
+      "W": [
+       "program-01",
+       "program-02",
+       "program-03",
+       "program-04",
+       "program-05",
+       "program-06",
+       "program-07",
+       "program-08"
+      ]
+     },
+     "reserved_identity_eligible_events": {
+      "reserved_P_subtype": 35,
+      "reserved_W_subtype": 25,
+      "reserved_program_P_or_W": 13,
+      "reserved_robot_P_or_W": 11
+     },
+     "support_sha256": "60150715c09f69ad31bae372a0cdec09f868bf200521602dce6a51da7be378dd",
+     "unevaluable_positive_events": 84
+    }
+   },
+   {
+    "A_AUROC": 0.37972222222222224,
+    "A_companion_reported": true,
+    "FAR_le_0_05": true,
+    "P_median_lead_ge_1_day": true,
+    "P_recall_ge_0_50": true,
+    "W_median_lead_ge_0_5_day": true,
+    "W_recall_ge_0_25": true,
+    "history_id": "S18I-ITER-0005-CONFIRMATION-04",
+    "metrics": {
+     "auc_a": 0.37972222222222224,
+     "auc_p": 0.7917647058823529,
+     "auc_pw": 0.7915151515151515,
+     "auc_w": 0.7911949685534592,
+     "false_episodes": 57,
+     "far": 0.033391915641476276,
+     "history_id": "S18I-ITER-0005-CONFIRMATION-04",
+     "lead_p_median": 3.127425073313277,
+     "lead_w_median": 4.2237754754773,
+     "n_p": 68,
+     "n_w": 53,
+     "recall_p": 0.6911764705882353,
+     "recall_w": 0.7169811320754716,
+     "robot_days": 1707.0
+    },
+    "required_metrics_finite": true,
+    "support": {
+     "cohort_mix": {
+      "A": 0.28402366863905326,
+      "P": 0.40236686390532544,
+      "W": 0.3136094674556213
+     },
+     "eligibility_rejections": {
+      "reset-horizon": 60
+     },
+     "eligible_anchor_count": 169,
+     "evaluable_by_subtype": {
+      "A1": 26,
+      "A2": 22,
+      "P1": 33,
+      "P2": 35,
+      "W1": 27,
+      "W2": 26
+     },
+     "evaluable_positive_events": 169,
+     "evaluable_robot_days": 1707,
+     "lead_support": {
+      "P": {
+       "eligible_events": 68,
+       "events_meeting_three_endpoints_early_endpoint_and_clean_baseline": 68,
+       "fraction": 1.0,
+       "pass_80_percent": true
+      },
+      "W": {
+       "eligible_events": 53,
+       "events_meeting_three_endpoints_early_endpoint_and_clean_baseline": 53,
+       "fraction": 1.0,
+       "pass_80_percent": true
+      }
+     },
+     "max_negative_share_by_robot": 0.14666666666666667,
+     "max_positive_share_by_robot": 0.1242603550295858,
+     "negative_contributing_robots": 9,
+     "negative_control_windows": 75,
+     "negative_controls_by_robot": {
+      "robot-01": 11,
+      "robot-02": 8,
+      "robot-03": 8,
+      "robot-04": 7,
+      "robot-05": 11,
+      "robot-06": 6,
+      "robot-07": 9,
+      "robot-08": 7,
+      "robot-09": 8
+     },
+     "positive_contributing_robots": 9,
+     "positive_events_by_robot": {
+      "robot-01": 20,
+      "robot-02": 18,
+      "robot-03": 21,
+      "robot-04": 18,
+      "robot-05": 16,
+      "robot-06": 20,
+      "robot-07": 17,
+      "robot-08": 19,
+      "robot-09": 20
+     },
+     "positives_by_cohort": {
+      "A": 48,
+      "P": 68,
+      "W": 53
+     },
+     "positives_total": 169,
+     "program_shares": {
+      "P": 0.23529411764705882,
+      "W": 0.20754716981132076
+     },
+     "programs_by_cohort": {
+      "P": [
+       "program-01",
+       "program-02",
+       "program-03",
+       "program-04",
+       "program-05",
+       "program-06",
+       "program-07",
+       "program-08"
+      ],
+      "W": [
+       "program-01",
+       "program-02",
+       "program-03",
+       "program-04",
+       "program-05",
+       "program-06",
+       "program-07",
+       "program-08"
+      ]
+     },
+     "reserved_identity_eligible_events": {
+      "reserved_P_subtype": 35,
+      "reserved_W_subtype": 26,
+      "reserved_program_P_or_W": 16,
+      "reserved_robot_P_or_W": 14
+     },
+     "support_sha256": "f3e86fd33bed88a47e1991843f2e2b3c1aaec50aed61aa9c7ec644cc4a0f938e",
+     "unevaluable_positive_events": 60
+    }
+   }
+  ],
+  "support_sha256": "da169c1f5d57fac3d42e2e6667457b0d59cfdf91d0ae058e6db3bc57c10813bb"
+ },
+ "pass": true,
+ "per_role": [
+  {
+   "config_hash": "aae5e52747a7",
+   "core_integrity_failures": [],
+   "core_integrity_pass": true,
+   "data_seed": 32064,
+   "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0005-ASSESS-P-ALLOWANCE-V1/DESIGN/S18I-ITER-0005-DESIGN-01",
+   "history_id": "S18I-ITER-0005-DESIGN-01",
+   "manifest_bytes": 7139094,
+   "manifest_file_rows": 6484,
+   "manifest_sha256": "6efabe14e35a429221e61e4c1f27440d3e535e34ff59882abb3b12d33976643c",
+   "nominal_p_upper_15d_exceedance_count": 0,
+   "nominal_p_upper_15d_exceedance_durations_d": [],
+   "role": "DESIGN",
+   "role_specific_checks": {
+    "A_ge_10": true,
+    "P_ge_13": true,
+    "P_lead_support_ge_80_percent": true,
+    "W_ge_13": true,
+    "W_lead_support_ge_80_percent": true,
+    "at_least_2_programs_each_P_W": true,
+    "each_cohort_mix_15_to_60_percent": true,
+    "negative_controls_ge_32": true,
+    "negative_robot_share_le_40_percent": true,
+    "negative_robots_ge_6": true,
+    "positive_robot_share_le_35_percent": true,
+    "positive_robots_ge_6": true,
+    "program_share_le_60_percent_each_P_W": true,
+    "robot_days_ge_188": true,
+    "total_ge_38": true
+   },
+   "role_specific_pass": true,
+   "sample_count": 6484,
+   "shard_count": 102,
+   "signature": {
+    "event_ledger_sha256": "1eaf8cdcba39ea3077084924efc5bfd07ffe26ad5d2c42910ae189b03a644461",
+    "manifest_sha256": "6efabe14e35a429221e61e4c1f27440d3e535e34ff59882abb3b12d33976643c",
+    "sample_count": 6484,
+    "sample_order_matches_manifest": true,
+    "shard_count": 102,
+    "waveform_stream_sha256": "dffcfa982998409d6a0ac7610f955a2ee41d8e420e932fc62203b8ce5dc6d580"
+   }
+  },
+  {
+   "config_hash": "184e601edc70",
+   "core_integrity_failures": [],
+   "core_integrity_pass": true,
+   "data_seed": 32065,
+   "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0005-ASSESS-P-ALLOWANCE-V1/DESIGN/S18I-ITER-0005-DESIGN-02",
+   "history_id": "S18I-ITER-0005-DESIGN-02",
+   "manifest_bytes": 7129852,
+   "manifest_file_rows": 6484,
+   "manifest_sha256": "c0b3386d4c9e21e539a4ff65f7e5fec61a775e5460d21b2bb311173b20c1103e",
+   "nominal_p_upper_15d_exceedance_count": 0,
+   "nominal_p_upper_15d_exceedance_durations_d": [],
+   "role": "DESIGN",
+   "role_specific_checks": {
+    "A_ge_10": true,
+    "P_ge_13": true,
+    "P_lead_support_ge_80_percent": true,
+    "W_ge_13": true,
+    "W_lead_support_ge_80_percent": true,
+    "at_least_2_programs_each_P_W": true,
+    "each_cohort_mix_15_to_60_percent": true,
+    "negative_controls_ge_32": true,
+    "negative_robot_share_le_40_percent": true,
+    "negative_robots_ge_6": true,
+    "positive_robot_share_le_35_percent": true,
+    "positive_robots_ge_6": true,
+    "program_share_le_60_percent_each_P_W": true,
+    "robot_days_ge_188": true,
+    "total_ge_38": true
+   },
+   "role_specific_pass": true,
+   "sample_count": 6484,
+   "shard_count": 102,
+   "signature": {
+    "event_ledger_sha256": "84176ff22353509ca4d34316ce4db53e5b2400b18dfcba2c73eac3ea61ac2f8c",
+    "manifest_sha256": "c0b3386d4c9e21e539a4ff65f7e5fec61a775e5460d21b2bb311173b20c1103e",
+    "sample_count": 6484,
+    "sample_order_matches_manifest": true,
+    "shard_count": 102,
+    "waveform_stream_sha256": "e4c443617a52f1c6b27b6b482f02fb3bf23628a5197620122208b33c971c59dd"
+   }
+  },
+  {
+   "config_hash": "4eae0187d333",
+   "core_integrity_failures": [],
+   "core_integrity_pass": true,
+   "data_seed": 32066,
+   "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0005-ASSESS-P-ALLOWANCE-V1/DESIGN/S18I-ITER-0005-DESIGN-03",
+   "history_id": "S18I-ITER-0005-DESIGN-03",
+   "manifest_bytes": 7122172,
+   "manifest_file_rows": 6477,
+   "manifest_sha256": "b21ab241abd7349c2f58d9e5b9390be0183f2ee004ad54dc436682192fe84e3d",
+   "nominal_p_upper_15d_exceedance_count": 0,
+   "nominal_p_upper_15d_exceedance_durations_d": [],
+   "role": "DESIGN",
+   "role_specific_checks": {
+    "A_ge_10": true,
+    "P_ge_13": true,
+    "P_lead_support_ge_80_percent": true,
+    "W_ge_13": true,
+    "W_lead_support_ge_80_percent": true,
+    "at_least_2_programs_each_P_W": true,
+    "each_cohort_mix_15_to_60_percent": true,
+    "negative_controls_ge_32": true,
+    "negative_robot_share_le_40_percent": true,
+    "negative_robots_ge_6": true,
+    "positive_robot_share_le_35_percent": true,
+    "positive_robots_ge_6": true,
+    "program_share_le_60_percent_each_P_W": true,
+    "robot_days_ge_188": true,
+    "total_ge_38": true
+   },
+   "role_specific_pass": true,
+   "sample_count": 6477,
+   "shard_count": 102,
+   "signature": {
+    "event_ledger_sha256": "30a789ecbbc510322ccd63fb28b99ced0f188d58ea8332387c40fe7d2d0207d7",
+    "manifest_sha256": "b21ab241abd7349c2f58d9e5b9390be0183f2ee004ad54dc436682192fe84e3d",
+    "sample_count": 6477,
+    "sample_order_matches_manifest": true,
+    "shard_count": 102,
+    "waveform_stream_sha256": "8f90bbcf028017075eb7151b7c84094d93e57c4ee820b79fd989ff41322b2626"
+   }
+  },
+  {
+   "config_hash": "eba370f48dc3",
+   "core_integrity_failures": [],
+   "core_integrity_pass": true,
+   "data_seed": 32067,
+   "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0005-ASSESS-P-ALLOWANCE-V1/DESIGN/S18I-ITER-0005-DESIGN-04",
+   "history_id": "S18I-ITER-0005-DESIGN-04",
+   "manifest_bytes": 7125072,
+   "manifest_file_rows": 6483,
+   "manifest_sha256": "080dc31254976a9704c7d8705fa496f2ee436747aebbad123dc17dd6ffe00066",
+   "nominal_p_upper_15d_exceedance_count": 0,
+   "nominal_p_upper_15d_exceedance_durations_d": [],
+   "role": "DESIGN",
+   "role_specific_checks": {
+    "A_ge_10": true,
+    "P_ge_13": true,
+    "P_lead_support_ge_80_percent": true,
+    "W_ge_13": true,
+    "W_lead_support_ge_80_percent": true,
+    "at_least_2_programs_each_P_W": true,
+    "each_cohort_mix_15_to_60_percent": true,
+    "negative_controls_ge_32": true,
+    "negative_robot_share_le_40_percent": true,
+    "negative_robots_ge_6": true,
+    "positive_robot_share_le_35_percent": true,
+    "positive_robots_ge_6": true,
+    "program_share_le_60_percent_each_P_W": true,
+    "robot_days_ge_188": true,
+    "total_ge_38": true
+   },
+   "role_specific_pass": true,
+   "sample_count": 6483,
+   "shard_count": 102,
+   "signature": {
+    "event_ledger_sha256": "8956f32a6b3418d26f8e223bdea5433d47334a288309dce0b93a0b578564669f",
+    "manifest_sha256": "080dc31254976a9704c7d8705fa496f2ee436747aebbad123dc17dd6ffe00066",
+    "sample_count": 6483,
+    "sample_order_matches_manifest": true,
+    "shard_count": 102,
+    "waveform_stream_sha256": "08598b11f6b80c932bbebc5a37b1e2319b2a95a2e4d95805daaf79f552e83eec"
+   }
+  },
+  {
+   "config_hash": "2d7524242fd4",
+   "core_integrity_failures": [],
+   "core_integrity_pass": true,
+   "data_seed": 32068,
+   "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0005-ASSESS-P-ALLOWANCE-V1/FIT/S18I-ITER-0005-FIT-01",
+   "history_id": "S18I-ITER-0005-FIT-01",
+   "manifest_bytes": 7146409,
+   "manifest_file_rows": 6490,
+   "manifest_sha256": "fb0d533c10f1a650647b95d06c87559f244f09a31973c75a35329fd8a04d19dc",
+   "nominal_p_upper_15d_exceedance_count": 0,
+   "nominal_p_upper_15d_exceedance_durations_d": [],
+   "role": "FIT",
+   "role_specific_checks": {},
+   "role_specific_pass": true,
+   "sample_count": 6490,
+   "shard_count": 102,
+   "signature": {
+    "event_ledger_sha256": "2265997ee452906ec9c00bedeb889cca5934fe9dcb5a52e04c6758dd642a528c",
+    "manifest_sha256": "fb0d533c10f1a650647b95d06c87559f244f09a31973c75a35329fd8a04d19dc",
+    "sample_count": 6490,
+    "sample_order_matches_manifest": true,
+    "shard_count": 102,
+    "waveform_stream_sha256": "bffbfc674f05a58794c1d47f1c2217b6946f78baa16eaa29bbf728a79c0d877f"
+   }
+  },
+  {
+   "config_hash": "8d51d85bb920",
+   "core_integrity_failures": [],
+   "core_integrity_pass": true,
+   "data_seed": 32069,
+   "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0005-ASSESS-P-ALLOWANCE-V1/FIT/S18I-ITER-0005-FIT-02",
+   "history_id": "S18I-ITER-0005-FIT-02",
+   "manifest_bytes": 7118547,
+   "manifest_file_rows": 6480,
+   "manifest_sha256": "60cf8b5dff31eb2e6ff7e47242ae323a7f8e61e1a556890292fc311ba93bc305",
+   "nominal_p_upper_15d_exceedance_count": 0,
+   "nominal_p_upper_15d_exceedance_durations_d": [],
+   "role": "FIT",
+   "role_specific_checks": {},
+   "role_specific_pass": true,
+   "sample_count": 6480,
+   "shard_count": 102,
+   "signature": {
+    "event_ledger_sha256": "53d9666b9d96f62782221bd90f4ae2aa523076a2494758b9fa3c71be054d8110",
+    "manifest_sha256": "60cf8b5dff31eb2e6ff7e47242ae323a7f8e61e1a556890292fc311ba93bc305",
+    "sample_count": 6480,
+    "sample_order_matches_manifest": true,
+    "shard_count": 102,
+    "waveform_stream_sha256": "16c270f26584d0ba51601618ec951381a41598b2935353e759dfe7d92efeb333"
+   }
+  },
+  {
+   "config_hash": "8c19eaeb8712",
+   "core_integrity_failures": [],
+   "core_integrity_pass": true,
+   "data_seed": 32070,
+   "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0005-ASSESS-P-ALLOWANCE-V1/FIT/S18I-ITER-0005-FIT-03",
+   "history_id": "S18I-ITER-0005-FIT-03",
+   "manifest_bytes": 7112124,
+   "manifest_file_rows": 6478,
+   "manifest_sha256": "366a07d07d5e6360ac6de6f4a59c98ef72b070120c81b325c965d8b7b47e801f",
+   "nominal_p_upper_15d_exceedance_count": 0,
+   "nominal_p_upper_15d_exceedance_durations_d": [],
+   "role": "FIT",
+   "role_specific_checks": {},
+   "role_specific_pass": true,
+   "sample_count": 6478,
+   "shard_count": 102,
+   "signature": {
+    "event_ledger_sha256": "2b0aa1670e45db137ad82a1226945d9af4486523a6f0f341fbb36a0520b5c463",
+    "manifest_sha256": "366a07d07d5e6360ac6de6f4a59c98ef72b070120c81b325c965d8b7b47e801f",
+    "sample_count": 6478,
+    "sample_order_matches_manifest": true,
+    "shard_count": 102,
+    "waveform_stream_sha256": "9949351fa2cf5e0c909bb542d44a96d1fdac2c38e47997b04455200e559eecef"
+   }
+  },
+  {
+   "config_hash": "a33f48db784f",
+   "core_integrity_failures": [],
+   "core_integrity_pass": true,
+   "data_seed": 32071,
+   "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0005-ASSESS-P-ALLOWANCE-V1/CALIBRATION/S18I-ITER-0005-CALIBRATION-01",
+   "history_id": "S18I-ITER-0005-CALIBRATION-01",
+   "manifest_bytes": 7117082,
+   "manifest_file_rows": 6463,
+   "manifest_sha256": "9b83fe7be68c0f1975883c915c5e90db14a854395c3f8d8709fab78d7aa84b56",
+   "nominal_p_upper_15d_exceedance_count": 0,
+   "nominal_p_upper_15d_exceedance_durations_d": [],
+   "role": "CALIBRATION",
+   "role_specific_checks": {},
+   "role_specific_pass": true,
+   "sample_count": 6463,
+   "shard_count": 101,
+   "signature": {
+    "event_ledger_sha256": "410f9cd13a44c7bc9cac45599aa1b019eed196c7ea64f314ce65666adc7f47bc",
+    "manifest_sha256": "9b83fe7be68c0f1975883c915c5e90db14a854395c3f8d8709fab78d7aa84b56",
+    "sample_count": 6463,
+    "sample_order_matches_manifest": true,
+    "shard_count": 101,
+    "waveform_stream_sha256": "c8f33599a85fd8f4595c0f72ba989f221097ee9929191e53ecc36b14538503bc"
+   }
+  },
+  {
+   "config_hash": "ea6d2254d6d3",
+   "core_integrity_failures": [],
+   "core_integrity_pass": true,
+   "data_seed": 32072,
+   "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0005-ASSESS-P-ALLOWANCE-V1/DEVELOPMENT/S18I-ITER-0005-DEVELOPMENT-01",
+   "history_id": "S18I-ITER-0005-DEVELOPMENT-01",
+   "manifest_bytes": 7175355,
+   "manifest_file_rows": 6513,
+   "manifest_sha256": "ce7c004b3ba7c6bca4187065df3299691c4d6247500eda480747e37b48fe1e08",
+   "nominal_p_upper_15d_exceedance_count": 0,
+   "nominal_p_upper_15d_exceedance_durations_d": [],
+   "role": "DEVELOPMENT",
+   "role_specific_checks": {},
+   "role_specific_pass": true,
+   "sample_count": 6513,
+   "shard_count": 102,
+   "signature": {
+    "event_ledger_sha256": "0c7583a875bc4ab516540574db14b75677bcbaf1b595bfe16bc92a7a23cd4171",
+    "manifest_sha256": "ce7c004b3ba7c6bca4187065df3299691c4d6247500eda480747e37b48fe1e08",
+    "sample_count": 6513,
+    "sample_order_matches_manifest": true,
+    "shard_count": 102,
+    "waveform_stream_sha256": "f7e44f2d056ab43d09b826dc101b421d0a42348973d0f9aea855f83cfca1a00e"
+   }
+  },
+  {
+   "config_hash": "cfe48c2960db",
+   "core_integrity_failures": [],
+   "core_integrity_pass": true,
+   "data_seed": 32073,
+   "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0005-ASSESS-P-ALLOWANCE-V1/DEVELOPMENT/S18I-ITER-0005-DEVELOPMENT-02",
+   "history_id": "S18I-ITER-0005-DEVELOPMENT-02",
+   "manifest_bytes": 7097012,
+   "manifest_file_rows": 6460,
+   "manifest_sha256": "cee368b966874289e8b1b81980ebdf2db566501fe8e2864326651d73f6179310",
+   "nominal_p_upper_15d_exceedance_count": 0,
+   "nominal_p_upper_15d_exceedance_durations_d": [],
+   "role": "DEVELOPMENT",
+   "role_specific_checks": {},
+   "role_specific_pass": true,
+   "sample_count": 6460,
+   "shard_count": 101,
+   "signature": {
+    "event_ledger_sha256": "6ad30c9fc5a9ecbdf6c79d3e614150daac2a127f225f9846485c92a69bedfef1",
+    "manifest_sha256": "cee368b966874289e8b1b81980ebdf2db566501fe8e2864326651d73f6179310",
+    "sample_count": 6460,
+    "sample_order_matches_manifest": true,
+    "shard_count": 101,
+    "waveform_stream_sha256": "ac5b649851e094489ab3c5f2e8a5eb65c190017543e31346507b2e88521509d8"
+   }
+  },
+  {
+   "config_hash": "efdcfa19b506",
+   "core_integrity_failures": [],
+   "core_integrity_pass": true,
+   "data_seed": 32074,
+   "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0005-ASSESS-P-ALLOWANCE-V1/DEVELOPMENT/S18I-ITER-0005-DEVELOPMENT-03",
+   "history_id": "S18I-ITER-0005-DEVELOPMENT-03",
+   "manifest_bytes": 7153376,
+   "manifest_file_rows": 6483,
+   "manifest_sha256": "b1da957137936e01fda27b2af4194ea8f4be2cf611ce96315dba677145ae8f9e",
+   "nominal_p_upper_15d_exceedance_count": 0,
+   "nominal_p_upper_15d_exceedance_durations_d": [],
+   "role": "DEVELOPMENT",
+   "role_specific_checks": {},
+   "role_specific_pass": true,
+   "sample_count": 6483,
+   "shard_count": 102,
+   "signature": {
+    "event_ledger_sha256": "75f2d9e28690ca0a24a41a86776db9651184c097dbb12c971930e0d350f1dbd0",
+    "manifest_sha256": "b1da957137936e01fda27b2af4194ea8f4be2cf611ce96315dba677145ae8f9e",
+    "sample_count": 6483,
+    "sample_order_matches_manifest": true,
+    "shard_count": 102,
+    "waveform_stream_sha256": "622b9038dbbeb82bc9dd25848db6f2379a67a0755bff7714b7da1ff371547f7e"
+   }
+  },
+  {
+   "config_hash": "e33293cdf1cd",
+   "core_integrity_failures": [],
+   "core_integrity_pass": true,
+   "data_seed": 32075,
+   "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0005-ASSESS-P-ALLOWANCE-V1/DEVELOPMENT/S18I-ITER-0005-DEVELOPMENT-04",
+   "history_id": "S18I-ITER-0005-DEVELOPMENT-04",
+   "manifest_bytes": 7139410,
+   "manifest_file_rows": 6505,
+   "manifest_sha256": "3af0811329031fc6f1ffc56ffa837d46a3b9b9095287128d08c46706b187f9af",
+   "nominal_p_upper_15d_exceedance_count": 0,
+   "nominal_p_upper_15d_exceedance_durations_d": [],
+   "role": "DEVELOPMENT",
+   "role_specific_checks": {},
+   "role_specific_pass": true,
+   "sample_count": 6505,
+   "shard_count": 102,
+   "signature": {
+    "event_ledger_sha256": "3cfb6bc4b4cd51a9e5f29b0b18a72334e17db391771a5f9fe9fb5ed916554de2",
+    "manifest_sha256": "3af0811329031fc6f1ffc56ffa837d46a3b9b9095287128d08c46706b187f9af",
+    "sample_count": 6505,
+    "sample_order_matches_manifest": true,
+    "shard_count": 102,
+    "waveform_stream_sha256": "57185818a337404ce1d39f3e562c45cbc26720364cd0f5099bad31659362bec9"
+   }
+  },
+  {
+   "config_hash": "b2315511312e",
+   "core_integrity_failures": [],
+   "core_integrity_pass": true,
+   "data_seed": 32076,
+   "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0005-ASSESS-P-ALLOWANCE-V1/CONFIRMATION/S18I-ITER-0005-CONFIRMATION-01",
+   "history_id": "S18I-ITER-0005-CONFIRMATION-01",
+   "manifest_bytes": 7105984,
+   "manifest_file_rows": 6457,
+   "manifest_sha256": "db2b50444cb54c8a4bce700771efcef691e147b96ceb68985997e1115d74bbd2",
+   "nominal_p_upper_15d_exceedance_count": 1,
+   "nominal_p_upper_15d_exceedance_durations_d": [
+    15.545084957564008
+   ],
+   "role": "CONFIRMATION",
+   "role_specific_checks": {
+    "A_ge_8": true,
+    "P_ge_10": true,
+    "P_lead_support_ge_80_percent": true,
+    "W_ge_10": true,
+    "W_lead_support_ge_80_percent": true,
+    "at_least_2_programs_each_P_W": true,
+    "each_cohort_mix_15_to_60_percent": true,
+    "negative_controls_ge_25": true,
+    "negative_robot_share_le_40_percent": true,
+    "negative_robots_ge_6": true,
+    "positive_robot_share_le_35_percent": true,
+    "positive_robots_ge_6": true,
+    "program_share_le_60_percent_each_P_W": true,
+    "reserved_P_subtype_has_eligible_event": true,
+    "reserved_W_subtype_has_eligible_event": true,
+    "reserved_program_has_eligible_P_or_W_event": true,
+    "reserved_robot_has_eligible_P_or_W_event": true,
+    "robot_days_ge_150": true,
+    "total_ge_30": true
+   },
+   "role_specific_pass": true,
+   "sample_count": 6457,
+   "shard_count": 101,
+   "signature": {
+    "event_ledger_sha256": "653b70f64006c7f222210a35b75f7d186105ecba765b08ceb30ec358fa34228c",
+    "manifest_sha256": "db2b50444cb54c8a4bce700771efcef691e147b96ceb68985997e1115d74bbd2",
+    "sample_count": 6457,
+    "sample_order_matches_manifest": true,
+    "shard_count": 101,
+    "waveform_stream_sha256": "4214bdbf03f8a105e09c0a45044b47ea7baabb23a4756f791d54f51cd03e4ebb"
+   }
+  },
+  {
+   "config_hash": "925d262fcc01",
+   "core_integrity_failures": [],
+   "core_integrity_pass": true,
+   "data_seed": 32077,
+   "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0005-ASSESS-P-ALLOWANCE-V1/CONFIRMATION/S18I-ITER-0005-CONFIRMATION-02",
+   "history_id": "S18I-ITER-0005-CONFIRMATION-02",
+   "manifest_bytes": 7104728,
+   "manifest_file_rows": 6468,
+   "manifest_sha256": "54d787eb424066c3e8c18acb528f6ec19e2e9f4211b46e669390a3a330c8b762",
+   "nominal_p_upper_15d_exceedance_count": 0,
+   "nominal_p_upper_15d_exceedance_durations_d": [],
+   "role": "CONFIRMATION",
+   "role_specific_checks": {
+    "A_ge_8": true,
+    "P_ge_10": true,
+    "P_lead_support_ge_80_percent": true,
+    "W_ge_10": true,
+    "W_lead_support_ge_80_percent": true,
+    "at_least_2_programs_each_P_W": true,
+    "each_cohort_mix_15_to_60_percent": true,
+    "negative_controls_ge_25": true,
+    "negative_robot_share_le_40_percent": true,
+    "negative_robots_ge_6": true,
+    "positive_robot_share_le_35_percent": true,
+    "positive_robots_ge_6": true,
+    "program_share_le_60_percent_each_P_W": true,
+    "reserved_P_subtype_has_eligible_event": true,
+    "reserved_W_subtype_has_eligible_event": true,
+    "reserved_program_has_eligible_P_or_W_event": true,
+    "reserved_robot_has_eligible_P_or_W_event": true,
+    "robot_days_ge_150": true,
+    "total_ge_30": true
+   },
+   "role_specific_pass": true,
+   "sample_count": 6468,
+   "shard_count": 102,
+   "signature": {
+    "event_ledger_sha256": "cef4b1c16a5c99d854af6955a0f728638d07a99581c06475497282b9a13e6d5b",
+    "manifest_sha256": "54d787eb424066c3e8c18acb528f6ec19e2e9f4211b46e669390a3a330c8b762",
+    "sample_count": 6468,
+    "sample_order_matches_manifest": true,
+    "shard_count": 102,
+    "waveform_stream_sha256": "7569e0a7893cd19db881440b66b8e9d16d7054d8aafb02e1b18ba89f15fbc884"
+   }
+  },
+  {
+   "config_hash": "928cddace62f",
+   "core_integrity_failures": [],
+   "core_integrity_pass": true,
+   "data_seed": 32078,
+   "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0005-ASSESS-P-ALLOWANCE-V1/CONFIRMATION/S18I-ITER-0005-CONFIRMATION-03",
+   "history_id": "S18I-ITER-0005-CONFIRMATION-03",
+   "manifest_bytes": 7172378,
+   "manifest_file_rows": 6505,
+   "manifest_sha256": "5c06a6613bcb7bc83b5646423f44f0440ecff8a276935b630c220ceff247ad3f",
+   "nominal_p_upper_15d_exceedance_count": 0,
+   "nominal_p_upper_15d_exceedance_durations_d": [],
+   "role": "CONFIRMATION",
+   "role_specific_checks": {
+    "A_ge_8": true,
+    "P_ge_10": true,
+    "P_lead_support_ge_80_percent": true,
+    "W_ge_10": true,
+    "W_lead_support_ge_80_percent": true,
+    "at_least_2_programs_each_P_W": true,
+    "each_cohort_mix_15_to_60_percent": true,
+    "negative_controls_ge_25": true,
+    "negative_robot_share_le_40_percent": true,
+    "negative_robots_ge_6": true,
+    "positive_robot_share_le_35_percent": true,
+    "positive_robots_ge_6": true,
+    "program_share_le_60_percent_each_P_W": true,
+    "reserved_P_subtype_has_eligible_event": true,
+    "reserved_W_subtype_has_eligible_event": true,
+    "reserved_program_has_eligible_P_or_W_event": true,
+    "reserved_robot_has_eligible_P_or_W_event": true,
+    "robot_days_ge_150": true,
+    "total_ge_30": true
+   },
+   "role_specific_pass": true,
+   "sample_count": 6505,
+   "shard_count": 102,
+   "signature": {
+    "event_ledger_sha256": "0e8874ba89b6b613c3469bf225f449f235b139dca8139a0b2582a4f1d941e6b0",
+    "manifest_sha256": "5c06a6613bcb7bc83b5646423f44f0440ecff8a276935b630c220ceff247ad3f",
+    "sample_count": 6505,
+    "sample_order_matches_manifest": true,
+    "shard_count": 102,
+    "waveform_stream_sha256": "d333f8ff33ca5b0045cce524229ba92cdc62a53c0a4a74c6611c617febdca420"
+   }
+  },
+  {
+   "config_hash": "f5ffb05669f0",
+   "core_integrity_failures": [],
+   "core_integrity_pass": true,
+   "data_seed": 32079,
+   "directory": "data/generated/sprint18-iterative-v1/S18-ITER-0005-ASSESS-P-ALLOWANCE-V1/CONFIRMATION/S18I-ITER-0005-CONFIRMATION-04",
+   "history_id": "S18I-ITER-0005-CONFIRMATION-04",
+   "manifest_bytes": 7093850,
+   "manifest_file_rows": 6456,
+   "manifest_sha256": "50a506a4670e5da45dbfa6b29db79f74a84e947b93de6f2d47edd65613c8e840",
+   "nominal_p_upper_15d_exceedance_count": 0,
+   "nominal_p_upper_15d_exceedance_durations_d": [],
+   "role": "CONFIRMATION",
+   "role_specific_checks": {
+    "A_ge_8": true,
+    "P_ge_10": true,
+    "P_lead_support_ge_80_percent": true,
+    "W_ge_10": true,
+    "W_lead_support_ge_80_percent": true,
+    "at_least_2_programs_each_P_W": true,
+    "each_cohort_mix_15_to_60_percent": true,
+    "negative_controls_ge_25": true,
+    "negative_robot_share_le_40_percent": true,
+    "negative_robots_ge_6": true,
+    "positive_robot_share_le_35_percent": true,
+    "positive_robots_ge_6": true,
+    "program_share_le_60_percent_each_P_W": true,
+    "reserved_P_subtype_has_eligible_event": true,
+    "reserved_W_subtype_has_eligible_event": true,
+    "reserved_program_has_eligible_P_or_W_event": true,
+    "reserved_robot_has_eligible_P_or_W_event": true,
+    "robot_days_ge_150": true,
+    "total_ge_30": true
+   },
+   "role_specific_pass": true,
+   "sample_count": 6456,
+   "shard_count": 101,
+   "signature": {
+    "event_ledger_sha256": "7c653528904bd4903ddb74985e026f1bfeb4c325b14b662d4b7c89ffdf3e1b23",
+    "manifest_sha256": "50a506a4670e5da45dbfa6b29db79f74a84e947b93de6f2d47edd65613c8e840",
+    "sample_count": 6456,
+    "sample_order_matches_manifest": true,
+    "shard_count": 101,
+    "waveform_stream_sha256": "db5241e1e51ff395e1cb95b7471aea7fb727acb32d9ab4ee254f377dda6672c9"
+   }
+  }
+ ],
+ "schema": "s18-t70-a03-whole16-certification-v1"
+}

@@ -1,0 +1,133 @@
+{
+ "checks": {
+  "12_nonconfirmation_manifests_match_task69_record": true,
+  "4_confirmation_manifests_fresh_and_distinct": true,
+  "a02_30_events_byte_identical_prefix": true,
+  "all_16_paths_canonical_role_leaf_layout": true,
+  "all_16_role_permissions_match_binding": true,
+  "collision_catalog_recorded": true,
+  "exactly_one_recovery_continuity_event": true,
+  "first28_prefix_immutable": true,
+  "history_id_unique_per_directory": true,
+  "no_fail_reject_retire_events": true,
+  "no_role_directory_nested_in_another": true,
+  "no_seed_replacement_or_search": true,
+  "seeds_exactly_32064_32079_disjoint": true
+ },
+ "confirmation_manifest_sha256": {
+  "S18I-ITER-0005-CONFIRMATION-01": "db2b50444cb54c8a4bce700771efcef691e147b96ceb68985997e1115d74bbd2",
+  "S18I-ITER-0005-CONFIRMATION-02": "54d787eb424066c3e8c18acb528f6ec19e2e9f4211b46e669390a3a330c8b762",
+  "S18I-ITER-0005-CONFIRMATION-03": "5c06a6613bcb7bc83b5646423f44f0440ecff8a276935b630c220ceff247ad3f",
+  "S18I-ITER-0005-CONFIRMATION-04": "50a506a4670e5da45dbfa6b29db79f74a84e947b93de6f2d47edd65613c8e840"
+ },
+ "failures": [],
+ "new_ledger": {
+  "events": 38,
+  "first_28_prefix_sha256": "625dcc1c6e14b43ac031afb590565a1af8461146579c8aff212d60bf3f061919",
+  "full_sha256": "ac10a975ae9c161633e5dac8ef05b3d1bfa2e33487f0d84841a2439d6594f3a6"
+ },
+ "pass": true,
+ "permissions": [
+  {
+   "history_id": "S18I-ITER-0005-DESIGN-01",
+   "permitted_use": "Integrity, causal, construction, and unchanged structural qualification; diagnostics only. No Fit/Calibration use or history selection.",
+   "permitted_use_prefix_ok": true,
+   "role": "DESIGN"
+  },
+  {
+   "history_id": "S18I-ITER-0005-DESIGN-02",
+   "permitted_use": "Integrity, causal, construction, and unchanged structural qualification; diagnostics only. No Fit/Calibration use or history selection.",
+   "permitted_use_prefix_ok": true,
+   "role": "DESIGN"
+  },
+  {
+   "history_id": "S18I-ITER-0005-DESIGN-03",
+   "permitted_use": "Integrity, causal, construction, and unchanged structural qualification; diagnostics only. No Fit/Calibration use or history selection.",
+   "permitted_use_prefix_ok": true,
+   "role": "DESIGN"
+  },
+  {
+   "history_id": "S18I-ITER-0005-DESIGN-04",
+   "permitted_use": "Integrity, causal, construction, and unchanged structural qualification; diagnostics only. No Fit/Calibration use or history selection.",
+   "permitted_use_prefix_ok": true,
+   "role": "DESIGN"
+  },
+  {
+   "history_id": "S18I-ITER-0005-FIT-01",
+   "permitted_use": "Verified-healthy eligibility; fit only the fixed probe's feature mean/std and healthy centroid. No representation training, bank, alternate scorer, or non-probe fitting.",
+   "permitted_use_prefix_ok": true,
+   "role": "FIT"
+  },
+  {
+   "history_id": "S18I-ITER-0005-FIT-02",
+   "permitted_use": "Verified-healthy eligibility; fit only the fixed probe's feature mean/std and healthy centroid. No representation training, bank, alternate scorer, or non-probe fitting.",
+   "permitted_use_prefix_ok": true,
+   "role": "FIT"
+  },
+  {
+   "history_id": "S18I-ITER-0005-FIT-03",
+   "permitted_use": "Verified-healthy eligibility; fit only the fixed probe's feature mean/std and healthy centroid. No representation training, bank, alternate scorer, or non-probe fitting.",
+   "permitted_use_prefix_ok": true,
+   "role": "FIT"
+  },
+  {
+   "history_id": "S18I-ITER-0005-CALIBRATION-01",
+   "permitted_use": "Verified-healthy eligibility; score with frozen Fit probe values and choose only the fixed probe q95. No fitting or retuning.",
+   "permitted_use_prefix_ok": true,
+   "role": "CALIBRATION"
+  },
+  {
+   "history_id": "S18I-ITER-0005-DEVELOPMENT-01",
+   "permitted_use": "Structural qualification and one fixed-probe evaluation using frozen Fit/Calibration values. No selection, promotion, pruning, or tuning.",
+   "permitted_use_prefix_ok": true,
+   "role": "DEVELOPMENT"
+  },
+  {
+   "history_id": "S18I-ITER-0005-DEVELOPMENT-02",
+   "permitted_use": "Structural qualification and one fixed-probe evaluation using frozen Fit/Calibration values. No selection, promotion, pruning, or tuning.",
+   "permitted_use_prefix_ok": true,
+   "role": "DEVELOPMENT"
+  },
+  {
+   "history_id": "S18I-ITER-0005-DEVELOPMENT-03",
+   "permitted_use": "Structural qualification and one fixed-probe evaluation using frozen Fit/Calibration values. No selection, promotion, pruning, or tuning.",
+   "permitted_use_prefix_ok": true,
+   "role": "DEVELOPMENT"
+  },
+  {
+   "history_id": "S18I-ITER-0005-DEVELOPMENT-04",
+   "permitted_use": "Structural qualification and one fixed-probe evaluation using frozen Fit/Calibration values. No selection, promotion, pruning, or tuning.",
+   "permitted_use_prefix_ok": true,
+   "role": "DEVELOPMENT"
+  },
+  {
+   "history_id": "S18I-ITER-0005-CONFIRMATION-01",
+   "permitted_use": "After Task69 preceding-role PASS and Main release: structural certification and one fixed-probe evaluation using frozen Fit/Calibration values. No fitting, recalibration, retuning, rescue, or model score.",
+   "permitted_use_prefix_ok": true,
+   "role": "CONFIRMATION"
+  },
+  {
+   "history_id": "S18I-ITER-0005-CONFIRMATION-02",
+   "permitted_use": "After Task69 preceding-role PASS and Main release: structural certification and one fixed-probe evaluation using frozen Fit/Calibration values. No fitting, recalibration, retuning, rescue, or model score.",
+   "permitted_use_prefix_ok": true,
+   "role": "CONFIRMATION"
+  },
+  {
+   "history_id": "S18I-ITER-0005-CONFIRMATION-03",
+   "permitted_use": "After Task69 preceding-role PASS and Main release: structural certification and one fixed-probe evaluation using frozen Fit/Calibration values. No fitting, recalibration, retuning, rescue, or model score.",
+   "permitted_use_prefix_ok": true,
+   "role": "CONFIRMATION"
+  },
+  {
+   "history_id": "S18I-ITER-0005-CONFIRMATION-04",
+   "permitted_use": "After Task69 preceding-role PASS and Main release: structural certification and one fixed-probe evaluation using frozen Fit/Calibration values. No fitting, recalibration, retuning, rescue, or model score.",
+   "permitted_use_prefix_ok": true,
+   "role": "CONFIRMATION"
+  }
+ ],
+ "previous_ledger": {
+  "events": 30,
+  "full_sha256": "05cbc0fb27dabba07805e2a85892f64b01d2c90227dca1f01f0fdbecf71ca509"
+ },
+ "schema": "s18-t70-a03-role-reconciliation-v1"
+}
