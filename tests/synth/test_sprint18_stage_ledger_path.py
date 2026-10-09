@@ -33,6 +33,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -957,6 +958,7 @@ def _sealed_execution_descriptor(
         "execution_checkpoint_source": "task69-assessment-release+git-ancestry",
         "corrected_execution_base_commit": runner.CORRECTED_ASSESSMENT_EXECUTION_BASE_COMMIT,
         "corrected_execution_base_descriptor_blob_oid": "0" * 40,
+        "prior_corrected_execution_base_commit": runner.PRIOR_CORRECTED_ASSESSMENT_EXECUTION_BASE_COMMIT,
         "corrected_runner": {
             "path": "experiments/sprint18_iterative_candidate_v1.py",
             "git_blob_oid": runner_blob,
@@ -992,7 +994,13 @@ def test_assessment_execution_ancestors_resolve_reviewed_parent_and_refuse_forei
          f"{runner.CORRECTED_ASSESSMENT_EXECUTION_BASE_COMMIT}^"],
         check=True, capture_output=True, text=True,
     ).stdout.strip()
-    assert base_parent == runner.QUALIFIED_TASK69_ASSESSMENT_CHECKPOINT
+    assert base_parent == runner.PRIOR_CORRECTED_ASSESSMENT_EXECUTION_BASE_COMMIT
+    prior_base_parent = subprocess.run(
+        ["git", "-C", str(root), "rev-parse",
+         f"{runner.PRIOR_CORRECTED_ASSESSMENT_EXECUTION_BASE_COMMIT}^"],
+        check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    assert prior_base_parent == runner.QUALIFIED_TASK69_ASSESSMENT_CHECKPOINT
     with pytest.raises(Exception):
         runner._assessment_execution_ancestors(root, "d" * 40)
     with pytest.raises(Exception):
@@ -1201,47 +1209,78 @@ def test_assessment_confirmation_cli_requires_execution_release_before_runtime_o
     assert [path.exists() for path in confirmation_paths] == confirmation_presence_before
 
 def _disposable_assessment_replica(tmp_path: Path) -> tuple[Path, dict, dict, dict]:
-    """Build a tiny disposable Git replica proving the pre→post-checkpoint transition.
+    """Build a tiny disposable Git replica proving the reviewed→recovery transition.
 
-    Consumer-visible regression for the BS01-F1 entry-gate defect: the SAME static
-    descriptor contract MUST stay valid in both the AUTHORED candidate state
-    (new worktree bytes not yet committed) and the DEPLOYED reviewed state
-    (new bytes committed at HEAD). The replica is a genuine disposable Git
-    repository with real `git` subprocess commits (no mocks, no injected guard
-    errors): base B carries the OLD runner bytes, child C carries the NEW runner
-    bytes with parent == B, and a v2 descriptor pins base C; child D carries a
-    further source correction with parent == C. A foreign commit off an unrelated
-    root, a stale receipt still pinning B, and descriptor/runner drift all
-    refuse. No Conf contact occurs: the replica fixture never imports the
-    production export tree.
+    Consumer-visible regression for the Task70 C06 recovery-policy contract: the
+    SAME lineage contract MUST accept the authored candidate state (new worktree
+    bytes not yet committed), the deployed reviewed base state, and the future
+    separate recovery correction, while refusing stale/foreign receipts. The
+    replica is a genuine disposable Git repository with real `git` subprocess
+    commits (no mocks, no injected guard errors) carrying the full reviewed
+    chain A → B → C → D → E:
+      * A carries the OLD qualified runner bytes (DATA history),
+      * B is a child of A (the Task69 outcome hop),
+      * C is a child of B carrying the prior corrected runner bytes,
+      * D is a child of C carrying the reviewed base descriptor,
+      * E is a child of D carrying the recovery-policy runner + v3 descriptor
+        whose `corrected_execution_base_commit` is D and whose
+        `prior_corrected_execution_base_commit` is C.
+    A foreign commit off an unrelated root, a stale receipt pinning an older
+    base, and descriptor/runner drift all refuse. No Conf contact occurs: the
+    replica fixture never imports the production export tree.
     """
     import subprocess as _subprocess
 
     fixture = tmp_path / "replica"
     fixture.mkdir()
     _subprocess.run(["git", "init", "-q"], cwd=fixture, check=True)
-    _subprocess.run(["git", "config", "user.email", "t70-c05@example.invalid"],
+    _subprocess.run(["git", "config", "user.email", "t70-c06@example.invalid"],
                      cwd=fixture, check=True)
-    _subprocess.run(["git", "config", "user.name", "S18-T70-C05"],
+    _subprocess.run(["git", "config", "user.name", "S18-T70-C06"],
                      cwd=fixture, check=True)
     experiments = fixture / "experiments"
     experiments.mkdir()
-    old_runner = b"old qualified runner bytes\n"
-    (experiments / "sprint18_iterative_candidate_v1.py").write_bytes(old_runner)
+
+    def _commit(message: str) -> str:
+        _subprocess.run(["git", "add", "-A"], cwd=fixture, check=True)
+        _subprocess.run(["git", "commit", "-qm", message], cwd=fixture, check=True)
+        return _subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=fixture, check=True,
+            capture_output=True, text=True).stdout.strip()
+
+    # A: qualified DATA history (old runner bytes).
+    (experiments / "sprint18_iterative_candidate_v1.py").write_bytes(
+        b"old qualified runner bytes\n")
     (experiments / "sprint18-assessment-execution-descriptor-v1.json").write_text(
         json.dumps({"placeholder": True}, sort_keys=True), encoding="utf-8")
-    _subprocess.run(["git", "add", "-A"], cwd=fixture, check=True)
-    _subprocess.run(["git", "commit", "-qm", "feat(sprint18): task70 replica base B"],
-                     cwd=fixture, check=True)
-    commit_b = _subprocess.run(
-        ["git", "rev-parse", "HEAD"], cwd=fixture, check=True,
-        capture_output=True, text=True).stdout.strip()
-    # AUTHORED candidate state: the new runner bytes exist in the worktree but
-    # are NOT yet committed (HEAD still carries the old B bytes by
-    # construction). The contract under test MUST accept this state.
-    new_runner = b"new corrected runner bytes\n"
-    (experiments / "sprint18_iterative_candidate_v1.py").write_bytes(new_runner)
-    new_blob = _subprocess.run(
+    commit_a = _commit("feat(sprint18): task70 assessment replica qualified source A")
+    # B: Task69 outcome hop (no runner change).
+    (fixture / "note.txt").write_text("task69 outcome\n", encoding="utf-8")
+    commit_b = _commit("feat(sprint18): task70 assessment replica outcome B")
+    # C: prior corrected execution base (first corrected runner bytes).
+    (experiments / "sprint18_iterative_candidate_v1.py").write_bytes(
+        b"prior corrected runner bytes\n")
+    prior_runner = b"prior corrected runner bytes\n"
+    commit_c = _commit("feat(sprint18): task70 assessment replica prior corrected base C")
+    # D: current reviewed corrected execution base (reviewed base descriptor).
+    prior_blob = _subprocess.run(
+        ["git", "hash-object",
+         "experiments/sprint18_iterative_candidate_v1.py"],
+        cwd=fixture, check=True, capture_output=True, text=True).stdout.strip()
+    (experiments / "sprint18-assessment-execution-descriptor-v1.json").write_text(
+        json.dumps({"schema_id": "sprint18-assessment-execution-descriptor-v2",
+                    "candidate_id": "S18-ITER-0005"}, sort_keys=True) + "\n",
+        encoding="utf-8")
+    commit_d = _commit("feat(sprint18): task70 assessment replica reviewed base D")
+    descriptor_blob_d = _subprocess.run(
+        ["git", "rev-parse",
+         f"{commit_d}:experiments/sprint18-assessment-execution-descriptor-v1.json"],
+        cwd=fixture, check=True, capture_output=True, text=True).stdout.strip()
+    # E: authored recovery-policy bytes exist in the worktree, uncommitted; the
+    # v3 descriptor pins the stable reviewed base D (never the future E SHA).
+    recovery_runner = b"recovery policy runner bytes\n"
+    (experiments / "sprint18_iterative_candidate_v1.py").write_bytes(recovery_runner)
+    recovery_blob = _subprocess.run(
         ["git", "hash-object",
          "experiments/sprint18_iterative_candidate_v1.py"],
         cwd=fixture, check=True, capture_output=True, text=True).stdout.strip()
@@ -1249,59 +1288,34 @@ def _disposable_assessment_replica(tmp_path: Path) -> tuple[Path, dict, dict, di
         ["git", "-C", str(fixture), "rev-parse",
          "HEAD:experiments/sprint18_iterative_candidate_v1.py"],
         check=True, capture_output=True, text=True).stdout.strip()
-    assert authored_head_blob != new_blob
-    new_canon = hashlib.sha256(new_runner).hexdigest()
+    assert authored_head_blob != recovery_blob
+    recovery_canon = hashlib.sha256(recovery_runner).hexdigest()
     descriptor = {
-        "schema_id": "sprint18-assessment-execution-descriptor-v2",
+        "schema_id": "sprint18-assessment-execution-descriptor-v3",
         "candidate_id": "S18-ITER-0005",
-        "corrected_execution_base_commit": "C_PLACEHOLDER",
-        "corrected_execution_base_descriptor_blob_oid": "D_PLACEHOLDER",
+        "corrected_execution_base_commit": commit_d,
+        "corrected_execution_base_descriptor_blob_oid": descriptor_blob_d,
+        "prior_corrected_execution_base_commit": commit_c,
         "corrected_runner": {
             "path": "experiments/sprint18_iterative_candidate_v1.py",
-            "git_blob_oid": new_blob,
-            "canonical_sha256": new_canon,
+            "git_blob_oid": recovery_blob,
+            "canonical_sha256": recovery_canon,
         },
     }
     (experiments / "sprint18-assessment-execution-descriptor-v1.json").write_text(
         json.dumps(descriptor, sort_keys=True) + "\n", encoding="utf-8")
-    # DEPLOYED reviewed state C: commit the corrected bytes as a direct child
-    # of B, then pin the stable base-C identity in the descriptor. The
-    # descriptor pin amendment is itself a separate child D of C (parent == C),
-    # which is exactly the future-correction lineage the product contract
-    # authorizes; both hops are verified below with real git ancestry.
-    _subprocess.run(["git", "add", "-A"], cwd=fixture, check=True)
-    _subprocess.run(["git", "commit", "-qm", "feat(sprint18): task70 replica corrected base C"],
-                     cwd=fixture, check=True)
-    commit_c = _subprocess.run(
-        ["git", "rev-parse", "HEAD"], cwd=fixture, check=True,
-        capture_output=True, text=True).stdout.strip()
+    # DEPLOYED recovery state E: commit the recovery bytes + v3 descriptor as a
+    # direct child of D (the exact future-correction lineage the contract
+    # authorizes); every hop is verified below with real git ancestry.
+    commit_e = _commit("feat(sprint18): task70 assessment replica recovery correction E")
     assert _subprocess.run(
-        ["git", "-C", str(fixture), "rev-parse", f"{commit_c}^"],
-        check=True, capture_output=True, text=True).stdout.strip() == commit_b
-    descriptor_blob_c = _subprocess.run(
-        ["git", "rev-parse",
-         f"{commit_c}:experiments/sprint18-assessment-execution-descriptor-v1.json"],
-        cwd=fixture, check=True, capture_output=True, text=True).stdout.strip()
-    descriptor["corrected_execution_base_commit"] = commit_c
-    descriptor["corrected_execution_base_descriptor_blob_oid"] = descriptor_blob_c
-    (experiments / "sprint18-assessment-execution-descriptor-v1.json").write_text(
-        json.dumps(descriptor, sort_keys=True) + "\n", encoding="utf-8")
-    amended_blob = _subprocess.run(
-        ["git", "hash-object",
-         "experiments/sprint18-assessment-execution-descriptor-v1.json"],
-        cwd=fixture, check=True, capture_output=True, text=True).stdout.strip()
-    assert amended_blob != descriptor_blob_c
-    _subprocess.run(["git", "add", "-A"], cwd=fixture, check=True)
-    _subprocess.run(["git", "commit", "-qm", "feat(sprint18): task70 replica separate correction D"],
-                     cwd=fixture, check=True)
-    commit_d = _subprocess.run(
-        ["git", "rev-parse", "HEAD"], cwd=fixture, check=True,
-        capture_output=True, text=True).stdout.strip()
-    assert _subprocess.run(
-        ["git", "-C", str(fixture), "rev-parse", f"{commit_d}^"],
-        check=True, capture_output=True, text=True).stdout.strip() == commit_c
-    return fixture, descriptor, {"B": commit_b, "C": commit_c, "D": commit_d}, {
-        "new_blob": new_blob, "new_canon": new_canon, "old_runner": old_runner,
+        ["git", "-C", str(fixture), "rev-parse", f"{commit_e}^"],
+        check=True, capture_output=True, text=True).stdout.strip() == commit_d
+    return fixture, descriptor, {
+        "A": commit_a, "B": commit_b, "C": commit_c, "D": commit_d, "E": commit_e,
+    }, {
+        "recovery_blob": recovery_blob, "recovery_canon": recovery_canon,
+        "prior_blob": prior_blob, "prior_runner": prior_runner,
         "authored_head_blob": authored_head_blob,
     }
 
@@ -1309,37 +1323,38 @@ def _disposable_assessment_replica(tmp_path: Path) -> tuple[Path, dict, dict, di
 def test_assessment_static_contract_survives_authored_to_deployed_transition(
     tmp_path: Path,
 ) -> None:
-    """The static C contract holds pre-commit (authored) and post-commit (deployed)."""
+    """The static contract holds pre-commit (authored) and post-commit (deployed E)."""
     import subprocess as _subprocess
 
     fixture, descriptor, commits, pins = _disposable_assessment_replica(tmp_path)
-    base_c, commit_d = commits["C"], commits["D"]
-    new_blob = pins["new_blob"]
-    # AUTHORED candidate state (captured inside the replica): HEAD carried the
-    # old B bytes while the new worktree bytes were uncommitted, so the sealed
-    # C identity MUST DIFFER from the committed-HEAD bytes there.
-    assert pins["authored_head_blob"] != new_blob
-    # DEPLOYED state: HEAD == D (separate correction child of C); the sealed
-    # base-C runner blob still resolves through Git, and the D parent chain
-    # reaches C whose parent is exactly B (no arbitrary-ancestor acceptance).
+    base_d, commit_e = commits["D"], commits["E"]
+    recovery_blob = pins["recovery_blob"]
+    # AUTHORED candidate state (captured inside the replica): HEAD == reviewed
+    # base D carried the prior corrected bytes while the recovery-policy
+    # worktree bytes were uncommitted, so the sealed D identity MUST DIFFER
+    # from the committed-HEAD bytes there.
+    assert pins["authored_head_blob"] != recovery_blob
+    assert pins["authored_head_blob"] == pins["prior_blob"]
+    # DEPLOYED recovery state: HEAD == E (separate recovery correction child of
+    # D); the sealed base-D descriptor blob still resolves through Git, and the
+    # E parent chain reaches D → C → B → A with one exact hop each (no
+    # arbitrary-ancestor acceptance).
     head_blob = _subprocess.run(
         ["git", "-C", str(fixture), "rev-parse",
          "HEAD:experiments/sprint18_iterative_candidate_v1.py"],
         check=True, capture_output=True, text=True).stdout.strip()
     resolved_runner = _subprocess.run(
         ["git", "-C", str(fixture), "rev-parse",
-         f"{base_c}:experiments/sprint18_iterative_candidate_v1.py"],
+         f"{base_d}:experiments/sprint18_iterative_candidate_v1.py"],
         check=True, capture_output=True, text=True).stdout.strip()
-    assert head_blob == new_blob == resolved_runner
-    assert resolved_runner != hashlib.sha256(pins["old_runner"]).hexdigest()
-    direct_parent_d = _subprocess.run(
-        ["git", "-C", str(fixture), "rev-parse", f"{commit_d}^"],
-        check=True, capture_output=True, text=True).stdout.strip()
-    assert direct_parent_d == base_c
-    committed_parent_b = _subprocess.run(
-        ["git", "-C", str(fixture), "rev-parse", f"{base_c}^"],
-        check=True, capture_output=True, text=True).stdout.strip()
-    assert committed_parent_b == commits["B"]
+    assert head_blob == recovery_blob
+    assert resolved_runner == pins["prior_blob"]
+    assert recovery_blob != resolved_runner
+    assert resolved_runner != hashlib.sha256(b"old qualified runner bytes\n").hexdigest()
+    for child, parent in (("E", "D"), ("D", "C"), ("C", "B"), ("B", "A")):
+        assert _subprocess.run(
+            ["git", "-C", str(fixture), "rev-parse", f"{commits[child]}^"],
+            check=True, capture_output=True, text=True).stdout.strip() == commits[parent]
     with pytest.raises(subprocess.CalledProcessError):
         _subprocess.run(
             ["git", "-C", str(fixture), "merge-base", "--is-ancestor",
@@ -1365,14 +1380,103 @@ def test_assessment_static_contract_survives_authored_to_deployed_transition(
     assert restored == descriptor["corrected_runner"]["git_blob_oid"]
 
 
+def test_assessment_execution_release_accepts_exact_recovery_child_and_refuses_stale(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The production E release guard accepts the exact E-child-of-D lineage.
+
+    The product guard pins the real production SHAs, so the disposable replica
+    supplies fixture SHAs for the same contract through the four lineage
+    constants (every git gate, blob comparison, and merge-base below still runs
+    for real against the genuine replica history; no guard behaviour is mocked).
+    Independent git ancestry assertions live in the transition test above.
+    """
+    fixture, descriptor, commits, pins = _disposable_assessment_replica(tmp_path)
+    base_d, commit_e = commits["D"], commits["E"]
+    monkeypatch.setattr(runner, "CORRECTED_ASSESSMENT_EXECUTION_BASE_COMMIT", base_d)
+    monkeypatch.setattr(
+        runner, "PRIOR_CORRECTED_ASSESSMENT_EXECUTION_BASE_COMMIT", commits["C"])
+    monkeypatch.setattr(
+        runner, "QUALIFIED_TASK69_ASSESSMENT_CHECKPOINT", commits["B"])
+    monkeypatch.setattr(runner, "ASSESSMENT_EXECUTION_COMMIT", commits["A"])
+
+    def _release_for(corrected: str, base: str = base_d) -> dict:
+        return {
+            "schema_id": runner.ASSESSMENT_EXECUTION_RELEASE_SCHEMA_ID,
+            "candidate_id": "S18-ITER-0005",
+            "status": "RELEASED_BY_MAIN",
+            "release_scope": "Task70-corrected-execution-after-review",
+            "binding_sha256": runner.QUALIFIED_ASSESSMENT_BINDING_SHA256,
+            "qualification_sha256": runner.QUALIFIED_ASSESSMENT_QUALIFICATION_SHA256,
+            "task69_assessment_checkpoint_commit": commits["B"],
+            "assessment_checkpoint_commit": commits["A"],
+            "corrected_execution_base_commit": base,
+            "corrected_runner_git_blob_oid": pins["recovery_blob"],
+            "corrected_runner_canonical_sha256": pins["recovery_canon"],
+            "execution_descriptor_sha256": hashlib.sha256(
+                (fixture / "experiments" / "sprint18-assessment-execution-descriptor-v1.json"
+                 ).read_bytes()).hexdigest(),
+            "execution_descriptor_blob_oid": subprocess.run(
+                ["git", "-C", str(fixture), "rev-parse",
+                 f"{commit_e}:experiments/sprint18-assessment-execution-descriptor-v1.json"],
+                check=True, capture_output=True, text=True).stdout.strip(),
+            "corrected_execution_commit": corrected,
+        }
+
+    # Exact E child-of-D authenticates through the real production guard.
+    accepted = runner.validate_assessment_execution_release(
+        descriptor, fixture, _write_receipt(tmp_path, _release_for(commit_e)))
+    assert accepted["corrected_execution_commit"] == commit_e
+    # A receipt that still pins the reviewed base D as the corrected commit, an
+    # older base, a wrong parent, or a foreign commit never authenticates.
+    with pytest.raises(runner.GuardError):
+        runner.validate_assessment_execution_release(
+            descriptor, fixture, _write_receipt(tmp_path, _release_for(base_d)))
+    with pytest.raises(runner.GuardError):
+        runner.validate_assessment_execution_release(
+            descriptor, fixture, _write_receipt(tmp_path, _release_for(commit_e, commits["C"])))
+    foreign_root = tmp_path / "foreign-root"
+    foreign_root.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=foreign_root, check=True)
+    subprocess.run(["git", "config", "user.email", "t70-c06@example.invalid"],
+                   cwd=foreign_root, check=True)
+    subprocess.run(["git", "config", "user.name", "S18-T70-C06"], cwd=foreign_root, check=True)
+    (foreign_root / "note.txt").write_text("foreign\n", encoding="utf-8")
+    subprocess.run(["git", "add", "-A"], cwd=foreign_root, check=True)
+    subprocess.run(["git", "commit", "-qm", "foreign"], cwd=foreign_root, check=True)
+    foreign = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=foreign_root, check=True,
+        capture_output=True, text=True).stdout.strip()
+    with pytest.raises((runner.GuardError, subprocess.CalledProcessError)):
+        runner.validate_assessment_execution_release(
+            descriptor, fixture, _write_receipt(tmp_path, _release_for(foreign)))
+    # The real superseded D receipt (base C, corrected D) refuses on the real
+    # production root: immutable history that can never authorize the recovery.
+    stale_receipt = (
+        REPO_ROOT / "artifacts" / "sprint-18"
+        / "S18-ITER-0005-TASK70-corrected-execution-release-v2.json")
+    with pytest.raises(runner.GuardError):
+        runner.validate_assessment_execution_release(
+            json.loads((REPO_ROOT / "experiments"
+                        / "sprint18-assessment-execution-descriptor-v1.json"
+                        ).read_text(encoding="utf-8")),
+            runner.ROOT, stale_receipt)
+
+
+def _write_receipt(tmp_path: Path, receipt: dict) -> Path:
+    path = tmp_path / f"receipt-{receipt['corrected_execution_commit'][:12]}.json"
+    path.write_text(json.dumps(receipt, sort_keys=True), encoding="utf-8")
+    return path
+
+
 def test_assessment_release_lineage_accepts_exact_child_and_refuses_stale_or_foreign(
     tmp_path: Path,
 ) -> None:
-    """Exact D child-of-C release passes; stale-B/foreign/arbitrary ancestors refuse."""
+    """Exact E child-of-D release passes; stale/foreign/arbitrary ancestors refuse."""
     import subprocess as _subprocess
 
     fixture, descriptor, commits, pins = _disposable_assessment_replica(tmp_path)
-    base_c, commit_d = commits["C"], commits["D"]
+    base_d, commit_e = commits["D"], commits["E"]
 
     def _release_for(corrected: str) -> dict:
         return {
@@ -1384,7 +1488,7 @@ def test_assessment_release_lineage_accepts_exact_child_and_refuses_stale_or_for
             "qualification_sha256": runner.QUALIFIED_ASSESSMENT_QUALIFICATION_SHA256,
             "task69_assessment_checkpoint_commit": runner.QUALIFIED_TASK69_ASSESSMENT_CHECKPOINT,
             "assessment_checkpoint_commit": runner.ASSESSMENT_EXECUTION_COMMIT,
-            "corrected_execution_base_commit": base_c,
+            "corrected_execution_base_commit": base_d,
             "corrected_runner_git_blob_oid": descriptor["corrected_runner"]["git_blob_oid"],
             "corrected_runner_canonical_sha256": descriptor["corrected_runner"]["canonical_sha256"],
             "execution_descriptor_sha256": hashlib.sha256(
@@ -1393,28 +1497,26 @@ def test_assessment_release_lineage_accepts_exact_child_and_refuses_stale_or_for
             "corrected_execution_commit": corrected,
         }
 
-    good = _release_for(commit_d)
-    assert good["corrected_execution_base_commit"] == base_c
-    assert good["corrected_execution_commit"] != base_c
-    assert good["corrected_runner_git_blob_oid"] == pins["new_blob"]
-    # Exact-child D ancestry is independently verifiable with real git: D's
-    # parent is exactly C, and C's parent is exactly B.
-    assert _subprocess.run(
-        ["git", "-C", str(fixture), "rev-parse", f"{commit_d}^"],
-        check=True, capture_output=True, text=True).stdout.strip() == base_c
-    assert _subprocess.run(
-        ["git", "-C", str(fixture), "rev-parse", f"{base_c}^"],
-        check=True, capture_output=True, text=True).stdout.strip() == commits["B"]
-    stale = _release_for(commits["B"])
-    assert stale["corrected_execution_commit"] != base_c
-    assert stale["corrected_execution_commit"] == commits["B"]
-    assert stale["corrected_execution_base_commit"] == base_c
+    good = _release_for(commit_e)
+    assert good["corrected_execution_base_commit"] == base_d
+    assert good["corrected_execution_commit"] != base_d
+    assert good["corrected_runner_git_blob_oid"] == pins["recovery_blob"]
+    # Exact-child E ancestry is independently verifiable with real git: E's
+    # parent is exactly D, D's parent is C, C's parent is B, B's parent is A.
+    for child, parent in (("E", "D"), ("D", "C"), ("C", "B"), ("B", "A")):
+        assert _subprocess.run(
+            ["git", "-C", str(fixture), "rev-parse", f"{commits[child]}^"],
+            check=True, capture_output=True, text=True).stdout.strip() == commits[parent]
+    stale = _release_for(commits["C"])
+    assert stale["corrected_execution_commit"] != base_d
+    assert stale["corrected_execution_commit"] == commits["C"]
+    assert stale["corrected_execution_base_commit"] == base_d
     foreign_root = tmp_path / "foreign-root"
     foreign_root.mkdir()
     _subprocess.run(["git", "init", "-q"], cwd=foreign_root, check=True)
-    _subprocess.run(["git", "config", "user.email", "t70-c05@example.invalid"],
+    _subprocess.run(["git", "config", "user.email", "t70-c06@example.invalid"],
                      cwd=foreign_root, check=True)
-    _subprocess.run(["git", "config", "user.name", "S18-T70-C05"],
+    _subprocess.run(["git", "config", "user.name", "S18-T70-C06"],
                      cwd=foreign_root, check=True)
     (foreign_root / "note.txt").write_text("foreign\n", encoding="utf-8")
     _subprocess.run(["git", "add", "-A"], cwd=foreign_root, check=True)
@@ -1428,3 +1530,518 @@ def test_assessment_release_lineage_accepts_exact_child_and_refuses_stale_or_for
             check=True, capture_output=True, text=True)
     assert _release_for(foreign)["corrected_execution_commit"] == foreign
 
+
+
+
+# --- Task70 C06: user-authorized zero-output interrupted-Confirmation recovery ---
+
+A02_LEDGER_CARRIER = (
+    REPO_ROOT / "experiments" / "sprint18-task70-assessment-S18-ITER-0005-A02-ledger.jsonl"
+)
+A02_LEDGER_PREFIX_EVENTS = 28
+
+
+def _interrupted_assessment_state(
+    tmp_path: Path, *, carrier_bytes: bytes | None = None,
+) -> tuple[dict, Path, Path, Path]:
+    """Seed an assessment root carrying the genuine immutable interrupted carrier.
+
+    Consumer-visible regression for the user-authorized zero-output recovery
+    exception: the ledger bytes are the ACTUAL A02 30-event production carrier
+    (digest `05cbc0fb…`, first-28 prefix `625dcc1c…`) copied byte-identically, so
+    every state validator below runs against genuine custody bytes. The
+    Confirmation role paths are absent (the zero-output interrupted state) and no
+    synthetic ledger event is invented.
+    """
+    assessment = _assessment_binding()
+    candidate_root, attempt_root, ledger_path = runner._candidate_paths(assessment, tmp_path)
+    candidate_root.mkdir(parents=True)
+    attempt_root.mkdir(parents=True)
+    experiments = tmp_path / "experiments"
+    experiments.mkdir(parents=True, exist_ok=True)
+    ledger_bytes = (
+        A02_LEDGER_CARRIER.read_bytes() if carrier_bytes is None else carrier_bytes)
+    ledger_path.write_bytes(ledger_bytes)
+    (experiments / "sprint18-iterative-assessment-c5-allowance-v1.json").write_bytes(
+        (runner.ROOT / "experiments" / "sprint18-iterative-assessment-c5-allowance-v1.json"
+         ).read_bytes())
+    record_path = (
+        experiments / "sprint18-task69-assessment-S18-ITER-0005-A09-qualification-record.json")
+    record_path.write_bytes(
+        (runner.ROOT / "experiments"
+         / "sprint18-task69-assessment-S18-ITER-0005-A09-qualification-record.json"
+         ).read_bytes())
+    first_event = json.loads(ledger_bytes.splitlines()[0].decode("utf-8"))
+    marker = {
+        key: value for key, value in first_event.items()
+        if key not in {"sequence", "event_type", "previous_event_sha256", "event_sha256"}
+    }
+    (attempt_root / "attempt.json").write_bytes(runner.canonical_json(marker) + b"\n")
+    return assessment, attempt_root, ledger_path, record_path
+
+
+def _interrupted_recovery_release(assessment: dict, corrected: str = "e" * 40) -> dict:
+    """Build the dedicated Main recovery-receipt shape bound to the interrupted state."""
+    return {
+        "schema_id": runner.ASSESSMENT_RECOVERY_RELEASE_SCHEMA_ID,
+        "candidate_id": assessment["candidate_id"],
+        "status": "RELEASED_BY_MAIN",
+        "release_scope": runner.ASSESSMENT_RECOVERY_RELEASE_SCOPE,
+        "binding_sha256": assessment["binding_sha256"],
+        "qualification_sha256": runner.QUALIFIED_ASSESSMENT_QUALIFICATION_SHA256,
+        "assessment_checkpoint_commit": runner.ASSESSMENT_EXECUTION_COMMIT,
+        "task69_assessment_checkpoint_commit": runner.QUALIFIED_TASK69_ASSESSMENT_CHECKPOINT,
+        "corrected_execution_base_commit": runner.CORRECTED_ASSESSMENT_EXECUTION_BASE_COMMIT,
+        "corrected_execution_commit": corrected,
+        "interrupted_ledger_sha256": runner.INTERRUPTED_ASSESSMENT_LEDGER_SHA256,
+        "qualified_ledger_sha256": runner.QUALIFIED_ASSESSMENT_LEDGER_SHA256,
+        "interrupted_ledger_events": runner.INTERRUPTED_ASSESSMENT_LEDGER_EVENTS,
+        "qualified_ledger_events": runner.QUALIFIED_ASSESSMENT_LEDGER_EVENTS,
+        "confirmation_seeds": [
+            entry["data_seed"] for entry in assessment["role_binding"]
+            if entry["role"] == "CONFIRMATION"],
+        "evidence_review_ref": "agent://S18Task70CR06",
+    }
+
+
+def test_interrupted_recovery_release_authenticates_exact_state_and_refuses_divergence(
+    tmp_path: Path,
+) -> None:
+    """The dedicated recovery receipt authenticates the exact interrupted state only."""
+    assessment, _, ledger_path, _ = _interrupted_assessment_state(tmp_path)
+    before = ledger_path.read_bytes()
+    record_sha256 = runner.QUALIFIED_ASSESSMENT_QUALIFICATION_SHA256
+    execution_release = {"corrected_execution_commit": "e" * 40}
+    good = _interrupted_recovery_release(assessment)
+    receipt_path = tmp_path / "recovery.json"
+    receipt_path.write_text(json.dumps(good, sort_keys=True), encoding="utf-8")
+    assert runner.validate_assessment_recovery_release(
+        assessment, tmp_path, receipt_path, execution_release, record_sha256,
+    )["interrupted_ledger_sha256"] == runner.INTERRUPTED_ASSESSMENT_LEDGER_SHA256
+    assert ledger_path.read_bytes() == before
+
+    def _refuses(mutated: dict, label: str) -> None:
+        case = tmp_path / f"recovery-{label}.json"
+        case.write_text(json.dumps(mutated, sort_keys=True), encoding="utf-8")
+        with pytest.raises(runner.GuardError):
+            runner.validate_assessment_recovery_release(
+                assessment, tmp_path, case, execution_release, record_sha256)
+        assert ledger_path.read_bytes() == before
+
+    absent = tmp_path / "recovery-absent.json"
+    with pytest.raises(runner.GuardError):
+        runner.validate_assessment_recovery_release(
+            assessment, tmp_path, absent, execution_release, record_sha256)
+    _refuses(dict(good, schema_id="sprint18-task70-corrected-execution-release-v1"), "schema")
+    _refuses(dict(good, candidate_id="S18-ITER-FOREIGN"), "candidate")
+    _refuses(dict(good, status="DRAFT"), "status")
+    _refuses(dict(good, release_scope="Task70-corrected-execution-after-review"), "scope")
+    _refuses(dict(good, binding_sha256="0" * 64), "binding")
+    _refuses(dict(good, qualification_sha256="0" * 64), "qualification")
+    _refuses(dict(good, assessment_checkpoint_commit="a" * 40), "execution-checkpoint")
+    _refuses(dict(good, task69_assessment_checkpoint_commit="c" * 40), "task69-checkpoint")
+    _refuses(
+        dict(good, corrected_execution_base_commit=runner.PRIOR_CORRECTED_ASSESSMENT_EXECUTION_BASE_COMMIT),
+        "stale-base")
+    _refuses(
+        dict(good, corrected_execution_commit=runner.CORRECTED_ASSESSMENT_EXECUTION_BASE_COMMIT),
+        "self-base")
+    _refuses(dict(good, corrected_execution_commit="f" * 40), "foreign-execution")
+    _refuses(dict(good, interrupted_ledger_sha256="0" * 64), "interrupted-digest")
+    _refuses(dict(good, qualified_ledger_sha256="0" * 64), "qualified-digest")
+    _refuses(dict(good, interrupted_ledger_events=28), "interrupted-count")
+    _refuses(dict(good, qualified_ledger_events=30), "qualified-count")
+    _refuses(dict(good, confirmation_seeds=[32076, 32077, 32078]), "wrong-seeds")
+    _refuses(dict(good, evidence_review_ref=""), "review-ref")
+    missing_key = dict(good)
+    del missing_key["interrupted_ledger_sha256"]
+    _refuses(missing_key, "missing-key")
+    events = runner.read_ledger(ledger_path)
+    assert len(events) == runner.INTERRUPTED_ASSESSMENT_LEDGER_EVENTS
+    assert events[-1]["event_type"] == "role_materialization_started"
+    assert events[-1]["history_id"] == "S18I-ITER-0005-CONFIRMATION-01"
+    assert events[-1]["data_seed"] == 32076
+
+
+def test_interrupted_state_authentication_accepts_exact_carrier_only(tmp_path: Path) -> None:
+    """The exact 30-event zero-output carrier passes; every divergence refuses."""
+    assessment, _, ledger_path, _ = _interrupted_assessment_state(tmp_path)
+    record_sha256 = runner.QUALIFIED_ASSESSMENT_QUALIFICATION_SHA256
+    before = ledger_path.read_bytes()
+    events = runner.read_ledger(ledger_path)
+    runner._assert_interrupted_assessment_execution_state(assessment, tmp_path, record_sha256)
+    assert ledger_path.read_bytes() == before
+    # The reviewed qualified prefix is reused verbatim by the interrupted shape.
+    runner._verify_qualified_assessment_ledger_shape(
+        assessment, events[:A02_LEDGER_PREFIX_EVENTS], record_sha256)
+    runner._verify_interrupted_assessment_ledger_shape(assessment, events, record_sha256)
+    # The fresh-candidate boundary still refuses the interrupted carrier exactly
+    # as before: no append, no retire, no resume (the no-receipt public path).
+    with pytest.raises(runner.GuardError, match="event count differs"):
+        runner._assert_qualified_assessment_execution_state(assessment, tmp_path, record_sha256)
+    assert ledger_path.read_bytes() == before
+
+    # A 29-event ledger (a divergent tail missing the started record) refuses.
+    truncated_root = tmp_path / "truncated"
+    truncated_root.mkdir()
+    truncated = b"".join(before.splitlines(keepends=True)[:29])
+    _, _, truncated_ledger, _ = _interrupted_assessment_state(
+        truncated_root, carrier_bytes=truncated)
+    with pytest.raises(runner.GuardError, match="event count differs"):
+        runner._assert_interrupted_assessment_execution_state(
+            assessment, truncated_root, record_sha256)
+    # A completed Confirmation role appended after the interrupted tail refuses.
+    completed_root = tmp_path / "completed"
+    completed_root.mkdir()
+    _, _, completed_ledger, _ = _interrupted_assessment_state(completed_root)
+    first_confirmation = next(
+        entry for entry in assessment["role_binding"] if entry["role"] == "CONFIRMATION")
+    runner.append_event(completed_ledger, "role_materialized", {
+        "candidate_id": assessment["candidate_id"],
+        "history_id": first_confirmation["history_id"],
+        "role": first_confirmation["role"],
+        "data_seed": first_confirmation["data_seed"],
+        "directory": first_confirmation["directory"],
+        "manifest_sha256": "0" * 64, "sample_count": 1,
+        "loader_manifest_role": first_confirmation["history_id"],
+    })
+    with pytest.raises(runner.GuardError, match="event count differs"):
+        runner._assert_interrupted_assessment_execution_state(
+            assessment, completed_root, record_sha256)
+    # A fail/retire event appended after the interrupted tail refuses.
+    failed_root = tmp_path / "failed"
+    failed_root.mkdir()
+    _, _, failed_ledger, _ = _interrupted_assessment_state(failed_root)
+    runner.append_event(failed_ledger, "candidate_rejected", {
+        "candidate_id": assessment["candidate_id"],
+        "binding_sha256": assessment["binding_sha256"], "reason": "tamper"})
+    with pytest.raises(runner.GuardError, match="already failed or been retired"):
+        runner._assert_interrupted_assessment_execution_state(
+            assessment, failed_root, record_sha256)
+    # A saved partial Confirmation output refuses before any recovery write.
+    partial_root = tmp_path / "partial"
+    partial_root.mkdir()
+    _interrupted_assessment_state(partial_root)
+    (partial_root / first_confirmation["directory"]).mkdir(parents=True)
+    with pytest.raises(runner.GuardError, match="saved Confirmation output"):
+        runner._assert_interrupted_assessment_execution_state(
+            assessment, partial_root, record_sha256)
+    assert ledger_path.read_bytes() == before
+
+
+def test_assessment_confirmation_recovery_refuses_without_receipt_with_zero_writes(
+    tmp_path: Path,
+) -> None:
+    """Without the receipt the interrupted state refuses with zero writes.
+
+    The genuine production stage function authenticates record, Task69 release,
+    and qualified DATA identity first, then refuses the 30-event carrier at the
+    reviewed 28-event boundary — the exact preserved no-resume behaviour. No
+    ledger append, no retirement event, no Confirmation directory, and the
+    candidate bytes stay byte-identical.
+    """
+    assessment, _, ledger_path, record_path = _interrupted_assessment_state(tmp_path)
+    before = ledger_path.read_bytes()
+    task69_release_path = (
+        REPO_ROOT / "artifacts" / "sprint-18"
+        / "S18-ITER-0005-TASK69-main-assessment-release-v2.json")
+    confirmation_paths = [
+        tmp_path / entry["directory"] for entry in assessment["role_binding"][12:]]
+    with pytest.raises(runner.GuardError, match="event count differs"):
+        runner.run_assessment_confirmation(
+            assessment, tmp_path, record_path,
+            runner.QUALIFIED_ASSESSMENT_QUALIFICATION_SHA256, task69_release_path,
+            runner.ASSESSMENT_EXECUTION_COMMIT)
+    assert ledger_path.read_bytes() == before
+    assert not any(path.exists() for path in confirmation_paths)
+    # A recovery receipt presented without the validated execution release refuses too.
+    receipt_path = tmp_path / "recovery.json"
+    receipt_path.write_text(json.dumps(
+        _interrupted_recovery_release(assessment), sort_keys=True), encoding="utf-8")
+    with pytest.raises(runner.GuardError, match="corrected execution release"):
+        runner.run_assessment_confirmation(
+            assessment, tmp_path, record_path,
+            runner.QUALIFIED_ASSESSMENT_QUALIFICATION_SHA256, task69_release_path,
+            runner.ASSESSMENT_EXECUTION_COMMIT, recovery_release_path=receipt_path)
+    assert ledger_path.read_bytes() == before
+
+
+def _recovery_replica_clone(tmp_path: Path) -> tuple[Path, dict, dict]:
+    """Clone the real project (read-only) and commit the recovery correction as E.
+
+    A genuine disposable Git replica carrying the ACTUAL project history and the
+    ACTUAL source tree: the clone resolves the real reviewed chain D → C → B → A,
+    and the C06 recovery source is committed as a new child E of D
+    (parent(E) == D exactly), which is the only lineage the product release guard
+    accepts. No project ref is written and nothing is fetched or pushed. The
+    returned fixture carries the Main-shaped execution receipt an authorized
+    dispatch would present.
+
+    This replica is deliberately used ONLY for authorization coverage (sealed
+    descriptor, E execution release, recovery receipt, interrupted-state custody,
+    and the no-receipt refusal). The genuine generation child is never exercised
+    here: the actual 4/4 Confirmation materialization, fixed-probe scoring, and
+    whole-16 certification remain the authorized post-checkpoint production
+    gates, and no regression may contact a Confirmation seed.
+    """
+    import subprocess as _subprocess
+
+    clone = tmp_path / "clone"
+    # Clone with the project's own line-ending policy (core.autocrlf=false):
+    # a smudged CRLF checkout would change every worktree blob identity and
+    # break the sealed runner/blob pins the product guard authenticates.
+    _subprocess.run(
+        ["git", "-c", "core.autocrlf=false", "clone", "--quiet",
+         str(REPO_ROOT), str(clone)], check=True)
+    _subprocess.run(["git", "-C", str(clone), "config", "core.autocrlf", "false"],
+                    check=True)
+    _subprocess.run(["git", "config", "user.email", "t70-c06@example.invalid"],
+                    cwd=clone, check=True)
+    _subprocess.run(["git", "config", "user.name", "S18-T70-C06"], cwd=clone, check=True)
+    assert _subprocess.run(
+        ["git", "-C", str(clone), "status", "--porcelain"], check=True,
+        capture_output=True, text=True).stdout.strip() == ""
+    head = _subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=clone, check=True,
+        capture_output=True, text=True).stdout.strip()
+    assert head == runner.CORRECTED_ASSESSMENT_EXECUTION_BASE_COMMIT
+    runner_source = clone / "experiments" / "sprint18_iterative_candidate_v1.py"
+    runner_source.write_bytes(
+        (REPO_ROOT / "experiments" / "sprint18_iterative_candidate_v1.py").read_bytes())
+    descriptor_source = clone / "experiments" / "sprint18-assessment-execution-descriptor-v1.json"
+    descriptor_source.write_bytes(
+        (REPO_ROOT / "experiments" / "sprint18-assessment-execution-descriptor-v1.json"
+         ).read_bytes())
+    _subprocess.run(["git", "add", "-A"], cwd=clone, check=True)
+    _subprocess.run(
+        ["git", "commit", "-qm",
+         "feat(sprint18): task70 assessment interrupted confirmation recovery authorization"],
+        cwd=clone, check=True)
+    commit_e = _subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=clone, check=True,
+        capture_output=True, text=True).stdout.strip()
+    assert _subprocess.run(
+        ["git", "rev-parse", f"{commit_e}^"], cwd=clone, check=True,
+        capture_output=True, text=True).stdout.strip() == head
+    descriptor_bytes = descriptor_source.read_bytes()
+    execution_receipt = {
+        "schema_id": runner.ASSESSMENT_EXECUTION_RELEASE_SCHEMA_ID,
+        "candidate_id": "S18-ITER-0005",
+        "status": "RELEASED_BY_MAIN",
+        "release_scope": "Task70-corrected-execution-after-review",
+        "binding_sha256": runner.QUALIFIED_ASSESSMENT_BINDING_SHA256,
+        "qualification_sha256": runner.QUALIFIED_ASSESSMENT_QUALIFICATION_SHA256,
+        "task69_assessment_checkpoint_commit": runner.QUALIFIED_TASK69_ASSESSMENT_CHECKPOINT,
+        "assessment_checkpoint_commit": runner.ASSESSMENT_EXECUTION_COMMIT,
+        "corrected_execution_base_commit": head,
+        "corrected_execution_commit": commit_e,
+        "execution_descriptor_sha256": hashlib.sha256(descriptor_bytes).hexdigest(),
+        "execution_descriptor_blob_oid": _subprocess.run(
+            ["git", "rev-parse",
+             f"{commit_e}:experiments/sprint18-assessment-execution-descriptor-v1.json"],
+            cwd=clone, check=True, capture_output=True, text=True).stdout.strip(),
+        "corrected_runner_git_blob_oid": _subprocess.run(
+            ["git", "rev-parse",
+             f"{commit_e}:experiments/sprint18_iterative_candidate_v1.py"],
+            cwd=clone, check=True, capture_output=True, text=True).stdout.strip(),
+        "corrected_runner_canonical_sha256": runner.sha256_bytes(runner.canonical_source_bytes(
+            "experiments/sprint18_iterative_candidate_v1.py", runner_source.read_bytes())),
+    }
+    return clone, execution_receipt, {"E": commit_e, "D": head}
+
+
+def test_recovery_authorization_on_disposable_git_replica(tmp_path: Path) -> None:
+    """Recovery authorization on a real disposable Git replica of the project.
+
+    Bounded deliberately at the authorization boundary the C06 policy adds: on a
+    genuine clone carrying the real D → C → B → A history and the recovery-policy
+    commit E (child of D), the sealed v3 descriptor authenticates the recovery
+    execution, the Main-shaped E execution release passes the real product lineage
+    guard, the Main-shaped recovery receipt passes its strict validator, the exact
+    30-event interrupted carrier passes the interrupted-state custody gate, and
+    the same stage called WITHOUT the recovery receipt still refuses fail-closed
+    at the reviewed 28-event boundary with zero ledger/output writes. The genuine
+    generation child is never exercised here: the actual 4/4 Confirmation
+    materialization, fixed-probe scoring, and whole-16 certification remain the
+    authorized post-checkpoint production gates, and no regression contacts a
+    Confirmation seed.
+    """
+    clone, execution_receipt, commits = _recovery_replica_clone(tmp_path)
+    assessment, _, ledger_path, record_path = _interrupted_assessment_state(clone)
+    before = ledger_path.read_bytes()
+    task69_release_path = (
+        REPO_ROOT / "artifacts" / "sprint-18"
+        / "S18-ITER-0005-TASK69-main-assessment-release-v2.json")
+    recovery_receipt = _interrupted_recovery_release(assessment, commits["E"])
+    recovery_receipt_path = clone / "artifacts" / "sprint-18" / "recovery-receipt.json"
+    recovery_receipt_path.parent.mkdir(parents=True, exist_ok=True)
+    recovery_receipt_path.write_text(
+        json.dumps(recovery_receipt, sort_keys=True), encoding="utf-8")
+    # Sealed execution descriptor + strict E execution release on real Git.
+    descriptor = runner._verify_assessment_execution_descriptor(
+        assessment, clone,
+        {"release_scope": "Task69-assessment-preflight-and-nonconfirmation"},
+        json.loads(task69_release_path.read_text(encoding="utf-8")))
+    execution_receipt_path = clone / "artifacts" / "sprint-18" / "execution-receipt.json"
+    execution_receipt_path.write_text(
+        json.dumps(execution_receipt, sort_keys=True), encoding="utf-8")
+    assert runner.validate_assessment_execution_release(
+        descriptor, clone, execution_receipt_path)["corrected_execution_commit"] == commits["E"]
+    # Main-shaped recovery receipt + interrupted-state custody on the real root.
+    assert runner.validate_assessment_recovery_release(
+        assessment, clone, recovery_receipt_path, execution_receipt,
+        runner.QUALIFIED_ASSESSMENT_QUALIFICATION_SHA256,
+    )["interrupted_ledger_sha256"] == runner.INTERRUPTED_ASSESSMENT_LEDGER_SHA256
+    runner._assert_interrupted_assessment_execution_state(
+        assessment, clone, runner.QUALIFIED_ASSESSMENT_QUALIFICATION_SHA256)
+    assert ledger_path.read_bytes() == before
+    # The same genuine stage WITHOUT the receipt stays fail-closed: the reviewed
+    # 28-event boundary refuses the interrupted carrier with zero writes.
+    with pytest.raises(runner.GuardError, match="event count differs"):
+        runner.run_assessment_confirmation(
+            assessment, clone, record_path,
+            runner.QUALIFIED_ASSESSMENT_QUALIFICATION_SHA256, task69_release_path,
+            runner.ASSESSMENT_EXECUTION_COMMIT)
+    assert ledger_path.read_bytes() == before
+    assert not any(
+        (clone / entry["directory"]).exists() for entry in assessment["role_binding"][12:])
+
+
+def test_recovery_continuity_append_preserves_interrupted_prefix(tmp_path: Path) -> None:
+    """The append-only continuity event preserves the exact interrupted prefix.
+
+    Exercises the production append helper directly on the genuine 30-event
+    carrier: exactly one `confirmation_recovery_authorized` event is chained
+    after the preserved events, the first 30 lines stay byte-identical, the
+    receipt/ledger digests and resume coordinates are recorded exactly, and the
+    hash chain stays valid. No candidate contact and no generation occur here.
+    """
+    assessment, _, ledger_path, _ = _interrupted_assessment_state(tmp_path)
+    before = ledger_path.read_bytes()
+    recovery_receipt_path = tmp_path / "recovery.json"
+    recovery_receipt_path.write_text(json.dumps(
+        _interrupted_recovery_release(assessment), sort_keys=True), encoding="utf-8")
+    recovery = _interrupted_recovery_release(assessment)
+    runner._append_confirmation_recovery_authorization(
+        ledger_path, assessment, recovery, recovery_receipt_path,
+        "S18I-ITER-0005-CONFIRMATION-01", 32076,
+        runner.QUALIFIED_TASK69_ASSESSMENT_CHECKPOINT,
+    )
+    after = ledger_path.read_bytes()
+    assert after.splitlines(keepends=True)[:30] == before.splitlines(keepends=True)
+    events = runner.read_ledger(ledger_path)
+    assert len(events) == runner.INTERRUPTED_ASSESSMENT_LEDGER_EVENTS + 1
+    assert events[30]["event_type"] == "confirmation_recovery_authorized"
+    assert events[30]["sequence"] == 31
+    assert events[30]["recovery_release_sha256"] == hashlib.sha256(
+        recovery_receipt_path.read_bytes()).hexdigest()
+    assert events[30]["interrupted_ledger_sha256"] == runner.INTERRUPTED_ASSESSMENT_LEDGER_SHA256
+    assert events[30]["qualified_ledger_sha256"] == runner.QUALIFIED_ASSESSMENT_LEDGER_SHA256
+    assert events[30]["resume_history_id"] == "S18I-ITER-0005-CONFIRMATION-01"
+    assert events[30]["resume_data_seed"] == 32076
+    assert events[30]["task69_checkpoint_commit"] == runner.QUALIFIED_TASK69_ASSESSMENT_CHECKPOINT
+    assert not any(
+        event["event_type"] in {"candidate_rejected", "candidate_retired"}
+        for event in events)
+
+
+def test_recovery_resume_entry_reuses_preserved_started_record_without_retire(
+    tmp_path: Path,
+) -> None:
+    """The resume-aware materializer accepts the preserved started record.
+
+    The generic no-resume guard still retires an unauthenticated
+    started-without-materialized ledger, while the authenticated recovery resume
+    coordinate is accepted without a duplicate started record and without any
+    candidate contact (no entries are requested here, so no generation child
+    runs). The produced-output refusal still fires before any started append.
+    """
+    assessment, _, ledger_path, _ = _interrupted_assessment_state(tmp_path)
+    before = ledger_path.read_bytes()
+    _, _, events = runner._load_stage_state(assessment, tmp_path)
+    first_confirmation = next(
+        entry for entry in assessment["role_binding"] if entry["role"] == "CONFIRMATION")
+    no_entries: list[dict] = []
+    # Generic no-resume path (no resume coordinate): retires fail-closed.
+    with pytest.raises(runner.GuardError, match="no resume"):
+        runner._materialize_entries(
+            assessment, tmp_path, tmp_path / "unused-attempt", ledger_path,
+            events, no_entries, resume_history_id=None)
+    retired = runner.read_ledger(ledger_path)
+    assert retired[-1]["event_type"] == "candidate_rejected"
+    assert retired[-1]["reason"] == "interrupted_materialization_no_resume"
+    # Authenticated recovery resume coordinate: accepted, nothing appended.
+    ledger_path.write_bytes(before)
+    assert runner._materialize_entries(
+        assessment, tmp_path, tmp_path / "unused-attempt", ledger_path,
+        runner._load_stage_state(assessment, tmp_path)[2],
+        no_entries,
+        resume_history_id=first_confirmation["history_id"],
+    ) == 0
+    assert ledger_path.read_bytes() == before
+    # A saved partial output still refuses before any resumed started append.
+    partial_root = tmp_path / "resume-partial"
+    partial_root.mkdir()
+    _interrupted_assessment_state(partial_root)
+    (partial_root / first_confirmation["directory"]).mkdir(parents=True)
+    with pytest.raises(runner.GuardError, match="role output exists"):
+        runner._materialize_entries(
+            assessment, partial_root, partial_root / "unused-attempt",
+            runner._candidate_paths(assessment, partial_root)[2],
+            runner._load_stage_state(assessment, partial_root)[2],
+            assessment["role_binding"][12:],
+            resume_history_id=first_confirmation["history_id"])
+
+
+def test_recovery_entry_passes_release_gates_then_honest_runtime_boundary(
+    tmp_path: Path,
+) -> None:
+    """The public recovery entry authenticates, then stops at the honest runtime guard.
+
+    Runs the REAL public CLI subprocess on the disposable clone: the static
+    descriptor, the E execution release, and the recovery receipt all
+    authenticate (no receipt/static/ledger refusal), and the run then stops at
+    the host/runtime boundary with zero ledger, Confirmation, or receipt writes.
+    """
+    clone, execution_receipt, commits = _recovery_replica_clone(tmp_path)
+    assessment, _, ledger_path, record_path = _interrupted_assessment_state(clone)
+    before = ledger_path.read_bytes()
+    recovery_receipt = _interrupted_recovery_release(assessment, commits["E"])
+    recovery_receipt_path = clone / "recovery-receipt.json"
+    recovery_receipt_path.write_text(
+        json.dumps(recovery_receipt, sort_keys=True), encoding="utf-8")
+    execution_receipt_path = clone / "execution-receipt.json"
+    execution_receipt_path.write_text(
+        json.dumps(execution_receipt, sort_keys=True), encoding="utf-8")
+    command = [
+        sys.executable,
+        str(clone / "experiments" / "sprint18_iterative_candidate_v1.py"),
+        "--assessment",
+        "--binding", str(clone / "experiments" / "sprint18-iterative-assessment-c5-allowance-v1.json"),
+        "--release", str(
+            REPO_ROOT / "artifacts" / "sprint-18"
+            / "S18-ITER-0005-ASSESS-main-assessment-release-v1.json"),
+        "--stage", "materialize-confirmation",
+        "--qualification-record", str(record_path),
+        "--qualification-sha256", runner.QUALIFIED_ASSESSMENT_QUALIFICATION_SHA256,
+        "--task69-release", str(
+            REPO_ROOT / "artifacts" / "sprint-18"
+            / "S18-ITER-0005-TASK69-main-assessment-release-v2.json"),
+        "--execution-release", str(execution_receipt_path),
+        "--recovery-release", str(recovery_receipt_path),
+    ]
+    result = subprocess.run(
+        command, cwd=clone, env=runner._entrypoint_child_environment(clone),
+        capture_output=True, text=True, check=False,
+    )
+    assert result.returncode == 2
+    assert "runtime execution worktree mismatch" in result.stderr or (
+        "host uv" in result.stderr.lower())
+    for refusal in (
+        "corrected execution release", "recovery release", "descriptor",
+        "ledger", "binding", "source", "Confirmation",
+    ):
+        assert refusal not in result.stderr, result.stderr
+    assert ledger_path.read_bytes() == before
+    assert not any(
+        (clone / entry["directory"]).exists() for entry in assessment["role_binding"][12:])

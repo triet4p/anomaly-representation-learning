@@ -54,15 +54,42 @@ ASSESSMENT_EXECUTION_COMMIT = "003b94bc4ee131dd8c3581b750180f65731b25a4"
 QUALIFIED_TASK69_ASSESSMENT_CHECKPOINT = "7be574d9cf451e814e59d39005856f8af2bb774a"
 QUALIFIED_ASSESSMENT_BINDING_SHA256 = "8e2705140d07d9c603989ec709de5ebb766e580a8619b37c7462f6dd2751dd3b"
 QUALIFIED_ASSESSMENT_SOURCE_CLOSURE_SHA256 = "7528315eb72efaf42e3bcddb77e69bc3b66cbacd2c420ed205321a7d59f388a2"
-ASSESSMENT_EXECUTION_DESCRIPTOR_SCHEMA_ID = "sprint18-assessment-execution-descriptor-v2"
+ASSESSMENT_EXECUTION_DESCRIPTOR_SCHEMA_ID = "sprint18-assessment-execution-descriptor-v3"
 ASSESSMENT_EXECUTION_DESCRIPTOR_FILENAME = "sprint18-assessment-execution-descriptor-v1.json"
 ASSESSMENT_EXECUTION_RELEASE_SCHEMA_ID = "sprint18-task70-corrected-execution-release-v1"
-CORRECTED_ASSESSMENT_EXECUTION_BASE_COMMIT = "9e9e22275d13e5e1e56e1f5a0b26fa4783acda6c"
+ASSESSMENT_RECOVERY_RELEASE_SCHEMA_ID = "sprint18-task70-interrupted-confirmation-recovery-v1"
+ASSESSMENT_RECOVERY_RELEASE_SCOPE = "Task70-interrupted-confirmation-zero-output-recovery"
+CORRECTED_ASSESSMENT_EXECUTION_BASE_COMMIT = "42df4249d3b4b13067dbef4e543bca82efe5c279"
+PRIOR_CORRECTED_ASSESSMENT_EXECUTION_BASE_COMMIT = "9e9e22275d13e5e1e56e1f5a0b26fa4783acda6c"
 QUALIFIED_ASSESSMENT_RUNNER_SHA256 = "125df99c727f1a27928c5cf9b2d65cffee76891852ecb27d5c95c61ddd2d7c76"
 QUALIFIED_ASSESSMENT_RUNNER_BLOB_OID = "702b37bb5570eae639528fd7d807444f044f8d67"
 QUALIFIED_ASSESSMENT_QUALIFICATION_SHA256 = "c5a8e8ccbc6be35a58fe7363ee4e8af489d3fafb93aaf6411c3936e5d349dc4b"
 QUALIFIED_ASSESSMENT_LEDGER_SHA256 = "625dcc1c6e14b43ac031afb590565a1af8461146579c8aff212d60bf3f061919"
 QUALIFIED_ASSESSMENT_LEDGER_EVENTS = 28
+INTERRUPTED_ASSESSMENT_LEDGER_SHA256 = "05cbc0fb27dabba07805e2a85892f64b01d2c90227dca1f01f0fdbecf71ca509"
+INTERRUPTED_ASSESSMENT_LEDGER_EVENTS = 30
+# Prospective policy amendment (user-authorized 2026-10-09, docs/sprint-plans/sprint-18.md:610):
+# the Confirmation stage is one-shot and no-resume by contract, with exactly ONE
+# narrow, authenticated exception — the observed A02 operational interruption
+# (SSH-session-bound launcher killed before the first synth.cli child saved any
+# output) after legitimate ledger events 29 `confirmation_materialization_authorized`
+# + 30 `role_materialization_started` (CONFIRMATION-01 seed 32076). The exception:
+#   * binds exactly ONE candidate state: the immutable 30-event ledger
+#     (`05cbc0fb…`, first-28 prefix `625dcc1c…` byte-identical) with zero saved
+#     Confirmation outputs, unchanged 4 seeds 32076–32079, frozen Fit/Calibration
+#     statistics, and the qualified record/binding/closure;
+#   * requires a dedicated Main-minted `--recovery-release` receipt
+#     (`sprint18-task70-interrupted-confirmation-recovery-v1`) authenticated
+#     BEFORE any ledger append or filesystem write — no automatic resume;
+#   * is APPEND-ONLY: a `confirmation_recovery_authorized` event is appended
+#     after the preserved 30 events, all old events stay byte-identical, the
+#     preserved started record for the first unmaterialized role is reused (never
+#     duplicated or erased), and no output is ever regenerated or replaced;
+#   * never retires the candidate merely because the authorized 30-event tail is
+#     present, while any unauthenticated continuation — missing, stale, divergent,
+#     or partial-output state — keeps the generic fail-closed no-resume contract.
+# No rollback, ledger restore/truncation/rewrite, reseed, retry, or scientific
+# rescue is implemented anywhere; the exception authorizes no other interruption.
 ORIGINAL_ATTEMPT_DIRECTORY = "_attempt-001"
 ORIGINAL_BINDING_SHA256 = "10e8bbbfe91951296536a2e5032162d4dd3f97bdda121d5d89ca787df4f5f532"
 ORIGINAL_BINDING_FILE_SHA256 = "c903f04bb3a64a30e66ee0cc02d91d02c23e432cb5a5d4ad79ea09d2b3a2086b"
@@ -652,9 +679,9 @@ def _assessment_execution_ancestors(root: Path, task69_checkpoint: str) -> tuple
 def _verify_assessment_execution_descriptor(
     binding: dict[str, Any], root: Path, release: dict[str, Any], task69_release: dict[str, Any],
 ) -> dict[str, Any]:
-    """Authenticate the sealed assessment EXECUTION descriptor against the reviewed base C.
+    """Authenticate the sealed assessment EXECUTION descriptor against the reviewed base D.
 
-    Four-identity contract (never conflated):
+    Five-identity contract (never conflated):
 
     - A (immutable QUALIFIED DATA SOURCE, checkpoint `003b94bc…`): the old qualified
       runner bytes (`702b37bb…`/`125df99c…`), frozen DATA binding (`8e270514…`), raw
@@ -662,19 +689,25 @@ def _verify_assessment_execution_descriptor(
       (`625dcc1c…`, 28 events). Authenticates historical DATA/closed science only.
     - B (Task69 OUTCOME, checkpoint `7be574d9…`, parent A): the six actual scientific
       result carriers plus review R10; pins the qualified DATA identity above.
-    - C (REVIEWED CORRECTED EXECUTION BASE, checkpoint `9e9e222…`, child of B):
-      the corrected runner bytes (`14839791…`/`e85a2244…`) committed and deployed
-      by CP01/DEP01. The authored v2 descriptor MUST pin C as
-      `corrected_execution_base_commit` plus the C descriptor blob and the
-      corrected runner identities, which MUST DIFFER from the old A-side runner
-      identities above. A C identity is never compared to A for equality; A
-      authenticates history, C authenticates the reviewed corrected code.
-    - D (FUTURE SEPARATE CORRECTION, child of C): minted only as a new commit
-      whose parent is exactly C, plus a separate Main D receipt pinned AFTER the
-      Bronze checkpoint/deploy. The descriptor never self-pins D; it pins the
-      stable reviewed base C. The D lineage is enforced by the separate Main
-      execution-release runtime guard below, never by accepting an arbitrary
-      ancestor or a stale execution.
+    - C (PRIOR REVIEWED CORRECTED EXECUTION BASE, checkpoint `9e9e222…`, child of B):
+      the first corrected runner bytes (`14839791…`/`e85a2244…`) committed and
+      deployed by CP01/DEP01, whose lineage is now one proven Git hop below D.
+    - D (CURRENT REVIEWED CORRECTED EXECUTION BASE, checkpoint `42df4249…`, child of C):
+      the C05 transition correction (`f2e02d75…`/`42830988…`) committed and deployed
+      by CP02/DEP02. The authored v3 descriptor MUST pin D as
+      `corrected_execution_base_commit` plus the D-committed descriptor blob and the
+      C06 recovery-policy runner identities, which MUST DIFFER from both the old
+      A-side runner identities and the D-committed runner bytes above. A D identity
+      is never compared to A or C for equality; A authenticates history, C
+      authenticates the prior reviewed correction, D authenticates the current
+      reviewed base.
+    - E (FUTURE SEPARATE RECOVERY CORRECTION, child of D): minted only as a new
+      commit whose parent is exactly D, plus a separate Main E execution-release
+      receipt and a separate Main `--recovery-release` receipt, both pinned AFTER
+      the Bronze checkpoint/deploy of the C06 recovery policy. The descriptor never
+      self-pins E; it pins the stable reviewed base D. The E lineage is enforced by
+      the separate Main execution-release runtime guard below, never by accepting
+      an arbitrary ancestor or a stale execution.
 
     This verifier therefore: (1) pins A/B DATA fields from the Main Task69 release
     and the qualified constants; (2) resolves A/B ancestry through
@@ -682,21 +715,18 @@ def _verify_assessment_execution_descriptor(
     committed runner blob is the OLD `702b37bb…`, pinned for the A-side history
     check only); (3) requires the descriptor's `corrected_runner` to DIFFER from
     the old A bytes; (4) requires the descriptor's `corrected_execution_base_commit`
-    to equal the reviewed base C, its C-committed descriptor blob to equal
-    `<base-C>:<descriptor-path>`, and its corrected blob/canonical digests to
-    equal BOTH the base-C-committed runner blob and the current `HEAD:` runner
-    blob when HEAD is exactly base C (AUTHORED candidate state: `HEAD:` still
-    carries A by construction, so the HEAD check runs only at/after base C),
-    plus the working-tree blob+canonical bytes in every reachable state
-    (worktree mode: the corrected source is under review before the future D;
-    the DEPLOYED D state requires `HEAD:` to equal the descriptor D blob inside
-    the release guard); (5) keeps the old 52-member DATA closure check on every
-    non-runner member. Any A/B/C/D swap, foreign parent/member/hash, drifted
+    to equal the reviewed base D, its D-committed descriptor blob to equal
+    `<base-D>:<descriptor-path>`, and its corrected blob/canonical digests to
+    equal the current `HEAD:` runner blob when HEAD is deployed E (the future
+    recovery correction), plus the working-tree blob+canonical bytes in every
+    reachable state (worktree mode: the recovery-policy source is under review
+    before the future E); (5) keeps the old 52-member DATA closure check on every
+    non-runner member. Any A/B/C/D/E swap, foreign parent/member/hash, drifted
     roster/config/catalog/method/profile/policy/record/ledger/probe/threshold/
     source entry, or arbitrary-ancestor claim refuses. The descriptor is AUTHORED
     NOW as a worktree product (never minted by the Bronze checkpoint executor);
-    only the future D commit SHA is pinned later in the separate Main
-    execution-release receipt after review+checkpoint.
+    only the future E commit SHA is pinned later in the separate Main
+    execution-release and recovery receipts after review+checkpoint.
     """
     try:
         descriptor = read_json(_assessment_execution_descriptor_path(root))
@@ -740,6 +770,8 @@ def _verify_assessment_execution_descriptor(
         raise GuardError("assessment execution descriptor still binds the superseded qualified runner bytes")
     if descriptor.get("corrected_execution_base_commit") != CORRECTED_ASSESSMENT_EXECUTION_BASE_COMMIT:
         raise GuardError("assessment execution descriptor is not bound to the reviewed corrected execution base")
+    if descriptor.get("prior_corrected_execution_base_commit") != PRIOR_CORRECTED_ASSESSMENT_EXECUTION_BASE_COMMIT:
+        raise GuardError("assessment execution descriptor does not carry the prior reviewed corrected execution base")
     try:
         base_descriptor_blob = subprocess.run(
             ["git", "-C", str(root), "rev-parse",
@@ -751,8 +783,15 @@ def _verify_assessment_execution_descriptor(
              f"{CORRECTED_ASSESSMENT_EXECUTION_BASE_COMMIT}:experiments/sprint18_iterative_candidate_v1.py"],
             check=True, capture_output=True, text=True,
         ).stdout.strip()
+        prior_base_parent = subprocess.run(
+            ["git", "-C", str(root), "rev-parse",
+             f"{PRIOR_CORRECTED_ASSESSMENT_EXECUTION_BASE_COMMIT}^"],
+            check=True, capture_output=True, text=True,
+        ).stdout.strip()
     except subprocess.CalledProcessError as exc:
         raise GuardError("reviewed corrected execution base is absent from this checkout") from exc
+    if prior_base_parent != QUALIFIED_TASK69_ASSESSMENT_CHECKPOINT:
+        raise GuardError("prior reviewed corrected execution base does not follow the qualified Task69 checkpoint")
     if descriptor.get("corrected_execution_base_descriptor_blob_oid") != base_descriptor_blob:
         raise GuardError("assessment execution descriptor bytes differ from the reviewed corrected execution base")
     if base_runner_blob == QUALIFIED_ASSESSMENT_RUNNER_BLOB_OID:
@@ -803,26 +842,29 @@ def _verify_assessment_execution_descriptor(
     except subprocess.CalledProcessError:
         base_is_ancestor = False
     if head_commit == CORRECTED_ASSESSMENT_EXECUTION_BASE_COMMIT:
-        # HEAD is exactly the reviewed base C: the committed bytes equal base C
-        # by construction, and the descriptor pins the reviewed base-C bytes.
-        # Newer worktree bytes under review are authenticated by the
-        # worktree blob/canonical pins below, not by a HEAD equality demand.
+        # HEAD is exactly the reviewed base D: the committed bytes equal base D
+        # by construction, and the descriptor pins the reviewed base-D bytes.
+        # Newer worktree bytes under review (the C06 recovery policy) are
+        # authenticated by the worktree blob/canonical pins below, not by a
+        # HEAD equality demand.
         if head_blob == QUALIFIED_ASSESSMENT_RUNNER_BLOB_OID:
             raise GuardError("deployed HEAD still carries the superseded qualified runner bytes")
     elif base_is_ancestor:
-        # DEPLOYED D state (HEAD descends from base C, e.g. the future separate
-        # correction): HEAD may carry newer review bytes than the sealed base-C
-        # runner, so the HEAD blob is NOT pinned here. The base-C runner
+        # DEPLOYED E state (HEAD descends from base D, e.g. the future separate
+        # recovery correction): HEAD may carry newer review bytes than the sealed
+        # base-D runner, so the HEAD blob is NOT pinned here. The base-D runner
         # blob/canonical pins above plus the working-tree blob/canonical pins
-        # below authenticate the deployed bytes; the exact D commit is pinned
-        # separately in the Main execution-release receipt after checkpoint.
+        # below authenticate the deployed bytes; the exact E commit is pinned
+        # separately in the Main execution-release and recovery receipts after
+        # checkpoint.
         if head_blob == QUALIFIED_ASSESSMENT_RUNNER_BLOB_OID:
             raise GuardError("deployed HEAD still carries the superseded qualified runner bytes")
     else:
-        # AUTHORED candidate state: HEAD predates the reviewed base C (the new
-        # worktree bytes are not yet committed, so `HEAD:` still carries A by
-        # construction). The base-C blob/canonical/worktree pins above plus the
-        # A/B/DATA ancestry already authenticate this state; no HEAD demand here.
+        # AUTHORED candidate state: HEAD predates the reviewed base D (the new
+        # worktree bytes are not yet committed, so `HEAD:` carries an older
+        # reviewed base by construction). The base-D blob/canonical/worktree
+        # pins above plus the A/B/DATA ancestry already authenticate this state;
+        # no HEAD demand here.
         if head_blob == runner_entry["git_blob_oid"]:
             raise GuardError("assessment execution descriptor anticipates an unreviewed commit")
         if head_blob != QUALIFIED_ASSESSMENT_RUNNER_BLOB_OID:
@@ -858,24 +900,27 @@ def _assessment_execution_release_path(root: Path) -> Path:
 def validate_assessment_execution_release(
     descriptor: dict[str, Any], root: Path, release_path: Path | None = None,
 ) -> dict[str, Any]:
-    """Validate the separate Main-minted corrected-EXECUTION release (D-side, runtime only).
+    """Validate the separate Main-minted corrected-EXECUTION release (E-side, runtime only).
 
-    This is the RUNTIME guard for the future separate correction D (child of C):
-    Main mints this receipt ONLY AFTER the reviewed D checkpoint exists, pinning the
-    exact D commit SHA plus the reviewed descriptor blob/bytes and the descriptor's
-    reviewed base-C pins. It MUST NOT be authored by the worker, the Bronze
-    checkpoint executor, or the descriptor itself (no self-reference, no hardcoded
-    future SHA, no placeholder). Until Main mints it, the static entry gate above
-    is the complete product proof; this function then refuses
-    `execution-release-absent` exactly. After D it additionally requires: the
-    D receipt carries the exact reviewed base-C commit pinned by the descriptor,
-    D's recorded parent is exactly C (`9e9e222…`), C descends from B (`7be574d9…`)
-    which descends from A (`003b94bc…`) through one exact-parent hop each, D is an
-    ancestor of (or equal to) the deployed `HEAD`, the D-committed runner blob
-    equals the descriptor `corrected_runner.git_blob_oid`, and the D commit
+    This is the RUNTIME guard for the future separate recovery correction E
+    (child of the current reviewed base D): Main mints this receipt ONLY AFTER the
+    reviewed E checkpoint exists, pinning the exact E commit SHA plus the reviewed
+    descriptor blob/bytes and the descriptor's reviewed base-D pins. It MUST NOT
+    be authored by the worker, the Bronze checkpoint executor, or the descriptor
+    itself (no self-reference, no hardcoded future SHA, no placeholder). Until
+    Main mints it, the static entry gate above is the complete product proof; this
+    function then refuses `execution-release-absent` exactly. After E it
+    additionally requires: the E receipt carries the exact reviewed base-D commit
+    pinned by the descriptor, E's recorded parent is exactly D (`42df4249…`), D
+    descends from the prior base C (`9e9e222…`) which descends from B (`7be574d9…`)
+    which descends from A (`003b94bc…`) through one exact-parent hop each, E is an
+    ancestor of (or equal to) the deployed `HEAD`, the E-committed runner blob
+    equals the descriptor `corrected_runner.git_blob_oid`, and the E commit
     message/subject carries the reviewed correction scope (not a generic retry).
-    Arbitrary ancestors, short hashes, self-asserted digests, stale C/base pins,
-    and enforced-alias commits never authenticate.
+    The superseded D receipt (base C, corrected D) and every older receipt are
+    immutable history that never authorizes E. Arbitrary ancestors, short hashes,
+    self-asserted digests, stale C/D/base pins, and enforced-alias commits never
+    authenticate.
     """
     if release_path is None:
         release_path = _assessment_execution_release_path(root)
@@ -939,8 +984,15 @@ def validate_assessment_execution_release(
          f"{CORRECTED_ASSESSMENT_EXECUTION_BASE_COMMIT}^"],
         check=True, capture_output=True, text=True,
     ).stdout.strip()
-    if base_parent != QUALIFIED_TASK69_ASSESSMENT_CHECKPOINT:
-        raise GuardError("reviewed corrected execution base does not follow the qualified Task69 checkpoint")
+    if base_parent != PRIOR_CORRECTED_ASSESSMENT_EXECUTION_BASE_COMMIT:
+        raise GuardError("reviewed corrected execution base does not follow the prior corrected execution base")
+    prior_base_parent = subprocess.run(
+        ["git", "-C", str(root), "rev-parse",
+         f"{PRIOR_CORRECTED_ASSESSMENT_EXECUTION_BASE_COMMIT}^"],
+        check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    if prior_base_parent != QUALIFIED_TASK69_ASSESSMENT_CHECKPOINT:
+        raise GuardError("prior corrected execution base does not follow the qualified Task69 checkpoint")
     task69_parent = subprocess.run(
         ["git", "-C", str(root), "rev-parse",
          f"{QUALIFIED_TASK69_ASSESSMENT_CHECKPOINT}^"],
@@ -969,6 +1021,17 @@ def validate_assessment_execution_release(
     return release
 
 
+def _verify_assessment_ledger_chain(events: list[dict[str, Any]]) -> None:
+    """Verify the append-only SHA-256 previous-event chain over the given events."""
+    previous = "0" * 64
+    for index, event in enumerate(events):
+        if (event.get("sequence") != index + 1
+                or event.get("previous_event_sha256") != previous
+                or event.get("event_sha256") != sha256_bytes(canonical_json(_canonical_record(event)))):
+            raise GuardError(f"qualified assessment ledger hash chain mismatch at event {index}")
+        previous = event["event_sha256"]
+
+
 def _verify_qualified_assessment_ledger_shape(
     binding: dict[str, Any], events: list[dict[str, Any]], record_sha256: str,
 ) -> None:
@@ -986,36 +1049,81 @@ def _verify_qualified_assessment_ledger_shape(
                       if event.get("event_type") == "nonconfirmation_qualification_pass"]
     if len(qualified_pass) != 1 or qualified_pass[0].get("qualification_sha256") != record_sha256:
         raise GuardError("qualified assessment PASS is not durably recorded for this record")
-    previous = "0" * 64
-    for index, event in enumerate(events):
-        if (event.get("sequence") != index + 1
-                or event.get("previous_event_sha256") != previous
-                or event.get("event_sha256") != sha256_bytes(canonical_json(_canonical_record(event)))):
-            raise GuardError(f"qualified assessment ledger hash chain mismatch at event {index}")
-        previous = event["event_sha256"]
+    _verify_assessment_ledger_chain(events)
 
 
-def _assert_qualified_assessment_execution_state(
+def _verify_interrupted_assessment_ledger_shape(
+    binding: dict[str, Any], events: list[dict[str, Any]], record_sha256: str,
+) -> None:
+    """Verify the EXACT authenticated interrupted-state authorization shape.
+
+    This is the recovery boundary for the single user-authorized zero-output
+    interruption (`confirmation_materialization_authorized` + the first
+    Confirmation `role_materialization_started` appended, then the launcher died
+    before any child output). It accepts exactly the immutable 30-event carrier:
+    the reviewed qualified prefix (reused verbatim), exactly one authorized
+    Confirmation record for this record, exactly one started record naming the
+    first unmaterialized Confirmation role (seed 32076), zero saved Confirmation
+    output, no rejected/retired event, and one continuous hash chain. Any other
+    tail — an unauthorized start, a materialized role, a second authorization, a
+    fail/retire event, or a wrong role/seed — refuses, so no unauthenticated
+    interruption can reach the append-only recovery path.
+    """
+    if len(events) != INTERRUPTED_ASSESSMENT_LEDGER_EVENTS:
+        raise GuardError("interrupted assessment ledger event count differs from the reviewed interrupted state")
+    if any(event.get("event_type") in {"candidate_rejected", "candidate_retired"} for event in events):
+        raise GuardError("interrupted assessment state carries a failed or retired candidate")
+    _verify_qualified_assessment_ledger_shape(
+        binding, events[:QUALIFIED_ASSESSMENT_LEDGER_EVENTS], record_sha256)
+    authorization = events[QUALIFIED_ASSESSMENT_LEDGER_EVENTS]
+    if authorization.get("event_type") != "confirmation_materialization_authorized":
+        raise GuardError("interrupted assessment state does not carry the authorized Confirmation prefix")
+    if authorization.get("qualification_sha256") != record_sha256:
+        raise GuardError("interrupted assessment authorization does not certify the qualified record")
+    if len([event for event in events
+            if event.get("event_type") == "confirmation_materialization_authorized"]) != 1:
+        raise GuardError("interrupted assessment state does not carry exactly one authorized Confirmation record")
+    started = events[INTERRUPTED_ASSESSMENT_LEDGER_EVENTS - 1]
+    confirmation_ids = [
+        entry["history_id"] for entry in binding["role_binding"] if entry["role"] == "CONFIRMATION"]
+    first_confirmation = next(
+        entry for entry in binding["role_binding"] if entry["role"] == "CONFIRMATION")
+    if started.get("event_type") != "role_materialization_started":
+        raise GuardError("interrupted assessment state does not carry the first Confirmation started record")
+    if (started.get("history_id") != first_confirmation["history_id"]
+            or started.get("role") != first_confirmation["role"]
+            or started.get("data_seed") != first_confirmation["data_seed"]):
+        raise GuardError("interrupted assessment state does not start at the first unmaterialized Confirmation role")
+    if [event for event in events
+            if event.get("event_type") == "role_materialized"
+            and event.get("history_id") in confirmation_ids]:
+        raise GuardError("interrupted assessment state carries saved Confirmation output")
+    if len([event for event in events
+            if event.get("event_type") == "role_materialization_started"
+            and event.get("history_id") in confirmation_ids]) != 1:
+        raise GuardError("interrupted assessment state does not carry exactly one Confirmation started record")
+    _verify_assessment_ledger_chain(events)
+
+
+def _assert_qualified_assessment_data_identity(
     binding: dict[str, Any], root: Path, record_sha256: str,
 ) -> None:
-    """Authorize the corrected execution's read of the qualified old state (no rewrite).
+    """Authenticate the immutable qualified Task69 DATA identity (no rewrite).
 
-    Late-entry correction custody: at the Confirmation authorization boundary the
-    corrected runner MUST see the legitimate accepted qualified Task69 DATA identity —
-    the immutable reviewed binding (`8e270514…`), its closed source closure
-    (`7528315e…`), the qualified record (`c5a8e8cc…`), and the 28-event ordered
-    ledger hash chain with the same raw bytes (`625dcc1c…`), carrying the same
-    12-role ordered prefix, the same durable `nonconfirmation_qualification_pass`,
-    and no `confirmation_materialization_authorized`, rejected, or retired event.
-    Every scientific DATA section (roster/configs/catalog/method/profile/policy/
-    assessment-linkage, all 53 closure members) MUST equal the frozen qualified
-    carrier byte-for-byte, INCLUDING this runner's own old closure member
-    (`125df99c…`/`702b37bb…`): the qualified DATA identity is authenticated by the
-    reviewed immutable qualification/checkpoint/closure, never by accepting a
-    refreshed binding digest. The corrected execution code is authenticated
-    separately through the normal released-source validation after the reviewed
-    checkpoint/deploy. This check performs NO write and changes NO custody bytes;
-    any drifted, refreshed, or tampered state refuses exactly as before.
+    Shared by both the fresh 28-event authorization boundary and the interrupted
+    30-event recovery boundary: the corrected execution MUST see the legitimate
+    accepted qualified Task69 DATA identity — the immutable reviewed binding
+    (`8e270514…`), its closed source closure (`7528315e…`), and the qualified
+    record (`c5a8e8cc…`) — with every scientific DATA section (roster/configs/
+    catalog/method/profile/policy/assessment-linkage, all 53 closure members)
+    equal to the frozen qualified carrier byte-for-byte, INCLUDING this runner's
+    own old closure member (`125df99c…`/`702b37bb…`): the qualified DATA identity
+    is authenticated by the reviewed immutable qualification/checkpoint/closure,
+    never by accepting a refreshed binding digest. The corrected execution code
+    is authenticated separately through the normal released-source validation
+    after the reviewed checkpoint/deploy. This check performs NO write and changes
+    NO custody bytes; any drifted, refreshed, or tampered state refuses exactly
+    as before.
     """
     if binding.get("binding_sha256") != QUALIFIED_ASSESSMENT_BINDING_SHA256:
         raise GuardError("corrected execution does not carry the qualified assessment binding identity")
@@ -1054,6 +1162,27 @@ def _assert_qualified_assessment_execution_state(
         raise GuardError(f"qualified assessment record is absent: {exc}") from exc
     if actual_record != QUALIFIED_ASSESSMENT_QUALIFICATION_SHA256:
         raise GuardError("qualified assessment record bytes differ from the reviewed qualification")
+
+
+def _assert_qualified_assessment_execution_state(
+    binding: dict[str, Any], root: Path, record_sha256: str,
+) -> None:
+    """Authorize the corrected execution's read of the qualified old state (no rewrite).
+
+    Late-entry correction custody: at the Confirmation authorization boundary the
+    corrected runner MUST see the legitimate accepted qualified Task69 DATA identity —
+    the immutable reviewed binding (`8e270514…`), its closed source closure
+    (`7528315e…`), the qualified record (`c5a8e8cc…`), and the 28-event ordered
+    ledger hash chain with the same raw bytes (`625dcc1c…`), carrying the same
+    12-role ordered prefix, the same durable `nonconfirmation_qualification_pass`,
+    and no `confirmation_materialization_authorized`, rejected, or retired event.
+    This check performs NO write and changes NO custody bytes; any drifted,
+    refreshed, or tampered state refuses exactly as before. A ledger already
+    carrying the authorized/interrupted Confirmation prefix is NOT this state: it
+    refuses here (fail-closed, no retire, no append) unless the caller presents
+    the authenticated recovery path below.
+    """
+    _assert_qualified_assessment_data_identity(binding, root, record_sha256)
     _, _, events = _load_stage_state(binding, root)
     _verify_qualified_assessment_ledger_shape(binding, events, record_sha256)
     ledger_path = _candidate_paths(binding, root)[2]
@@ -1063,6 +1192,124 @@ def _assert_qualified_assessment_execution_state(
         raise GuardError(f"qualified assessment ledger is absent: {exc}") from exc
     if sha256_bytes(ledger_raw) != QUALIFIED_ASSESSMENT_LEDGER_SHA256:
         raise GuardError("qualified assessment ledger bytes differ from the reviewed state")
+
+
+def _assert_interrupted_assessment_execution_state(
+    binding: dict[str, Any], root: Path, record_sha256: str,
+) -> None:
+    """Authenticate the EXACT user-authorized interrupted state before any recovery write.
+
+    Narrow policy exception boundary (user-authorized 2026-10-09): accepts only
+    the single observed A02 operational interruption — the immutable 30-event
+    ledger (`05cbc0fb…`) whose first-28 prefix is the reviewed qualified bytes
+    (`625dcc1c…`) byte-for-byte, whose tail is exactly
+    `confirmation_materialization_authorized` plus the first Confirmation
+    `role_materialization_started` (seed 32076), with zero saved Confirmation
+    output (no waveform/shard/manifest directory may exist), unchanged 4
+    Confirmation seeds, frozen qualified record/binding/closure, and no
+    rejected/retired event. This check performs NO write and changes NO custody
+    bytes; it runs only AFTER a valid Main `--recovery-release` receipt has been
+    authenticated, and every divergent tail, stale state, or partial output
+    refuses exactly.
+    """
+    _assert_qualified_assessment_data_identity(binding, root, record_sha256)
+    _, _, events = _load_stage_state(binding, root)
+    _verify_interrupted_assessment_ledger_shape(binding, events, record_sha256)
+    ledger_path = _candidate_paths(binding, root)[2]
+    try:
+        ledger_raw = ledger_path.read_bytes()
+    except OSError as exc:
+        raise GuardError(f"interrupted assessment ledger is absent: {exc}") from exc
+    prefix = b"".join(
+        ledger_raw.splitlines(keepends=True)[:QUALIFIED_ASSESSMENT_LEDGER_EVENTS])
+    if sha256_bytes(prefix) != QUALIFIED_ASSESSMENT_LEDGER_SHA256:
+        raise GuardError("interrupted assessment ledger prefix differs from the reviewed qualified bytes")
+    if sha256_bytes(ledger_raw) != INTERRUPTED_ASSESSMENT_LEDGER_SHA256:
+        raise GuardError("interrupted assessment ledger bytes differ from the reviewed interrupted state")
+    for entry in binding["role_binding"]:
+        if entry["role"] != "CONFIRMATION":
+            continue
+        target = root / entry["directory"]
+        if target.is_symlink() or target.exists():
+            raise GuardError(
+                "interrupted assessment state carries saved Confirmation output; recovery refuses")
+
+
+def validate_assessment_recovery_release(
+    binding: dict[str, Any], root: Path, release_path: Path,
+    execution_release: dict[str, Any], record_sha256: str,
+) -> dict[str, Any]:
+    """Validate the Main-minted interrupted-Confirmation RECOVERY release (runtime only).
+
+    Dedicated, explicit recovery authorization for the single user-authorized
+    zero-output interruption: Main mints this receipt ONLY AFTER the reviewed
+    recovery-policy checkpoint exists, and it authenticates the interrupted-state
+    identity (the exact immutable 30-event ledger digest `05cbc0fb…` with its
+    reviewed 28-event qualified prefix `625dcc1c…`, the unchanged 4 Confirmation
+    seeds 32076–32079, the qualified DATA pins, the reviewed corrected execution
+    base D, and the exact corrected execution commit E presented through the
+    separate execution release). It MUST NOT be authored by the worker, the
+    Bronze checkpoint executor, the descriptor, or the execution release itself.
+    A wrong, missing, stale (older base), foreign-candidate, diverging-ledger,
+    wrong-seed, or self-pinning receipt refuses here — before any ledger append
+    or filesystem write — and the generic no-resume contract stays fail-closed
+    without it. No automatic resume exists anywhere in this contract.
+    """
+    try:
+        release = read_json(release_path)
+    except (GuardError, OSError) as exc:
+        raise GuardError(f"interrupted Confirmation recovery release is absent: {exc}") from exc
+    if release.get("schema_id") != ASSESSMENT_RECOVERY_RELEASE_SCHEMA_ID:
+        raise GuardError("interrupted Confirmation recovery release schema mismatch")
+    if release.get("candidate_id") != binding.get("candidate_id"):
+        raise GuardError("interrupted Confirmation recovery release candidate mismatch")
+    if release.get("status") != "RELEASED_BY_MAIN":
+        raise GuardError("interrupted Confirmation recovery release is not Main-released")
+    if release.get("release_scope") != ASSESSMENT_RECOVERY_RELEASE_SCOPE:
+        raise GuardError("interrupted Confirmation recovery release scope mismatch")
+    for key in ("binding_sha256", "qualification_sha256",
+                "task69_assessment_checkpoint_commit", "assessment_checkpoint_commit",
+                "corrected_execution_base_commit", "corrected_execution_commit",
+                "interrupted_ledger_sha256", "qualified_ledger_sha256",
+                "evidence_review_ref"):
+        if not isinstance(release.get(key), str) or not release[key]:
+            raise GuardError(f"interrupted Confirmation recovery release lacks its pinned identity: {key}")
+    if release.get("binding_sha256") != binding.get("binding_sha256"):
+        raise GuardError("interrupted Confirmation recovery release binding differs from the presented binding")
+    if release.get("binding_sha256") != QUALIFIED_ASSESSMENT_BINDING_SHA256:
+        raise GuardError("interrupted Confirmation recovery release does not carry the qualified binding identity")
+    if release.get("qualification_sha256") != record_sha256:
+        raise GuardError("interrupted Confirmation recovery release record differs from the qualified record")
+    if release.get("qualification_sha256") != QUALIFIED_ASSESSMENT_QUALIFICATION_SHA256:
+        raise GuardError("interrupted Confirmation recovery release does not carry the qualified record identity")
+    if release.get("assessment_checkpoint_commit") != ASSESSMENT_EXECUTION_COMMIT:
+        raise GuardError("interrupted Confirmation recovery release is not bound to the reviewed execution checkpoint")
+    if release.get("task69_assessment_checkpoint_commit") != QUALIFIED_TASK69_ASSESSMENT_CHECKPOINT:
+        raise GuardError("interrupted Confirmation recovery release does not carry the qualified Task69 checkpoint")
+    if release.get("corrected_execution_base_commit") != CORRECTED_ASSESSMENT_EXECUTION_BASE_COMMIT:
+        raise GuardError("interrupted Confirmation recovery release is not bound to the reviewed corrected execution base")
+    if release.get("interrupted_ledger_sha256") != INTERRUPTED_ASSESSMENT_LEDGER_SHA256:
+        raise GuardError("interrupted Confirmation recovery release does not certify the reviewed interrupted ledger")
+    if release.get("qualified_ledger_sha256") != QUALIFIED_ASSESSMENT_LEDGER_SHA256:
+        raise GuardError("interrupted Confirmation recovery release does not certify the reviewed qualified prefix")
+    if release.get("interrupted_ledger_events") != INTERRUPTED_ASSESSMENT_LEDGER_EVENTS:
+        raise GuardError("interrupted Confirmation recovery release does not certify the reviewed interrupted event count")
+    if release.get("qualified_ledger_events") != QUALIFIED_ASSESSMENT_LEDGER_EVENTS:
+        raise GuardError("interrupted Confirmation recovery release does not certify the reviewed qualified event count")
+    confirmation_seeds = [
+        entry["data_seed"] for entry in binding["role_binding"] if entry["role"] == "CONFIRMATION"]
+    if release.get("confirmation_seeds") != confirmation_seeds:
+        raise GuardError("interrupted Confirmation recovery release does not carry the unchanged Confirmation seeds")
+    corrected = release.get("corrected_execution_commit")
+    if (not isinstance(corrected, str) or len(corrected) != 40
+            or any(char not in "0123456789abcdef" for char in corrected)):
+        raise GuardError("interrupted Confirmation recovery release has no recorded corrected checkpoint")
+    if corrected == CORRECTED_ASSESSMENT_EXECUTION_BASE_COMMIT:
+        raise GuardError("interrupted Confirmation recovery release still pins the superseded corrected execution base")
+    if corrected != execution_release.get("corrected_execution_commit"):
+        raise GuardError(
+            "interrupted Confirmation recovery release does not authorize the presented corrected execution")
+    return release
 
 
 def _validate_assessment_entry_binding(
@@ -1823,14 +2070,26 @@ def _verify_preflight_pass(
 def _materialize_entries(
     binding: dict[str, Any], root: Path, attempt_root: Path, ledger_path: Path,
     events: list[dict[str, Any]], entries: list[dict[str, Any]],
+    *, resume_history_id: str | None = None,
 ) -> int:
+    """Materialize the requested ordered roster entries through the public CLI.
+
+    Callers that present the single user-authorized interrupted-state recovery
+    pass `resume_history_id` naming the one role whose
+    `role_materialization_started` record was legitimately appended before the
+    operational interruption: that preserved record is reused (never duplicated,
+    never erased) and the role is materialized from the first unmaterialized
+    position. Every other started-without-materialized shape still retires the
+    candidate fail-closed — the generic no-resume contract is unchanged.
+    """
     completed = [event for event in events if event.get("event_type") == "role_materialized"]
     started = [event for event in events if event.get("event_type") == "role_materialization_started"]
     completed_ids = [event.get("history_id") for event in completed]
     started_ids = [event.get("history_id") for event in started]
     if started_ids != completed_ids:
-        _fail_candidate(ledger_path, binding, "interrupted_materialization_no_resume")
-        raise GuardError("interrupted materialization retires candidate; no resume")
+        if resume_history_id is None or started_ids != [*completed_ids, resume_history_id]:
+            _fail_candidate(ledger_path, binding, "interrupted_materialization_no_resume")
+            raise GuardError("interrupted materialization retires candidate; no resume")
     expected_ids = [entry["history_id"] for entry in binding["role_binding"]]
     if completed_ids != expected_ids[:len(completed_ids)]:
         raise GuardError("materialization ledger is not an exact ordered prefix")
@@ -1844,11 +2103,12 @@ def _materialize_entries(
         if target.is_symlink() or target.exists():
             _fail_candidate(ledger_path, binding, f"role_output_already_exists:{entry['history_id']}")
             raise GuardError("bound role output exists; no overwrite or replacement")
-        append_event(ledger_path, "role_materialization_started", {
-            "candidate_id": binding["candidate_id"],
-            "history_id": entry["history_id"], "role": entry["role"],
-            "data_seed": entry["data_seed"], "directory": str(target),
-        })
+        if entry["history_id"] != resume_history_id:
+            append_event(ledger_path, "role_materialization_started", {
+                "candidate_id": binding["candidate_id"],
+                "history_id": entry["history_id"], "role": entry["role"],
+                "data_seed": entry["data_seed"], "directory": str(target),
+            })
         command = [
             sys.executable, "-m", "synth.cli", "--chronological",
             "--profile", PROFILE, "--seed", str(entry["data_seed"]),
@@ -2060,9 +2320,36 @@ def run_confirmation(
     )
 
 
+def _append_confirmation_recovery_authorization(
+    ledger_path: Path, binding: dict[str, Any], recovery: dict[str, Any],
+    recovery_release_path: Path, resume_history_id: str, resume_data_seed: int,
+    task69_checkpoint: str,
+) -> None:
+    """Append the explicit recovery continuity event (append-only, no rewrite).
+
+    The single user-authorized zero-output recovery appends exactly one
+    `confirmation_recovery_authorized` event AFTER the preserved 30 events: the
+    old bytes stay byte-identical, the recovered receipt identity and the exact
+    interrupted/qualified ledger digests are chained into the ledger, and the
+    first unmaterialized Confirmation coordinate is recorded so the continuation
+    reuses (never erases or duplicates) its preserved started record.
+    """
+    append_event(ledger_path, "confirmation_recovery_authorized", {
+        "candidate_id": binding["candidate_id"],
+        "recovery_release_path": str(recovery_release_path),
+        "recovery_release_sha256": sha256_file(recovery_release_path),
+        "interrupted_ledger_sha256": recovery["interrupted_ledger_sha256"],
+        "qualified_ledger_sha256": recovery["qualified_ledger_sha256"],
+        "resume_history_id": resume_history_id,
+        "resume_data_seed": resume_data_seed,
+        "task69_checkpoint_commit": task69_checkpoint,
+    })
+
+
 def run_assessment_confirmation(
     binding: dict[str, Any], root: Path, record_path: Path,
     record_sha256: str, task69_release_path: Path, assessment_checkpoint: str,
+    *, recovery_release_path: Path | None = None, execution_release: dict[str, Any] | None = None,
 ) -> int:
     """Run the assessment Confirmation stage behind its genuine Main gate.
 
@@ -2081,13 +2368,34 @@ def run_assessment_confirmation(
     as the byte-identical qualified Task69 DATA/binding identity (canonical binding, raw
     file, closed source closure, qualification record, 28-event ledger chain); any
     drifted or tampered state refuses exactly as before.
+
+    Narrow user-authorized recovery exception: when the caller presents the dedicated
+    `recovery_release_path` (plus the already-validated `execution_release`), the stage
+    authenticates that Main recovery receipt FIRST — before any ledger append or
+    filesystem write — then authenticates the exact immutable 30-event interrupted state
+    (authorized + first Confirmation started tail, zero saved output, unchanged seeds)
+    instead of the fresh 28-event state, appends one explicit
+    `confirmation_recovery_authorized` continuity event after the preserved 30 events,
+    and continues the 4 unchanged Confirmation seeds from the first unmaterialized
+    position, reusing (never erasing or duplicating) the preserved started record.
+    Without that receipt the interrupted state refuses fail-closed exactly as before:
+    no append, no retire, no resume.
     """
     record = _verify_qualification_record(binding, record_path, record_sha256)
     release = read_json(task69_release_path)
     execution_checkpoint = resolve_assessment_execution_checkpoint(release)
     if execution_checkpoint != assessment_checkpoint:
         raise GuardError("Task69 assessment release execution checkpoint differs from the dispatched execution identity")
-    _assert_qualified_assessment_execution_state(binding, root, record_sha256)
+    recovery = None
+    if recovery_release_path is not None:
+        if execution_release is None:
+            raise GuardError(
+                "interrupted Confirmation recovery requires the reviewed corrected execution release")
+        recovery = validate_assessment_recovery_release(
+            binding, root, recovery_release_path, execution_release, record_sha256)
+        _assert_interrupted_assessment_execution_state(binding, root, record_sha256)
+    else:
+        _assert_qualified_assessment_execution_state(binding, root, record_sha256)
     task69_checkpoint = validate_assessment_task69_release(
         binding, record_sha256, release, execution_checkpoint,
     )
@@ -2132,6 +2440,27 @@ def run_assessment_confirmation(
         _fail_candidate(confirmation_ledger_path, binding, "confirmation_materialization_without_release")
         raise GuardError("Confirmation started without its separate Main authorization")
     if authorized:
+        if recovery is not None and recovery_release_path is not None:
+            # Authenticated narrow exception: the candidate is NOT retired merely
+            # because the authorized interrupted tail is present. Append exactly
+            # one explicit recovery continuity event after the preserved 30
+            # events (all old bytes stay byte-identical), then continue the 4
+            # unchanged Confirmation seeds from the first unmaterialized
+            # position, reusing the preserved started record.
+            resume_history_id = next(
+                entry["history_id"] for entry in binding["role_binding"]
+                if entry["role"] == "CONFIRMATION")
+            resume_data_seed = next(
+                entry["data_seed"] for entry in binding["role_binding"]
+                if entry["role"] == "CONFIRMATION")
+            _append_confirmation_recovery_authorization(
+                confirmation_ledger_path, binding, recovery, recovery_release_path,
+                resume_history_id, resume_data_seed, task69_checkpoint)
+            return _materialize_entries(
+                binding, root, attempt_root, confirmation_ledger_path,
+                read_ledger(confirmation_ledger_path), binding["role_binding"][12:],
+                resume_history_id=resume_history_id,
+            )
         if (len(confirmation_completed) == 4 and len(confirmation_started) == 4
                 and [event.get("history_id") for event in confirmation_completed] == confirmation_ids):
             raise GuardError("Confirmation is already materialized; do not replay it")
@@ -2685,6 +3014,11 @@ def parse_args() -> argparse.Namespace:
         "--execution-release", type=Path,
         help="Main-minted corrected-execution receipt required for assessment Confirmation",
     )
+    parser.add_argument(
+        "--recovery-release", type=Path,
+        help="Main-minted interrupted-Confirmation recovery receipt; the only "
+             "authorized path for the single reviewed zero-output interruption",
+    )
     parser.add_argument("--smoke-no-contact", action="store_true")
     parser.add_argument("--assessment", action="store_true",
                         help="run the separate amended-policy assessment binding "
@@ -2733,6 +3067,10 @@ def main() -> int:
                 not args.assessment or args.stage != "materialize-confirmation"):
             raise GuardError(
                 "--execution-release is only valid for assessment materialize-confirmation")
+        if args.recovery_release is not None and (
+                not args.assessment or args.stage != "materialize-confirmation"):
+            raise GuardError(
+                "--recovery-release is only valid for assessment materialize-confirmation")
         if args.assessment:
             if args.smoke_no_contact:
                 raise GuardError("no-contact smoke accepts no assessment mode")
@@ -2796,7 +3134,7 @@ def main() -> int:
                         raise GuardError(
                             "Assessment Confirmation requires Main's corrected execution "
                             "release via --execution-release")
-                    validate_assessment_execution_release(
+                    validated_execution_release = validate_assessment_execution_release(
                         descriptor, ROOT, args.execution_release)
             _validate_host_uv_toolchain(live)
             validate_runtime(live, ROOT)
@@ -2820,6 +3158,8 @@ def main() -> int:
                     binding, ROOT, args.qualification_record,
                     args.qualification_sha256, args.task69_release,
                     execution_checkpoint,
+                    recovery_release_path=args.recovery_release,
+                    execution_release=validated_execution_release,
                 )
             raise GuardError(f"unsupported stage {args.stage}")
         if args.smoke_no_contact:
