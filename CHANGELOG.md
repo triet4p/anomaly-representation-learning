@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Added the Sprint 18 v2 common harness for the exact eight-arm registry, certified role permissions/support, coherent checkpoint restoration, independent score/calibration provenance, compute envelopes, and fail-closed result validation.
 - Published the certified Sprint 18 data handoff for candidate `S18-ITER-0005` (16 roles, seeds 32064–32079, roles DESIGN/FIT/CALIBRATION/DEVELOPMENT/CONFIRMATION): exact isolated-runtime dataset root and per-role paths, frozen role permissions, manifest/config/protocol identities, source-vs-outcome checkpoint lineage, and the existing public consumer invocation `synth.load_chronological` (with the `synth.patchify.Patchifier` window/patch contract), verified by an actual read-only smoke reading all 103,686 samples of the 16 real role roots (C=6, T∈[200,800], 102.1 s wall, peak process RSS ~382 MiB, GPU idle) with the 38-event append-only ledger and all manifest digests unchanged; carriers `experiments/sprint18-task71-certified-data-handoff-S18-ITER-0005-v1.{json,md}`.
 - Implemented the Sprint 18 iterative-v3 data correction: fixed-phase failure-ordinal P/W subtype alternation under profile `sprint18-iterative-v3`, proved on disposable seeds 94100/94101 with dual fresh-process public reloads (per-group imbalance 1, 64-member exact allocator witness, frozen observable probe gates unchanged).
 - Added a restore-only Sprint 21 disposable scorer proof entry point with pinned lock, full-seed configuration, source-derived conditioning, metric and role-binding provenance gates, and production mask-seed rejection.
@@ -50,6 +51,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Fixed Sprint 18 experiment samplers to use the frozen representation and N4 order-seed formulas, including the N4 cross-fit history scope.
 - Corrected Sprint 21 pilot program-share calculation and scorer conditioning: IDs now resolve from the pinned robot/program map, and missing serialized indices are rejected without changing the manifest schema.
 - Fixed the Sprint 22 pilot runner's binding checkpoint-size guard by defining its frozen 18,239,321-byte checkpoint size; no pilot contact was authorized.
 - Fixed Sprint 18 Task 68 source checks to accept only declared UTF-8 text LF/CRLF checkout conversion while binding canonical hashes, tracked Git blobs, and the corrected Main checkpoint receipt.
