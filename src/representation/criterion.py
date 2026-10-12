@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import math
+
 from collections.abc import Mapping
 from typing import Literal
 
@@ -169,13 +171,21 @@ class JointRepresentationCriterion(nn.Module):
         self.lambda_schedule = lambda_schedule or ProgressiveLambda()
         self.prediction_weight = float(prediction_weight)
 
-    def forward(self, model_output: Mapping[str, object], step: int = 0) -> dict[str, torch.Tensor | float]:
-        """Return each objective term, schedule value, and joint loss."""
+    def forward(
+        self,
+        model_output: Mapping[str, object],
+        step: int = 0,
+        *,
+        effective_lambda_override: float | None = None,
+    ) -> dict[str, torch.Tensor | float | int]:
+        """Return raw/weighted objective terms, schedule value, and support."""
         prediction_result = self.prediction(model_output)
         prediction_loss = prediction_result["loss"]
         contrastive_sim = None
         contrastive_neg_sim = None
         contrastive_margin = None
+        contrastive_input_files = 0
+        contrastive_support_files = 0
         if "view_embedding_1" in model_output and "view_embedding_2" in model_output:
             contrastive_result = self.contrastive(model_output)
             contrastive_loss = contrastive_result["loss"]
@@ -185,17 +195,42 @@ class JointRepresentationCriterion(nn.Module):
                 contrastive_neg_sim = contrastive_result["negative_similarity"]
             if "margin" in contrastive_result:
                 contrastive_margin = contrastive_result["margin"]
+            view_1 = model_output["view_embedding_1"]
+            if not isinstance(view_1, torch.Tensor):
+                raise TypeError("view_embedding_1 must be a torch.Tensor")
+            contrastive_input_files = int(view_1.shape[0])
+            contrastive_support_files = (
+                contrastive_input_files if contrastive_input_files > 1 else 0
+            )
         else:
             contrastive_loss = prediction_loss * 0.0
-        lambda_value = self.lambda_schedule.lambda_at(step)
+
+        if effective_lambda_override is None:
+            lambda_value = self.lambda_schedule.lambda_at(step)
+        else:
+            if (
+                isinstance(effective_lambda_override, bool)
+                or not isinstance(effective_lambda_override, (int, float))
+                or not math.isfinite(float(effective_lambda_override))
+                or effective_lambda_override < 0.0
+            ):
+                raise ValueError("effective contrastive coefficient must be finite and non-negative")
+            lambda_value = float(effective_lambda_override)
+        weighted_prediction_loss = self.prediction_weight * prediction_loss
         weighted_contrastive_loss = lambda_value * contrastive_loss
-        joint_loss = self.prediction_weight * prediction_loss + weighted_contrastive_loss
+        joint_loss = weighted_prediction_loss + weighted_contrastive_loss
         stationary_lambda = self.lambda_schedule.lambda_max
         stationary_joint_loss = self.prediction_weight * prediction_loss + stationary_lambda * contrastive_loss
 
-        diagnostics: dict[str, torch.Tensor | float] = {
+        diagnostics: dict[str, torch.Tensor | float | int] = {
             "prediction_loss": prediction_loss,
+            "effective_prediction_coefficient": self.prediction_weight,
+            "weighted_prediction_loss": weighted_prediction_loss,
+            "prediction_support_patches": prediction_result["masked_count"],
             "contrastive_loss": contrastive_loss,
+            "effective_contrastive_coefficient": lambda_value,
+            "contrastive_input_files": contrastive_input_files,
+            "contrastive_support_files": contrastive_support_files,
             "weighted_contrastive_loss": weighted_contrastive_loss,
             "joint_loss": joint_loss,
             "stationary_joint_loss": stationary_joint_loss,

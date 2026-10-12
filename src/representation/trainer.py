@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Iterable, Mapping
 from copy import deepcopy
 from pathlib import Path
@@ -21,6 +22,8 @@ from representation.model import V1RepresentationModel
 
 if TYPE_CHECKING:
     from representation.inference import NormalReferenceBank
+    from representation.sprint18_harness import Sprint18ArmConfig
+
 
 class RepresentationTrainer:
     """Train context/predictor parameters and update EMA only after stepping."""
@@ -70,6 +73,7 @@ class RepresentationTrainer:
         self.best_step: int | None = None
         self.best_epoch: int | None = None
         self.history: list[dict[str, float]] = []
+        self.objective_balance_history: list[dict[str, int | float | bool]] = []
         torch.manual_seed(seed)
 
     def _move_batch(self, batch: RepresentationBatch) -> RepresentationBatch:
@@ -80,21 +84,323 @@ class RepresentationTrainer:
         return moved  # type: ignore[return-value]
 
     @staticmethod
-    def _scalar(value: torch.Tensor | float) -> float:
+    def _scalar(value: torch.Tensor | float | int) -> float:
         return float(value.detach().cpu().item()) if isinstance(value, torch.Tensor) else float(value)
 
-    def _terms(self, batch: RepresentationBatch) -> dict[str, torch.Tensor | float]:
+    def _forward_terms(
+        self,
+        batch: RepresentationBatch,
+        *,
+        effective_lambda_override: float | None = None,
+    ) -> tuple[Mapping[str, object], dict[str, torch.Tensor | float | int]]:
         output = self.model(self._move_batch(batch))
-        return self.criterion(output, step=self.step)
+        terms = self.criterion(
+            output,
+            step=self.step,
+            effective_lambda_override=effective_lambda_override,
+        )
+        return output, terms
+
+    def _terms(
+        self,
+        batch: RepresentationBatch,
+    ) -> dict[str, torch.Tensor | float | int]:
+        return self._forward_terms(batch)[1]
+
+    @staticmethod
+    def _embedding_geometry(
+        embeddings: torch.Tensor,
+        supported_files: torch.Tensor,
+    ) -> dict[str, int | float]:
+        if embeddings.ndim != 2 or embeddings.shape[1] < 1:
+            raise ValueError("file embeddings must be a non-empty-width matrix")
+        if (
+            supported_files.dtype is not torch.bool
+            or supported_files.shape != embeddings.shape[:1]
+        ):
+            raise ValueError("embedding support must be a bool mask over files")
+        values = embeddings.detach()[supported_files].to(dtype=torch.float64)
+        sample_count, dimension = values.shape
+        if sample_count == 0:
+            return {
+                "embedding_support_files": 0,
+                "embedding_variance_mean": 0.0,
+                "embedding_std_median": 0.0,
+                "embedding_effective_rank": 0.0,
+            }
+        if not torch.isfinite(values).all():
+            raise ValueError("supported file embeddings must be finite")
+        centered = values - values.mean(dim=0, keepdim=True)
+        population_variance = centered.square().mean(dim=0)
+        median_std = torch.quantile(
+            population_variance.sqrt(), 0.5, interpolation="linear"
+        )
+        covariance = (centered.transpose(0, 1) @ centered) / float(
+            max(sample_count - 1, 1)
+        )
+        covariance = (covariance + covariance.transpose(0, 1)) * 0.5
+        eigenvalues = torch.linalg.eigvalsh(covariance).clamp_min(0.0).flip(0)
+        total_variance = float(eigenvalues.sum().item())
+        tolerance = (
+            max(total_variance, 1.0)
+            * torch.finfo(torch.float64).eps
+            * max(sample_count, dimension)
+            * 16.0
+        )
+        positive = eigenvalues[eigenvalues > tolerance]
+        if total_variance > tolerance and positive.numel() > 0:
+            probabilities = positive / total_variance
+            effective_rank = float(
+                torch.exp(-(probabilities * probabilities.log()).sum()).item()
+            )
+        else:
+            effective_rank = 0.0
+        return {
+            "embedding_support_files": sample_count,
+            "embedding_variance_mean": float(population_variance.mean().item()),
+            "embedding_std_median": float(median_std.item()),
+            "embedding_effective_rank": effective_rank,
+        }
+
+    @staticmethod
+    def _gradient_norm(
+        loss: torch.Tensor,
+        parameters: tuple[nn.Parameter, ...],
+    ) -> float:
+        gradients = torch.autograd.grad(
+            loss,
+            parameters,
+            retain_graph=True,
+            allow_unused=True,
+        )
+        squared_norm: torch.Tensor | None = None
+        for gradient in gradients:
+            if gradient is None:
+                continue
+            contribution = gradient.detach().to(dtype=torch.float64).square().sum()
+            squared_norm = contribution if squared_norm is None else squared_norm + contribution
+        if squared_norm is None:
+            return 0.0
+        return float(torch.sqrt(squared_norm).item())
+
+    def _shared_encoder_parameters(self) -> tuple[nn.Parameter, ...]:
+        parameters: list[nn.Parameter] = []
+        seen: set[int] = set()
+        for module in (
+            self.model.patch_encoder,
+            self.model.context_encoder,
+            self.model.conditional_norm,
+        ):
+            if module is None:
+                continue
+            for parameter in module.parameters():
+                if parameter.requires_grad and id(parameter) not in seen:
+                    parameters.append(parameter)
+                    seen.add(id(parameter))
+        if not parameters:
+            raise ValueError("shared online encoder has no trainable parameters")
+        return tuple(parameters)
+
+    def _balance_record(
+        self,
+        output: Mapping[str, object],
+        terms: Mapping[str, torch.Tensor | float | int],
+        *,
+        epoch: int,
+        global_step: int,
+        learning_rate: float,
+        parameters: tuple[nn.Parameter, ...],
+    ) -> dict[str, int | float | bool]:
+        prediction_loss = terms["prediction_loss"]
+        weighted_info_loss = terms["weighted_contrastive_loss"]
+        if not isinstance(prediction_loss, torch.Tensor) or not isinstance(
+            weighted_info_loss, torch.Tensor
+        ):
+            raise TypeError("objective losses must be tensors for gradient diagnostics")
+        prediction_norm = self._gradient_norm(prediction_loss, parameters)
+        info_norm = self._gradient_norm(weighted_info_loss, parameters)
+        prediction_mask = output.get("prediction_mask")
+        valid_mask = output.get("patch_valid_mask")
+        embeddings = output.get("file_embedding")
+        if (
+            not isinstance(prediction_mask, torch.Tensor)
+            or not isinstance(valid_mask, torch.Tensor)
+            or not isinstance(embeddings, torch.Tensor)
+            or prediction_mask.dtype is not torch.bool
+            or valid_mask.dtype is not torch.bool
+            or prediction_mask.ndim != 2
+            or valid_mask.ndim != 2
+            or embeddings.ndim != 2
+            or prediction_mask.shape != valid_mask.shape
+            or embeddings.shape[0] != valid_mask.shape[0]
+        ):
+            raise ValueError("model output masks/embeddings do not share valid file support")
+        valid_prediction = prediction_mask & valid_mask
+        geometry = self._embedding_geometry(
+            embeddings,
+            valid_mask.any(dim=1),
+        )
+        effective_prediction = self._scalar(
+            terms["effective_prediction_coefficient"]
+        )
+        raw_info = self._scalar(terms["contrastive_loss"])
+        coefficient_info = self._scalar(
+            terms["effective_contrastive_coefficient"]
+        )
+        raw_prediction = self._scalar(prediction_loss)
+        ratio = info_norm / (prediction_norm + 1e-12)
+        record: dict[str, int | float | bool] = {
+            "epoch": epoch,
+            "global_step": global_step,
+            "lr": learning_rate,
+            "raw_L_pred": raw_prediction,
+            "effective_coefficient_L_pred": effective_prediction,
+            "weighted_L_pred": self._scalar(terms["weighted_prediction_loss"]),
+            "raw_L_info": raw_info,
+            "effective_coefficient_L_info": coefficient_info,
+            "weighted_L_info": self._scalar(weighted_info_loss),
+            "gradient_norm_L_pred_shared": prediction_norm,
+            "gradient_norm_weighted_L_info_shared": info_norm,
+            "r_aux": ratio,
+            "support_valid_files": int(valid_mask.any(dim=1).sum().item()),
+            "support_valid_patches": int(valid_mask.sum().item()),
+            "support_prediction_files": int(valid_prediction.any(dim=1).sum().item()),
+            "support_prediction_patches": int(valid_prediction.sum().item()),
+            "support_info_files": int(terms["contrastive_support_files"]),
+            "contrastive_input_files": int(terms["contrastive_input_files"]),
+            "protocol_gradient_observation": (
+                26 <= epoch <= 30 and global_step % 40 == 0
+            ),
+        }
+        record.update(geometry)
+        return record
 
     def train_epoch(self, batches: Iterable[RepresentationBatch]) -> dict[str, float]:
         """Run one epoch; each EMA update follows its optimizer step."""
+        return self._run_epoch(batches)
+
+    def train_sprint18_epoch(
+        self,
+        batches: Iterable[RepresentationBatch],
+        *,
+        arm: Sprint18ArmConfig,
+        epoch: int,
+        collect_balance: bool = True,
+    ) -> dict[str, float]:
+        """Run one B0 epoch under the accepted Sprint 18 schedule and diagnostics."""
+        from representation.sprint18_checkpoint import (
+            coefficient_for_epoch,
+            learning_rate_for_epoch,
+        )
+        from representation.sprint18_harness import validate_arm_config
+
+        validate_arm_config(arm, require_locked=(arm.selection_state == "locked"))
+        if arm.arm_id != "B0-FULL":
+            raise ValueError("Task8 instrumentation currently supports the implemented B0-FULL path")
+        if self.scheduler is not None:
+            raise ValueError("Sprint18 uses a constant-within-epoch LR; pass no step scheduler")
+        if not isinstance(self.optimizer, torch.optim.AdamW):
+            raise ValueError("Sprint18 representation training requires AdamW")
+        if self.max_grad_norm != 1.0:
+            raise ValueError("Sprint18 representation training requires global L2 clip 1.0")
+        if self.criterion.prediction_weight != 1.0:
+            raise ValueError("Sprint18 prediction objective coefficient must remain 1.0")
+        coefficient_max = arm.lambda_info_max
+        if (
+            coefficient_max is None
+            or self.criterion.lambda_schedule.lambda_max != coefficient_max
+            or self.model.config.contrastive_weight_max != coefficient_max
+        ):
+            raise ValueError("B0 contrastive coefficient differs from the arm configuration")
+        model_shape = (
+            self.model.config.n_channels,
+            self.model.config.patch_size,
+            self.model.config.stride,
+            self.model.config.n_robots,
+            self.model.config.n_programs,
+        )
+        arm_shape = (
+            arm.n_channels,
+            arm.patch_size,
+            arm.stride,
+            arm.n_robots,
+            arm.n_programs,
+        )
+        if (
+            model_shape != arm_shape
+            or self.model.config.seed != arm.model_seed
+            or self.model.config.ema_decay != arm.ema_decay
+            or self.model.target_encoder.decay != arm.ema_decay
+            or self.model.patchifier.cfg.patch_size != arm.patch_size
+            or self.model.patchifier.cfg.stride != arm.stride
+        ):
+            raise ValueError("B0 model configuration differs from its frozen Sprint18 arm")
+        optimizer_parameters = [
+            parameter
+            for group in self.optimizer.param_groups
+            for parameter in group["params"]
+        ]
+        model_parameters = list(self.model.parameters())
+        optimizer_parameter_ids = {id(parameter) for parameter in optimizer_parameters}
+        model_parameter_ids = {id(parameter) for parameter in model_parameters}
+        trainable_parameter_ids = {
+            id(parameter) for parameter in model_parameters if parameter.requires_grad
+        }
+        if (
+            any(group["weight_decay"] != 0.0 for group in self.optimizer.param_groups)
+            or len(optimizer_parameter_ids) != len(optimizer_parameters)
+            or not trainable_parameter_ids.issubset(optimizer_parameter_ids)
+            or not optimizer_parameter_ids.issubset(model_parameter_ids)
+        ):
+            raise ValueError("B0 AdamW parameter/weight-decay groups differ from the frozen contract")
+        learning_rate = learning_rate_for_epoch(epoch)
+        effective_lambda = coefficient_for_epoch(coefficient_max, epoch)
+        for group in self.optimizer.param_groups:
+            group["lr"] = learning_rate
+        return self._run_epoch(
+            batches,
+            epoch=epoch,
+            effective_lambda=effective_lambda,
+            learning_rate=learning_rate,
+            collect_balance=collect_balance,
+        )
+
+    def _run_epoch(
+        self,
+        batches: Iterable[RepresentationBatch],
+        *,
+        epoch: int | None = None,
+        effective_lambda: float | None = None,
+        learning_rate: float | None = None,
+        collect_balance: bool = False,
+    ) -> dict[str, float]:
         self.model.train()
         totals: dict[str, float] = {}
         counts: dict[str, int] = {}
-        for batch in batches:
+        epoch_balance_records: list[dict[str, int | float | bool]] = []
+        shared_parameters = self._shared_encoder_parameters() if collect_balance else ()
+        for batch_index, batch in enumerate(batches):
+            next_step = self.step + 1
             self.optimizer.zero_grad(set_to_none=True)
-            terms = self._terms(batch)
+            output, terms = self._forward_terms(
+                batch,
+                effective_lambda_override=effective_lambda,
+            )
+            pending_record: dict[str, int | float | bool] | None = None
+            if collect_balance and epoch is not None and (
+                batch_index == 0
+                or (26 <= epoch <= 30 and next_step % 40 == 0)
+            ):
+                if learning_rate is None:
+                    raise ValueError("Sprint18 diagnostics require the active epoch learning rate")
+                pending_record = self._balance_record(
+                    output,
+                    terms,
+                    epoch=epoch,
+                    global_step=next_step,
+                    learning_rate=learning_rate,
+                    parameters=shared_parameters,
+                )
             joint_loss = terms["joint_loss"]
             if not isinstance(joint_loss, torch.Tensor):
                 raise TypeError("joint_loss must be a tensor")
@@ -109,6 +415,9 @@ class RepresentationTrainer:
                 self.scheduler.step()
             self.model.target_encoder.update(self.model.context_encoder)
             self.step += 1
+            if pending_record is not None:
+                self.objective_balance_history.append(pending_record)
+                epoch_balance_records.append(pending_record)
             for name, value in terms.items():
                 if name in ("loss", "masked_count"):
                     continue
@@ -124,6 +433,11 @@ class RepresentationTrainer:
         if not counts:
             raise ValueError("training epoch received no batches")
         averaged = {name: totals[name] / counts[name] for name in totals}
+        if epoch is not None:
+            averaged["epoch"] = float(epoch)
+        if epoch_balance_records:
+            for name, value in epoch_balance_records[0].items():
+                averaged[f"balance_{name}"] = float(value)
         averaged["step"] = float(self.step)
         self.history.append(averaged)
         return averaged
