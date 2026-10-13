@@ -51,7 +51,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Configured `.gitignore` to ignore `checkpoints/` and `*.pt` binary artifacts.
 
 ### Fixed
-
+- Fixed Sprint 18 Fit-bank/Calibration public inference device placement: `fit_fit_reference_bank` and `score_certified_rows` now co-locate each collated CPU batch onto the deployed model device through a public `RepresentationInference.co_locate_batch` helper, so CUDA-trained models score end to end on the target device.
 - Fixed Sprint 18 experiment samplers to use the frozen representation and N4 order-seed formulas, including the N4 cross-fit history scope.
 - Corrected Sprint 21 pilot program-share calculation and scorer conditioning: IDs now resolve from the pinned robot/program map, and missing serialized indices are rejected without changing the manifest schema.
 - Fixed the Sprint 22 pilot runner's binding checkpoint-size guard by defining its frozen 18,239,321-byte checkpoint size; no pilot contact was authorized.

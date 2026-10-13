@@ -99,8 +99,37 @@ def test_score_batch_never_mutates_the_scoring_bank() -> None:
     inference = RepresentationInference(_StaticModel(), bank, Patchifier(PatchConfig(patch_size=3, stride=2)))
     result = inference.score_batch(_batch())
     assert torch.equal(bank.embeddings, before)
-    # Query [1,0] against restored rows [0,0],[2,0]: mean distance to both is 1.0.
     assert result["S_pop"].item() == pytest.approx(1.0)
+
+
+
+def test_co_locate_batch_moves_tensors_to_model_device_without_mutating_input() -> None:
+    """Public bank/scoring batches must follow the deployed model device (Task72 CUDA defect)."""
+    bank = NormalReferenceBank(k=2).fit(torch.tensor([[0.0, 0.0], [2.0, 0.0]]))
+    model = _StaticModel()
+    inference = RepresentationInference(model, bank, Patchifier(PatchConfig(patch_size=3, stride=2)))
+    batch = {
+        "signals": torch.zeros(1, 2, 4),
+        "file_valid_mask": torch.ones(1, 4, dtype=torch.bool),
+        "starts": torch.tensor([[0, 2]], dtype=torch.int64),
+        "valid_len": torch.tensor([[3, 2]], dtype=torch.int64),
+    }
+    moved = inference.co_locate_batch(batch)  # type: ignore[arg-type]
+    assert all(torch.equal(moved[name], batch[name]) for name in batch if isinstance(batch[name], torch.Tensor))
+    assert batch["signals"].device == torch.device("cpu")
+    model_device = next(model.parameters(), None)
+    if model_device is not None:
+        assert all(
+            value.device == model_device.device
+            for value in moved.values()
+            if isinstance(value, torch.Tensor)
+        )
+    else:
+        assert all(
+            value.device == torch.device("cpu")
+            for value in moved.values()
+            if isinstance(value, torch.Tensor)
+        )
 
 
 def test_timestep_scores_localize_synthetic_spike_deterministically() -> None:

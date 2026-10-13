@@ -104,6 +104,7 @@ class RepresentationInference:
         self.reference_bank = reference_bank
         self.patchifier = patchifier
         self.masking_config = masking_config
+
     def _move_batch(self, batch: RepresentationBatch) -> RepresentationBatch:
         param = next(self.model.parameters(), None)
         if param is None:
@@ -114,6 +115,10 @@ class RepresentationInference:
             if isinstance(value, torch.Tensor) and value.device != target_device:
                 moved[name] = value.to(target_device)
         return moved  # type: ignore[return-value]
+
+    def co_locate_batch(self, batch: RepresentationBatch) -> RepresentationBatch:
+        """Return the batch moved onto the deployed model device (no copy when aligned)."""
+        return self._move_batch(batch)
 
 
     @torch.no_grad()

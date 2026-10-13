@@ -1003,13 +1003,15 @@ def fit_fit_reference_bank(
     if (model_config.n_robots, model_config.n_programs) != (9, 8):
         raise ValueError("bank model conditioning cardinalities differ from the certified roster")
     model.eval()
+    probe_inference = RepresentationInference(model, NormalReferenceBank(k=model_config.knn_k), patchifier)
     embeddings: list[torch.Tensor] = []
     for row in rows:
         seed = deterministic_mask_seed(arm.model_seed, row.actual_history_id, row.file_id)
         batch = collate_variable_files(
             [row.sample], patchifier, masking_config=model_config, masking_seed=seed
         )
-        output = model(cast(dict[str, object], _encoder_batch(batch)))
+        device_batch = cast(dict[str, object], probe_inference.co_locate_batch(cast(dict[str, object], _encoder_batch(batch))))
+        output = model(device_batch)
         vector = output["file_embedding"]
         if vector.shape[0] != 1 or not torch.isfinite(vector).all():
             raise ValueError("Fit embedding is missing or nonfinite")
@@ -1155,7 +1157,7 @@ def score_certified_rows(
         batch = collate_variable_files(
             [row.sample], patchifier, masking_config=model_config, masking_seed=seed
         )
-        clean_batch = cast(dict[str, object], _encoder_batch(batch))
+        clean_batch = cast(dict[str, object], inference.co_locate_batch(cast(dict[str, object], _encoder_batch(batch))))
         scored = inference.score_batch(clean_batch)  # type: ignore[arg-type]
         pred = scored.get("S_pred")
         pop = scored.get("S_pop")
