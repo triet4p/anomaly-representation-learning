@@ -1,16 +1,20 @@
 from __future__ import annotations
 
-from dataclasses import replace
+from dataclasses import dataclass, replace
 import hashlib
 import json
+import math
 from pathlib import Path
+import zipfile
 
 import pytest
 import torch
 from torch import nn
 
 from representation.config import V1Config
+from representation.data import collate_variable_files
 from representation.model import V1RepresentationModel
+from representation.trainer import RepresentationTrainer
 from representation.sprint18_checkpoint import (
     CHECKPOINT_SCHEMA_ID,
     coefficient_for_epoch,
@@ -26,22 +30,32 @@ from representation.sprint18_harness import (
     BATCH_SIZE,
     COMMON_INFO_COEFFICIENT_GRID,
     ARM_REGISTRY,
+    BoundHistory,
+    CertifiedSample,
+    DATA_PERMISSIONS,
     DATA_ROSTER_ID,
     MECHANISM_SPEC_SHA256,
+    MODEL_PERMISSIONS,
     MODEL_SEEDS,
     PROTOCOL_ID,
     PROTOCOL_SHA256,
     RESULT_SCHEMA_ID,
+    RoleName,
     Sprint18ArmConfig,
     Task6Binding,
     arm_spec,
     count_unique_parameters,
     deterministic_sampler_order,
+    fit_calibration_q95,
+    fit_fit_reference_bank,
+    is_verified_healthy,
     load_task6_binding,
+    load_certified_sample_subset,
     make_common_support,
     load_certified_healthy_role_support,
     make_sprint18_arm_config,
     profile_inference_flops,
+    score_certified_rows,
     TASK9_COEFFICIENT_PILOT_EPOCHS,
     validate_arm_config,
     select_common_info_coefficient,
@@ -52,6 +66,16 @@ from representation.sprint18_harness import (
     validate_score_maps,
     validate_sprint18_result,
 )
+from synth.patchify import PatchConfig, Patchifier
+from synth.schema import (
+    AnomalyFamily,
+    AnomalyMeta,
+    DegradationStage,
+    FileSample,
+    RobotHealthState,
+    SampleLabel,
+)
+
 ROOT = Path(__file__).resolve().parents[2]
 HANDOFF = ROOT / "experiments" / "sprint18-task71-certified-data-handoff-S18-ITER-0005-v1.json"
 
@@ -1056,3 +1080,615 @@ def test_task9_selector_rejects_bad_gradient_observations() -> None:
     assert "gradient_ratio_inconsistent" in first_failures
     assert "protocol_gradient_observations_duplicated" in second_failures
     assert "learning_rate_schedule_mismatch" in second_failures
+
+
+# ---------------------------------------------------------------------------
+# Tiny real certified-manifest fixture: loader -> sampler -> model update ->
+# strict checkpoint restore -> Fit bank -> public inference
+# ---------------------------------------------------------------------------
+
+_TINY_FIXTURE_ROW_LENGTH = 224
+_TINY_FIXTURE_GENERATOR = "sprint18-t9-c02-tiny-fixture"
+_TINY_FIXTURE_CONFIG_HASH = "sprint18-t9-c02-tiny-config"
+_TINY_FIXTURE_WINDOWS = {"robot-04": [[2000.0, 3000.0]]}
+_TINY_FIT_HISTORY_IDS = ("S18I-TINY-FIT-01", "S18I-TINY-FIT-02", "S18I-TINY-FIT-03")
+
+
+@dataclass(frozen=True)
+class _TinyHistory:
+    """One tiny certified history: bound manifest metadata plus local artifacts."""
+
+    history: BoundHistory
+    manifest_path: Path
+    shard_paths: dict[str, Path]
+    eligible_ids: tuple[str, ...]
+    excluded_ids: tuple[str, ...]
+
+
+def _tiny_sprint18_model_config(contrastive_weight_max: float) -> V1Config:
+    return V1Config(
+        n_channels=6,
+        patch_size=32,
+        stride=16,
+        d_model=16,
+        attention_heads=4,
+        sequence_layers=1,
+        dropout=0.0,
+        n_robots=9,
+        n_programs=8,
+        seed=MODEL_SEEDS[0],
+        contrastive_weight_max=contrastive_weight_max,
+        ema_decay=0.996,
+    )
+
+
+def _tiny_certified_fixture(root: Path) -> tuple[Task6Binding, dict[str, _TinyHistory]]:
+    """Materialize a tiny real manifest/shard fixture under the certified manifest contract.
+
+    Local proxy for the certified 5,446-row Fit support: three Fit histories, one
+    Design history, and one Calibration history carrying the same observable
+    eligibility fields (file label, quarantine, censoring, reserve identities,
+    maintenance windows) and diagnostic simulator stages as the certified DATA
+    roster.
+    """
+    import numpy as np
+
+    from synth.dataset import _sample_bytes
+
+    def make_sample(
+        file_id: str,
+        *,
+        label: SampleLabel,
+        stage: DegradationStage,
+        robot_idx: int,
+        program_idx: int,
+    ) -> FileSample:
+        steps = np.arange(_TINY_FIXTURE_ROW_LENGTH, dtype=np.float32)
+        signal = np.stack(
+            [
+                np.sin(steps / float(8 + channel)) * (0.4 + 0.05 * channel) + 0.25
+                for channel in range(6)
+            ]
+        ).astype(np.float32)
+        item = FileSample(
+            x=signal,
+            file_id=file_id,
+            file_label=label,
+            seed=32064 + robot_idx,
+            generator_version=_TINY_FIXTURE_GENERATOR,
+            config_hash=_TINY_FIXTURE_CONFIG_HASH,
+            regime_sequence=[],
+            robot_idx=robot_idx,
+            program_idx=program_idx,
+            robot_code=f"R{robot_idx + 1:02d}",
+            program_number=f"P{program_idx + 1:03d}",
+            health=RobotHealthState(
+                health_value=1.0 if stage is DegradationStage.HEALTHY else 0.6,
+                program_sensitivity=1.0,
+                manifested_value=0.0,
+                degradation_stage=stage,
+                degradation_severity=0.0 if stage is DegradationStage.HEALTHY else 0.25,
+                degradation_episode_id=None,
+            ),
+        )
+        if label is SampleLabel.ABNORMAL:
+            item.anomaly_meta = AnomalyMeta(
+                family=AnomalyFamily.EASY_SPIKE,
+                start=16,
+                end=32,
+                severity=0.5,
+                affected_channels=[0],
+            )
+            mask = np.zeros((6, _TINY_FIXTURE_ROW_LENGTH), dtype=bool)
+            mask[0, 16:32] = True
+            item.anomaly_mask = mask
+        item.validate()
+        return item
+
+    def entry(
+        item: FileSample,
+        *,
+        eligible: bool = True,
+        start: float = 0.0,
+        end: float = 3600.0,
+        quarantine: bool = False,
+        censored: bool = False,
+        robot_id: str | None = None,
+        program_id: str | None = None,
+    ) -> tuple[FileSample, dict[str, object], bool]:
+        return (
+            item,
+            {
+                "file_id": item.file_id,
+                "file_label": item.file_label.value,
+                "robot_id": robot_id or f"robot-{item.robot_idx + 1:02d}",
+                "program_id": program_id or f"program-{item.program_idx + 1:02d}",
+                "is_quarantined": quarantine,
+                "is_censored": censored,
+                "start_time": start,
+                "end_time": end,
+                "n_valid_patches": 13,
+            },
+            eligible,
+        )
+
+    def build(
+        history_id: str,
+        role: RoleName,
+        rows: list[tuple[FileSample, dict[str, object], bool]],
+    ) -> _TinyHistory:
+        relative = f"{history_id}/shard-00000.zip"
+        shard_path = root / relative
+        shard_path.parent.mkdir(parents=True, exist_ok=True)
+        with zipfile.ZipFile(shard_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+            for item, _, _ in rows:
+                archive.writestr(f"{item.file_id}.npz", _sample_bytes(item))
+        manifest = {
+            "format": 1,
+            "role": history_id,
+            "protocol": "sprint15-benchmark-protocol-v7",
+            "config_hash": _TINY_FIXTURE_CONFIG_HASH,
+            "files": [manifest_row for _, manifest_row, _ in rows],
+            "shards": [
+                {
+                    "path": relative,
+                    "file_ids": [item.file_id for item, _, _ in rows],
+                    "sha256": hashlib.sha256(shard_path.read_bytes()).hexdigest(),
+                }
+            ],
+            "maintenance_windows": _TINY_FIXTURE_WINDOWS,
+        }
+        manifest_path = root / f"{history_id}.json"
+        manifest_path.write_text(
+            json.dumps(manifest, sort_keys=True, separators=(",", ":")), encoding="utf-8"
+        )
+        return _TinyHistory(
+            history=BoundHistory(
+                assigned_role=role,
+                actual_history_id=history_id,
+                schema_history_id=f"H-TINY-{history_id}",
+                manifest_sha256=hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
+                data_seed=32064,
+                sample_count=len(rows),
+                config_hash=_TINY_FIXTURE_CONFIG_HASH,
+                relative_path=f"tiny-fixture/{role}/{history_id}",
+                data_permitted_use=DATA_PERMISSIONS[role],
+                model_permitted_use=MODEL_PERMISSIONS[role],
+            ),
+            manifest_path=manifest_path,
+            shard_paths={relative: shard_path},
+            eligible_ids=tuple(item.file_id for item, _, eligible in rows if eligible),
+            excluded_ids=tuple(item.file_id for item, _, eligible in rows if not eligible),
+        )
+
+    normal = SampleLabel.NORMAL
+    healthy = DegradationStage.HEALTHY
+    fit_01 = build(
+        "S18I-TINY-FIT-01",
+        "FIT",
+        [
+            entry(make_sample("tiny-fit01-healthy", label=normal, stage=healthy, robot_idx=0, program_idx=0)),
+            entry(make_sample("tiny-fit01-latent-drift", label=normal, stage=DegradationStage.LATENT_DRIFT, robot_idx=1, program_idx=1)),
+            entry(make_sample("tiny-fit01-recommissioned", label=normal, stage=DegradationStage.RECOMMISSIONED, robot_idx=2, program_idx=1)),
+            entry(make_sample("tiny-fit01-window-boundary", label=normal, stage=healthy, robot_idx=3, program_idx=1), start=1500.0, end=2000.0),
+            entry(make_sample("tiny-fit01-quarantined", label=normal, stage=healthy, robot_idx=4, program_idx=1), quarantine=True, eligible=False),
+            entry(make_sample("tiny-fit01-censored", label=normal, stage=healthy, robot_idx=5, program_idx=1), censored=True, eligible=False),
+            entry(make_sample("tiny-fit01-reserve-robot", label=normal, stage=healthy, robot_idx=7, program_idx=1), robot_id="robot-08", eligible=False),
+            entry(make_sample("tiny-fit01-reserve-program", label=normal, stage=healthy, robot_idx=6, program_idx=2), program_id="program-03", eligible=False),
+            entry(make_sample("tiny-fit01-window-overlap", label=normal, stage=healthy, robot_idx=3, program_idx=1), start=2500.0, end=2800.0, eligible=False),
+            entry(make_sample("tiny-fit01-abnormal", label=SampleLabel.ABNORMAL, stage=DegradationStage.OBVIOUS, robot_idx=1, program_idx=0), eligible=False),
+        ],
+    )
+    fit_02 = build(
+        "S18I-TINY-FIT-02",
+        "FIT",
+        [
+            entry(make_sample("tiny-fit02-healthy", label=normal, stage=healthy, robot_idx=0, program_idx=0)),
+            entry(make_sample("tiny-fit02-intermittent", label=normal, stage=DegradationStage.INTERMITTENT, robot_idx=2, program_idx=1)),
+            entry(make_sample("tiny-fit02-latent-drift", label=normal, stage=DegradationStage.LATENT_DRIFT, robot_idx=4, program_idx=0)),
+        ],
+    )
+    fit_03 = build(
+        "S18I-TINY-FIT-03",
+        "FIT",
+        [
+            entry(make_sample("tiny-fit03-healthy-a", label=normal, stage=healthy, robot_idx=1, program_idx=0)),
+            entry(make_sample("tiny-fit03-healthy-b", label=normal, stage=healthy, robot_idx=5, program_idx=1)),
+            entry(make_sample("tiny-fit03-recommissioned", label=normal, stage=DegradationStage.RECOMMISSIONED, robot_idx=4, program_idx=1)),
+        ],
+    )
+    design_01 = build(
+        "S18I-TINY-DESIGN-01",
+        "DESIGN",
+        [
+            entry(make_sample("tiny-design01-healthy", label=normal, stage=healthy, robot_idx=0, program_idx=0)),
+            entry(make_sample("tiny-design01-latent-drift", label=normal, stage=DegradationStage.LATENT_DRIFT, robot_idx=5, program_idx=1)),
+            entry(make_sample("tiny-design01-eligible", label=normal, stage=healthy, robot_idx=1, program_idx=0)),
+            entry(make_sample("tiny-design01-quarantined", label=normal, stage=healthy, robot_idx=3, program_idx=0), quarantine=True, eligible=False),
+        ],
+    )
+    calibration_01 = build(
+        "S18I-TINY-CAL-01",
+        "CALIBRATION",
+        [
+            entry(make_sample("tiny-cal01-healthy-a", label=normal, stage=healthy, robot_idx=0, program_idx=0)),
+            entry(make_sample("tiny-cal01-healthy-b", label=normal, stage=healthy, robot_idx=1, program_idx=1)),
+            entry(make_sample("tiny-cal01-latent-drift", label=normal, stage=DegradationStage.LATENT_DRIFT, robot_idx=6, program_idx=0)),
+            entry(make_sample("tiny-cal01-recommissioned", label=normal, stage=DegradationStage.RECOMMISSIONED, robot_idx=2, program_idx=0)),
+            entry(make_sample("tiny-cal01-censored", label=normal, stage=healthy, robot_idx=4, program_idx=0), censored=True, eligible=False),
+        ],
+    )
+    catalog = (fit_01, fit_02, fit_03, design_01, calibration_01)
+    binding = Task6Binding(
+        candidate_id="S18-T9-C02-TINY",
+        data_root_relative="tiny-fixture",
+        handoff_sha256=_hash("tiny-handoff"),
+        data_binding_raw_sha256=_hash("tiny-raw"),
+        data_binding_canonical_sha256=_hash("tiny-canonical"),
+        whole16_certification_sha256=_hash("tiny-whole16"),
+        qualification_record_sha256=_hash("tiny-qualification"),
+        manifest_aggregate_sha256=_hash("tiny-aggregate"),
+        protocol_sha256=PROTOCOL_SHA256,
+        mechanism_spec_sha256=MECHANISM_SPEC_SHA256,
+        histories=tuple(item.history for item in catalog),
+        fit_healthy_rows=sum(len(item.eligible_ids) for item in (fit_01, fit_02, fit_03)),
+        calibration_healthy_rows=len(calibration_01.eligible_ids),
+        executable_binding_sha256=_hash("tiny-binding"),
+    )
+    return binding, {item.history.actual_history_id: item for item in catalog}
+
+
+def _tiny_loader_support(
+    binding: Task6Binding, histories: dict[str, _TinyHistory]
+) -> list[CertifiedSample]:
+    """Load the complete eligible tiny Fit support through the public role loader."""
+    rows: list[CertifiedSample] = []
+    for history_id in _TINY_FIT_HISTORY_IDS:
+        item = histories[history_id]
+        loaded = load_certified_healthy_role_support(
+            binding,
+            item.history.actual_history_id,
+            item.manifest_path,
+            item.shard_paths,
+            action="train_fit",
+        )
+        assert tuple(row.file_id for row in loaded) == item.eligible_ids
+        rows.extend(loaded)
+    return rows
+
+
+def test_certified_healthy_loader_retains_eligible_stages_and_applies_hygiene(tmp_path) -> None:
+    binding, histories = _tiny_certified_fixture(tmp_path)
+    fit_01 = histories["S18I-TINY-FIT-01"]
+    rows = load_certified_healthy_role_support(
+        binding,
+        fit_01.history.actual_history_id,
+        fit_01.manifest_path,
+        fit_01.shard_paths,
+        action="train_fit",
+    )
+    assert tuple(row.file_id for row in rows) == fit_01.eligible_ids
+    assert all(is_verified_healthy(row) for row in rows)
+    stages: dict[str, DegradationStage] = {}
+    for row in rows:
+        assert row.sample.health is not None
+        stages[row.file_id] = row.sample.health.degradation_stage
+    # Eligible normal rows are retained whatever the diagnostic simulator stage is.
+    assert stages["tiny-fit01-healthy"] is DegradationStage.HEALTHY
+    assert stages["tiny-fit01-latent-drift"] is DegradationStage.LATENT_DRIFT
+    assert stages["tiny-fit01-recommissioned"] is DegradationStage.RECOMMISSIONED
+    # The frozen maintenance predicate is a strict overlap: boundary contact stays eligible.
+    assert stages["tiny-fit01-window-boundary"] is DegradationStage.HEALTHY
+    loaded_ids = {row.file_id for row in rows}
+    for excluded in (
+        "tiny-fit01-quarantined",
+        "tiny-fit01-censored",
+        "tiny-fit01-reserve-robot",
+        "tiny-fit01-reserve-program",
+        "tiny-fit01-window-overlap",
+    ):
+        assert excluded in fit_01.excluded_ids
+        assert excluded not in loaded_ids
+    # Role custody: Fit histories cannot select coefficients; Design cannot train Fit.
+    with pytest.raises(ValueError, match="not authorized"):
+        load_certified_healthy_role_support(
+            binding,
+            fit_01.history.actual_history_id,
+            fit_01.manifest_path,
+            fit_01.shard_paths,
+            action="select_coefficients",
+        )
+    design_01 = histories["S18I-TINY-DESIGN-01"]
+    with pytest.raises(ValueError, match="not authorized"):
+        load_certified_healthy_role_support(
+            binding,
+            design_01.history.actual_history_id,
+            design_01.manifest_path,
+            design_01.shard_paths,
+            action="train_fit",
+        )
+    design_rows = load_certified_healthy_role_support(
+        binding,
+        design_01.history.actual_history_id,
+        design_01.manifest_path,
+        design_01.shard_paths,
+        action="select_coefficients",
+    )
+    assert tuple(row.file_id for row in design_rows) == design_01.eligible_ids
+    # Requesting an abnormal row for a healthy action fails closed instead of loading it.
+    with pytest.raises(ValueError, match="non-normal-label rows"):
+        load_certified_sample_subset(
+            binding,
+            fit_01.history.actual_history_id,
+            fit_01.manifest_path,
+            fit_01.shard_paths,
+            ["tiny-fit01-abnormal"],
+            role_action="train_fit",
+        )
+    # Calibration eligibility uses the same observable predicate (censored row excluded).
+    calibration_01 = histories["S18I-TINY-CAL-01"]
+    calibration_rows = load_certified_sample_subset(
+        binding,
+        calibration_01.history.actual_history_id,
+        calibration_01.manifest_path,
+        calibration_01.shard_paths,
+        calibration_01.eligible_ids + calibration_01.excluded_ids,
+        role_action="calibrate_q95",
+        verify_all_shards=True,
+    )
+    assert tuple(row.file_id for row in calibration_rows) == calibration_01.eligible_ids
+
+
+def test_task9_tiny_public_loader_sampler_training_and_pilot_checkpoint_cohere(tmp_path) -> None:
+    binding, histories = _tiny_certified_fixture(tmp_path)
+    fit_ids = tuple(
+        histories[history_id].history.actual_history_id for history_id in _TINY_FIT_HISTORY_IDS
+    )
+    fit_rows = _tiny_loader_support(binding, histories)
+    eligible_ids = [row.file_id for row in fit_rows]
+    assert len(fit_rows) == binding.fit_healthy_rows == 10
+    pilot = make_sprint18_arm_config(
+        "B0-FULL",
+        MODEL_SEEDS[0],
+        {"lambda_info_max": 0.05, "lambda_hcc_max": None, "alpha": None, "beta": None},
+        selection_state="coefficient_pilot",
+    )
+    _, epoch_one_order = deterministic_sampler_order(
+        binding,
+        pilot,
+        workload="representation",
+        scope="coefficient_pilot",
+        role_history_ids=fit_ids,
+        epoch=1,
+        eligible_source_ids=eligible_ids,
+    )
+    # The loader's exact support is what the Task9 pilot sampler consumes.
+    assert len(epoch_one_order) == binding.fit_healthy_rows
+    assert set(epoch_one_order) == set(eligible_ids)
+    config = _tiny_sprint18_model_config(0.05)
+    patchifier = Patchifier(PatchConfig(patch_size=32, stride=16, pad_end=True))
+    model = V1RepresentationModel(config, patchifier=patchifier)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate_for_epoch(1), weight_decay=0.0)
+    trainer = RepresentationTrainer(model, optimizer=optimizer, max_grad_norm=1.0, seed=MODEL_SEEDS[0])
+    initialization_sha256 = state_sha256(model.state_dict())
+    by_id = {row.file_id: row for row in fit_rows}
+    batch = collate_variable_files(
+        [by_id[file_id].sample for file_id in epoch_one_order],
+        patchifier,
+        masking_config=config,
+        masking_seed=181801,
+    )
+    metrics = trainer.train_sprint18_epoch([batch], arm=pilot, epoch=1)
+    assert trainer.step == 1
+    assert metrics["epoch"] == 1.0 and metrics["step"] == 1.0
+    balance = trainer.objective_balance_history[-1]
+    assert balance["global_step"] == 1
+    assert balance["effective_coefficient_L_info"] == 0.0  # epoch-1 zero warmup
+    # Strict Task9-pilot checkpoint/restore bound to the exact loaded support.
+    for group in optimizer.param_groups:
+        group["lr"] = learning_rate_for_epoch(2)
+    sampler_seed, next_order = deterministic_sampler_order(
+        binding,
+        pilot,
+        workload="representation",
+        scope="coefficient_pilot",
+        role_history_ids=fit_ids,
+        epoch=2,
+        eligible_source_ids=eligible_ids,
+    )
+    ordered_ids = sorted(eligible_ids)
+    sampler_state = {
+        "scope": "coefficient_pilot",
+        "workload": "representation",
+        "role_history_ids": list(fit_ids),
+        "role_manifest_sha256": [
+            binding.history(history_id).manifest_sha256 for history_id in fit_ids
+        ],
+        "eligible_source_ids": ordered_ids,
+        "eligible_source_ids_sha256": _canonical_digest(ordered_ids),
+        "sampler_epoch_seed": sampler_seed,
+        "epoch_order_ids": list(next_order),
+        "epoch_order_ids_sha256": _canonical_digest(list(next_order)),
+        "eligible_rows": len(ordered_ids),
+        "batch_size": BATCH_SIZE,
+        "batches_per_epoch": (len(ordered_ids) + BATCH_SIZE - 1) // BATCH_SIZE,
+        "completed_epochs": 1,
+        "current_epoch": 2,
+        "batches_in_current_epoch": 0,
+        "fit_role_sha256": _canonical_digest(
+            sorted(item.manifest_sha256 for item in binding.role_histories("FIT"))
+        ),
+    }
+    checkpoint_path = tmp_path / "tiny-task9-pilot.pt"
+    digest = save_sprint18_checkpoint(
+        checkpoint_path,
+        model,
+        optimizer,
+        arm=pilot,
+        binding=binding,
+        global_step=1,
+        completed_epoch=1,
+        initialization_sha256=initialization_sha256,
+        scheduler_state={
+            "scheduler_id": "sprint18-epoch-lr-v2",
+            "completed_epochs": 1,
+            "active_epoch": 2,
+            "learning_rate": learning_rate_for_epoch(2),
+            "global_step": 1,
+        },
+        sampler_state=sampler_state,
+        coefficient_state={
+            "epoch": 2,
+            "global_step": 1,
+            "selection_state": "coefficient_pilot",
+            "lambda_info": coefficient_for_epoch(0.05, 2),
+            "lambda_hcc": None,
+            "alpha": None,
+            "beta": None,
+        },
+        scope="coefficient_pilot",
+    )
+    restored_model = V1RepresentationModel(config, patchifier=patchifier)
+    restored_optimizer = torch.optim.AdamW(
+        restored_model.parameters(), lr=learning_rate_for_epoch(2), weight_decay=0.0
+    )
+    restored = restore_sprint18_checkpoint(
+        checkpoint_path,
+        restored_model,
+        restored_optimizer,
+        arm=pilot,
+        binding=binding,
+        allowed_scope="coefficient_pilot",
+    )
+    assert restored.checkpoint_sha256 == digest
+    assert restored.checkpoint_kind == "coefficient_pilot" and restored.scope == "coefficient_pilot"
+    assert restored.global_step == 1 and restored.representation_step == 1
+    assert state_sha256(restored_model.state_dict()) == state_sha256(model.state_dict())
+
+
+def test_task9_tiny_public_bank_and_inference_score_loader_support(tmp_path) -> None:
+    binding, histories = _tiny_certified_fixture(tmp_path)
+    fit_rows = _tiny_loader_support(binding, histories)
+    assert len(fit_rows) == binding.fit_healthy_rows == 10
+    config = _tiny_sprint18_model_config(0.025)
+    patchifier = Patchifier(PatchConfig(patch_size=32, stride=16, pad_end=True))
+    model = V1RepresentationModel(config, patchifier=patchifier)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate_for_epoch(1), weight_decay=0.0)
+    smoke_arm = make_sprint18_arm_config(
+        "B0-FULL",
+        MODEL_SEEDS[0],
+        {"lambda_info_max": 0.025, "lambda_hcc_max": None, "alpha": None, "beta": None},
+        selection_state="task6_smoke_only",
+    )
+    fit_01 = histories["S18I-TINY-FIT-01"]
+    smoke_batch_size = len(fit_01.eligible_ids)
+    smoke_seed, smoke_order = deterministic_sampler_order(
+        binding,
+        smoke_arm,
+        workload="representation",
+        scope="task6_smoke_only",
+        role_history_ids=[fit_01.history.actual_history_id],
+        epoch=1,
+        eligible_source_ids=fit_01.eligible_ids,
+    )
+    checkpoint_path = tmp_path / "tiny-task9-smoke.pt"
+    digest = save_sprint18_checkpoint(
+        checkpoint_path,
+        model,
+        optimizer,
+        arm=smoke_arm,
+        binding=binding,
+        global_step=0,
+        completed_epoch=0,
+        initialization_sha256=state_sha256(model.state_dict()),
+        scheduler_state={
+            "scheduler_id": "sprint18-epoch-lr-v2",
+            "completed_epochs": 0,
+            "active_epoch": 1,
+            "learning_rate": learning_rate_for_epoch(1),
+            "global_step": 0,
+        },
+        sampler_state={
+            "scope": "task6_smoke_only",
+            "workload": "representation",
+            "role_history_ids": [fit_01.history.actual_history_id],
+            "role_manifest_sha256": [fit_01.history.manifest_sha256],
+            "eligible_source_ids": sorted(fit_01.eligible_ids),
+            "eligible_source_ids_sha256": _canonical_digest(sorted(fit_01.eligible_ids)),
+            "sampler_epoch_seed": smoke_seed,
+            "epoch_order_ids": list(smoke_order),
+            "epoch_order_ids_sha256": _canonical_digest(list(smoke_order)),
+            "eligible_rows": smoke_batch_size,
+            "batch_size": smoke_batch_size,
+            "batches_per_epoch": math.ceil(len(fit_01.eligible_ids) / smoke_batch_size),
+            "completed_epochs": 0,
+            "current_epoch": 1,
+            "batches_in_current_epoch": 0,
+            "fit_role_sha256": _canonical_digest(
+                sorted(item.manifest_sha256 for item in binding.role_histories("FIT"))
+            ),
+        },
+        coefficient_state={
+            "epoch": 1,
+            "global_step": 0,
+            "selection_state": "task6_smoke_only",
+            "lambda_info": coefficient_for_epoch(0.025, 1),
+            "lambda_hcc": None,
+            "alpha": None,
+            "beta": None,
+        },
+        scope="task6_smoke_only",
+    )
+    restored_model = V1RepresentationModel(config, patchifier=patchifier)
+    restored_optimizer = torch.optim.AdamW(
+        restored_model.parameters(), lr=learning_rate_for_epoch(1), weight_decay=0.0
+    )
+    restored = restore_sprint18_checkpoint(
+        checkpoint_path,
+        restored_model,
+        restored_optimizer,
+        arm=smoke_arm,
+        binding=binding,
+        allowed_scope="task6_smoke_only",
+    )
+    assert restored.checkpoint_sha256 == digest
+    bank = fit_fit_reference_bank(
+        binding,
+        smoke_arm,
+        restored_model,
+        fit_rows,
+        patchifier,
+        checkpoint=restored,
+        scope="task6_smoke_only",
+    )
+    assert bank.provenance.source_rows == len(fit_rows) == binding.fit_healthy_rows
+    calibration_01 = histories["S18I-TINY-CAL-01"]
+    calibration_rows = load_certified_sample_subset(
+        binding,
+        calibration_01.history.actual_history_id,
+        calibration_01.manifest_path,
+        calibration_01.shard_paths,
+        calibration_01.eligible_ids + calibration_01.excluded_ids,
+        role_action="calibrate_q95",
+        verify_all_shards=True,
+    )
+    assert tuple(row.file_id for row in calibration_rows) == calibration_01.eligible_ids
+    scores = score_certified_rows(
+        binding,
+        smoke_arm,
+        restored_model,
+        bank,
+        calibration_rows,
+        patchifier,
+        checkpoint=restored,
+        action="calibrate_q95",
+        scope="task6_smoke_only",
+    )
+    assert set(scores.scores["S_pred"]) == set(calibration_01.eligible_ids)
+    assert set(scores.scores["S_pop"]) == set(calibration_01.eligible_ids)
+    calibration = fit_calibration_q95(
+        binding, scores, calibration_rows, scope="task6_smoke_only"
+    )
+    assert calibration.S_pred.quantile == 0.95
+    assert calibration.S_pred.source_rows == len(calibration_01.eligible_ids)
+    assert math.isfinite(calibration.S_pred.threshold) and math.isfinite(calibration.S_pop.threshold)

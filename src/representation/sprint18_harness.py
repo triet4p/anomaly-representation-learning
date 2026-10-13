@@ -30,10 +30,13 @@ from representation.config import V1Config
 from representation.data import collate_variable_files
 from representation.inference import NormalReferenceBank, RepresentationInference
 from representation.model import V1RepresentationModel
+from synth.balanced import PROGRAM_RESERVE, ROBOT_RESERVE
 from synth.config import PatchConfig
 from synth.dataset import load_sample_bytes
+#: Frozen maintenance-overlap predicate shared with the certified qualification code.
+from synth.events import _overlaps_maintenance
 from synth.patchify import Patchifier
-from synth.schema import DegradationStage, FileSample, SampleLabel
+from synth.schema import FileSample, SampleLabel
 
 PROTOCOL_ID = "sprint18-full-training-protocol-v2"
 PROTOCOL_SHA256 = "e1dcd17914e920520ad0d8f50e185874b95414e6a4fe907903619daf145622d2"
@@ -580,6 +583,40 @@ def load_task6_binding(handoff_path: str | Path) -> Task6Binding:
     )
 
 
+def _maintenance_windows(manifest: Mapping[str, object]) -> Mapping[str, Sequence[Sequence[float]]]:
+    """Return the certified manifest's maintenance-window table or fail closed."""
+    windows = manifest.get("maintenance_windows")
+    if not isinstance(windows, dict):
+        raise ValueError("source manifest is missing its maintenance-window table")
+    return cast("Mapping[str, Sequence[Sequence[float]]]", windows)
+
+
+def _is_eligible_healthy_row(
+    row: Mapping[str, object],
+    windows: Mapping[str, Sequence[Sequence[float]]] | None = None,
+) -> bool:
+    """Frozen observable healthy eligibility; simulator health stays diagnostic-only.
+
+    Implements the certified qualification predicate inherited from the Sprint 17
+    B0 lineage and ``sprint18_task5_measurability.healthy_features``: normal
+    file label, no quarantine or censoring, no reserved robot/program identity,
+    and — when the manifest windows are supplied — no maintenance-window
+    overlap. The simulator degradation stage is never consulted.
+    """
+    if row.get("file_label") != "normal":
+        return False
+    if row.get("is_quarantined") or row.get("is_censored"):
+        return False
+    if row.get("program_id") == PROGRAM_RESERVE or row.get("robot_id") == ROBOT_RESERVE:
+        return False
+    if windows is None:
+        return True
+    return not _overlaps_maintenance(
+        cast("dict[str, object]", row),
+        cast("dict[str, list[list[float]]]", windows),
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class CertifiedSample:
     """A single NPZ row verified against a certified role manifest and shard digest."""
@@ -597,12 +634,8 @@ class CertifiedSample:
 
     @property
     def is_verified_healthy(self) -> bool:
-        health = self.sample.health
-        return (
-            self.sample.file_label == SampleLabel.NORMAL
-            and health is not None
-            and health.degradation_stage == DegradationStage.HEALTHY
-        )
+        """Normal NPZ label plus the frozen observable manifest eligibility."""
+        return self.sample.file_label == SampleLabel.NORMAL and _is_eligible_healthy_row(self.manifest_row)
 
 
 def _sha256_file(path: Path) -> str:
@@ -674,10 +707,10 @@ def load_certified_sample_subset(
     if any(file_id not in file_by_id for file_id in requested):
         raise ValueError("requested source rows are not bound by the certified role manifest")
 
-    if role_action in ("train_fit", "select_coefficients") and any(
+    if role_action is not None and any(
         file_by_id[file_id].get("file_label") != "normal" for file_id in requested
     ):
-        raise ValueError("healthy Fit/Design actions cannot load non-normal-label rows")
+        raise ValueError("healthy role actions cannot load non-normal-label rows")
     selected_shards = {cast(str, shard_by_id[file_id]["path"]) for file_id in requested}
     all_shards = set(shard_by_path)
     expected_path_keys = all_shards if verify_all_shards else selected_shards
@@ -730,8 +763,9 @@ def load_certified_sample_subset(
         for archive in archive_by_shard.values():
             archive.close()
 
-    if role_action in ("train_fit", "select_coefficients"):
-        rows = [row for row in rows if is_verified_healthy(row)]
+    if role_action is not None:
+        windows = _maintenance_windows(manifest)
+        rows = [row for row in rows if _is_eligible_healthy_row(row.manifest_row, windows)]
         if not rows:
             raise ValueError("certified subset has no verified-healthy rows")
     return tuple(rows)
@@ -764,7 +798,9 @@ def load_certified_healthy_role_support(
     files = manifest.get("files")
     if not isinstance(files, list) or len(files) != history.sample_count:
         raise ValueError("source manifest file support differs from the certified role binding")
-    normal_ids: list[str] = []
+    windows = _maintenance_windows(manifest)
+    normal_count = 0
+    eligible_ids: list[str] = []
     seen_file_ids: set[str] = set()
     for row in files:
         if not isinstance(row, dict) or not isinstance(row.get("file_id"), str):
@@ -776,23 +812,27 @@ def load_certified_healthy_role_support(
         label = row.get("file_label")
         if label not in ("normal", "abnormal"):
             raise ValueError("source manifest contains an unknown label value")
-        if label == "normal":
-            normal_ids.append(file_id)
-    if not normal_ids:
+        if label != "normal":
+            continue
+        normal_count += 1
+        if _is_eligible_healthy_row(row, windows):
+            eligible_ids.append(file_id)
+    if normal_count == 0:
         raise ValueError("certified role has no normal-label rows to qualify for healthy support")
+    if not eligible_ids:
+        raise ValueError("certified role has no eligible healthy rows after hygiene qualification")
     loaded = load_certified_sample_subset(
         binding,
         actual_history_id,
         manifest_path,
         shard_paths,
-        normal_ids,
+        eligible_ids,
         role_action=action,
         verify_all_shards=True,
     )
-    healthy = tuple(row for row in loaded if is_verified_healthy(row))
-    if not healthy:
-        raise ValueError("certified role has no verified-healthy rows")
-    return healthy
+    if len(loaded) != len(eligible_ids):
+        raise ValueError("certified healthy support differs from its manifest qualification")
+    return loaded
 
 
 def validate_role_permission(
@@ -819,7 +859,7 @@ def validate_role_permission(
 
 
 def is_verified_healthy(row: CertifiedSample) -> bool:
-    """Use only the frozen normal-label plus latent-healthy eligibility predicate."""
+    """Use the frozen observable eligibility predicate; simulator health stays diagnostic."""
     return row.is_verified_healthy
 
 
