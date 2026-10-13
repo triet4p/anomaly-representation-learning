@@ -27,20 +27,24 @@ from synth.schema import FileSample
 def make_contrastive_views(
     sample: FileSample,
     cfg: ContrastiveConfig,
-    rng: np.random.Generator,
+    rng: np.random.Generator | tuple[np.random.Generator, np.random.Generator],
 ) -> tuple[npt.NDArray[np.float32], npt.NDArray[np.float32]]:
     """
     Create two augmented views of sample.x.
 
-    Returns (view1, view2) each as float32 [C, T].
-    Both views share the same anomaly semantics as the original.
+    A single generator preserves the ordinary stateful API. A generator pair
+    gives each view its own deterministic stream for the Sprint 18 contract.
+    Both modes use the same augmentation algorithm and preserve sample semantics.
     """
     x = sample.x.astype(np.float64)  # [C, T]
-    C, T = x.shape
-
-    view1 = _augment(x, cfg, rng)
-    view2 = _augment(x, cfg, rng)
-
+    if isinstance(rng, tuple):
+        if len(rng) != 2 or any(not isinstance(item, np.random.Generator) for item in rng):
+            raise ValueError("independent contrastive views require exactly two NumPy generators")
+        rng_view_1, rng_view_2 = rng
+    else:
+        rng_view_1 = rng_view_2 = rng
+    view1 = _augment(x, cfg, rng_view_1)
+    view2 = _augment(x, cfg, rng_view_2)
     return view1.astype(np.float32), view2.astype(np.float32)
 
 

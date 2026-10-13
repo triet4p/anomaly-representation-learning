@@ -92,8 +92,13 @@ class RepresentationTrainer:
         batch: RepresentationBatch,
         *,
         effective_lambda_override: float | None = None,
+        sprint18_view_epoch: int | None = None,
     ) -> tuple[Mapping[str, object], dict[str, torch.Tensor | float | int]]:
-        output = self.model(self._move_batch(batch))
+        moved = self._move_batch(batch)
+        if sprint18_view_epoch is None:
+            output = self.model(moved)
+        else:
+            output = self.model(moved, sprint18_view_epoch=sprint18_view_epoch)
         terms = self.criterion(
             output,
             step=self.step,
@@ -292,11 +297,26 @@ class RepresentationTrainer:
             coefficient_for_epoch,
             learning_rate_for_epoch,
         )
-        from representation.sprint18_harness import validate_arm_config
+        from representation.sprint18_harness import (
+            TASK9_COEFFICIENT_PILOT_EPOCHS,
+            validate_arm_config,
+        )
 
         validate_arm_config(arm, require_locked=(arm.selection_state == "locked"))
         if arm.arm_id != "B0-FULL":
             raise ValueError("Task8 instrumentation currently supports the implemented B0-FULL path")
+        if arm.selection_state == "coefficient_pilot" and (
+            isinstance(epoch, bool)
+            or not isinstance(epoch, int)
+            or not 1 <= epoch <= TASK9_COEFFICIENT_PILOT_EPOCHS
+        ):
+            raise ValueError("Task9 coefficient pilots must stop at the frozen epoch-30 full-ramp checkpoint")
+        if (
+            arm.selection_state == "coefficient_pilot"
+            and arm.lambda_info_max != 0.0
+            and not collect_balance
+        ):
+            raise ValueError("Task9 coefficient pilots require objective-balance diagnostics")
         if self.scheduler is not None:
             raise ValueError("Sprint18 uses a constant-within-epoch LR; pass no step scheduler")
         if not isinstance(self.optimizer, torch.optim.AdamW):
@@ -363,6 +383,7 @@ class RepresentationTrainer:
             effective_lambda=effective_lambda,
             learning_rate=learning_rate,
             collect_balance=collect_balance,
+            sprint18_view_epoch=epoch,
         )
 
     def _run_epoch(
@@ -373,6 +394,7 @@ class RepresentationTrainer:
         effective_lambda: float | None = None,
         learning_rate: float | None = None,
         collect_balance: bool = False,
+        sprint18_view_epoch: int | None = None,
     ) -> dict[str, float]:
         self.model.train()
         totals: dict[str, float] = {}
@@ -385,6 +407,7 @@ class RepresentationTrainer:
             output, terms = self._forward_terms(
                 batch,
                 effective_lambda_override=effective_lambda,
+                sprint18_view_epoch=sprint18_view_epoch,
             )
             pending_record: dict[str, int | float | bool] | None = None
             if collect_balance and epoch is not None and (

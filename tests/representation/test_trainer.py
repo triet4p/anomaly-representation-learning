@@ -442,7 +442,7 @@ def test_resume_start_epoch_derivation_and_clean_skip() -> None:
     assert len(remaining_epochs) == 0  # Clean skip!
 
 
-def _sprint18_training_fixture():
+def _sprint18_training_fixture(*, coefficient: float = 0.025, pilot: bool = False):
     import numpy as np
     from representation.data import collate_variable_files
     from representation.sprint18_harness import make_sprint18_arm_config
@@ -459,7 +459,7 @@ def _sprint18_training_fixture():
         n_robots=9,
         n_programs=8,
         seed=181801,
-        contrastive_weight_max=0.025,
+        contrastive_weight_max=coefficient,
         ema_decay=0.996,
     )
     patchifier = Patchifier(PatchConfig(patch_size=32, stride=16, pad_end=True))
@@ -491,12 +491,12 @@ def _sprint18_training_fixture():
         "B0-FULL",
         181801,
         {
-            "lambda_info_max": 0.025,
+            "lambda_info_max": coefficient,
             "lambda_hcc_max": None,
             "alpha": None,
             "beta": None,
         },
-        selection_state="task6_smoke_only",
+        selection_state="coefficient_pilot" if pilot else "task6_smoke_only",
     )
     model = V1RepresentationModel(config, patchifier=patchifier)
     optimizer = torch.optim.AdamW(model.parameters(), lr=1.5e-3, weight_decay=0.0)
@@ -647,3 +647,48 @@ def test_sprint18_instrumentation_preserves_real_update_and_rng_at_balance_step(
         trainer_with.optimizer.state_dict()
     )
     assert state_sha256(without_rng) == state_sha256(with_rng)
+
+
+def test_task9_pilot_uses_full_warmup_ramp_and_stops_at_epoch_30() -> None:
+    from representation.sprint18_harness import (
+        TASK9_COEFFICIENT_PILOT_EPOCHS,
+        make_sprint18_arm_config,
+    )
+
+    trainer, smoke_arm, batch = _sprint18_training_fixture()
+    pilot = make_sprint18_arm_config(
+        "B0-FULL",
+        smoke_arm.model_seed,
+        {
+            "lambda_info_max": smoke_arm.lambda_info_max,
+            "lambda_hcc_max": None,
+            "alpha": None,
+            "beta": None,
+        },
+        selection_state="coefficient_pilot",
+    )
+    with pytest.raises(ValueError, match="require objective-balance diagnostics"):
+        trainer.train_sprint18_epoch(
+            [batch], arm=pilot, epoch=1, collect_balance=False
+        )
+    for epoch in range(1, TASK9_COEFFICIENT_PILOT_EPOCHS + 1):
+        trainer.train_sprint18_epoch([batch], arm=pilot, epoch=epoch)
+    assert trainer.step == TASK9_COEFFICIENT_PILOT_EPOCHS
+    assert len(trainer.objective_balance_history) == TASK9_COEFFICIENT_PILOT_EPOCHS
+    warmup = trainer.objective_balance_history[0]
+    full_ramp = trainer.objective_balance_history[-1]
+    assert warmup["effective_coefficient_L_info"] == 0.0
+    assert full_ramp["effective_coefficient_L_info"] == pilot.lambda_info_max
+    assert full_ramp["raw_L_info"] > 0.0
+    assert full_ramp["weighted_L_info"] > 0.0
+    with pytest.raises(ValueError, match="stop at the frozen epoch-30"):
+        trainer.train_sprint18_epoch([batch], arm=pilot, epoch=31)
+    baseline_trainer, baseline_arm, baseline_batch = _sprint18_training_fixture(
+        coefficient=0.0, pilot=True
+    )
+    baseline_trainer.train_sprint18_epoch(
+        [baseline_batch], arm=baseline_arm, epoch=1, collect_balance=False
+    )
+    assert baseline_arm.lambda_info_max == 0.0
+    assert baseline_trainer.step == 1
+    assert baseline_trainer.objective_balance_history == []

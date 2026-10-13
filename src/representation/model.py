@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from hashlib import sha256
 
 import numpy as np
 import torch
@@ -14,6 +15,25 @@ from representation.layers import ConditionalBatchNorm, EMATargetEncoder, LocalP
 from synth.config import ContrastiveConfig, PatchConfig
 from synth.contrastive import make_contrastive_views
 from synth.patchify import Patchifier
+
+def _sprint18_view_rng(model_seed: int, epoch: int, file_id: str, view_index: int) -> np.random.Generator:
+    """Create the frozen per-file, per-view Sprint 18 augmentation stream."""
+    if (
+        isinstance(model_seed, bool)
+        or not isinstance(model_seed, int)
+        or isinstance(epoch, bool)
+        or not isinstance(epoch, int)
+        or not 1 <= epoch <= 100
+        or not isinstance(file_id, str)
+        or not file_id
+        or isinstance(view_index, bool)
+        or not isinstance(view_index, int)
+        or view_index not in (0, 1)
+    ):
+        raise ValueError("Sprint18 view randomness requires a valid seed, epoch, file, and view index")
+    key = f"sprint18-view-v1|{model_seed}|{epoch}|{file_id}|{view_index}"
+    seed = int.from_bytes(sha256(key.encode("utf-8")).digest()[:8], "big") % (2**63 - 1)
+    return np.random.default_rng(seed)
 
 
 class V1RepresentationModel(nn.Module):
@@ -128,6 +148,8 @@ class V1RepresentationModel(nn.Module):
         self,
         batch: RepresentationBatch,
         norm_result: dict[str, torch.Tensor] | None = None,
+        *,
+        sprint18_view_epoch: int | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor] | None:
         samples = batch.get("file_samples")
         if samples is None:
@@ -144,10 +166,28 @@ class V1RepresentationModel(nn.Module):
             if "program_idx" in batch and isinstance(batch["program_idx"], torch.Tensor):
                 norm_inputs["program_idx"] = batch["program_idx"]
             norm_result = self.conditional_norm(norm_inputs)
-        generated: list[tuple[object, object]] = [
-            make_contrastive_views(sample, self.contrastive_config, self._view_rng)
-            for sample in samples
-        ]
+        if sprint18_view_epoch is None:
+            generated = [
+                make_contrastive_views(sample, self.contrastive_config, self._view_rng)
+                for sample in samples
+            ]
+        else:
+            if isinstance(sprint18_view_epoch, bool) or not isinstance(sprint18_view_epoch, int) or not 1 <= sprint18_view_epoch <= 100:
+                raise ValueError("Sprint18 view epoch must be in [1, 100]")
+            file_ids = [sample.file_id for sample in samples]
+            if len(set(file_ids)) != len(file_ids):
+                raise ValueError("Sprint18 view batches require unique canonical file IDs")
+            generated = [
+                make_contrastive_views(
+                    sample,
+                    self.contrastive_config,
+                    (
+                        _sprint18_view_rng(self.config.seed, sprint18_view_epoch, sample.file_id, 0),
+                        _sprint18_view_rng(self.config.seed, sprint18_view_epoch, sample.file_id, 1),
+                    ),
+                )
+                for sample in samples
+            ]
         embeddings: list[list[torch.Tensor]] = [[], []]
         for view_index in range(2):
             patch_batches = [
@@ -201,8 +241,13 @@ class V1RepresentationModel(nn.Module):
             pooled = self._pool_file(contextual, valid, view_weights)
             embeddings[view_index].append(self.project_contrastive(pooled))
         return torch.cat(embeddings[0], dim=0), torch.cat(embeddings[1], dim=0)
-    def forward(self, batch: RepresentationBatch) -> RepresentationOutput:
-        """Return context, stop-gradient target, prediction, and file latents."""
+    def forward(
+        self,
+        batch: RepresentationBatch,
+        *,
+        sprint18_view_epoch: int | None = None,
+    ) -> RepresentationOutput:
+        """Return representation outputs, optionally using a frozen Sprint18 view epoch."""
         validate_batch(batch)
         patches = batch["patches"]
         norm_result = None
@@ -242,7 +287,11 @@ class V1RepresentationModel(nn.Module):
         }
         if norm_result is not None:
             output["normalization"] = norm_result
-        views = self._view_embeddings(batch, norm_result=norm_result)
+        views = self._view_embeddings(
+            batch,
+            norm_result=norm_result,
+            sprint18_view_epoch=sprint18_view_epoch,
+        )
         if views is not None:
             output["view_embedding_1"], output["view_embedding_2"] = views
         validate_output(output)

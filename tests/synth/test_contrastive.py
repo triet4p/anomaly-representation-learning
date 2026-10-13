@@ -87,6 +87,30 @@ def test_views_reproducible(gen):
     np.testing.assert_array_equal(v2a, v2b)
 
 
+def test_independent_generators_bind_each_view_without_changing_augmentation() -> None:
+    sample = SessionGenerator(SynthConfig()).generate_normal(seed=18, split="train")
+    config = ContrastiveConfig()
+    first_seed, second_seed = 101, 202
+    actual_first, actual_second = make_contrastive_views(
+        sample,
+        config,
+        (np.random.default_rng(first_seed), np.random.default_rng(second_seed)),
+    )
+    expected_first, _ = make_contrastive_views(
+        sample, config, np.random.default_rng(first_seed)
+    )
+    expected_second, _ = make_contrastive_views(
+        sample, config, np.random.default_rng(second_seed)
+    )
+    np.testing.assert_array_equal(actual_first, expected_first)
+    np.testing.assert_array_equal(actual_second, expected_second)
+
+    with pytest.raises(ValueError, match="exactly two NumPy generators"):
+        make_contrastive_views(
+            sample, config, (np.random.default_rng(first_seed),)  # type: ignore[arg-type]
+        )
+
+
 def test_views_different_seeds_differ(gen):
     """Different RNG seeds → different views."""
     s = gen.generate_normal(seed=16, split="train")

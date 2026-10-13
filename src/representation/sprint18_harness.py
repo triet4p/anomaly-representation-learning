@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING, Literal, cast
 import zipfile
 
 import numpy as np
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 import torch
 from torch import nn
 from torch.profiler import ProfilerActivity, profile
@@ -52,6 +52,8 @@ WHOLE16_CERTIFICATION_SHA256 = "1345d1c8e04c35f3fbb18bddec2b5d474f91ec24c1f1c508
 QUALIFICATION_RECORD_SHA256 = "c5a8e8ccbc6be35a58fe7363ee4e8af489d3fafb93aaf6411c3936e5d349dc4b"
 MANIFEST_AGGREGATE_SHA256 = "378baf290aa8c17d3d8125942e65def735fefd556ee8c8c2cddad289cb71a309"
 MODEL_SEEDS = (181801, 181802, 181803)
+TASK9_COEFFICIENT_PILOT_EPOCHS = 30
+COMMON_INFO_COEFFICIENT_GRID = (0.025, 0.05, 0.10)
 BATCH_SIZE = 128
 MODEL_LR_MAX = 1.5e-3
 MODEL_LR_MIN = 1e-5
@@ -218,14 +220,21 @@ class Sprint18ArmConfig(BaseModel):
     precision: Literal["float32"] = "float32"
     representation_epochs: Literal[0, 100]
     scale_epochs: Literal[0, 50]
+    primary_checkpoint_epoch: Literal[50, 100]
     ema_decay: Literal[0.996] = EMA_DECAY
     lambda_info_max: float | None = None
     lambda_hcc_max: float | None = None
     alpha: float | None = None
     beta: float | None = None
-    primary_checkpoint_epoch: Literal[50, 100]
-    selection_state: Literal["locked", "task6_smoke_only"] = "locked"
+    selection_state: Literal["locked", "task6_smoke_only", "coefficient_pilot"] = "locked"
     coefficient_lock_sha256: str | None = None
+
+    @field_validator("lambda_info_max", mode="before")
+    @classmethod
+    def reject_boolean_info_coefficient(cls, value: object) -> object:
+        if isinstance(value, bool):
+            raise ValueError("InfoNCE maximum must not be boolean")
+        return value
 
 
 def arm_spec(arm_id: str) -> ArmSpec:
@@ -282,10 +291,10 @@ def validate_arm_config(config: Sprint18ArmConfig, *, require_locked: bool = Tru
         if applicable != (None, None, None, None):
             raise ValueError("N4-CRN has no representation-loss coefficients")
     else:
-        frozen = (100, 0, 100, 128, "files", 1.5e-3, 0.0)
+        frozen = (100, 0, 100, BATCH_SIZE, "files", 1.5e-3, 0.0)
     if expected != frozen:
         raise ValueError("configuration changes the frozen common optimizer/epoch/checkpoint settings")
-    info_grid = (0.025, 0.05, 0.1)
+    info_grid = COMMON_INFO_COEFFICIENT_GRID
     aux_grid = (0.1, 0.25, 0.5)
     if config.arm_id in ("B0-FULL", "K3-FULL", "K7-FULL", "K9-FULL"):
         required = (config.lambda_info_max, None, None, None)
@@ -300,8 +309,15 @@ def validate_arm_config(config: Sprint18ArmConfig, *, require_locked: bool = Tru
     actual = (config.lambda_info_max, config.lambda_hcc_max, config.alpha, config.beta)
     if actual != required:
         raise ValueError("configuration activates a coefficient outside the arm's declared principal change")
-    if config.lambda_info_max is not None and config.lambda_info_max not in info_grid:
-        raise ValueError("InfoNCE maximum is outside the frozen healthy-only grid")
+    if config.lambda_info_max is not None and not (
+        config.lambda_info_max in info_grid
+        or (
+            config.selection_state == "coefficient_pilot"
+            and config.arm_id == "B0-FULL"
+            and config.lambda_info_max == 0.0
+        )
+    ):
+        raise ValueError("InfoNCE maximum is outside the frozen grid or Task9 prediction-only reference")
     if config.lambda_hcc_max is not None and config.lambda_hcc_max not in info_grid:
         raise ValueError("HCC maximum is outside the frozen healthy-only grid")
     if config.alpha is not None and config.alpha not in aux_grid:
@@ -312,9 +328,11 @@ def validate_arm_config(config: Sprint18ArmConfig, *, require_locked: bool = Tru
         if not _is_hash(config.coefficient_lock_sha256):
             raise ValueError("locked coefficient configuration requires its frozen coefficient-lock digest")
     elif config.coefficient_lock_sha256 is not None:
-        raise ValueError("Task6 smoke-only coefficients must not claim a selection lock")
+        raise ValueError("unlocked coefficient configuration must not claim a selection lock")
+    if config.selection_state == "coefficient_pilot" and config.arm_id != "B0-FULL":
+        raise ValueError("Task9 coefficient pilots are restricted to B0-FULL")
     if require_locked and config.selection_state != "locked":
-        raise ValueError("smoke-only/unselected coefficients cannot start an experiment")
+        raise ValueError("pilot/smoke-only coefficients cannot start a locked experiment")
     return config
 
 
@@ -323,7 +341,7 @@ def make_sprint18_arm_config(
     model_seed: int,
     coefficients: Mapping[str, float | None],
     *,
-    selection_state: Literal["locked", "task6_smoke_only"] = "locked",
+    selection_state: Literal["locked", "task6_smoke_only", "coefficient_pilot"] = "locked",
     coefficient_lock_sha256: str | None = None,
 ) -> Sprint18ArmConfig:
     """Bind caller-supplied coefficients to one exact registered arm; select none."""
@@ -601,11 +619,17 @@ def load_certified_sample_subset(
     manifest_path: str | Path,
     shard_paths: Mapping[str, str | Path],
     file_ids: Sequence[str],
+    *,
+    role_action: Literal["train_fit", "calibrate_q95", "select_coefficients"] | None = None,
+    verify_all_shards: bool = False,
 ) -> tuple[CertifiedSample, ...]:
-    """Load a bounded sample subset after verifying its full manifest and selected shard bytes."""
+    """Load manifest-bound rows under the existing model-role permission contract."""
     history = binding.history(actual_history_id)
-    if history.assigned_role not in ("FIT", "CALIBRATION"):
-        raise ValueError("Task6's model smoke loader is restricted to Fit and Calibration histories")
+    if role_action is None:
+        if history.assigned_role not in ("FIT", "CALIBRATION"):
+            raise ValueError("Task6's model smoke loader is restricted to Fit and Calibration histories")
+    else:
+        validate_role_permission(binding, actual_history_id, role_action, healthy=True)
     requested = tuple(file_ids)
     if not requested or len(set(requested)) != len(requested) or any(not isinstance(x, str) or not x for x in requested):
         raise ValueError("requested source file IDs must be a non-empty unique sequence")
@@ -628,34 +652,53 @@ def load_certified_sample_subset(
     for row in files:
         if not isinstance(row, dict) or not isinstance(row.get("file_id"), str):
             raise ValueError("source manifest contains a malformed file row")
-        file_by_id[cast(str, row["file_id"])] = row
+        file_id = cast(str, row["file_id"])
+        if file_id in file_by_id:
+            raise ValueError("source manifest contains duplicate file IDs")
+        file_by_id[file_id] = row
     shard_by_id: dict[str, Mapping[str, object]] = {}
+    shard_by_path: dict[str, Mapping[str, object]] = {}
     for row in shards:
         if not isinstance(row, dict) or not isinstance(row.get("path"), str) or not isinstance(row.get("file_ids"), list):
             raise ValueError("source manifest contains a malformed shard row")
+        relative = cast(str, row["path"])
+        if relative in shard_by_path:
+            raise ValueError("source manifest contains duplicate shard paths")
+        shard_by_path[relative] = row
         for file_id in row["file_ids"]:
             if not isinstance(file_id, str) or file_id in shard_by_id:
                 raise ValueError("source shard membership is malformed or duplicated")
             shard_by_id[file_id] = row
-    if any(file_id not in file_by_id or file_id not in shard_by_id for file_id in requested):
+    if set(file_by_id) != set(shard_by_id):
+        raise ValueError("source manifest file and shard membership differ")
+    if any(file_id not in file_by_id for file_id in requested):
         raise ValueError("requested source rows are not bound by the certified role manifest")
+
+    if role_action in ("train_fit", "select_coefficients") and any(
+        file_by_id[file_id].get("file_label") != "normal" for file_id in requested
+    ):
+        raise ValueError("healthy Fit/Design actions cannot load non-normal-label rows")
     selected_shards = {cast(str, shard_by_id[file_id]["path"]) for file_id in requested}
-    if set(shard_paths) != selected_shards:
-        raise ValueError("shard path inputs must exactly cover the requested rows' source shards")
+    all_shards = set(shard_by_path)
+    expected_path_keys = all_shards if verify_all_shards else selected_shards
+    if set(shard_paths) != expected_path_keys:
+        raise ValueError("shard path inputs do not exactly cover the requested verification scope")
     archive_by_shard: dict[str, zipfile.ZipFile] = {}
     shard_digest_by_path: dict[str, str] = {}
     try:
-        for relative in sorted(selected_shards):
-            shard_record = next(row for row in shards if row.get("path") == relative)
+        paths_to_verify = all_shards if verify_all_shards else selected_shards
+        for relative in sorted(paths_to_verify):
+            shard_record = shard_by_path[relative]
             expected_digest = shard_record.get("sha256")
             if not _is_hash(expected_digest):
                 raise ValueError(f"source shard digest is malformed: {relative}")
             local_path = Path(shard_paths[relative])
             observed_digest = _sha256_file(local_path)
             if observed_digest != expected_digest:
-                raise ValueError(f"source shard checksum mismatch for {relative}")
-            archive_by_shard[relative] = zipfile.ZipFile(local_path)
+                raise ValueError(f"source shard checksum mismatch: {relative}")
             shard_digest_by_path[relative] = observed_digest
+            if relative in selected_shards:
+                archive_by_shard[relative] = zipfile.ZipFile(local_path)
         rows: list[CertifiedSample] = []
         for file_id in requested:
             shard_record = shard_by_id[file_id]
@@ -686,7 +729,70 @@ def load_certified_sample_subset(
     finally:
         for archive in archive_by_shard.values():
             archive.close()
+
+    if role_action in ("train_fit", "select_coefficients"):
+        rows = [row for row in rows if is_verified_healthy(row)]
+        if not rows:
+            raise ValueError("certified subset has no verified-healthy rows")
     return tuple(rows)
+
+
+def load_certified_healthy_role_support(
+    binding: Task6Binding,
+    actual_history_id: str,
+    manifest_path: str | Path,
+    shard_paths: Mapping[str, str | Path],
+    *,
+    action: Literal["train_fit", "select_coefficients"],
+) -> tuple[CertifiedSample, ...]:
+    """Load only healthy rows for the exact Fit-training or Design-selection permission."""
+    if action not in ("train_fit", "select_coefficients"):
+        raise ValueError("healthy role support is limited to Fit training or Design coefficient selection")
+    history = validate_role_permission(binding, actual_history_id, action, healthy=True)
+    raw = Path(manifest_path).read_bytes()
+    if sha256(raw).hexdigest() != history.manifest_sha256:
+        raise ValueError(f"source role manifest digest mismatch for {actual_history_id}")
+    manifest = json.loads(raw)
+    if (
+        not isinstance(manifest, dict)
+        or manifest.get("format") != 1
+        or manifest.get("role") != actual_history_id
+        or manifest.get("protocol") != "sprint15-benchmark-protocol-v7"
+        or manifest.get("config_hash") != history.config_hash
+    ):
+        raise ValueError("source manifest identity differs from the certified role binding")
+    files = manifest.get("files")
+    if not isinstance(files, list) or len(files) != history.sample_count:
+        raise ValueError("source manifest file support differs from the certified role binding")
+    normal_ids: list[str] = []
+    seen_file_ids: set[str] = set()
+    for row in files:
+        if not isinstance(row, dict) or not isinstance(row.get("file_id"), str):
+            raise ValueError("source manifest contains a malformed file row")
+        file_id = cast(str, row["file_id"])
+        if file_id in seen_file_ids:
+            raise ValueError("source manifest contains duplicate file IDs")
+        seen_file_ids.add(file_id)
+        label = row.get("file_label")
+        if label not in ("normal", "abnormal"):
+            raise ValueError("source manifest contains an unknown label value")
+        if label == "normal":
+            normal_ids.append(file_id)
+    if not normal_ids:
+        raise ValueError("certified role has no normal-label rows to qualify for healthy support")
+    loaded = load_certified_sample_subset(
+        binding,
+        actual_history_id,
+        manifest_path,
+        shard_paths,
+        normal_ids,
+        role_action=action,
+        verify_all_shards=True,
+    )
+    healthy = tuple(row for row in loaded if is_verified_healthy(row))
+    if not healthy:
+        raise ValueError("certified role has no verified-healthy rows")
+    return healthy
 
 
 def validate_role_permission(
@@ -715,6 +821,357 @@ def validate_role_permission(
 def is_verified_healthy(row: CertifiedSample) -> bool:
     """Use only the frozen normal-label plus latent-healthy eligibility predicate."""
     return row.is_verified_healthy
+
+
+def select_common_info_coefficient(
+    binding: Task6Binding,
+    candidate_runs: Mapping[float, Mapping[int, Mapping[str, object]]],
+    prediction_only_runs: Mapping[int, Mapping[str, object]],
+) -> Mapping[str, object]:
+    """Apply the frozen B0 grid, per-seed gradient, collapse, and retention gates."""
+    from representation.sprint18_checkpoint import (
+        coefficient_for_epoch,
+        learning_rate_for_epoch,
+    )
+
+    grid = COMMON_INFO_COEFFICIENT_GRID
+    unknown_candidates = [
+        value
+        for value in candidate_runs
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or value not in grid
+    ]
+    if unknown_candidates:
+        raise ValueError("coefficient pilot results contain a value outside the frozen common InfoNCE grid")
+    if any(
+        not isinstance(seed_runs, Mapping)
+        or any(
+            isinstance(seed, bool) or not isinstance(seed, int) or seed not in MODEL_SEEDS
+            for seed in seed_runs
+        )
+        for seed_runs in candidate_runs.values()
+    ):
+        raise ValueError("coefficient pilot results contain a seed outside the frozen model-seed namespace")
+    if any(
+        isinstance(seed, bool)
+        or not isinstance(seed, int)
+        or seed not in MODEL_SEEDS
+        for seed in prediction_only_runs
+    ):
+        raise ValueError("prediction-only results contain a seed outside the frozen model-seed namespace")
+
+    design_ids = tuple(item.actual_history_id for item in binding.role_histories("DESIGN"))
+
+    def finite_number(value: object) -> float | None:
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            return None
+        number = float(value)
+        return number if math.isfinite(number) else None
+
+    def parse_design_history(value: object) -> tuple[dict[str, object] | None, str | None]:
+        if not isinstance(value, Mapping):
+            return None, "design_history_missing"
+        support_sha256 = value.get("support_sha256")
+        support_files = value.get("support_files")
+        spread = finite_number(value.get("healthy_embedding_std_median"))
+        loss = finite_number(value.get("mean_healthy_fine_prediction_loss"))
+        if (
+            not _is_hash(support_sha256)
+            or not isinstance(support_files, int)
+            or isinstance(support_files, bool)
+            or support_files < 1
+            or spread is None
+            or loss is None
+            or spread < 0.0
+            or loss < 0.0
+        ):
+            return None, "design_support_or_metric_invalid"
+        return {
+            "support_sha256": support_sha256,
+            "support_files": support_files,
+            "healthy_embedding_std_median": spread,
+            "mean_healthy_fine_prediction_loss": loss,
+        }, None
+
+    prediction_metrics: dict[int, dict[str, dict[str, object]]] = {}
+    prediction_errors: dict[int, list[str]] = {}
+    expected_design_set = set(design_ids)
+    for seed in MODEL_SEEDS:
+        run = prediction_only_runs.get(seed)
+        errors: list[str] = []
+        parsed: dict[str, dict[str, object]] = {}
+        histories = run.get("design_histories") if isinstance(run, Mapping) else None
+        if not isinstance(histories, Mapping) or set(histories) != expected_design_set:
+            errors.append("prediction_only_design_support_incomplete")
+        else:
+            for history_id in design_ids:
+                record, error = parse_design_history(histories[history_id])
+                if error is not None or record is None:
+                    errors.append(f"prediction_only_{history_id}_{error or 'invalid'}")
+                else:
+                    parsed[history_id] = record
+        prediction_metrics[seed] = parsed
+        prediction_errors[seed] = errors
+    for history_id in design_ids:
+        supports = {
+            (
+                cast(str, prediction_metrics[seed][history_id]["support_sha256"]),
+                cast(int, prediction_metrics[seed][history_id]["support_files"]),
+            )
+            for seed in MODEL_SEEDS
+            if history_id in prediction_metrics[seed]
+        }
+        if len(supports) > 1:
+            for seed in MODEL_SEEDS:
+                prediction_errors[seed].append(f"prediction_only_{history_id}_support_mismatch")
+
+    batches_per_epoch = math.ceil(binding.fit_healthy_rows / BATCH_SIZE)
+    expected_observations = {
+        (epoch, step)
+        for epoch in range(26, 31)
+        for step in range((epoch - 1) * batches_per_epoch + 1, epoch * batches_per_epoch + 1)
+        if step % 40 == 0
+    }
+    finite_balance_fields = (
+        "lr",
+        "raw_L_pred",
+        "effective_coefficient_L_pred",
+        "weighted_L_pred",
+        "raw_L_info",
+        "effective_coefficient_L_info",
+        "weighted_L_info",
+        "gradient_norm_L_pred_shared",
+        "gradient_norm_weighted_L_info_shared",
+        "r_aux",
+        "embedding_support_files",
+        "support_valid_files",
+        "support_valid_patches",
+        "support_prediction_files",
+        "support_prediction_patches",
+        "support_info_files",
+        "contrastive_input_files",
+        "embedding_variance_mean",
+        "embedding_std_median",
+        "embedding_effective_rank",
+    )
+    verdicts: list[dict[str, object]] = []
+    selected: float | None = None
+    for coefficient in grid:
+        seed_runs = candidate_runs.get(coefficient)
+        seed_verdicts: list[dict[str, object]] = []
+        for seed in MODEL_SEEDS:
+            failures = list(prediction_errors[seed])
+            median_ratio: float | None = None
+            p90_ratio: float | None = None
+            seed_run = seed_runs.get(seed) if isinstance(seed_runs, Mapping) else None
+            if not isinstance(seed_run, Mapping):
+                failures.append("candidate_seed_run_missing")
+            else:
+                balance_records = seed_run.get("balance_records")
+                if not isinstance(balance_records, Sequence) or isinstance(balance_records, (str, bytes)) or not balance_records:
+                    failures.append("balance_records_missing")
+                    balance_rows: tuple[Mapping[str, object], ...] = ()
+                elif any(not isinstance(row, Mapping) for row in balance_records):
+                    failures.append("balance_record_malformed")
+                    balance_rows = ()
+                else:
+                    balance_rows = tuple(cast(Mapping[str, object], row) for row in balance_records)
+                recorded_epochs: set[int] = set()
+                observed_steps: set[tuple[int, int]] = set()
+                observed_step_count = 0
+                ratios: list[float] = []
+                for row in balance_rows:
+                    epoch = row.get("epoch")
+                    step = row.get("global_step")
+                    if (
+                        not isinstance(epoch, int)
+                        or isinstance(epoch, bool)
+                        or not 1 <= epoch <= TASK9_COEFFICIENT_PILOT_EPOCHS
+                        or not isinstance(step, int)
+                        or isinstance(step, bool)
+                        or step < 1
+                    ):
+                        failures.append("balance_record_epoch_or_step_invalid")
+                        continue
+                    recorded_epochs.add(epoch)
+                    if any(finite_number(row.get(name)) is None for name in finite_balance_fields):
+                        failures.append("nonfinite_or_missing_balance_metric")
+                    support_file_fields = (
+                        "embedding_support_files",
+                        "support_valid_files",
+                        "support_prediction_files",
+                        "support_info_files",
+                        "contrastive_input_files",
+                    )
+                    if any(
+                        not isinstance(row.get(name), int)
+                        or isinstance(row.get(name), bool)
+                        or not 1 <= cast(int, row.get(name)) <= BATCH_SIZE
+                        for name in support_file_fields
+                    ):
+                        failures.append("batch_file_support_invalid")
+                    elif any(
+                        row.get(name) != BATCH_SIZE
+                        for name in (
+                            "embedding_support_files",
+                            "support_valid_files",
+                            "support_info_files",
+                            "contrastive_input_files",
+                        )
+                    ):
+                        failures.append("full_batch_file_support_mismatch")
+                    if any(
+                        not isinstance(row.get(name), int)
+                        or isinstance(row.get(name), bool)
+                        or cast(int, row.get(name)) < 1
+                        for name in ("support_valid_patches", "support_prediction_patches")
+                    ):
+                        failures.append("batch_patch_support_invalid")
+                    scheduled = coefficient_for_epoch(coefficient, epoch)
+                    if row.get("effective_coefficient_L_info") != scheduled:
+                        failures.append("info_coefficient_schedule_mismatch")
+                    if row.get("lr") != learning_rate_for_epoch(epoch):
+                        failures.append("learning_rate_schedule_mismatch")
+                    if all(
+                        finite_number(row.get(name)) is not None
+                        for name in (
+                            "raw_L_pred",
+                            "effective_coefficient_L_pred",
+                            "weighted_L_pred",
+                            "raw_L_info",
+                            "effective_coefficient_L_info",
+                            "weighted_L_info",
+                            "gradient_norm_L_pred_shared",
+                            "gradient_norm_weighted_L_info_shared",
+                            "r_aux",
+                        )
+                    ):
+                        raw_prediction = cast(float, finite_number(row.get("raw_L_pred")))
+                        prediction_coefficient = cast(
+                            float, finite_number(row.get("effective_coefficient_L_pred"))
+                        )
+                        weighted_prediction = cast(
+                            float, finite_number(row.get("weighted_L_pred"))
+                        )
+                        raw_info = cast(float, finite_number(row.get("raw_L_info")))
+                        info_coefficient = cast(
+                            float, finite_number(row.get("effective_coefficient_L_info"))
+                        )
+                        weighted_info = cast(
+                            float, finite_number(row.get("weighted_L_info"))
+                        )
+                        prediction_norm = cast(
+                            float, finite_number(row.get("gradient_norm_L_pred_shared"))
+                        )
+                        info_norm = cast(
+                            float, finite_number(row.get("gradient_norm_weighted_L_info_shared"))
+                        )
+                        ratio = cast(float, finite_number(row.get("r_aux")))
+                        if (
+                            not math.isclose(
+                                weighted_prediction,
+                                prediction_coefficient * raw_prediction,
+                                rel_tol=1e-6,
+                                abs_tol=1e-7,
+                            )
+                            or not math.isclose(
+                                weighted_info,
+                                info_coefficient * raw_info,
+                                rel_tol=1e-6,
+                                abs_tol=1e-7,
+                            )
+                        ):
+                            failures.append("weighted_loss_coefficient_mismatch")
+                        if prediction_norm < 0.0 or info_norm < 0.0:
+                            failures.append("gradient_norm_negative")
+                        elif not math.isclose(
+                            ratio,
+                            info_norm / (prediction_norm + 1e-12),
+                            rel_tol=1e-9,
+                            abs_tol=1e-12,
+                        ):
+                            failures.append("gradient_ratio_inconsistent")
+                    observation = row.get("protocol_gradient_observation")
+                    if not isinstance(observation, bool):
+                        failures.append("gradient_observation_flag_invalid")
+                    elif observation:
+                        observed_step_count += 1
+                        observed_steps.add((epoch, step))
+                        ratio = finite_number(row.get("r_aux"))
+                        if ratio is not None:
+                            ratios.append(ratio)
+                if observed_step_count != len(observed_steps):
+                    failures.append("protocol_gradient_observations_duplicated")
+                if recorded_epochs != set(range(1, TASK9_COEFFICIENT_PILOT_EPOCHS + 1)):
+                    failures.append("balance_record_epochs_incomplete")
+                if observed_steps != expected_observations:
+                    failures.append("protocol_gradient_observations_incomplete")
+                if ratios:
+                    median_ratio = float(np.median(np.asarray(ratios, dtype=np.float64)))
+                    p90_ratio = float(
+                        np.quantile(np.asarray(ratios, dtype=np.float64), 0.90, method="linear")
+                    )
+                else:
+                    failures.append("protocol_gradient_observations_missing")
+                if median_ratio is not None and not 0.15 <= median_ratio <= 0.50:
+                    failures.append("median_gradient_ratio_out_of_range")
+                if p90_ratio is not None and p90_ratio > 1.0:
+                    failures.append("p90_gradient_ratio_exceeds_one")
+                active_epoch_rows = [row for row in balance_rows if row.get("epoch") == 30]
+                if not any(
+                    row.get("effective_coefficient_L_info") == coefficient
+                    and finite_number(row.get("raw_L_info")) is not None
+                    and cast(float, finite_number(row.get("raw_L_info"))) > 0.0
+                    and finite_number(row.get("weighted_L_info")) is not None
+                    and cast(float, finite_number(row.get("weighted_L_info"))) > 0.0
+                    for row in active_epoch_rows
+                ):
+                    failures.append("full_ramp_info_objective_not_active")
+
+                design_histories = seed_run.get("design_histories")
+                if not isinstance(design_histories, Mapping) or set(design_histories) != expected_design_set:
+                    failures.append("candidate_design_support_incomplete")
+                else:
+                    for history_id in design_ids:
+                        candidate_record, error = parse_design_history(design_histories[history_id])
+                        reference_record = prediction_metrics[seed].get(history_id)
+                        if error is not None or candidate_record is None:
+                            failures.append(f"{history_id}_{error or 'invalid'}")
+                            continue
+                        if reference_record is None:
+                            continue
+                        if (
+                            candidate_record["support_sha256"] != reference_record["support_sha256"]
+                            or candidate_record["support_files"] != reference_record["support_files"]
+                        ):
+                            failures.append(f"{history_id}_healthy_support_mismatch")
+                        spread = cast(float, candidate_record["healthy_embedding_std_median"])
+                        if spread < 0.05:
+                            failures.append(f"{history_id}_embedding_collapse")
+                        candidate_loss = cast(float, candidate_record["mean_healthy_fine_prediction_loss"])
+                        reference_loss = cast(float, reference_record["mean_healthy_fine_prediction_loss"])
+                        if candidate_loss > 1.10 * reference_loss:
+                            failures.append(f"{history_id}_healthy_prediction_retention_failed")
+            seed_verdicts.append(
+                {
+                    "model_seed": seed,
+                    "valid": not failures,
+                    "failed_checks": sorted(set(failures)),
+                    "median_r_aux": median_ratio,
+                    "p90_r_aux": p90_ratio,
+                }
+            )
+        valid = all(bool(item["valid"]) for item in seed_verdicts)
+        verdicts.append(
+            {"coefficient": coefficient, "valid": valid, "per_seed": seed_verdicts}
+        )
+        if selected is None and valid:
+            selected = coefficient
+    return {
+        "grid": list(grid),
+        "candidate_verdicts": verdicts,
+        "selected_coefficient": selected,
+        "selection_state": "selected" if selected is not None else "no_valid_candidate",
+    }
 
 
 @dataclass(frozen=True, slots=True)
@@ -804,12 +1261,14 @@ def deterministic_sampler_order(
     arm: Sprint18ArmConfig,
     *,
     workload: Literal["representation", "n4_scale"],
-    scope: Literal["experiment", "task6_smoke_only"],
+    scope: Literal["experiment", "task6_smoke_only", "coefficient_pilot"],
     role_history_ids: Sequence[str],
     epoch: int,
     eligible_source_ids: Sequence[str],
 ) -> tuple[int, tuple[str, ...]]:
     """Derive one reproducible epoch permutation from the bound Fit source identity."""
+    fit_histories = binding.role_histories("FIT")
+    expected_fit_ids = tuple(item.actual_history_id for item in fit_histories)
     validate_arm_config(arm, require_locked=(scope == "experiment"))
     if not isinstance(epoch, int) or isinstance(epoch, bool) or epoch < 1:
         raise ValueError("sampler epoch must be a positive integer")
@@ -820,13 +1279,17 @@ def deterministic_sampler_order(
     history_ids = tuple(role_history_ids)
     if not history_ids or len(set(history_ids)) != len(history_ids):
         raise ValueError("sampler Fit history IDs must be non-empty and unique")
-    fit_histories = binding.role_histories("FIT")
-    expected_fit_ids = tuple(item.actual_history_id for item in fit_histories)
     if scope == "task6_smoke_only":
         if workload != "representation" or arm.arm_id == "N4-CRN" or len(history_ids) != 1:
             raise ValueError("Task6 smoke sampler is restricted to one Fit history and representation workload")
-    elif scope != "experiment":
+    elif scope not in ("experiment", "coefficient_pilot"):
         raise ValueError("sampler scope is unsupported")
+    if scope == "coefficient_pilot" and (
+        workload != "representation"
+        or arm.arm_id != "B0-FULL"
+        or arm.selection_state != "coefficient_pilot"
+    ):
+        raise ValueError("Task9 coefficient-pilot sampling is restricted to unselected B0 representation runs")
     n4_fit_scope: str | None = None
     if workload == "n4_scale":
         if scope != "experiment" or arm.arm_id != "N4-CRN":
@@ -847,12 +1310,14 @@ def deterministic_sampler_order(
     elif workload == "representation":
         if arm.arm_id == "N4-CRN":
             raise ValueError("N4 cannot use the representation sampler")
-        if scope == "experiment" and history_ids != expected_fit_ids:
-            raise ValueError("experiment representation sampler must bind all three Fit histories")
+        if scope in ("experiment", "coefficient_pilot") and history_ids != expected_fit_ids:
+            raise ValueError("full representation sampling must bind all three canonical Fit histories")
         if scope == "task6_smoke_only" and (
             len(history_ids) != 1 or history_ids[0] not in expected_fit_ids
         ):
             raise ValueError("Task6 smoke sampler history is outside certified Fit")
+        if scope == "coefficient_pilot" and len(canonical_ids) != binding.fit_healthy_rows:
+            raise ValueError("Task9 coefficient-pilot sampler must bind the complete Fit-healthy support")
     else:
         raise ValueError("sampler workload is unsupported")
     history_map = {item.actual_history_id: item for item in fit_histories}

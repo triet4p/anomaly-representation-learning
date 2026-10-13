@@ -19,9 +19,11 @@ from representation.config import V1Config
 from representation.model import V1RepresentationModel
 from representation.sprint18_harness import (
     EMA_DECAY,
+    BATCH_SIZE,
     MODEL_LR_MAX,
     MODEL_LR_MIN,
     PROTOCOL_ID,
+    TASK9_COEFFICIENT_PILOT_EPOCHS,
     Sprint18ArmConfig,
     FIT_HEALTHY_ROWS,
     FIT_VALID_PATCHES,
@@ -332,13 +334,33 @@ def _validate_sampler_state(
         else:
             if workload != "representation" or eligible_rows != binding.fit_healthy_rows or len(source_ids) != eligible_rows:
                 raise ValueError("representation sampler must bind the complete Fit-healthy file support")
-            if batch_size != 128 or batches_per_epoch != math.ceil(binding.fit_healthy_rows / 128):
-                raise ValueError("representation sampler differs from the frozen 128-file epoch schedule")
+            if batch_size != BATCH_SIZE or batches_per_epoch != math.ceil(binding.fit_healthy_rows / BATCH_SIZE):
+                raise ValueError("representation sampler differs from the frozen file-batch epoch schedule")
             maximum_epochs = 100
+    elif scope == "coefficient_pilot":
+        if (
+            arm.arm_id != "B0-FULL"
+            or arm.selection_state != "coefficient_pilot"
+            or workload != "representation"
+        ):
+            raise ValueError("Task9 checkpoint scope is restricted to B0 coefficient pilots")
+        if history_ids != expected_histories:
+            raise ValueError("Task9 coefficient-pilot checkpoint must bind all three canonical Fit histories")
+        if eligible_rows != binding.fit_healthy_rows or len(source_ids) != eligible_rows:
+            raise ValueError("Task9 coefficient-pilot checkpoint must bind the complete Fit-healthy support")
+        if batch_size != BATCH_SIZE or batches_per_epoch != math.ceil(binding.fit_healthy_rows / BATCH_SIZE):
+            raise ValueError("Task9 coefficient-pilot checkpoint differs from the frozen file-batch epoch schedule")
+        maximum_epochs = TASK9_COEFFICIENT_PILOT_EPOCHS + 1
     else:
         raise ValueError("checkpoint scope is unsupported")
     if batches_in_epoch > batches_per_epoch:
         raise ValueError("checkpoint sampler position exceeds its epoch")
+    if (
+        scope == "coefficient_pilot"
+        and current_epoch > TASK9_COEFFICIENT_PILOT_EPOCHS
+        and batches_in_epoch != 0
+    ):
+        raise ValueError("Task9 coefficient-pilot checkpoint cannot contain updates beyond epoch 30")
     expected_step = completed_epoch * batches_per_epoch + batches_in_epoch
     if global_step != expected_step:
         raise ValueError("saved global step does not match deterministic sampler position")
@@ -378,20 +400,30 @@ def _validate_coefficient_state(
         raise ValueError("checkpoint coefficient epoch does not match the sampler position")
     if not isinstance(value["global_step"], int) or isinstance(value["global_step"], bool) or value["global_step"] != global_step:
         raise ValueError("checkpoint coefficient step does not match global state")
-    expected_selection = "locked" if scope == "experiment" else "task6_smoke_only"
-    if value["selection_state"] != expected_selection or arm.selection_state != expected_selection:
-        raise ValueError("checkpoint cannot present fixture/unselected coefficients as an experiment lock")
+    expected_selection = {
+        "experiment": "locked",
+        "task6_smoke_only": "task6_smoke_only",
+        "coefficient_pilot": "coefficient_pilot",
+    }.get(scope)
+    if expected_selection is None or value["selection_state"] != expected_selection or arm.selection_state != expected_selection:
+        raise ValueError("checkpoint selection state does not match its experiment, smoke, or Task9 pilot scope")
     for name, configured in (
         ("lambda_info", arm.lambda_info_max), ("lambda_hcc", arm.lambda_hcc_max),
         ("alpha", arm.alpha), ("beta", arm.beta),
     ):
-        expected = None if configured is None else 0.0 if current_epoch <= 10 and name in ("lambda_info", "lambda_hcc") else configured
+        if configured is None:
+            expected = None
+        elif name in ("lambda_info", "lambda_hcc"):
+            expected = coefficient_for_epoch(configured, current_epoch)
+        else:
+            expected = configured
         actual = value[name]
         if expected is None:
             if actual is not None:
                 raise ValueError(f"checkpoint activates undeclared {name} coefficient")
         elif not isinstance(actual, (int, float)) or isinstance(actual, bool) or not math.isfinite(float(actual)) or actual != expected:
             raise ValueError(f"checkpoint effective {name} coefficient is inconsistent with its epoch/config")
+
     return cast(Mapping[str, object], value)
 
 def _validate_n4_arm_state(
@@ -501,13 +533,17 @@ def validate_sprint18_checkpoint(
         raise ValueError("checkpoint schema/protocol identity is not Sprint18 v2")
     if payload["optimizer_id"] != arm.optimizer:
         raise ValueError("checkpoint optimizer identity differs from the frozen arm contract")
-    if payload["scope"] != allowed_scope or allowed_scope not in ("experiment", "task6_smoke_only"):
+    if payload["scope"] != allowed_scope or allowed_scope not in ("experiment", "task6_smoke_only", "coefficient_pilot"):
         raise ValueError("checkpoint scope is not allowed for this operation")
     if payload["arm_id"] != arm.arm_id or payload["arm_configuration"] != arm.model_dump(mode="json"):
         raise ValueError("checkpoint arm/configuration differs from the requested arm")
     validate_arm_config(arm, require_locked=(allowed_scope == "experiment"))
     if allowed_scope == "task6_smoke_only" and arm.arm_id != "B0-FULL":
         raise ValueError("the only authorized Task6 optimizer-update fixture is B0-FULL")
+    if allowed_scope == "coefficient_pilot" and (
+        arm.arm_id != "B0-FULL" or arm.selection_state != "coefficient_pilot"
+    ):
+        raise ValueError("the only authorized Task9 checkpoint is an unselected B0 coefficient pilot")
     arm_sha = arm_config_sha256(arm)
     if payload["arm_config_sha256"] != arm_sha:
         raise ValueError("checkpoint arm configuration digest mismatch")
@@ -530,7 +566,11 @@ def validate_sprint18_checkpoint(
         raise ValueError("checkpoint EMA state digest does not match the online payload")
     step = payload["global_step"]
     completed_epoch = payload["completed_epoch"]
-    max_epochs = 50 if arm.arm_id == "N4-CRN" else 100
+    max_epochs = (
+        TASK9_COEFFICIENT_PILOT_EPOCHS
+        if allowed_scope == "coefficient_pilot"
+        else 50 if arm.arm_id == "N4-CRN" else 100
+    )
     if not isinstance(step, int) or isinstance(step, bool) or step < 0 or not isinstance(completed_epoch, int) or isinstance(completed_epoch, bool) or not 0 <= completed_epoch <= max_epochs:
         raise ValueError("checkpoint step/epoch counters are invalid")
     representation_step = payload["representation_step"]
@@ -624,7 +664,11 @@ def validate_sprint18_checkpoint(
     )
     if payload["coherent_state_sha256"] != coherent_digest:
         raise ValueError("checkpoint's joined model/EMA/optimizer/scheduler/RNG state digest mismatch")
-    expected_kind = "task6_smoke_fixture" if allowed_scope == "task6_smoke_only" else "primary_or_diagnostic"
+    expected_kind = {
+        "task6_smoke_only": "task6_smoke_fixture",
+        "coefficient_pilot": "coefficient_pilot",
+        "experiment": "primary_or_diagnostic",
+    }[allowed_scope]
     if payload["checkpoint_kind"] != expected_kind:
         raise ValueError("checkpoint kind is incompatible with its declared execution scope")
     return payload
@@ -677,7 +721,11 @@ def save_sprint18_checkpoint(
     payload: dict[str, object] = {
         "schema_id": CHECKPOINT_SCHEMA_ID,
         "protocol_id": PROTOCOL_ID,
-        "checkpoint_kind": "task6_smoke_fixture" if scope == "task6_smoke_only" else "primary_or_diagnostic",
+        "checkpoint_kind": (
+            "task6_smoke_fixture" if scope == "task6_smoke_only"
+            else "coefficient_pilot" if scope == "coefficient_pilot"
+            else "primary_or_diagnostic"
+        ),
         "scope": scope,
         "arm_id": arm.arm_id,
         "arm_configuration": arm.model_dump(mode="json"),

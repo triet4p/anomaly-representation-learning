@@ -19,8 +19,12 @@ from representation.sprint18_checkpoint import (
     save_sprint18_checkpoint,
     state_sha256,
     validate_sprint18_checkpoint,
+    _validate_coefficient_state,
+    _validate_sampler_state,
 )
 from representation.sprint18_harness import (
+    BATCH_SIZE,
+    COMMON_INFO_COEFFICIENT_GRID,
     ARM_REGISTRY,
     DATA_ROSTER_ID,
     MECHANISM_SPEC_SHA256,
@@ -29,14 +33,18 @@ from representation.sprint18_harness import (
     PROTOCOL_SHA256,
     RESULT_SCHEMA_ID,
     Sprint18ArmConfig,
+    Task6Binding,
     arm_spec,
     count_unique_parameters,
     deterministic_sampler_order,
     load_task6_binding,
     make_common_support,
+    load_certified_healthy_role_support,
     make_sprint18_arm_config,
     profile_inference_flops,
+    TASK9_COEFFICIENT_PILOT_EPOCHS,
     validate_arm_config,
+    select_common_info_coefficient,
     validate_arm_spec,
     validate_compute_envelope,
     validate_paired_common_support,
@@ -561,3 +569,490 @@ def test_frozen_schedule_values_match_protocol() -> None:
     assert coefficient_for_epoch(0.05, 11) == pytest.approx(0.0025)
     assert coefficient_for_epoch(0.05, 30) == pytest.approx(0.05)
     assert coefficient_for_epoch(0.05, 31) == 0.05
+
+
+def _canonical_digest(value: object) -> str:
+    encoded = json.dumps(
+        value,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _task9_balance_records(
+    binding: Task6Binding,
+    coefficient: float,
+    observation_ratios: tuple[float, ...],
+) -> list[dict[str, object]]:
+    batches_per_epoch = (binding.fit_healthy_rows + BATCH_SIZE - 1) // BATCH_SIZE
+    observations = [
+        (epoch, step)
+        for epoch in range(26, TASK9_COEFFICIENT_PILOT_EPOCHS + 1)
+        for step in range(
+            (epoch - 1) * batches_per_epoch + 1,
+            epoch * batches_per_epoch + 1,
+        )
+        if step % 40 == 0
+    ]
+    assert len(observation_ratios) == len(observations)
+    observation_ratio_by_step = dict(zip(observations, observation_ratios))
+    records: list[dict[str, object]] = []
+    for epoch in range(1, TASK9_COEFFICIENT_PILOT_EPOCHS + 1):
+        first_step = (epoch - 1) * batches_per_epoch + 1
+        steps = {first_step}
+        steps.update(step for recorded_epoch, step in observations if recorded_epoch == epoch)
+        for step in sorted(steps):
+            observation = (epoch, step) in observation_ratio_by_step
+            ratio = observation_ratio_by_step.get((epoch, step), 0.2)
+            effective_coefficient = coefficient_for_epoch(coefficient, epoch)
+            records.append(
+                {
+                    "epoch": epoch,
+                    "global_step": step,
+                    "lr": learning_rate_for_epoch(epoch),
+                    "raw_L_pred": 1.0,
+                    "effective_coefficient_L_pred": 1.0,
+                    "weighted_L_pred": 1.0,
+                    "raw_L_info": 2.0,
+                    "effective_coefficient_L_info": effective_coefficient,
+                    "weighted_L_info": 2.0 * effective_coefficient,
+                    "gradient_norm_L_pred_shared": 1.0,
+                    "gradient_norm_weighted_L_info_shared": ratio,
+                    "r_aux": ratio,
+                    "embedding_support_files": BATCH_SIZE,
+                    "support_valid_files": BATCH_SIZE,
+                    "support_valid_patches": BATCH_SIZE * 12,
+                    "support_prediction_files": BATCH_SIZE,
+                    "support_prediction_patches": BATCH_SIZE * 4,
+                    "support_info_files": BATCH_SIZE,
+                    "contrastive_input_files": BATCH_SIZE,
+                    "embedding_variance_mean": 0.1,
+                    "embedding_std_median": 0.1,
+                    "embedding_effective_rank": 3.0,
+                    "protocol_gradient_observation": observation,
+                }
+            )
+    return records
+
+
+def _task9_design_history(
+    actual_history_id: str,
+    *,
+    loss: float,
+    spread: float = 0.05,
+) -> dict[str, object]:
+    return {
+        "support_sha256": _hash(f"Task9-healthy-support-{actual_history_id}"),
+        "support_files": 13,
+        "healthy_embedding_std_median": spread,
+        "mean_healthy_fine_prediction_loss": loss,
+    }
+
+
+def _task9_prediction_only_runs(
+    binding: Task6Binding, *, loss: float = 1.0
+) -> dict[int, dict[str, object]]:
+    design_ids = tuple(item.actual_history_id for item in binding.role_histories("DESIGN"))
+    return {
+        seed: {
+            "design_histories": {
+                history_id: _task9_design_history(history_id, loss=loss)
+                for history_id in design_ids
+            }
+        }
+        for seed in MODEL_SEEDS
+    }
+
+
+def _task9_candidate_seed_run(
+    binding: Task6Binding,
+    coefficient: float,
+    ratios: tuple[float, ...],
+    *,
+    loss: float = 1.0,
+    spread: float = 0.05,
+) -> dict[str, object]:
+    design_ids = tuple(item.actual_history_id for item in binding.role_histories("DESIGN"))
+    return {
+        "balance_records": _task9_balance_records(binding, coefficient, ratios),
+        "design_histories": {
+            history_id: _task9_design_history(
+                history_id, loss=loss, spread=spread
+            )
+            for history_id in design_ids
+        },
+    }
+
+
+def test_task9_pilot_state_sampler_and_full_ramp_checkpoint_are_nonfinal() -> None:
+    binding = load_task6_binding(HANDOFF)
+    pilot = make_sprint18_arm_config(
+        "B0-FULL",
+        MODEL_SEEDS[0],
+        _coefficients("B0-FULL"),
+        selection_state="coefficient_pilot",
+    )
+    assert validate_arm_config(pilot, require_locked=False) is pilot
+    with pytest.raises(ValueError, match="cannot start a locked experiment"):
+        validate_arm_config(pilot)
+    with pytest.raises(ValueError, match="must not claim a selection lock"):
+        make_sprint18_arm_config(
+            "B0-FULL",
+            MODEL_SEEDS[0],
+            _coefficients("B0-FULL"),
+            selection_state="coefficient_pilot",
+            coefficient_lock_sha256=_hash("not-selected"),
+        )
+    with pytest.raises(ValueError, match="restricted to B0-FULL"):
+        make_sprint18_arm_config(
+            "K3-FULL",
+            MODEL_SEEDS[0],
+            _coefficients("K3-FULL"),
+            selection_state="coefficient_pilot",
+        )
+    prediction_only_reference = make_sprint18_arm_config(
+        "B0-FULL",
+        MODEL_SEEDS[0],
+        {
+            "lambda_info_max": 0.0,
+            "lambda_hcc_max": None,
+            "alpha": None,
+            "beta": None,
+        },
+        selection_state="coefficient_pilot",
+    )
+    assert prediction_only_reference.lambda_info_max == 0.0
+    with pytest.raises(ValueError, match="must not be boolean"):
+        make_sprint18_arm_config(
+            "B0-FULL",
+            MODEL_SEEDS[0],
+            {**_coefficients("B0-FULL"), "lambda_info_max": False},
+            selection_state="coefficient_pilot",
+        )
+    with pytest.raises(ValueError, match="outside the frozen grid"):
+        make_sprint18_arm_config(
+            "B0-FULL",
+            MODEL_SEEDS[0],
+            {
+                "lambda_info_max": 0.0,
+                "lambda_hcc_max": None,
+                "alpha": None,
+                "beta": None,
+            },
+        )
+
+    fit_histories = binding.role_histories("FIT")
+    fit_history_ids = tuple(item.actual_history_id for item in fit_histories)
+    fit_ids = tuple(
+        f"fit-healthy-{index:05d}" for index in range(binding.fit_healthy_rows)
+    )
+    batches_per_epoch = (binding.fit_healthy_rows + BATCH_SIZE - 1) // BATCH_SIZE
+    pilot_seed, pilot_order = deterministic_sampler_order(
+        binding,
+        pilot,
+        workload="representation",
+        scope="coefficient_pilot",
+        role_history_ids=fit_history_ids,
+        epoch=TASK9_COEFFICIENT_PILOT_EPOCHS + 1,
+        eligible_source_ids=fit_ids,
+    )
+    final_config = make_sprint18_arm_config(
+        "B0-FULL",
+        MODEL_SEEDS[0],
+        _coefficients("B0-FULL"),
+        coefficient_lock_sha256=_hash("coefficient-lock"),
+    )
+    final_seed, final_order = deterministic_sampler_order(
+        binding,
+        final_config,
+        workload="representation",
+        scope="experiment",
+        role_history_ids=fit_history_ids,
+        epoch=TASK9_COEFFICIENT_PILOT_EPOCHS + 1,
+        eligible_source_ids=fit_ids,
+    )
+    assert (pilot_seed, pilot_order) == (final_seed, final_order)
+    matched_pilots = [prediction_only_reference] + [
+        make_sprint18_arm_config(
+            "B0-FULL",
+            MODEL_SEEDS[0],
+            {
+                "lambda_info_max": coefficient,
+                "lambda_hcc_max": None,
+                "alpha": None,
+                "beta": None,
+            },
+            selection_state="coefficient_pilot",
+        )
+        for coefficient in COMMON_INFO_COEFFICIENT_GRID
+    ]
+    for matched_pilot in matched_pilots:
+        matched_seed, matched_order = deterministic_sampler_order(
+            binding,
+            matched_pilot,
+            workload="representation",
+            scope="coefficient_pilot",
+            role_history_ids=fit_history_ids,
+            epoch=TASK9_COEFFICIENT_PILOT_EPOCHS + 1,
+            eligible_source_ids=fit_ids,
+        )
+        assert (matched_seed, matched_order) == (pilot_seed, pilot_order)
+
+    role_digests = [item.manifest_sha256 for item in fit_histories]
+    epoch_seed, epoch_order = deterministic_sampler_order(
+        binding,
+        pilot,
+        workload="representation",
+        scope="coefficient_pilot",
+        role_history_ids=fit_history_ids,
+        epoch=TASK9_COEFFICIENT_PILOT_EPOCHS + 1,
+        eligible_source_ids=fit_ids,
+    )
+    sampler_state = {
+        "scope": "coefficient_pilot",
+        "workload": "representation",
+        "role_history_ids": list(fit_history_ids),
+        "role_manifest_sha256": role_digests,
+        "eligible_source_ids": list(sorted(fit_ids)),
+        "eligible_source_ids_sha256": _canonical_digest(list(sorted(fit_ids))),
+        "sampler_epoch_seed": epoch_seed,
+        "epoch_order_ids": list(epoch_order),
+        "epoch_order_ids_sha256": _canonical_digest(list(epoch_order)),
+        "eligible_rows": binding.fit_healthy_rows,
+        "batch_size": BATCH_SIZE,
+        "batches_per_epoch": batches_per_epoch,
+        "completed_epochs": TASK9_COEFFICIENT_PILOT_EPOCHS,
+        "current_epoch": TASK9_COEFFICIENT_PILOT_EPOCHS + 1,
+        "batches_in_current_epoch": 0,
+        "fit_role_sha256": _canonical_digest(
+            sorted(item.manifest_sha256 for item in fit_histories)
+        ),
+    }
+    global_step = TASK9_COEFFICIENT_PILOT_EPOCHS * batches_per_epoch
+    assert _validate_sampler_state(
+        sampler_state,
+        global_step=global_step,
+        scope="coefficient_pilot",
+        completed_epoch=TASK9_COEFFICIENT_PILOT_EPOCHS,
+        arm=pilot,
+        binding=binding,
+    )["current_epoch"] == TASK9_COEFFICIENT_PILOT_EPOCHS + 1
+    late_epoch_sampler = dict(sampler_state)
+    late_epoch_sampler["batches_in_current_epoch"] = 1
+    with pytest.raises(ValueError, match="cannot contain updates beyond epoch 30"):
+        _validate_sampler_state(
+            late_epoch_sampler,
+            global_step=global_step + 1,
+            scope="coefficient_pilot",
+            completed_epoch=TASK9_COEFFICIENT_PILOT_EPOCHS,
+            arm=pilot,
+            binding=binding,
+        )
+    coefficient_state = {
+        "epoch": TASK9_COEFFICIENT_PILOT_EPOCHS + 1,
+        "global_step": global_step,
+        "selection_state": "coefficient_pilot",
+        "lambda_info": pilot.lambda_info_max,
+        "lambda_hcc": None,
+        "alpha": None,
+        "beta": None,
+    }
+    assert _validate_coefficient_state(
+        coefficient_state,
+        arm=pilot,
+        global_step=global_step,
+        current_epoch=TASK9_COEFFICIENT_PILOT_EPOCHS + 1,
+        scope="coefficient_pilot",
+    )["lambda_info"] == pilot.lambda_info_max
+    with pytest.raises(ValueError, match="selection state"):
+        _validate_coefficient_state(
+            {**coefficient_state, "selection_state": "locked"},
+            arm=pilot,
+            global_step=global_step,
+            current_epoch=TASK9_COEFFICIENT_PILOT_EPOCHS + 1,
+            scope="coefficient_pilot",
+        )
+    incomplete_sampler = dict(sampler_state)
+    incomplete_sampler["eligible_source_ids"] = list(sorted(fit_ids[:-1]))
+    incomplete_sampler["eligible_source_ids_sha256"] = _canonical_digest(
+        list(sorted(fit_ids[:-1]))
+    )
+    with pytest.raises(ValueError, match="complete Fit-healthy support"):
+        _validate_sampler_state(
+            incomplete_sampler,
+            global_step=global_step,
+            scope="coefficient_pilot",
+            completed_epoch=TASK9_COEFFICIENT_PILOT_EPOCHS,
+            arm=pilot,
+            binding=binding,
+        )
+
+
+def test_task9_healthy_support_loader_enforces_fit_and_design_permissions() -> None:
+    binding = load_task6_binding(HANDOFF)
+    fit_id = binding.role_histories("FIT")[0].actual_history_id
+    design_id = binding.role_histories("DESIGN")[0].actual_history_id
+    calibration_id = binding.role_histories("CALIBRATION")[0].actual_history_id
+    development_id = binding.role_histories("DEVELOPMENT")[0].actual_history_id
+    confirmation_id = binding.role_histories("CONFIRMATION")[0].actual_history_id
+    missing_manifest = "unopened-role-manifest.json"
+
+    with pytest.raises(ValueError, match="not authorized"):
+        load_certified_healthy_role_support(
+            binding, fit_id, missing_manifest, {}, action="select_coefficients"
+        )
+    with pytest.raises(ValueError, match="not authorized"):
+        load_certified_healthy_role_support(
+            binding, design_id, missing_manifest, {}, action="train_fit"
+        )
+    for forbidden_history in (calibration_id, development_id, confirmation_id):
+        with pytest.raises(ValueError, match="not authorized"):
+            load_certified_healthy_role_support(
+                binding,
+                forbidden_history,
+                missing_manifest,
+                {},
+                action="select_coefficients",
+            )
+
+
+def test_task9_selection_uses_smallest_valid_candidate_and_inclusive_gates() -> None:
+    binding = load_task6_binding(HANDOFF)
+    prediction_only = _task9_prediction_only_runs(binding)
+    ratios = {
+        0.025: (0.14, 0.14, 0.14, 0.14, 0.14, 0.14),
+        0.05: (0.15, 0.15, 0.15, 0.15, 0.15, 0.15),
+        0.10: (0.20, 0.20, 0.20, 0.20, 0.20, 0.20),
+    }
+    candidate_runs = {
+        coefficient: {
+            seed: _task9_candidate_seed_run(
+                binding,
+                coefficient,
+                ratios[coefficient],
+                loss=1.10 if coefficient == 0.05 else 1.0,
+                spread=0.05,
+            )
+            for seed in MODEL_SEEDS
+        }
+        for coefficient in COMMON_INFO_COEFFICIENT_GRID
+    }
+    selection = select_common_info_coefficient(
+        binding, candidate_runs, prediction_only
+    )
+    assert selection["selected_coefficient"] == 0.05
+    assert selection["selection_state"] == "selected"
+    verdicts = selection["candidate_verdicts"]
+    assert isinstance(verdicts, list)
+    assert [row["coefficient"] for row in verdicts] == list(
+        COMMON_INFO_COEFFICIENT_GRID
+    )
+    assert verdicts[0]["valid"] is False
+    assert verdicts[1]["valid"] is True
+    assert verdicts[2]["valid"] is True
+
+
+def test_task9_selection_fails_closed_on_missing_or_invalid_candidates() -> None:
+    binding = load_task6_binding(HANDOFF)
+    prediction_only = _task9_prediction_only_runs(binding)
+    selection = select_common_info_coefficient(binding, {}, prediction_only)
+    assert selection["selected_coefficient"] is None
+    assert selection["selection_state"] == "no_valid_candidate"
+    with pytest.raises(ValueError, match="outside the frozen common InfoNCE grid"):
+        select_common_info_coefficient(binding, {0.0: {}}, prediction_only)
+
+    high_p90 = (0.2, 0.2, 0.2, 0.2, 1.1, 1.2)
+    candidate_runs = {
+        0.025: {
+            seed: _task9_candidate_seed_run(binding, 0.025, high_p90)
+            for seed in MODEL_SEEDS
+        },
+        0.05: {
+            seed: _task9_candidate_seed_run(
+                binding, 0.05, (0.2,) * 6, spread=0.049
+            )
+            for seed in MODEL_SEEDS
+        },
+        0.10: {
+            seed: _task9_candidate_seed_run(
+                binding,
+                0.10,
+                (0.2,) * 6,
+                loss=1.1000000000000003,
+            )
+            for seed in MODEL_SEEDS
+        },
+    }
+    selection = select_common_info_coefficient(
+        binding, candidate_runs, prediction_only
+    )
+    assert selection["selected_coefficient"] is None
+    per_seed_failures = [
+        {
+            check
+            for seed_result in candidate["per_seed"]
+            for check in seed_result["failed_checks"]
+        }
+        for candidate in selection["candidate_verdicts"]
+    ]
+    assert "p90_gradient_ratio_exceeds_one" in per_seed_failures[0]
+    assert any(check.endswith("_embedding_collapse") for check in per_seed_failures[1])
+    assert any(
+        check.endswith("_healthy_prediction_retention_failed")
+        for check in per_seed_failures[2]
+    )
+
+def test_task9_selector_rejects_bad_gradient_observations() -> None:
+    binding = load_task6_binding(HANDOFF)
+    prediction_only = _task9_prediction_only_runs(binding)
+    candidate_runs = {
+        coefficient: {
+            seed: _task9_candidate_seed_run(binding, coefficient, (0.2,) * 6)
+            for seed in MODEL_SEEDS
+        }
+        for coefficient in COMMON_INFO_COEFFICIENT_GRID
+    }
+
+    inconsistent_records = candidate_runs[0.025][MODEL_SEEDS[0]]["balance_records"]
+    assert isinstance(inconsistent_records, list)
+    inconsistent_observation = next(
+        row
+        for row in inconsistent_records
+        if isinstance(row, dict) and row["protocol_gradient_observation"]
+    )
+    inconsistent_observation["r_aux"] = 0.3
+
+    duplicate_records = candidate_runs[0.05][MODEL_SEEDS[0]]["balance_records"]
+    assert isinstance(duplicate_records, list)
+    duplicate_observation = next(
+        row
+        for row in duplicate_records
+        if isinstance(row, dict) and row["protocol_gradient_observation"]
+    )
+    duplicate_records.append(dict(duplicate_observation))
+    duplicate_records[0]["lr"] = 0.001
+    invalid_support_records = candidate_runs[0.10][MODEL_SEEDS[0]]["balance_records"]
+    assert isinstance(invalid_support_records, list)
+    invalid_support_records[0]["support_valid_files"] = BATCH_SIZE - 1
+
+    selection = select_common_info_coefficient(
+        binding, candidate_runs, prediction_only
+    )
+    verdicts = selection["candidate_verdicts"]
+    assert isinstance(verdicts, list)
+    assert selection["selected_coefficient"] is None
+    first_failures = {
+        check for seed in verdicts[0]["per_seed"] for check in seed["failed_checks"]
+    }
+    second_failures = {
+        check for seed in verdicts[1]["per_seed"] for check in seed["failed_checks"]
+    }
+    third_failures = {
+        check for seed in verdicts[2]["per_seed"] for check in seed["failed_checks"]
+    }
+    assert "full_batch_file_support_mismatch" in third_failures
+    assert "gradient_ratio_inconsistent" in first_failures
+    assert "protocol_gradient_observations_duplicated" in second_failures
+    assert "learning_rate_schedule_mismatch" in second_failures

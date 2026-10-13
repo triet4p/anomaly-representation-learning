@@ -485,3 +485,69 @@ def test_v1_config_lambda_max_alias_and_default() -> None:
 
     with pytest.raises(ValueError, match="greater than or equal to 0"):
         V1Config(lambda_max=-0.05)
+
+
+def test_sprint18_keyed_view_draws_ignore_order_partition_and_candidate_coefficient() -> None:
+    config_values = {
+        "n_channels": 3,
+        "patch_size": 8,
+        "stride": 8,
+        "d_model": 8,
+        "attention_heads": 2,
+        "sequence_layers": 1,
+        "dropout": 0.0,
+        "n_robots": 9,
+        "n_programs": 8,
+        "seed": 181801,
+    }
+    samples = [_sample(3, 32, "file-a"), _sample(3, 48, "file-b")]
+    patchifier = Patchifier(PatchConfig(patch_size=8, stride=8, pad_end=True))
+
+    def make_model(coefficient: float) -> V1RepresentationModel:
+        torch.manual_seed(181801)
+        return V1RepresentationModel(
+            V1Config(**config_values, contrastive_weight_max=coefficient),
+            patchifier=patchifier,
+        ).eval()
+
+    low_model = make_model(0.025)
+    high_model = make_model(0.10)
+    grouped = collate_variable_files(samples, patchifier)
+    reversed_group = collate_variable_files(samples[::-1], patchifier)
+    separate = [collate_variable_files([sample], patchifier) for sample in samples]
+
+    with torch.no_grad():
+        low_grouped = low_model(grouped, sprint18_view_epoch=26)
+        high_grouped = high_model(grouped, sprint18_view_epoch=26)
+        low_reversed = low_model(reversed_group, sprint18_view_epoch=26)
+        low_separate = [
+            low_model(batch, sprint18_view_epoch=26) for batch in separate
+        ]
+        next_epoch = low_model(separate[0], sprint18_view_epoch=27)
+
+    for view_name in ("view_embedding_1", "view_embedding_2"):
+        torch.testing.assert_close(
+            low_grouped[view_name],
+            high_grouped[view_name],
+        )
+        for index in range(len(samples)):
+            torch.testing.assert_close(
+                low_grouped[view_name][index],
+                low_reversed[view_name][1 - index],
+                rtol=1e-5,
+                atol=1e-6,
+            )
+            torch.testing.assert_close(
+                low_grouped[view_name][index],
+                low_separate[index][view_name][0],
+                rtol=1e-5,
+                atol=1e-6,
+            )
+    assert not torch.equal(
+        low_grouped["view_embedding_1"][0],
+        low_grouped["view_embedding_2"][0],
+    )
+    assert not torch.equal(
+        low_grouped["view_embedding_1"][0],
+        next_epoch["view_embedding_1"][0],
+    )
