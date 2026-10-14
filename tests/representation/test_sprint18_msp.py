@@ -152,6 +152,39 @@ def test_msp_coarse_members_hidden_and_teacher_stop_gradient() -> None:
     assert math.isfinite(float(grouped["coarse_loss"]))
 
 
+def _canonical_sha256_for_test() -> str:
+    from representation.sprint18_checkpoint import _canonical_sha256
+
+    binding = load_task6_binding(
+        __import__("pathlib").Path(__file__).resolve().parents[2]
+        / "experiments"
+        / "sprint18-task71-certified-data-handoff-S18-ITER-0005-v1.json"
+    )
+    return _canonical_sha256(sorted(item.manifest_sha256 for item in binding.role_histories("FIT")))
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA required for N2 union device-placement proof")
+def test_msp_epoch_with_cpu_inputs_runs_on_cuda_batch_device() -> None:
+    """Consumer device contract: CPU loader inputs train end to end on a CUDA N2 trainer."""
+    trainer, arm, batch = _msp_fixture()
+    assert batch["mask"].device.type == "cpu"
+    trainer.device = torch.device("cuda")
+    trainer.model.to(trainer.device)
+    assert trainer.device.type == "cuda" and next(trainer.model.parameters()).is_cuda
+    fit_role = _canonical_sha256_for_test()
+    step_before = trainer.step
+    params_before = state_sha256(trainer.model.state_dict())
+    result = trainer.train_sprint18_msp_epoch([batch], arm=arm, epoch=11, fit_role_sha256=fit_role)
+    assert trainer.step == step_before + 1
+    assert state_sha256(trainer.model.state_dict()) != params_before
+    assert math.isfinite(result["joint_loss"]) and math.isfinite(result["coarse_loss"])
+    assert result["coarse_loss"] > 0.0
+    balance = trainer.objective_balance_history[-1]
+    assert balance["epoch"] == 11
+    assert balance["support_coarse_g4"] > 0 and balance["support_coarse_g8"] > 0
+    assert math.isfinite(balance["r_aux"])
+
+
 def _msp_fixture(coefficient: float = 0.25, seed: int = 181801, lengths: tuple[int, ...] = (800, 1000, 1200, 1600, 900, 1100, 1300, 1500)):
     config = V1Config(
         n_channels=6, patch_size=32, stride=16, n_robots=9, n_programs=8,

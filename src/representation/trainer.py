@@ -912,7 +912,10 @@ class RepresentationTrainer:
                 union = masks["union_mask"]
                 assert isinstance(union, torch.Tensor)
                 moved = dict(moved)
-                moved["mask"] = union.to(dtype=torch.bool)
+                # The N2 union is built on CPU while the collated batch lives on
+                # the trainer device; align it before the model call. On CPU this
+                # is a no-op, so local numerics are bitwise unchanged.
+                moved["mask"] = union.to(dtype=torch.bool, device=moved["mask"].device)
             output = self.model(moved, sprint18_view_epoch=sprint18_view_epoch)
             terms = self.criterion(output, step=self.step, effective_lambda_override=effective_info)
             context = output.get("context_latents")
