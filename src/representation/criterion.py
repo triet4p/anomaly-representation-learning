@@ -113,6 +113,116 @@ class FileContrastiveCriterion(nn.Module):
         return value
 
 
+HCC_AFFINITY_SAME_FILE = 1.0
+HCC_AFFINITY_SAME_ROBOT_PROGRAM = 0.5
+HCC_AFFINITY_SAME_ROBOT_DIFF_PROGRAM = 0.1
+HCC_AFFINITY_DIFFERENT_ROBOT = 0.0
+
+
+def hcc_file_affinities(robot_idx: torch.Tensor, program_idx: torch.Tensor) -> torch.Tensor:
+    """Return the frozen file-level HCC affinity matrix from robot/program identity only."""
+    for name, value in (("robot_idx", robot_idx), ("program_idx", program_idx)):
+        if not isinstance(value, torch.Tensor) or value.ndim != 1:
+            raise ValueError(f"HCC {name} must be a 1D torch.Tensor")
+        if value.dtype.is_floating_point:
+            raise ValueError(f"HCC {name} must contain integer category IDs")
+        if value.shape[0] == 0:
+            raise ValueError("HCC relation batch cannot be empty")
+    if robot_idx.shape != program_idx.shape:
+        raise ValueError("HCC robot and program identities must share batch size")
+    if bool((robot_idx < 0).any()) or bool((program_idx < 0).any()):
+        raise ValueError("HCC robot and program identities must be non-negative")
+    batch_size = int(robot_idx.shape[0])
+    same_robot = robot_idx.unsqueeze(1) == robot_idx.unsqueeze(0)
+    same_program = program_idx.unsqueeze(1) == program_idx.unsqueeze(0)
+    affinities = torch.zeros((batch_size, batch_size), dtype=torch.float32)
+    affinities[same_robot & same_program] = HCC_AFFINITY_SAME_ROBOT_PROGRAM
+    affinities[same_robot & ~same_program] = HCC_AFFINITY_SAME_ROBOT_DIFF_PROGRAM
+    affinities.fill_diagonal_(HCC_AFFINITY_SAME_FILE)
+    return affinities
+
+
+def hcc_relation_support(robot_idx: torch.Tensor, program_idx: torch.Tensor) -> dict[str, float | int]:
+    """Count natural relation support and target mass from robot/program identity only."""
+    affinities = hcc_file_affinities(robot_idx, program_idx)
+    batch_size = int(affinities.shape[0])
+    cross_same_rp = (affinities == HCC_AFFINITY_SAME_ROBOT_PROGRAM).any(dim=1)
+    cross_same_r_diff_p = (affinities == HCC_AFFINITY_SAME_ROBOT_DIFF_PROGRAM).any(dim=1)
+    # Diagonal is the same-file view; any positive off-diagonal mass means cross-file support.
+    off_diagonal_positive = ((affinities > 0.0) & ~torch.eye(batch_size, dtype=torch.bool)).any(dim=1)
+    anchors_same_rp = int(cross_same_rp.sum().item())
+    anchors_same_r_diff_p = int(cross_same_r_diff_p.sum().item())
+    anchors_only_same_file = int((~off_diagonal_positive).sum().item())
+    row_sums = affinities.sum(dim=1, keepdim=True).clamp_min(1e-12)
+    targets = affinities / row_sums
+    entropy = float((-(targets * targets.clamp_min(1e-12).log()).sum(dim=1)).mean().item())
+    mass_same_file = float(targets.diagonal().mean().item())
+    mass_same_rp = float(((targets * (affinities == HCC_AFFINITY_SAME_ROBOT_PROGRAM)).sum(dim=1)).mean().item())
+    mass_same_r_diff_p = float(((targets * (affinities == HCC_AFFINITY_SAME_ROBOT_DIFF_PROGRAM)).sum(dim=1)).mean().item())
+    return {
+        "batch_files": batch_size,
+        "anchors_same_rp": anchors_same_rp,
+        "anchors_same_r_diff_p": anchors_same_r_diff_p,
+        "anchors_only_same_file": anchors_only_same_file,
+        "target_entropy_mean": entropy,
+        "mass_same_file": mass_same_file,
+        "mass_same_rp": mass_same_rp,
+        "mass_same_r_diff_p": mass_same_r_diff_p,
+    }
+
+
+class HierarchicalContrastiveCriterion(nn.Module):
+    """Apply the frozen soft hierarchical relation-target contrastive loss."""
+
+    def __init__(self, temperature: float = 0.2) -> None:
+        super().__init__()
+        if temperature <= 0.0:
+            raise ValueError("temperature must be positive")
+        self.temperature = float(temperature)
+
+    def forward(
+        self,
+        view_1: torch.Tensor,
+        view_2: torch.Tensor,
+        robot_idx: torch.Tensor,
+        program_idx: torch.Tensor,
+    ) -> dict[str, torch.Tensor]:
+        """Return the symmetric HCC loss plus natural relation-support diagnostics."""
+        for name, value in (("view_1", view_1), ("view_2", view_2)):
+            if not isinstance(value, torch.Tensor) or value.ndim != 2:
+                raise ValueError(f"HCC {name} must be a 2D torch.Tensor")
+        if view_1.shape != view_2.shape:
+            raise ValueError("HCC contrastive views must share shape")
+        if view_1.shape[0] == 0:
+            raise ValueError("HCC contrastive views cannot be empty")
+        if view_1.shape[0] != int(robot_idx.shape[0]) or view_1.shape[0] != int(program_idx.shape[0]):
+            raise ValueError("HCC view and identity batch sizes differ")
+        normalized_1 = F.normalize(view_1, dim=-1)
+        normalized_2 = F.normalize(view_2, dim=-1)
+        sim_12 = (normalized_1 @ normalized_2.transpose(0, 1)) / self.temperature
+        sim_21 = sim_12.transpose(0, 1)
+        affinities = hcc_file_affinities(robot_idx, program_idx).to(device=view_1.device)
+        row_sums = affinities.sum(dim=1, keepdim=True).clamp_min(1e-12)
+        targets = affinities / row_sums
+        log_p_12 = F.log_softmax(sim_12, dim=1)
+        log_p_21 = F.log_softmax(sim_21, dim=1)
+        loss_12 = -(targets * log_p_12).sum(dim=1).mean()
+        loss_21 = -(targets * log_p_21).sum(dim=1).mean()
+        loss = 0.5 * (loss_12 + loss_21)
+        support = hcc_relation_support(robot_idx.detach().cpu(), program_idx.detach().cpu())
+        return {
+            "loss": loss,
+            "similarity": 0.5 * (sim_12.diag().mean() * self.temperature + sim_21.diag().mean() * self.temperature),
+            "normalized_view_1": normalized_1,
+            "normalized_view_2": normalized_2,
+            "batch_size": torch.tensor(int(view_1.shape[0]), device=view_1.device),
+            "anchors_same_rp": torch.tensor(support["anchors_same_rp"], device=view_1.device),
+            "anchors_same_r_diff_p": torch.tensor(support["anchors_same_r_diff_p"], device=view_1.device),
+            "anchors_only_same_file": torch.tensor(support["anchors_only_same_file"], device=view_1.device),
+            "target_entropy_mean": torch.tensor(support["target_entropy_mean"], device=view_1.device),
+        }
+
+
 class ProgressiveLambda:
     """Monotonic linear contrastive-weight schedule with an optional warmup."""
 

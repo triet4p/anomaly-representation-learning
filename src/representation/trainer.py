@@ -14,8 +14,10 @@ from torch.nn.utils import clip_grad_norm_
 
 from representation.criterion import (
     FileContrastiveCriterion,
+    HierarchicalContrastiveCriterion,
     JointRepresentationCriterion,
     ProgressiveLambda,
+    hcc_relation_support,
 )
 from representation.contracts import RepresentationBatch
 from representation.model import V1RepresentationModel
@@ -206,6 +208,103 @@ class RepresentationTrainer:
             raise ValueError("shared online encoder has no trainable parameters")
         return tuple(parameters)
 
+    @staticmethod
+    def hcc_objective_terms(
+        output: Mapping[str, object],
+        batch: Mapping[str, object],
+        *,
+        temperature: float = 0.2,
+    ) -> dict[str, torch.Tensor]:
+        """Compute the frozen HCC relation-target objective from encoder-visible identity only."""
+        view_1 = output.get("view_embedding_1")
+        view_2 = output.get("view_embedding_2")
+        robot_idx = batch.get("robot_idx")
+        program_idx = batch.get("program_idx")
+        if (
+            not isinstance(view_1, torch.Tensor)
+            or not isinstance(view_2, torch.Tensor)
+            or not isinstance(robot_idx, torch.Tensor)
+            or not isinstance(program_idx, torch.Tensor)
+        ):
+            raise ValueError("HCC objective requires view embeddings and robot/program identity tensors")
+        return HierarchicalContrastiveCriterion(temperature=temperature)(
+            view_1, view_2, robot_idx.to(device=view_1.device), program_idx.to(device=view_1.device)
+        )
+
+    def _hcc_balance_record(
+        self,
+        output: Mapping[str, object],
+        batch: Mapping[str, object],
+        terms: Mapping[str, torch.Tensor | float | int],
+        hcc_loss: torch.Tensor,
+        weighted_hcc_loss: torch.Tensor,
+        effective_hcc: float,
+        *,
+        epoch: int,
+        global_step: int,
+        learning_rate: float,
+        parameters: tuple[nn.Parameter, ...],
+    ) -> dict[str, int | float | bool]:
+        prediction_loss = terms["prediction_loss"]
+        if not isinstance(prediction_loss, torch.Tensor) or not isinstance(weighted_hcc_loss, torch.Tensor):
+            raise TypeError("objective losses must be tensors for gradient diagnostics")
+        prediction_norm = self._gradient_norm(prediction_loss, parameters)
+        hcc_norm = self._gradient_norm(weighted_hcc_loss, parameters)
+        prediction_mask = output.get("prediction_mask")
+        valid_mask = output.get("patch_valid_mask")
+        embeddings = output.get("file_embedding")
+        if (
+            not isinstance(prediction_mask, torch.Tensor)
+            or not isinstance(valid_mask, torch.Tensor)
+            or not isinstance(embeddings, torch.Tensor)
+            or prediction_mask.dtype is not torch.bool
+            or valid_mask.dtype is not torch.bool
+            or prediction_mask.ndim != 2
+            or valid_mask.ndim != 2
+            or embeddings.ndim != 2
+            or prediction_mask.shape != valid_mask.shape
+            or embeddings.shape[0] != valid_mask.shape[0]
+        ):
+            raise ValueError("model output masks/embeddings do not share valid file support")
+        valid_prediction = prediction_mask & valid_mask
+        geometry = self._embedding_geometry(embeddings, valid_mask.any(dim=1))
+        effective_prediction = self._scalar(terms["effective_prediction_coefficient"])
+        raw_hcc = float(hcc_loss.detach().cpu().item())
+        raw_prediction = self._scalar(prediction_loss)
+        ratio = hcc_norm / (prediction_norm + 1e-12)
+        robot_idx = batch.get("robot_idx")
+        program_idx = batch.get("program_idx")
+        if not isinstance(robot_idx, torch.Tensor) or not isinstance(program_idx, torch.Tensor):
+            raise ValueError("HCC balance diagnostics require robot/program identity tensors")
+        support = hcc_relation_support(robot_idx.detach().cpu(), program_idx.detach().cpu())
+        record: dict[str, int | float | bool] = {
+            "epoch": epoch,
+            "global_step": global_step,
+            "lr": learning_rate,
+            "raw_L_pred": raw_prediction,
+            "effective_coefficient_L_pred": effective_prediction,
+            "weighted_L_pred": self._scalar(terms["weighted_prediction_loss"]),
+            "raw_L_hcc": raw_hcc,
+            "effective_coefficient_L_hcc": effective_hcc,
+            "weighted_L_hcc": float(weighted_hcc_loss.detach().cpu().item()),
+            "gradient_norm_L_pred_shared": prediction_norm,
+            "gradient_norm_weighted_L_hcc_shared": hcc_norm,
+            "r_aux": ratio,
+            "support_valid_files": int(valid_mask.any(dim=1).sum().item()),
+            "support_valid_patches": int(valid_mask.sum().item()),
+            "support_prediction_files": int(valid_prediction.any(dim=1).sum().item()),
+            "support_prediction_patches": int(valid_prediction.sum().item()),
+            "support_hcc_files": int(embeddings.shape[0]),
+            "contrastive_input_files": int(embeddings.shape[0]),
+            "anchors_same_rp": int(support["anchors_same_rp"]),
+            "anchors_same_r_diff_p": int(support["anchors_same_r_diff_p"]),
+            "anchors_only_same_file": int(support["anchors_only_same_file"]),
+            "target_entropy_mean": float(support["target_entropy_mean"]),
+            "protocol_gradient_observation": (26 <= epoch <= 30 and global_step % 40 == 0),
+        }
+        record.update(geometry)
+        return record
+
     def _balance_record(
         self,
         output: Mapping[str, object],
@@ -292,7 +391,7 @@ class RepresentationTrainer:
         epoch: int,
         collect_balance: bool = True,
     ) -> dict[str, float]:
-        """Run one B0 epoch under the accepted Sprint 18 schedule and diagnostics."""
+        """Run one B0/N1 epoch under the accepted Sprint 18 schedule and diagnostics."""
         from representation.sprint18_checkpoint import (
             coefficient_for_epoch,
             learning_rate_for_epoch,
@@ -303,8 +402,8 @@ class RepresentationTrainer:
         )
 
         validate_arm_config(arm, require_locked=(arm.selection_state == "locked"))
-        if arm.arm_id != "B0-FULL":
-            raise ValueError("Task8 instrumentation currently supports the implemented B0-FULL path")
+        if arm.arm_id == "N1-HCC":
+            return self.train_sprint18_hcc_epoch(batches, arm=arm, epoch=epoch, collect_balance=collect_balance)
         if arm.selection_state == "coefficient_pilot" and (
             isinstance(epoch, bool)
             or not isinstance(epoch, int)
@@ -385,6 +484,158 @@ class RepresentationTrainer:
             collect_balance=collect_balance,
             sprint18_view_epoch=epoch,
         )
+
+    def train_sprint18_hcc_epoch(
+        self,
+        batches: Iterable[Mapping[str, object]],
+        *,
+        arm: Sprint18ArmConfig,
+        epoch: int,
+        collect_balance: bool = True,
+    ) -> dict[str, float]:
+        """Run one N1-HCC epoch: frozen prediction plus the HCC relation-target objective."""
+        from representation.sprint18_checkpoint import (
+            coefficient_for_epoch,
+            learning_rate_for_epoch,
+        )
+        from representation.sprint18_harness import (
+            TASK9_COEFFICIENT_PILOT_EPOCHS,
+            validate_arm_config,
+        )
+
+        validate_arm_config(arm, require_locked=(arm.selection_state == "locked"))
+        if arm.arm_id != "N1-HCC":
+            raise ValueError("HCC training requires the N1-HCC arm configuration")
+        if arm.selection_state == "coefficient_pilot" and (
+            isinstance(epoch, bool)
+            or not isinstance(epoch, int)
+            or not 1 <= epoch <= TASK9_COEFFICIENT_PILOT_EPOCHS
+        ):
+            raise ValueError("N1 coefficient pilots must stop at the frozen epoch-30 full-ramp checkpoint")
+        if (
+            arm.selection_state == "coefficient_pilot"
+            and arm.lambda_hcc_max != 0.0
+            and not collect_balance
+        ):
+            raise ValueError("N1 coefficient pilots require objective-balance diagnostics")
+        if self.scheduler is not None:
+            raise ValueError("Sprint18 uses a constant-within-epoch LR; pass no step scheduler")
+        if not isinstance(self.optimizer, torch.optim.AdamW):
+            raise ValueError("Sprint18 representation training requires AdamW")
+        if self.max_grad_norm != 1.0:
+            raise ValueError("Sprint18 representation training requires global L2 clip 1.0")
+        if self.criterion.prediction_weight != 1.0:
+            raise ValueError("Sprint18 prediction objective coefficient must remain 1.0")
+        coefficient_max = arm.lambda_hcc_max
+        if coefficient_max is None:
+            raise ValueError("N1-HCC pilot requires its frozen HCC coefficient maximum")
+        if (
+            self.model.config.n_channels != arm.n_channels
+            or self.model.config.patch_size != arm.patch_size
+            or self.model.config.stride != arm.stride
+            or self.model.config.n_robots != arm.n_robots
+            or self.model.config.n_programs != arm.n_programs
+            or self.model.config.seed != arm.model_seed
+            or self.model.config.ema_decay != arm.ema_decay
+            or self.model.target_encoder.decay != arm.ema_decay
+        ):
+            raise ValueError("N1 model configuration differs from its frozen Sprint18 arm")
+        learning_rate = learning_rate_for_epoch(epoch)
+        effective_hcc = coefficient_for_epoch(coefficient_max, epoch)
+        for group in self.optimizer.param_groups:
+            group["lr"] = learning_rate
+        return self._run_hcc_epoch(
+            batches,
+            epoch=epoch,
+            effective_hcc=effective_hcc,
+            learning_rate=learning_rate,
+            collect_balance=collect_balance,
+            sprint18_view_epoch=epoch,
+        )
+
+    def _run_hcc_epoch(
+        self,
+        batches: Iterable[Mapping[str, object]],
+        *,
+        epoch: int,
+        effective_hcc: float,
+        learning_rate: float,
+        collect_balance: bool,
+        sprint18_view_epoch: int,
+    ) -> dict[str, float]:
+        self.model.train()
+        totals: dict[str, float] = {}
+        counts: dict[str, int] = {}
+        epoch_balance_records: list[dict[str, int | float | bool]] = []
+        shared_parameters = self._shared_encoder_parameters() if collect_balance else ()
+        for batch_index, raw_batch in enumerate(batches):
+            next_step = self.step + 1
+            self.optimizer.zero_grad(set_to_none=True)
+            moved = self._move_batch(raw_batch)  # type: ignore[arg-type]
+            output = self.model(moved, sprint18_view_epoch=sprint18_view_epoch)
+            terms = self.criterion(output, step=self.step, effective_lambda_override=0.0)
+            hcc_terms = self.hcc_objective_terms(output, moved, temperature=self.model.config.contrastive_temperature)
+            hcc_loss = hcc_terms["loss"]
+            if not isinstance(hcc_loss, torch.Tensor):
+                raise TypeError("HCC loss must be a tensor")
+            weighted_hcc_loss = effective_hcc * hcc_loss
+            joint_loss = terms["weighted_prediction_loss"] + weighted_hcc_loss
+            if not isinstance(joint_loss, torch.Tensor):
+                raise TypeError("joint_loss must be a tensor")
+            pending_record: dict[str, int | float | bool] | None = None
+            if collect_balance and (
+                batch_index == 0
+                or (26 <= epoch <= 30 and next_step % 40 == 0)
+            ):
+                pending_record = self._hcc_balance_record(
+                    output,
+                    moved,
+                    terms,
+                    hcc_loss,
+                    weighted_hcc_loss,
+                    effective_hcc,
+                    epoch=epoch,
+                    global_step=next_step,
+                    learning_rate=learning_rate,
+                    parameters=shared_parameters,
+                )
+            joint_loss.backward()
+            parameters = [parameter for parameter in self.model.parameters() if parameter.requires_grad]
+            if self.max_grad_norm is not None:
+                grad_norm = clip_grad_norm_(parameters, self.max_grad_norm)
+            else:
+                grad_norm = clip_grad_norm_(parameters, float("inf"))
+            self.optimizer.step()
+            self.model.target_encoder.update(self.model.context_encoder)
+            self.step += 1
+            if pending_record is not None:
+                self.objective_balance_history.append(pending_record)
+                epoch_balance_records.append(pending_record)
+            for name, value in (
+                ("prediction_loss", terms["prediction_loss"]),
+                ("contrastive_loss", hcc_loss),
+                ("weighted_contrastive_loss", weighted_hcc_loss),
+                ("joint_loss", joint_loss),
+            ):
+                scalar = self._scalar(value)
+                totals[name] = totals.get(name, 0.0) + scalar
+                counts[name] = counts.get(name, 0) + 1
+            grad_norm_scalar = float(grad_norm.detach().cpu().item()) if isinstance(grad_norm, torch.Tensor) else float(grad_norm)
+            lr_scalar = float(self.optimizer.param_groups[0]["lr"])
+            totals["grad_norm"] = totals.get("grad_norm", 0.0) + grad_norm_scalar
+            counts["grad_norm"] = counts.get("grad_norm", 0) + 1
+            totals["lr"] = totals.get("lr", 0.0) + lr_scalar
+            counts["lr"] = counts.get("lr", 0) + 1
+        if not counts:
+            raise ValueError("training epoch received no batches")
+        averaged = {name: totals[name] / counts[name] for name in totals}
+        averaged["epoch"] = float(epoch)
+        if epoch_balance_records:
+            for name, value in epoch_balance_records[0].items():
+                averaged[f"balance_{name}"] = float(value)
+        averaged["step"] = float(self.step)
+        self.history.append(averaged)
+        return averaged
 
     def _run_epoch(
         self,
