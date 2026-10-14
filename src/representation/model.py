@@ -71,6 +71,25 @@ class V1RepresentationModel(nn.Module):
             self.context_encoder, decay=config.ema_decay
         )
         self.predictor = MaskedLatentPredictor(config.d_model, dropout=config.dropout)
+        # N2-MSP coarse-scale student heads: two separate two-layer predictors
+        # with hidden/output width d_model. Teacher side uses functional
+        # LayerNorm (no shared teacher/student parameters). Inference
+        # (forward/score_batch) stays fine-only; coarse outputs are
+        # diagnostics, never fused into S_pred.
+        self.coarse_predictor_4 = nn.Sequential(
+            nn.Linear(config.d_model, config.d_model),
+            nn.GELU(),
+            nn.Dropout(config.dropout),
+            nn.Linear(config.d_model, config.d_model),
+            nn.LayerNorm(config.d_model),
+        )
+        self.coarse_predictor_8 = nn.Sequential(
+            nn.Linear(config.d_model, config.d_model),
+            nn.GELU(),
+            nn.Dropout(config.dropout),
+            nn.Linear(config.d_model, config.d_model),
+            nn.LayerNorm(config.d_model),
+        )
         self.contrastive_projector = nn.Sequential(
             nn.Linear(config.d_model, config.d_model),
             nn.LayerNorm(config.d_model),
@@ -107,6 +126,70 @@ class V1RepresentationModel(nn.Module):
             )
         predicted, prediction_mask = self.predictor(context, mask, patch_valid_mask)
         return context, target.detach(), predicted, prediction_mask
+
+    def msp_coarse_terms(
+        self,
+        context: torch.Tensor,
+        target: torch.Tensor,
+        patch_valid_mask: torch.Tensor,
+        groups_4: list[tuple[int, ...]] | tuple[tuple[int, ...], ...],
+        groups_8: list[tuple[int, ...]] | tuple[tuple[int, ...], ...],
+    ) -> dict[str, torch.Tensor]:
+        """Compute N2 coarse-4/8 student predictions and stop-gradient teacher targets.
+
+        The online context path must already hide every coarse member before
+        context encoding (union mask); this helper never touches visibility.
+        Teacher targets are detached EMA latents; student inputs are masked
+        member context outputs only. Separate two-layer heads per scale.
+        """
+        if context.ndim != 3 or target.ndim != 3:
+            raise ValueError("coarse latents must be [B, N, D]")
+        if context.shape != target.shape:
+            raise ValueError("coarse context and target latents must share shape")
+        if (
+            not isinstance(patch_valid_mask, torch.Tensor)
+            or patch_valid_mask.ndim != 2
+            or patch_valid_mask.dtype is not torch.bool
+            or tuple(patch_valid_mask.shape) != tuple(context.shape[:2])
+        ):
+            raise ValueError("patch_valid_mask must be a bool [B, N] tensor")
+        width = context.shape[-1]
+        if width != self.config.d_model:
+            raise ValueError("coarse latents must match the configured d_model")
+        detached = target.detach()
+        outputs: dict[str, torch.Tensor] = {}
+        for scale, groups, head in (
+            ("group4", groups_4, self.coarse_predictor_4),
+            ("group8", groups_8, self.coarse_predictor_8),
+        ):
+            span = 4 if scale == "group4" else 8
+            if not isinstance(groups, (list, tuple)):
+                raise ValueError(f"{scale} groups must be a list/tuple of index tuples")
+            students: list[torch.Tensor] = []
+            teachers: list[torch.Tensor] = []
+            for group in groups:
+                members = [int(m) for m in group]
+                if len(members) != span:
+                    raise ValueError(f"{scale} groups must have exactly {span} members")
+                student_in = torch.layer_norm(context[:, members, :].mean(dim=1), (width,))
+                teacher = torch.layer_norm(detached[:, members, :].mean(dim=1), (width,))
+                students.append(head(student_in))
+                teachers.append(teacher)
+            if students:
+                student_t = torch.stack(students, dim=1)
+                teacher_t = torch.stack(teachers, dim=1)
+                errors = ((student_t - teacher_t).square().mean(dim=-1)).mean()
+            else:
+                errors = (context.sum() * 0.0) + 0.0
+            outputs[f"{scale}_loss"] = errors
+            outputs[f"{scale}_count"] = torch.tensor(len(students))
+        if int(outputs["group4_count"].item()) and int(outputs["group8_count"].item()):
+            outputs["coarse_loss"] = 0.5 * outputs["group4_loss"] + 0.5 * outputs["group8_loss"]
+        elif int(outputs["group4_count"].item()):
+            outputs["coarse_loss"] = outputs["group4_loss"]
+        else:
+            outputs["coarse_loss"] = outputs["group8_loss"]
+        return outputs
 
     @staticmethod
     def _pool_file(latents: torch.Tensor, valid: torch.Tensor,

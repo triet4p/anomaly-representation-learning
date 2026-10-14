@@ -18,6 +18,11 @@ from representation.criterion import (
     JointRepresentationCriterion,
     ProgressiveLambda,
     hcc_relation_support,
+    msp_allocate_budget,
+    msp_fine_mask,
+    msp_mask_budget,
+    msp_mask_seed,
+    msp_place_groups,
 )
 from representation.contracts import RepresentationBatch
 from representation.model import V1RepresentationModel
@@ -305,6 +310,171 @@ class RepresentationTrainer:
         record.update(geometry)
         return record
 
+    @staticmethod
+    def msp_batch_masks(
+        batch: Mapping[str, object],
+        *,
+        model_seed: int,
+        epoch: int,
+        fit_role_sha256: str,
+    ) -> dict[str, object]:
+        """Build the frozen N2 union mask plus coarse groups for one collated batch.
+
+        Uses per-file N2 mask seeds, seeded capacity-preserving placement, and
+        the B0 fine-mask override on remaining free indices. Returns the union
+        mask, coarse groups per file, and per-file allocation diagnostics.
+        Consumes no labels/outcomes.
+        """
+        import numpy as np
+
+        from synth.schema import PatchBatch
+
+        file_ids = batch.get("file_ids")
+        samples = batch.get("file_samples")
+        valid_mask = batch.get("patch_valid_mask")
+        pad_mask = batch.get("patch_pad_mask")
+        patches = batch.get("patches")
+        if not isinstance(file_ids, (list, tuple)) or not file_ids:
+            raise ValueError("N2 masking requires batch file IDs")
+        if samples is None or len(samples) != len(file_ids):
+            raise ValueError("N2 masking requires file_samples metadata")
+        if (
+            not isinstance(valid_mask, torch.Tensor)
+            or not isinstance(pad_mask, torch.Tensor)
+            or valid_mask.dtype is not torch.bool
+        ):
+            raise ValueError("N2 masking requires bool patch_valid_mask/patch_pad_mask")
+        batch_size, max_patches = valid_mask.shape
+        union = torch.zeros((batch_size, max_patches), dtype=torch.bool)
+        groups_4_all: list[list[tuple[int, ...]]] = []
+        groups_8_all: list[list[tuple[int, ...]]] = []
+        diagnostics: list[dict[str, object]] = []
+        for row, file_id in enumerate(file_ids):
+            if not isinstance(file_id, str) or not file_id:
+                raise ValueError("N2 masking requires canonical file IDs")
+            n_valid = int(valid_mask[row].sum().item())
+            valid_positions = [int(i) for i in range(max_patches) if bool(valid_mask[row, i].item())]
+            budget = msp_mask_budget(n_valid)
+            allocation = msp_allocate_budget(budget)
+            fine_target, g4, g8 = allocation
+            seed = msp_mask_seed(model_seed, epoch, fit_role_sha256, file_id)
+            rng = np.random.default_rng(seed)
+            placement = msp_place_groups(valid_positions, g8, g4, rng)
+            groups_8 = [tuple(int(m) for m in g) for g in placement["groups_8"]]  # type: ignore[union-attr]
+            groups_4 = [tuple(int(m) for m in g) for g in placement["groups_4"]]  # type: ignore[union-attr]
+            remaining = [int(v) for v in placement["remaining_free"]]  # type: ignore[union-attr]
+            fine_count = budget - 8 * len(groups_8) - 4 * len(groups_4)
+            sample = samples[row]
+            if getattr(sample, "file_id", file_id) != file_id:
+                raise ValueError("N2 batch file identity does not match its samples")
+            # Original patch data for B0 info scores: full [N, C, W] row indexed
+            # by original patch position (valid positions need not be a prefix).
+            patch_data = patches[row].detach().cpu().numpy() if isinstance(patches, torch.Tensor) else np.zeros((max_patches, 1, 1), dtype=np.float32)
+            fine = msp_fine_mask(remaining, fine_count, np.asarray(patch_data), rng)
+            members: set[int] = set()
+            for group in groups_8:
+                members.update(group)
+            for group in groups_4:
+                members.update(group)
+            members.update(int(v) for v in fine["selected"])  # type: ignore[union-attr]
+            if len(members) != budget:
+                raise ValueError("N2 mask union does not match its exact integer budget")
+            for member in members:
+                union[row, member] = True
+            groups_4_all.append(groups_4)
+            groups_8_all.append(groups_8)
+            diagnostics.append(
+                {
+                    "file_id": file_id,
+                    "n": n_valid,
+                    "M": budget,
+                    "allocation": allocation,
+                    "q8": len(groups_8),
+                    "q4": len(groups_4),
+                    "q8_fallback_to_4": placement["q8_fallback_to_4"],
+                    "q4_fallback_to_fine": placement["q4_fallback_to_fine"],
+                    "fine": len(fine["selected"]),  # type: ignore[union-attr]
+                    "composition": fine["composition"],
+                }
+            )
+        return {
+            "union_mask": union,
+            "groups_4": groups_4_all,
+            "groups_8": groups_8_all,
+            "diagnostics": diagnostics,
+        }
+
+    def _msp_balance_record(
+        self,
+        output: Mapping[str, object],
+        terms: Mapping[str, torch.Tensor | float | int],
+        coarse_loss: torch.Tensor,
+        weighted_coarse_loss: torch.Tensor,
+        effective_alpha: float,
+        effective_info: float,
+        *,
+        epoch: int,
+        global_step: int,
+        learning_rate: float,
+        parameters: tuple[nn.Parameter, ...],
+        groups_4_count: int,
+        groups_8_count: int,
+    ) -> dict[str, int | float | bool]:
+        prediction_loss = terms["prediction_loss"]
+        if not isinstance(prediction_loss, torch.Tensor) or not isinstance(weighted_coarse_loss, torch.Tensor):
+            raise TypeError("objective losses must be tensors for gradient diagnostics")
+        prediction_norm = self._gradient_norm(prediction_loss, parameters)
+        coarse_norm = self._gradient_norm(weighted_coarse_loss, parameters)
+        prediction_mask = output.get("prediction_mask")
+        valid_mask = output.get("patch_valid_mask")
+        embeddings = output.get("file_embedding")
+        if (
+            not isinstance(prediction_mask, torch.Tensor)
+            or not isinstance(valid_mask, torch.Tensor)
+            or not isinstance(embeddings, torch.Tensor)
+            or prediction_mask.dtype is not torch.bool
+            or valid_mask.dtype is not torch.bool
+            or prediction_mask.ndim != 2
+            or valid_mask.ndim != 2
+            or embeddings.ndim != 2
+            or prediction_mask.shape != valid_mask.shape
+            or embeddings.shape[0] != valid_mask.shape[0]
+        ):
+            raise ValueError("model output masks/embeddings do not share valid file support")
+        valid_prediction = prediction_mask & valid_mask
+        geometry = self._embedding_geometry(embeddings, valid_mask.any(dim=1))
+        effective_prediction = self._scalar(terms["effective_prediction_coefficient"])
+        raw_coarse = float(coarse_loss.detach().cpu().item())
+        raw_prediction = self._scalar(prediction_loss)
+        ratio = coarse_norm / (prediction_norm + 1e-12)
+        record: dict[str, int | float | bool] = {
+            "epoch": epoch,
+            "global_step": global_step,
+            "lr": learning_rate,
+            "raw_L_pred": raw_prediction,
+            "effective_coefficient_L_pred": effective_prediction,
+            "weighted_L_pred": self._scalar(terms["weighted_prediction_loss"]),
+            "raw_L_coarse": raw_coarse,
+            "effective_coefficient_L_coarse": effective_alpha,
+            "weighted_L_coarse": float(weighted_coarse_loss.detach().cpu().item()),
+            "raw_L_info": self._scalar(terms["contrastive_loss"]),
+            "effective_coefficient_L_info": effective_info,
+            "weighted_L_info": self._scalar(terms["weighted_contrastive_loss"]),
+            "gradient_norm_L_pred_shared": prediction_norm,
+            "gradient_norm_weighted_L_coarse_shared": coarse_norm,
+            "r_aux": ratio,
+            "support_valid_files": int(valid_mask.any(dim=1).sum().item()),
+            "support_valid_patches": int(valid_mask.sum().item()),
+            "support_prediction_files": int(valid_prediction.any(dim=1).sum().item()),
+            "support_prediction_patches": int(valid_prediction.sum().item()),
+            "support_coarse_g4": int(groups_4_count),
+            "support_coarse_g8": int(groups_8_count),
+            "contrastive_input_files": int(terms["contrastive_input_files"]),
+            "protocol_gradient_observation": (26 <= epoch <= 30 and global_step % 40 == 0),
+        }
+        record.update(geometry)
+        return record
+
     def _balance_record(
         self,
         output: Mapping[str, object],
@@ -404,6 +574,8 @@ class RepresentationTrainer:
         validate_arm_config(arm, require_locked=(arm.selection_state == "locked"))
         if arm.arm_id == "N1-HCC":
             return self.train_sprint18_hcc_epoch(batches, arm=arm, epoch=epoch, collect_balance=collect_balance)
+        if arm.arm_id == "N2-MSP":
+            return self.train_sprint18_msp_epoch(batches, arm=arm, epoch=epoch, collect_balance=collect_balance)
         if arm.selection_state == "coefficient_pilot" and (
             isinstance(epoch, bool)
             or not isinstance(epoch, int)
@@ -615,6 +787,205 @@ class RepresentationTrainer:
                 ("prediction_loss", terms["prediction_loss"]),
                 ("contrastive_loss", hcc_loss),
                 ("weighted_contrastive_loss", weighted_hcc_loss),
+                ("joint_loss", joint_loss),
+            ):
+                scalar = self._scalar(value)
+                totals[name] = totals.get(name, 0.0) + scalar
+                counts[name] = counts.get(name, 0) + 1
+            grad_norm_scalar = float(grad_norm.detach().cpu().item()) if isinstance(grad_norm, torch.Tensor) else float(grad_norm)
+            lr_scalar = float(self.optimizer.param_groups[0]["lr"])
+            totals["grad_norm"] = totals.get("grad_norm", 0.0) + grad_norm_scalar
+            counts["grad_norm"] = counts.get("grad_norm", 0) + 1
+            totals["lr"] = totals.get("lr", 0.0) + lr_scalar
+            counts["lr"] = counts.get("lr", 0) + 1
+        if not counts:
+            raise ValueError("training epoch received no batches")
+        averaged = {name: totals[name] / counts[name] for name in totals}
+        averaged["epoch"] = float(epoch)
+        if epoch_balance_records:
+            for name, value in epoch_balance_records[0].items():
+                averaged[f"balance_{name}"] = float(value)
+        averaged["step"] = float(self.step)
+        self.history.append(averaged)
+        return averaged
+
+    def train_sprint18_msp_epoch(
+        self,
+        batches: Iterable[Mapping[str, object]],
+        *,
+        arm: Sprint18ArmConfig,
+        epoch: int,
+        collect_balance: bool = True,
+        fit_role_sha256: str | None = None,
+    ) -> dict[str, float]:
+        """Run one N2-MSP epoch: frozen fine prediction + coarse + active InfoNCE."""
+        from representation.sprint18_checkpoint import (
+            coefficient_for_epoch,
+            learning_rate_for_epoch,
+        )
+        from representation.sprint18_harness import (
+            TASK9_COEFFICIENT_PILOT_EPOCHS,
+            validate_arm_config,
+        )
+
+        validate_arm_config(arm, require_locked=(arm.selection_state == "locked"))
+        if arm.arm_id != "N2-MSP":
+            raise ValueError("MSP training requires the N2-MSP arm configuration")
+        if arm.selection_state == "coefficient_pilot" and (
+            isinstance(epoch, bool)
+            or not isinstance(epoch, int)
+            or not 1 <= epoch <= TASK9_COEFFICIENT_PILOT_EPOCHS
+        ):
+            raise ValueError("N2 coefficient pilots must stop at the frozen epoch-30 full-ramp checkpoint")
+        if arm.alpha is None:
+            raise ValueError("N2-MSP pilot requires its frozen alpha coefficient maximum")
+        if arm.lambda_info_max is None:
+            raise ValueError("N2-MSP pilot requires the frozen common InfoNCE coefficient")
+        if self.scheduler is not None:
+            raise ValueError("Sprint18 uses a constant-within-epoch LR; pass no step scheduler")
+        if not isinstance(self.optimizer, torch.optim.AdamW):
+            raise ValueError("Sprint18 representation training requires AdamW")
+        if self.max_grad_norm != 1.0:
+            raise ValueError("Sprint18 representation training requires global L2 clip 1.0")
+        if self.criterion.prediction_weight != 1.0:
+            raise ValueError("Sprint18 prediction objective coefficient must remain 1.0")
+        if (
+            self.model.config.n_channels != arm.n_channels
+            or self.model.config.patch_size != arm.patch_size
+            or self.model.config.stride != arm.stride
+            or self.model.config.n_robots != arm.n_robots
+            or self.model.config.n_programs != arm.n_programs
+            or self.model.config.seed != arm.model_seed
+            or self.model.config.ema_decay != arm.ema_decay
+            or self.model.target_encoder.decay != arm.ema_decay
+        ):
+            raise ValueError("N2 model configuration differs from its frozen Sprint18 arm")
+        if (
+            self.criterion.lambda_schedule.lambda_max != arm.lambda_info_max
+            or self.model.config.contrastive_weight_max != arm.lambda_info_max
+        ):
+            raise ValueError("N2 InfoNCE coefficient differs from the arm configuration")
+        learning_rate = learning_rate_for_epoch(epoch)
+        effective_alpha = coefficient_for_epoch(arm.alpha, epoch)
+        effective_info = coefficient_for_epoch(arm.lambda_info_max, epoch)
+        for group in self.optimizer.param_groups:
+            group["lr"] = learning_rate
+        return self._run_msp_epoch(
+            batches,
+            epoch=epoch,
+            effective_alpha=effective_alpha,
+            effective_info=effective_info,
+            learning_rate=learning_rate,
+            collect_balance=collect_balance,
+            sprint18_view_epoch=epoch,
+            fit_role_sha256=fit_role_sha256,
+            model_seed=arm.model_seed,
+        )
+
+    def _run_msp_epoch(
+        self,
+        batches: Iterable[Mapping[str, object]],
+        *,
+        epoch: int,
+        effective_alpha: float,
+        effective_info: float,
+        learning_rate: float,
+        collect_balance: bool,
+        sprint18_view_epoch: int,
+        fit_role_sha256: str | None,
+        model_seed: int,
+    ) -> dict[str, float]:
+        self.model.train()
+        totals: dict[str, float] = {}
+        counts: dict[str, int] = {}
+        epoch_balance_records: list[dict[str, int | float | bool]] = []
+        shared_parameters = self._shared_encoder_parameters() if collect_balance else ()
+        for batch_index, raw_batch in enumerate(batches):
+            next_step = self.step + 1
+            self.optimizer.zero_grad(set_to_none=True)
+            moved = self._move_batch(raw_batch)  # type: ignore[arg-type]
+            masks: dict[str, object] | None = None
+            if fit_role_sha256 is not None:
+                masks = self.msp_batch_masks(
+                    moved, model_seed=model_seed, epoch=epoch, fit_role_sha256=fit_role_sha256
+                )
+                union = masks["union_mask"]
+                assert isinstance(union, torch.Tensor)
+                moved = dict(moved)
+                moved["mask"] = union.to(dtype=torch.bool)
+            output = self.model(moved, sprint18_view_epoch=sprint18_view_epoch)
+            terms = self.criterion(output, step=self.step, effective_lambda_override=effective_info)
+            context = output.get("context_latents")
+            target = output.get("target_latents")
+            valid = output.get("patch_valid_mask")
+            if (
+                not isinstance(context, torch.Tensor)
+                or not isinstance(target, torch.Tensor)
+                or not isinstance(valid, torch.Tensor)
+            ):
+                raise TypeError("N2 coarse loss requires context/target/valid tensors")
+            if masks is None:
+                groups_4: list[list[tuple[int, ...]]] = [[] for _ in range(context.shape[0])]
+                groups_8: list[list[tuple[int, ...]]] = [[] for _ in range(context.shape[0])]
+            else:
+                groups_4 = masks["groups_4"]  # type: ignore[assignment]
+                groups_8 = masks["groups_8"]  # type: ignore[assignment]
+            # Per-file groups address global patch indices; the batch shares one
+            # N dimension, so flatten per-file groups into batch-global lists with
+            # row offsets. Here rows share geometry only in tests; pilots pass
+            # per-file batches via collation. Use row 0 groups for the single-row
+            # path and require explicit per-row handling otherwise.
+            flat_4: list[tuple[int, ...]] = []
+            flat_8: list[tuple[int, ...]] = []
+            for row_groups in groups_4:
+                flat_4.extend(tuple(int(m) for m in g) for g in row_groups)
+            for row_groups in groups_8:
+                flat_8.extend(tuple(int(m) for m in g) for g in row_groups)
+            coarse_terms = self.model.msp_coarse_terms(context, target, valid, flat_4, flat_8)
+            coarse_loss = coarse_terms["coarse_loss"]
+            if not isinstance(coarse_loss, torch.Tensor):
+                raise TypeError("coarse loss must be a tensor")
+            weighted_coarse_loss = effective_alpha * coarse_loss
+            joint_loss = terms["weighted_prediction_loss"] + weighted_coarse_loss + terms["weighted_contrastive_loss"]
+            if not isinstance(joint_loss, torch.Tensor):
+                raise TypeError("joint_loss must be a tensor")
+            pending_record: dict[str, int | float | bool] | None = None
+            if collect_balance and (
+                batch_index == 0
+                or (26 <= epoch <= 30 and next_step % 40 == 0)
+            ):
+                pending_record = self._msp_balance_record(
+                    output,
+                    terms,
+                    coarse_loss,
+                    weighted_coarse_loss,
+                    effective_alpha,
+                    effective_info,
+                    epoch=epoch,
+                    global_step=next_step,
+                    learning_rate=learning_rate,
+                    parameters=shared_parameters,
+                    groups_4_count=len(flat_4),
+                    groups_8_count=len(flat_8),
+                )
+            joint_loss.backward()
+            parameters = [parameter for parameter in self.model.parameters() if parameter.requires_grad]
+            if self.max_grad_norm is not None:
+                grad_norm = clip_grad_norm_(parameters, self.max_grad_norm)
+            else:
+                grad_norm = clip_grad_norm_(parameters, float("inf"))
+            self.optimizer.step()
+            self.model.target_encoder.update(self.model.context_encoder)
+            self.step += 1
+            if pending_record is not None:
+                self.objective_balance_history.append(pending_record)
+                epoch_balance_records.append(pending_record)
+            for name, value in (
+                ("prediction_loss", terms["prediction_loss"]),
+                ("contrastive_loss", terms["contrastive_loss"]),
+                ("weighted_contrastive_loss", terms["weighted_contrastive_loss"]),
+                ("coarse_loss", coarse_loss),
+                ("weighted_coarse_loss", weighted_coarse_loss),
                 ("joint_loss", joint_loss),
             ):
                 scalar = self._scalar(value)

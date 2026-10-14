@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import math
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
+from hashlib import sha256
 from typing import Literal
 
+import numpy as np
+import numpy.typing as npt
 import torch
 import torch.nn.functional as F
 from torch import nn
@@ -111,6 +114,285 @@ class FileContrastiveCriterion(nn.Module):
         if not isinstance(value, torch.Tensor) or value.ndim != 2:
             raise ValueError(f"{name} must be a 2D torch.Tensor")
         return value
+
+
+MSP_TOTAL_MASK_RATIO = 0.40
+MSP_POSITION_SHARES = (0.50, 0.25, 0.25)
+MSP_FINE_MASK_COMPOSITION = (0.34, 0.33, 0.33)
+MSP_FINE_MASK_STRATA = (0.20, 0.30, 0.30, 0.20)
+MSP_FINE_MASK_BLOCK_RANGE = (2, 6)
+MSP_AUX_COEFFICIENT_GRID = (0.10, 0.25, 0.50)
+
+
+def msp_mask_budget(n: int) -> int:
+    """Return the exact N2 unique-mask budget ``M = min(n, round(0.40*n))``."""
+    if isinstance(n, bool) or not isinstance(n, int) or n < 0:
+        raise ValueError("patch count n must be a non-negative integer")
+    return min(n, int(round(MSP_TOTAL_MASK_RATIO * n)))
+
+
+def msp_allocate_budget(M: int) -> tuple[int, int, int]:
+    """Allocate ``M`` masked positions to ``(F, g4, g8)`` per N2 v2 section 3."""
+    if isinstance(M, bool) or not isinstance(M, int) or M < 0:
+        raise ValueError("mask budget M must be a non-negative integer")
+    best: tuple[int, int, int] | None = None
+    best_score: int | None = None
+    for g8 in range(M // 8 + 1):
+        for g4 in range((M - 8 * g8) // 4 + 1):
+            fine = M - 8 * g8 - 4 * g4
+            score = (
+                4 * (2 * fine - M) ** 2
+                + (16 * g4 - M) ** 2
+                + (32 * g8 - M) ** 2
+            )
+            candidate = (fine, g4, g8)
+            if best_score is None or score < best_score or (
+                score == best_score and best is not None and candidate > best
+            ):
+                best = candidate
+                best_score = score
+    assert best is not None
+    return best
+
+
+def msp_mask_seed(model_seed: int, epoch: int, fit_role_sha256: str, file_id: str) -> int:
+    """Derive the frozen per-file/epoch N2 mask seed from identity only."""
+    if (
+        isinstance(model_seed, bool)
+        or not isinstance(model_seed, int)
+        or isinstance(epoch, bool)
+        or not isinstance(epoch, int)
+        or not 1 <= epoch <= 100
+        or not isinstance(fit_role_sha256, str)
+        or len(fit_role_sha256) != 64
+        or any(c not in "0123456789abcdef" for c in fit_role_sha256)
+        or not isinstance(file_id, str)
+        or not file_id
+    ):
+        raise ValueError("N2 mask seed requires a valid seed, epoch, role digest, and file ID")
+    key = f"sprint18-n2-mask-v2|{model_seed}|{epoch}|{fit_role_sha256}|{file_id}"
+    return int.from_bytes(sha256(key.encode("utf-8")).digest()[:8], "big") % (2**63 - 1)
+
+
+def _msp_runs(free: set[int]) -> list[list[int]]:
+    """Return maximal consecutive runs of still-eligible original patch indices."""
+    runs: list[list[int]] = []
+    current: list[int] = []
+    previous: int | None = None
+    for index in sorted(free):
+        if previous is None or index == previous + 1:
+            current.append(index)
+        else:
+            runs.append(current)
+            current = [index]
+        previous = index
+    if current:
+        runs.append(current)
+    return runs
+
+
+def _msp_capacity(free: set[int], length: int) -> int:
+    """Return ``sum(floor(run/ MPI length))``, the exact disjoint-group capacity."""
+    return sum(len(run) // length for run in _msp_runs(free))
+
+
+def _msp_place_groups(
+    candidates: list[int],
+    order: npt.NDArray[np.int64],
+    free: set[int],
+    quota: int,
+    length: int,
+) -> list[tuple[int, ...]]:
+    """Place up to ``quota`` length-``length`` groups with capacity-preserving acceptance."""
+    selected: list[tuple[int, ...]] = []
+    for position in (int(v) for v in order.tolist()):
+        if len(selected) >= quota:
+            break
+        start = candidates[position]
+        members = tuple(start + offset for offset in range(length))
+        if any(member not in free for member in members):
+            continue
+        remaining = set(free) - set(members)
+        still_needed = quota - len(selected) - 1
+        if _msp_capacity(remaining, length) < still_needed:
+            continue
+        selected.append(members)
+        free.difference_update(members)
+    return selected
+
+
+def msp_place_groups(
+    valid_indices: Sequence[int],
+    g8: int,
+    g4_request: int,
+    rng: np.random.Generator,
+) -> dict[str, object]:
+    """Place seeded non-overlapping coarse-8 then coarse-4 groups per N2 v2.
+
+    Candidates are every length-``L`` window of adjacent original B0 indices
+    all in ``valid_indices``, enumerated by ascending first index; selection
+    considers them in ``rng.permutation`` order with capacity-preserving
+    acceptance (``sum(floor(run/L)) >= groups_still_needed``). Unplaced 8-groups
+    are reassigned to two 4-groups each; unplaced 4-positions fall through to
+    fine. Records both fallback counts.
+    """
+    valid = [int(v) for v in valid_indices]
+    if any(isinstance(v, bool) for v in valid_indices) or any(v < 0 for v in valid):
+        raise ValueError("valid patch indices must be non-negative integers")
+    if sorted(valid) != valid or len(set(valid)) != len(valid):
+        raise ValueError("valid patch indices must be sorted and unique")
+    for name, value in (("g8", g8), ("g4_request", g4_request)):
+        if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+            raise ValueError(f"{name} must be a non-negative integer")
+    if not isinstance(rng, np.random.Generator):
+        raise ValueError("placement requires a numpy Generator")
+    valid_set = set(valid)
+    candidates_8 = [s for s in valid if all(s + o in valid_set for o in range(8))]
+    free: set[int] = set(valid)
+    cap8 = _msp_capacity(free, 8)
+    q8_target = min(g8, cap8)
+    order_8 = rng.permutation(len(candidates_8)) if candidates_8 else np.zeros(0, dtype=np.int64)
+    groups_8 = _msp_place_groups(candidates_8, order_8, free, q8_target, 8)
+    fallback_8_to_4 = g8 - len(groups_8)
+    request_4 = g4_request + 2 * fallback_8_to_4
+    candidates_4 = [s for s in valid if all(s + o in valid_set for o in range(4))]
+    cap4 = _msp_capacity(free, 4)
+    q4_target = min(request_4, cap4)
+    order_4 = rng.permutation(len(candidates_4)) if candidates_4 else np.zeros(0, dtype=np.int64)
+    groups_4 = _msp_place_groups(candidates_4, order_4, free, q4_target, 4)
+    fallback_4_to_fine = request_4 - len(groups_4)
+    return {
+        "groups_8": groups_8,
+        "groups_4": groups_4,
+        "q8": len(groups_8),
+        "q4": len(groups_4),
+        "q8_fallback_to_4": fallback_8_to_4,
+        "q4_fallback_to_fine": fallback_4_to_fine,
+        "remaining_free": sorted(free),
+    }
+
+
+def msp_fine_mask(
+    remaining_free: Sequence[int],
+    f: int,
+    patch_data: npt.NDArray[np.float32],
+    rng: np.random.Generator,
+) -> dict[str, object]:
+    """Apply the frozen B0 fine-mask algorithm with the integer target ``f``.
+
+    ``patch_data`` is the full ``[N, C, W]`` original patch array indexed by
+    original B0 patch position; ``remaining_free`` positions index into it.
+    """
+    free = [int(v) for v in remaining_free]
+    if any(isinstance(v, bool) for v in remaining_free) or any(v < 0 for v in free):
+        raise ValueError("remaining free indices must be non-negative integers")
+    if sorted(free) != free or len(set(free)) != len(free):
+        raise ValueError("remaining free indices must be sorted and unique")
+    if isinstance(f, bool) or not isinstance(f, int) or f < 0:
+        raise ValueError("fine target f must be a non-negative integer")
+    if f > len(free):
+        raise ValueError("fine target exceeds the remaining eligible pool")
+    if not isinstance(rng, np.random.Generator):
+        raise ValueError("fine masking requires a numpy Generator")
+    if not isinstance(patch_data, np.ndarray):
+        raise ValueError("patch data must be a numpy array")
+    composition = list(MSP_FINE_MASK_COMPOSITION)
+    strata_frac = list(MSP_FINE_MASK_STRATA)
+    for vector in (composition, strata_frac):
+        total = sum(vector)
+        if total <= 0 or any(v < 0 for v in vector):
+            raise ValueError("masking fractions must be non-negative with positive sum")
+    composition = [v / sum(composition) for v in composition]
+    strata_frac = [v / sum(strata_frac) for v in strata_frac]
+    # Largest-remainder apportion in listed order.
+    base = [int(np.floor(c * f)) for c in composition]
+    remainders = [c * f - b for c, b in zip(composition, base)]
+    order = sorted(range(len(base)), key=lambda i: (-remainders[i], i))
+    shortfall = f - sum(base)
+    for i in order[:shortfall]:
+        base[i] += 1
+    n_random, n_info, n_block = (int(v) for v in base)
+    selected: list[int] = []
+    selected_set: set[int] = set()
+    available = list(free)
+    if n_random:
+        take = min(n_random, len(available))
+        chosen = [int(v) for v in rng.choice(np.asarray(available, dtype=np.int64), size=take, replace=False).tolist()] if take else []
+        selected.extend(chosen)
+        selected_set.update(chosen)
+        available = [v for v in available if v not in selected_set]
+    if n_info and available:
+        flat = np.asarray(patch_data).reshape(len(patch_data), -1).astype(np.float64)
+        std = np.std(flat, axis=1)
+        span = np.ptp(flat, axis=1)
+        deriv = np.mean(np.abs(np.diff(flat, axis=1)), axis=1) if flat.shape[1] >= 2 else np.zeros(flat.shape[0])
+        scores = (std + 1e-8) * (span + 1e-8) * (1.0 + deriv)
+        free_arr = np.asarray(available, dtype=np.int64)
+        # Scores are indexed by original patch position; map free positions directly.
+        values = np.asarray([float(scores[v]) if 0 <= v < len(scores) else 0.0 for v in available], dtype=np.float64)
+        q25, q50, q75 = np.percentile(values, [25, 50, 75])
+        strata = {
+            "stable": [v for v, s in zip(available, values) if s <= q25],
+            "transition": [v for v, s in zip(available, values) if q25 < s <= q50],
+            "dynamic": [v for v, s in zip(available, values) if q50 < s <= q75],
+            "extreme": [v for v, s in zip(available, values) if s > q75],
+        }
+        names = ("stable", "transition", "dynamic", "extreme")
+        info_base = [int(np.floor(frac * n_info)) for frac in strata_frac]
+        info_rem = [frac * n_info - b for frac, b in zip(strata_frac, info_base)]
+        info_order = sorted(range(4), key=lambda i: (-info_rem[i], i))
+        for i in info_order[: n_info - sum(info_base)]:
+            info_base[i] += 1
+        for name, quota in zip(names, info_base):
+            pool = [v for v in strata[name] if v not in selected_set]
+            take = min(int(quota), len(pool))
+            if take:
+                chosen = [int(v) for v in rng.choice(np.asarray(pool, dtype=np.int64), size=take, replace=False).tolist()]
+                selected.extend(chosen)
+                selected_set.update(chosen)
+        if len([v for v in selected if v in set(available)]) < n_info:
+            still_free = [v for v in available if v not in selected_set]
+            extra = n_info - len(selected_set.intersection(set(available)))
+            if still_free and extra > 0:
+                take = min(extra, len(still_free))
+                chosen = [int(v) for v in rng.choice(np.asarray(still_free, dtype=np.int64), size=take, replace=False).tolist()]
+                selected.extend(chosen)
+                selected_set.update(chosen)
+        available = [v for v in available if v not in selected_set]
+    if n_block and available:
+        pool = list(available)
+        need = n_block
+        while need > 0 and pool:
+            take = min(need, len(pool), max(1, int(rng.integers(MSP_FINE_MASK_BLOCK_RANGE[0], MSP_FINE_MASK_BLOCK_RANGE[1] + 1))))
+            start = int(rng.integers(0, len(pool) - take + 1))
+            chosen = pool[start : start + take]
+            selected.extend(int(v) for v in chosen)
+            selected_set.update(int(v) for v in chosen)
+            pool = [v for v in pool if v not in selected_set]
+            need = n_block - len([v for v in selected if v in set(available)])
+        available = [v for v in available if v not in selected_set]
+    shortfall = f - len(selected)
+    filled_from: str | None = None
+    if shortfall > 0:
+        # Lowest-index defensive fill, attributed to the first positive component.
+        rest = sorted(set(free) - selected_set)[:shortfall]
+        selected.extend(int(v) for v in rest)
+        selected_set.update(int(v) for v in rest)
+        for name, frac in zip(("random", "info", "block"), composition):
+            if frac > 0:
+                filled_from = name
+                break
+    if len(selected) != f or len(selected_set) != f:
+        raise ValueError("fine masking did not reach its exact integer target")
+    realized = {"random": 0, "info": 0, "block": 0}
+    # Attribute realized counts: random quota first, then info, then block, with
+    # any defensive fill on the first positive component (B0 accounting).
+    realized["random"] = min(n_random, f)
+    remaining_count = f - realized["random"]
+    realized["info"] = min(n_info, remaining_count)
+    remaining_count -= realized["info"]
+    realized["block"] = max(0, remaining_count)
+    return {"selected": sorted(int(v) for v in selected_set), "composition": realized, "defensive_fill_component": filled_from}
 
 
 HCC_AFFINITY_SAME_FILE = 1.0
@@ -221,6 +503,97 @@ class HierarchicalContrastiveCriterion(nn.Module):
             "anchors_only_same_file": torch.tensor(support["anchors_only_same_file"], device=view_1.device),
             "target_entropy_mean": torch.tensor(support["target_entropy_mean"], device=view_1.device),
         }
+
+
+class MultiscaleLatentPredictionCriterion(nn.Module):
+    """Apply the frozen N2 coarse-4/8 normalized latent-distance loss."""
+
+    def __init__(self, empty_policy: str = "exclude") -> None:
+        super().__init__()
+        if empty_policy != "exclude":
+            raise ValueError("coarse loss excludes missing scale support from its denominator")
+        self.empty_policy = empty_policy
+
+    @staticmethod
+    def _group_loss(
+        context: torch.Tensor,
+        target: torch.Tensor,
+        valid: torch.Tensor,
+        groups_4: Sequence[Sequence[int]],
+        groups_8: Sequence[Sequence[int]],
+    ) -> dict[str, torch.Tensor]:
+        for name, value in (("context_latents", context), ("target_latents", target)):
+            if not isinstance(value, torch.Tensor) or value.ndim != 3:
+                raise ValueError(f"{name} must be a 3D torch.Tensor")
+        if context.shape != target.shape:
+            raise ValueError("coarse context and target latents must share shape")
+        if not isinstance(valid, torch.Tensor) or valid.ndim != 2 or valid.dtype is not torch.bool:
+            raise ValueError("patch_valid_mask must be a bool [B, N] tensor")
+        if tuple(valid.shape) != tuple(context.shape[:2]):
+            raise ValueError("patch_valid_mask must match latent batch and count")
+        batch, count, width = context.shape
+        for scale, groups in (("group4", groups_4), ("group8", groups_8)):
+            if not isinstance(groups, Sequence) or isinstance(groups, (str, bytes)):
+                raise ValueError(f"{scale} groups must be a sequence of index tuples")
+            for group in groups:
+                if not isinstance(group, Sequence) or isinstance(group, (str, bytes)):
+                    raise ValueError(f"{scale} group members must be index sequences")
+                if len(group) not in (4, 8):
+                    raise ValueError(f"{scale} groups must have length 4 or 8")
+                for member in group:
+                    if isinstance(member, bool) or not isinstance(member, int) or not 0 <= member < count:
+                        raise ValueError(f"{scale} member indices must be valid patch positions")
+        # Teacher targets are stop-gradient; detach once here.
+        detached = target.detach()
+        per_scale: dict[str, torch.Tensor] = {}
+        counts: dict[str, int] = {}
+        for scale, groups, span in (("group4", groups_4, 4), ("group8", groups_8, 8)):
+            errors: list[torch.Tensor] = []
+            for group in groups:
+                members = [int(m) for m in group]
+                if len(members) != span:
+                    raise ValueError(f"{scale} groups must have exactly {span} members")
+                teacher_rows = detached[:, members, :]
+                # Uniform member weighting: N2 v2 valid_weight_t is the valid-timestep
+                # fraction per patch; padded weight zero is handled by eligibility
+                # (groups never contain padding) and valid-mask gating below.
+                teacher = torch.layer_norm(teacher_rows.mean(dim=1), (width,))
+                student_in = context[:, members, :].mean(dim=1)
+                student = torch.layer_norm(student_in, (width,))
+                errors.append(((student - teacher).square().mean(dim=-1)))
+            if errors:
+                stacked = torch.stack(errors, dim=1)
+                per_scale[scale] = stacked.mean()
+                counts[scale] = len(groups)
+            else:
+                per_scale[scale] = (context.sum() * 0.0) + 0.0
+                counts[scale] = 0
+        if counts["group4"] and counts["group8"]:
+            coarse = 0.5 * per_scale["group4"] + 0.5 * per_scale["group8"]
+        elif counts["group4"]:
+            coarse = per_scale["group4"]
+        elif counts["group8"]:
+            coarse = per_scale["group8"]
+        else:
+            coarse = (context.sum() * 0.0) + 0.0
+        return {
+            "group4_loss": per_scale["group4"],
+            "group8_loss": per_scale["group8"],
+            "coarse_loss": coarse,
+            "group4_count": torch.tensor(counts["group4"]),
+            "group8_count": torch.tensor(counts["group8"]),
+        }
+
+    def forward(
+        self,
+        context_latents: torch.Tensor,
+        target_latents: torch.Tensor,
+        patch_valid_mask: torch.Tensor,
+        groups_4: Sequence[Sequence[int]],
+        groups_8: Sequence[Sequence[int]],
+    ) -> dict[str, torch.Tensor]:
+        """Return per-scale and combined coarse losses with missing-scale exclusion."""
+        return self._group_loss(context_latents, target_latents, patch_valid_mask, groups_4, groups_8)
 
 
 class ProgressiveLambda:
