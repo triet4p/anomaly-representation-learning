@@ -90,6 +90,17 @@ class V1RepresentationModel(nn.Module):
             nn.Linear(config.d_model, config.d_model),
             nn.LayerNorm(config.d_model),
         )
+        # N3-CCRP channel predictor/embedding: one shared two-layer head with
+        # hidden/output width d_model plus a 6-way channel-ID embedding fed
+        # only to the relational predictor, never into the B0 encoder.
+        self.channel_embedding = nn.Embedding(6, config.d_model)
+        self.channel_predictor = nn.Sequential(
+            nn.Linear(2 * config.d_model, config.d_model),
+            nn.GELU(),
+            nn.Dropout(config.dropout),
+            nn.Linear(config.d_model, config.d_model),
+            nn.LayerNorm(config.d_model),
+        )
         self.contrastive_projector = nn.Sequential(
             nn.Linear(config.d_model, config.d_model),
             nn.LayerNorm(config.d_model),
@@ -190,6 +201,82 @@ class V1RepresentationModel(nn.Module):
         else:
             outputs["coarse_loss"] = outputs["group8_loss"]
         return outputs
+
+    def ccrp_channel_terms(
+        self,
+        context_aux: torch.Tensor,
+        local_full: torch.Tensor,
+        local_without_channel: torch.Tensor,
+        channels: torch.Tensor | Sequence[int],
+    ) -> dict[str, torch.Tensor]:
+        """Map corrupted-view context plus channel IDs to normalized predictions.
+
+        ``context_aux`` is the online context encoding of the corrupted aux
+        view; ``local_full``/``local_without_channel`` are already-detached
+        EMA local-patch encodings of the full vs zeroed normalized patches.
+        The channel-ID embedding reaches only this predictor, never the B0
+        encoder. Teacher deltas are normalized inside the channel loss.
+        """
+        if context_aux.ndim != 2 or local_full.ndim != 2 or local_without_channel.ndim != 2:
+            raise ValueError("channel latents must be 2D [K, D] tensors")
+        if context_aux.shape != local_full.shape or context_aux.shape != local_without_channel.shape:
+            raise ValueError("channel context and local targets must share shape")
+        width = context_aux.shape[-1]
+        if width != self.config.d_model:
+            raise ValueError("channel latents must match the configured d_model")
+        if isinstance(channels, torch.Tensor):
+            channel_ids = [int(v) for v in channels.detach().cpu().tolist()]
+        else:
+            channel_ids = [int(v) for v in channels]
+        if len(channel_ids) != context_aux.shape[0]:
+            raise ValueError("one held-out channel is required per relational target")
+        for channel in channel_ids:
+            if isinstance(channel, bool) or not 0 <= channel < 6:
+                raise ValueError("held-out channels must be in [0, 6)")
+        channel_emb = self.channel_embedding(
+            torch.tensor(channel_ids, dtype=torch.long, device=context_aux.device)
+        )
+        predicted = self.channel_predictor(torch.cat([context_aux, channel_emb], dim=-1))
+        predicted = torch.nn.functional.normalize(predicted, dim=-1)
+        detached_full = local_full.detach()
+        detached_without = local_without_channel.detach()
+        full_norm = torch.layer_norm(detached_full, (width,))
+        without_norm = torch.layer_norm(detached_without, (width,))
+        from representation.criterion import CrossChannelRelationalCriterion
+
+        terms = CrossChannelRelationalCriterion()(predicted, full_norm, without_norm)
+        terms["predicted"] = predicted
+        return terms
+
+    def ccrp_aux_local(
+        self,
+        normalized_full: torch.Tensor,
+        normalized_zeroed: torch.Tensor,
+        patch_pad_mask: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """Encode full vs zeroed normalized views with the shared local path.
+
+        Inputs are already-normalized patch tensors, so no CBN stat update
+        occurs here. Both views pass through the online patch-encoder
+        weights under ``no_grad`` (stop-gradient teacher read); no
+        independent channel encoder is introduced.
+        """
+        for name, value in (("normalized_full", normalized_full), ("normalized_zeroed", normalized_zeroed)):
+            if not isinstance(value, torch.Tensor) or value.ndim != 4:
+                raise ValueError(f"{name} must be a 4D [B, N, C, W] tensor")
+        if normalized_full.shape != normalized_zeroed.shape:
+            raise ValueError("full and zeroed normalized views must share shape")
+        if (
+            not isinstance(patch_pad_mask, torch.Tensor)
+            or patch_pad_mask.ndim != 3
+            or patch_pad_mask.dtype is not torch.bool
+        ):
+            raise ValueError("patch_pad_mask must be a bool [B, N, W] tensor")
+        with torch.no_grad():
+            full_local = self.patch_encoder(normalized_full, patch_pad_mask)
+            zeroed_local = self.patch_encoder(normalized_zeroed, patch_pad_mask)
+        return full_local.detach(), zeroed_local.detach()
+
 
     @staticmethod
     def _pool_file(latents: torch.Tensor, valid: torch.Tensor,
@@ -348,7 +435,6 @@ class V1RepresentationModel(nn.Module):
             stds = norm_result["std"]
             patches = (patches - means.unsqueeze(1).unsqueeze(-1)) / stds.unsqueeze(1).unsqueeze(-1)
             patches = patches.masked_fill(batch["patch_pad_mask"].unsqueeze(2), 0.0)
-
         context, target, predicted, prediction_mask = self._encode_patches(
             patches,
             batch["patch_pad_mask"],

@@ -17,6 +17,10 @@ from representation.criterion import (
     HierarchicalContrastiveCriterion,
     JointRepresentationCriterion,
     ProgressiveLambda,
+    ccrp_assign_channels,
+    ccrp_patch_count,
+    ccrp_patch_seed,
+    ccrp_sample_targets,
     hcc_relation_support,
     msp_allocate_budget,
     msp_fine_mask,
@@ -576,6 +580,8 @@ class RepresentationTrainer:
             return self.train_sprint18_hcc_epoch(batches, arm=arm, epoch=epoch, collect_balance=collect_balance)
         if arm.arm_id == "N2-MSP":
             return self.train_sprint18_msp_epoch(batches, arm=arm, epoch=epoch, collect_balance=collect_balance)
+        if arm.arm_id == "N3-CCRP":
+            return self.train_sprint18_ccrp_epoch(batches, arm=arm, epoch=epoch, collect_balance=collect_balance)
         if arm.selection_state == "coefficient_pilot" and (
             isinstance(epoch, bool)
             or not isinstance(epoch, int)
@@ -1002,6 +1008,406 @@ class RepresentationTrainer:
             counts["lr"] = counts.get("lr", 0) + 1
         if not counts:
             raise ValueError("training epoch received no batches")
+        averaged = {name: totals[name] / counts[name] for name in totals}
+        averaged["epoch"] = float(epoch)
+        if epoch_balance_records:
+            for name, value in epoch_balance_records[0].items():
+                averaged[f"balance_{name}"] = float(value)
+        averaged["step"] = float(self.step)
+        self.history.append(averaged)
+        return averaged
+
+    @staticmethod
+    def ccrp_batch_selections(
+        batch: Mapping[str, object],
+        *,
+        model_seed: int,
+        epoch: int,
+        fit_role_sha256: str,
+    ) -> dict[str, object]:
+        """Select frozen N3 relational targets for one collated batch.
+
+        Per file: ``V`` is the valid non-padding patch indices, ``Q`` follows
+        ``ccrp_patch_count``, and one seeded permutation picks the initial
+        sample. Fully temporally masked initials (current B0 ``mask`` over
+        valid patches) are resampled deterministically in initial-sample
+        order. Consumes no labels/outcomes.
+        """
+        import numpy as np
+
+        file_ids = batch.get("file_ids")
+        valid_mask = batch.get("patch_valid_mask")
+        temporal_mask = batch.get("mask")
+        if not isinstance(file_ids, (list, tuple)) or not file_ids:
+            raise ValueError("N3 selection requires batch file IDs")
+        if (
+            not isinstance(valid_mask, torch.Tensor)
+            or not isinstance(temporal_mask, torch.Tensor)
+            or valid_mask.dtype is not torch.bool
+            or temporal_mask.dtype is not torch.bool
+        ):
+            raise ValueError("N3 selection requires bool patch_valid_mask/mask")
+        if tuple(valid_mask.shape) != tuple(temporal_mask.shape):
+            raise ValueError("N3 valid and temporal masks must share shape")
+        batch_size, max_patches = valid_mask.shape
+        if len(file_ids) != batch_size:
+            raise ValueError("N3 selection file IDs must match batch size")
+        selected_all: list[list[int]] = []
+        diagnostics: list[dict[str, object]] = []
+        for row, file_id in enumerate(file_ids):
+            if not isinstance(file_id, str) or not file_id:
+                raise ValueError("N3 selection requires canonical file IDs")
+            valid_positions = [int(i) for i in range(max_patches) if bool(valid_mask[row, i].item())]
+            fully_masked = [
+                int(i)
+                for i in valid_positions
+                if bool(temporal_mask[row, i].item())
+            ]
+            n_valid = len(valid_positions)
+            requested = ccrp_patch_count(n_valid)
+            seed = ccrp_patch_seed(model_seed, epoch, fit_role_sha256, file_id)
+            rng = np.random.default_rng(seed)
+            sampled = ccrp_sample_targets(valid_positions, requested, rng, fully_masked)
+            selected_all.append([int(v) for v in sampled["selected"]])  # type: ignore[union-attr]
+            diagnostics.append(
+                {
+                    "file_id": file_id,
+                    "n": n_valid,
+                    "Q": requested,
+                    "initial": len(sampled["initial"]),  # type: ignore[arg-type]
+                    "rejected": len(sampled["rejected"]),  # type: ignore[arg-type]
+                    "replacements": len(sampled["replacements"]),  # type: ignore[arg-type]
+                    "final": len(sampled["selected"]),  # type: ignore[arg-type]
+                    "unsupported": requested - len(sampled["selected"]),  # type: ignore[operator]
+                }
+            )
+        return {"selected": selected_all, "diagnostics": diagnostics}
+
+    def _ccrp_balance_record(
+        self,
+        output: Mapping[str, object],
+        terms: Mapping[str, torch.Tensor | float | int],
+        channel_loss: torch.Tensor,
+        weighted_channel_loss: torch.Tensor,
+        effective_beta: float,
+        effective_info: float,
+        *,
+        epoch: int,
+        global_step: int,
+        learning_rate: float,
+        parameters: tuple[nn.Parameter, ...],
+        channel_targets: int,
+        channel_excluded: int,
+        channel_counts: tuple[int, ...],
+    ) -> dict[str, int | float | bool]:
+        prediction_loss = terms["prediction_loss"]
+        if not isinstance(prediction_loss, torch.Tensor) or not isinstance(weighted_channel_loss, torch.Tensor):
+            raise TypeError("objective losses must be tensors for gradient diagnostics")
+        prediction_norm = self._gradient_norm(prediction_loss, parameters)
+        channel_norm = self._gradient_norm(weighted_channel_loss, parameters)
+        prediction_mask = output.get("prediction_mask")
+        valid_mask = output.get("patch_valid_mask")
+        embeddings = output.get("file_embedding")
+        if (
+            not isinstance(prediction_mask, torch.Tensor)
+            or not isinstance(valid_mask, torch.Tensor)
+            or not isinstance(embeddings, torch.Tensor)
+            or prediction_mask.dtype is not torch.bool
+            or valid_mask.dtype is not torch.bool
+            or prediction_mask.ndim != 2
+            or valid_mask.ndim != 2
+            or embeddings.ndim != 2
+            or prediction_mask.shape != valid_mask.shape
+            or embeddings.shape[0] != valid_mask.shape[0]
+        ):
+            raise ValueError("model output masks/embeddings do not share valid file support")
+        valid_prediction = prediction_mask & valid_mask
+        geometry = self._embedding_geometry(embeddings, valid_mask.any(dim=1))
+        effective_prediction = self._scalar(terms["effective_prediction_coefficient"])
+        raw_channel = float(channel_loss.detach().cpu().item())
+        raw_prediction = self._scalar(prediction_loss)
+        ratio = channel_norm / (prediction_norm + 1e-12)
+        record: dict[str, int | float | bool] = {
+            "epoch": epoch,
+            "global_step": global_step,
+            "lr": learning_rate,
+            "raw_L_pred": raw_prediction,
+            "effective_coefficient_L_pred": effective_prediction,
+            "weighted_L_pred": self._scalar(terms["weighted_prediction_loss"]),
+            "raw_L_channel": raw_channel,
+            "effective_coefficient_L_channel": effective_beta,
+            "weighted_L_channel": float(weighted_channel_loss.detach().cpu().item()),
+            "raw_L_info": self._scalar(terms["contrastive_loss"]),
+            "effective_coefficient_L_info": effective_info,
+            "weighted_L_info": self._scalar(terms["weighted_contrastive_loss"]),
+            "gradient_norm_L_pred_shared": prediction_norm,
+            "gradient_norm_weighted_L_channel_shared": channel_norm,
+            "r_aux": ratio,
+            "support_valid_files": int(valid_mask.any(dim=1).sum().item()),
+            "support_valid_patches": int(valid_mask.sum().item()),
+            "support_prediction_files": int(valid_prediction.any(dim=1).sum().item()),
+            "support_prediction_patches": int(valid_prediction.sum().item()),
+            "support_channel_targets": int(channel_targets),
+            "support_channel_excluded_near_zero": int(channel_excluded),
+            "contrastive_input_files": int(terms["contrastive_input_files"]),
+            "protocol_gradient_observation": (26 <= epoch <= 30 and global_step % 40 == 0),
+        }
+        for index, count in enumerate(channel_counts):
+            record[f"support_channel_c{index}"] = int(count)
+        record.update(geometry)
+        return record
+
+    def train_sprint18_ccrp_epoch(
+        self,
+        batches: Iterable[Mapping[str, object]],
+        *,
+        arm: Sprint18ArmConfig,
+        epoch: int,
+        collect_balance: bool = True,
+        fit_role_sha256: str | None = None,
+    ) -> dict[str, float]:
+        """Run one N3-CCRP epoch: frozen fine prediction + channel + active InfoNCE."""
+        from representation.sprint18_checkpoint import (
+            coefficient_for_epoch,
+            learning_rate_for_epoch,
+        )
+        from representation.sprint18_harness import (
+            TASK9_COEFFICIENT_PILOT_EPOCHS,
+            validate_arm_config,
+        )
+
+        validate_arm_config(arm, require_locked=(arm.selection_state == "locked"))
+        if arm.arm_id != "N3-CCRP":
+            raise ValueError("CCRP training requires the N3-CCRP arm configuration")
+        if arm.selection_state == "coefficient_pilot" and (
+            isinstance(epoch, bool)
+            or not isinstance(epoch, int)
+            or not 1 <= epoch <= TASK9_COEFFICIENT_PILOT_EPOCHS
+        ):
+            raise ValueError("N3 coefficient pilots must stop at the frozen epoch-30 full-ramp checkpoint")
+        if arm.beta is None:
+            raise ValueError("N3-CCRP pilot requires its frozen beta coefficient maximum")
+        if arm.lambda_info_max is None:
+            raise ValueError("N3-CCRP pilot requires the frozen common InfoNCE coefficient")
+        if self.scheduler is not None:
+            raise ValueError("Sprint18 uses a constant-within-epoch LR; pass no step scheduler")
+        if not isinstance(self.optimizer, torch.optim.AdamW):
+            raise ValueError("Sprint18 representation training requires AdamW")
+        if self.max_grad_norm != 1.0:
+            raise ValueError("Sprint18 representation training requires global L2 clip 1.0")
+        if self.criterion.prediction_weight != 1.0:
+            raise ValueError("Sprint18 prediction objective coefficient must remain 1.0")
+        if (
+            self.model.config.n_channels != arm.n_channels
+            or self.model.config.patch_size != arm.patch_size
+            or self.model.config.stride != arm.stride
+            or self.model.config.n_robots != arm.n_robots
+            or self.model.config.n_programs != arm.n_programs
+            or self.model.config.seed != arm.model_seed
+            or self.model.config.ema_decay != arm.ema_decay
+            or self.model.target_encoder.decay != arm.ema_decay
+        ):
+            raise ValueError("N3 model configuration differs from its frozen Sprint18 arm")
+        if (
+            self.criterion.lambda_schedule.lambda_max != arm.lambda_info_max
+            or self.model.config.contrastive_weight_max != arm.lambda_info_max
+        ):
+            raise ValueError("N3 InfoNCE coefficient differs from the arm configuration")
+        learning_rate = learning_rate_for_epoch(epoch)
+        effective_beta = coefficient_for_epoch(arm.beta, epoch)
+        effective_info = coefficient_for_epoch(arm.lambda_info_max, epoch)
+        for group in self.optimizer.param_groups:
+            group["lr"] = learning_rate
+        return self._run_ccrp_epoch(
+            batches,
+            epoch=epoch,
+            effective_beta=effective_beta,
+            effective_info=effective_info,
+            learning_rate=learning_rate,
+            collect_balance=collect_balance,
+            sprint18_view_epoch=epoch,
+            fit_role_sha256=fit_role_sha256,
+            model_seed=arm.model_seed,
+        )
+
+    def _run_ccrp_epoch(
+        self,
+        batches: Iterable[Mapping[str, object]],
+        *,
+        epoch: int,
+        effective_beta: float,
+        effective_info: float,
+        learning_rate: float,
+        collect_balance: bool,
+        sprint18_view_epoch: int,
+        fit_role_sha256: str | None,
+        model_seed: int,
+    ) -> dict[str, float]:
+        self.model.train()
+        totals: dict[str, float] = {}
+        counts: dict[str, int] = {}
+        epoch_balance_records: list[dict[str, int | float | bool]] = []
+        shared_parameters = self._shared_encoder_parameters() if collect_balance else ()
+        materialized = list(batches)
+        if not materialized:
+            raise ValueError("training epoch received no batches")
+        epoch_keys: list[tuple[str, int]] = []
+        per_batch_selected: list[list[list[int]]] = []
+        for raw_batch in materialized:
+            moved_probe = self._move_batch(raw_batch)  # type: ignore[arg-type]
+            if fit_role_sha256 is None:
+                per_batch_selected.append([])
+                continue
+            selections = self.ccrp_batch_selections(
+                moved_probe, model_seed=model_seed, epoch=epoch, fit_role_sha256=fit_role_sha256
+            )
+            file_ids = moved_probe.get("file_ids")
+            assert isinstance(file_ids, (list, tuple))
+            selected = selections["selected"]
+            assert isinstance(selected, list)
+            per_batch_selected.append(selected)  # type: ignore[arg-type]
+            for row, file_id in enumerate(file_ids):
+                assert isinstance(file_id, str)
+                for patch in selected[row]:  # type: ignore[index]
+                    epoch_keys.append((file_id, int(patch)))
+        epoch_keys = sorted(epoch_keys, key=lambda item: (item[0], item[1]))
+        assignment = ccrp_assign_channels(epoch_keys, model_seed, epoch)
+        assigned_channels = assignment["channels"]
+        assert isinstance(assigned_channels, list)
+        channel_counts = assignment["counts"]
+        assert isinstance(channel_counts, tuple)
+        channel_by_key = {key: int(channel) for key, channel in zip(epoch_keys, assigned_channels)}
+        for batch_index, raw_batch in enumerate(materialized):
+            next_step = self.step + 1
+            self.optimizer.zero_grad(set_to_none=True)
+            moved = self._move_batch(raw_batch)  # type: ignore[arg-type]
+            output = self.model(moved, sprint18_view_epoch=sprint18_view_epoch)
+            terms = self.criterion(output, step=self.step, effective_lambda_override=effective_info)
+            norm = output.get("normalization")
+            means = norm.get("mean") if isinstance(norm, dict) else None
+            stds = norm.get("std") if isinstance(norm, dict) else None
+            raw_patches = moved.get("patches")
+            pad_mask = moved.get("patch_pad_mask")
+            valid_mask = moved.get("patch_valid_mask")
+            temporal_mask = moved.get("mask")
+            if (
+                not isinstance(raw_patches, torch.Tensor)
+                or not isinstance(pad_mask, torch.Tensor)
+                or not isinstance(valid_mask, torch.Tensor)
+                or not isinstance(temporal_mask, torch.Tensor)
+                or raw_patches.ndim != 4
+            ):
+                raise TypeError("N3 channel forward requires collated patch tensors")
+            if means is None or stds is None:
+                raise ValueError("N3 channel forward requires the B0 normalization result")
+            normalized_full = (raw_patches - means.unsqueeze(1).unsqueeze(-1)) / stds.unsqueeze(1).unsqueeze(-1)
+            normalized_full = normalized_full.masked_fill(pad_mask.unsqueeze(2), 0.0)
+            aux_patches = normalized_full.clone()
+            targets_row: list[int] = []
+            targets_patch: list[int] = []
+            targets_channel: list[int] = []
+            file_ids = moved.get("file_ids")
+            if not isinstance(file_ids, (list, tuple)):
+                raise ValueError("N3 channel forward requires batch file IDs")
+            selected = per_batch_selected[batch_index]
+            if fit_role_sha256 is not None:
+                for row, file_id in enumerate(file_ids):
+                    if not isinstance(file_id, str) or not file_id:
+                        raise ValueError("N3 channel forward requires canonical file IDs")
+                    for patch in (selected[row] if selected else []):
+                        channel = channel_by_key[(file_id, int(patch))]
+                        aux_patches[row, int(patch), channel, :] = 0.0
+                        targets_row.append(row)
+                        targets_patch.append(int(patch))
+                        targets_channel.append(channel)
+            aux_patches = aux_patches.masked_fill(pad_mask.unsqueeze(2), 0.0)
+            channel_loss: torch.Tensor
+            excluded_near_zero = 0
+            target_count = len(targets_row)
+            if target_count:
+                full_local_full, zeroed_local_full = self.model.ccrp_aux_local(
+                    normalized_full, aux_patches, pad_mask
+                )
+                full_rows = torch.stack(
+                    [full_local_full[row, patch] for row, patch in zip(targets_row, targets_patch)]
+                )
+                zeroed_rows = torch.stack(
+                    [zeroed_local_full[row, patch] for row, patch in zip(targets_row, targets_patch)]
+                )
+                local_full = full_rows.detach()
+                local_without = zeroed_rows.detach()
+                aux_visible = self.model.patch_encoder(aux_patches, pad_mask)
+                aux_visible = aux_visible.masked_fill(temporal_mask.unsqueeze(-1), 0.0)
+                context_aux_full = self.model.context_encoder(aux_visible, valid_mask)
+                context_aux = torch.stack(
+                    [context_aux_full[row, patch] for row, patch in zip(targets_row, targets_patch)]
+                )
+                channel_ids = torch.tensor(targets_channel, dtype=torch.long, device=context_aux.device)
+                channel_terms = self.model.ccrp_channel_terms(context_aux, local_full, local_without, channel_ids)
+                channel_loss = channel_terms["channel_loss"]
+                if not isinstance(channel_loss, torch.Tensor):
+                    raise TypeError("channel loss must be a tensor")
+                excluded_near_zero = int(channel_terms["support_channel_excluded_near_zero"].item())
+            else:
+                channel_loss = (terms["weighted_prediction_loss"] * 0.0) + (output["context_latents"].sum() * 0.0)
+            weighted_channel_loss = effective_beta * channel_loss
+            joint_loss = terms["weighted_prediction_loss"] + weighted_channel_loss + terms["weighted_contrastive_loss"]
+            if not isinstance(joint_loss, torch.Tensor):
+                raise TypeError("joint_loss must be a tensor")
+            pending_record: dict[str, int | float | bool] | None = None
+            if collect_balance and (
+                batch_index == 0
+                or (26 <= epoch <= 30 and next_step % 40 == 0)
+            ):
+                pending_record = self._ccrp_balance_record(
+                    output,
+                    terms,
+                    channel_loss,
+                    weighted_channel_loss,
+                    effective_beta,
+                    effective_info,
+                    epoch=epoch,
+                    global_step=next_step,
+                    learning_rate=learning_rate,
+                    parameters=shared_parameters,
+                    # Channel-support fields record the epoch's final target count and
+                    # epoch-global round-robin counts (normative v2 S2 recording rule);
+                    # the selector audits coherence and round-robin balance on every
+                    # observation row. The near-zero exclusion stays the actual batch
+                    # observation backing this row's loss/gradient diagnostics.
+                    channel_targets=len(epoch_keys),
+                    channel_excluded=excluded_near_zero,
+                    channel_counts=tuple(int(v) for v in channel_counts),  # type: ignore[arg-type]
+                )
+            joint_loss.backward()
+            parameters = [parameter for parameter in self.model.parameters() if parameter.requires_grad]
+            if self.max_grad_norm is not None:
+                grad_norm = clip_grad_norm_(parameters, self.max_grad_norm)
+            else:
+                grad_norm = clip_grad_norm_(parameters, float("inf"))
+            self.optimizer.step()
+            self.model.target_encoder.update(self.model.context_encoder)
+            self.step += 1
+            if pending_record is not None:
+                self.objective_balance_history.append(pending_record)
+                epoch_balance_records.append(pending_record)
+            for name, value in (
+                ("prediction_loss", terms["prediction_loss"]),
+                ("contrastive_loss", terms["contrastive_loss"]),
+                ("weighted_contrastive_loss", terms["weighted_contrastive_loss"]),
+                ("channel_loss", channel_loss),
+                ("weighted_channel_loss", weighted_channel_loss),
+                ("joint_loss", joint_loss),
+            ):
+                scalar = self._scalar(value)
+                totals[name] = totals.get(name, 0.0) + scalar
+                counts[name] = counts.get(name, 0) + 1
+            grad_norm_scalar = float(grad_norm.detach().cpu().item()) if isinstance(grad_norm, torch.Tensor) else float(grad_norm)
+            lr_scalar = float(self.optimizer.param_groups[0]["lr"])
+            totals["grad_norm"] = totals.get("grad_norm", 0.0) + grad_norm_scalar
+            counts["grad_norm"] = counts.get("grad_norm", 0) + 1
+            totals["lr"] = totals.get("lr", 0.0) + lr_scalar
+            counts["lr"] = counts.get("lr", 0) + 1
         averaged = {name: totals[name] / counts[name] for name in totals}
         averaged["epoch"] = float(epoch)
         if epoch_balance_records:

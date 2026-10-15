@@ -58,6 +58,7 @@ MODEL_SEEDS = (181801, 181802, 181803)
 TASK9_COEFFICIENT_PILOT_EPOCHS = 30
 COMMON_INFO_COEFFICIENT_GRID = (0.025, 0.05, 0.10)
 N2_AUX_COEFFICIENT_GRID = (0.10, 0.25, 0.50)
+N3_AUX_COEFFICIENT_GRID = (0.10, 0.25, 0.50)
 BATCH_SIZE = 128
 MODEL_LR_MAX = 1.5e-3
 MODEL_LR_MIN = 1e-5
@@ -333,7 +334,7 @@ def validate_arm_config(config: Sprint18ArmConfig, *, require_locked: bool = Tru
             raise ValueError("locked coefficient configuration requires its frozen coefficient-lock digest")
     elif config.coefficient_lock_sha256 is not None:
         raise ValueError("unlocked coefficient configuration must not claim a selection lock")
-    if config.selection_state == "coefficient_pilot" and config.arm_id not in ("B0-FULL", "N1-HCC", "N2-MSP"):
+    if config.selection_state == "coefficient_pilot" and config.arm_id not in ("B0-FULL", "N1-HCC", "N2-MSP", "N3-CCRP"):
         raise ValueError("Task9 coefficient pilots are restricted to B0-FULL")
     if require_locked and config.selection_state != "locked":
         raise ValueError("pilot/smoke-only coefficients cannot start a locked experiment")
@@ -1817,6 +1818,327 @@ def select_msp_coefficient(
         "selection_state": "selected" if selected is not None else "no_valid_candidate",
     }
 
+def select_ccrp_coefficient(
+    binding: Task6Binding,
+    candidate_runs: Mapping[float, Mapping[int, Mapping[str, object]]],
+    prediction_only_runs: Mapping[int, Mapping[str, object]],
+) -> Mapping[str, object]:
+    """Apply the frozen N3-CCRP beta grid, per-seed gradient, collapse, and retention gates."""
+    from representation.sprint18_checkpoint import (
+        coefficient_for_epoch,
+        learning_rate_for_epoch,
+    )
+
+    grid = N3_AUX_COEFFICIENT_GRID
+    unknown_candidates = [
+        value
+        for value in candidate_runs
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or value not in grid
+    ]
+    if unknown_candidates:
+        raise ValueError("coefficient pilot results contain a value outside the frozen CCRP grid")
+    if any(
+        not isinstance(seed_runs, Mapping)
+        or any(
+            isinstance(seed, bool) or not isinstance(seed, int) or seed not in MODEL_SEEDS
+            for seed in seed_runs
+        )
+        for seed_runs in candidate_runs.values()
+    ):
+        raise ValueError("coefficient pilot results contain a seed outside the frozen model-seed namespace")
+    if any(
+        isinstance(seed, bool)
+        or not isinstance(seed, int)
+        or seed not in MODEL_SEEDS
+        for seed in prediction_only_runs
+    ):
+        raise ValueError("prediction-only results contain a seed outside the frozen model-seed namespace")
+
+    design_ids = tuple(item.actual_history_id for item in binding.role_histories("DESIGN"))
+
+    def finite_number(value: object) -> float | None:
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            return None
+        number = float(value)
+        return number if math.isfinite(number) else None
+
+    def parse_design_history(value: object) -> tuple[dict[str, object] | None, str | None]:
+        if not isinstance(value, Mapping):
+            return None, "design_history_missing"
+        support_sha256 = value.get("support_sha256")
+        support_files = value.get("support_files")
+        spread = finite_number(value.get("healthy_embedding_std_median"))
+        loss = finite_number(value.get("mean_healthy_fine_prediction_loss"))
+        if (
+            not _is_hash(support_sha256)
+            or not isinstance(support_files, int)
+            or isinstance(support_files, bool)
+            or support_files < 1
+            or spread is None
+            or loss is None
+            or spread < 0.0
+            or loss < 0.0
+        ):
+            return None, "design_support_or_metric_invalid"
+        return {
+            "support_sha256": support_sha256,
+            "support_files": support_files,
+            "healthy_embedding_std_median": spread,
+            "mean_healthy_fine_prediction_loss": loss,
+        }, None
+
+    prediction_metrics: dict[int, dict[str, dict[str, object]]] = {}
+    prediction_errors: dict[int, list[str]] = {}
+    expected_design_set = set(design_ids)
+    for seed in MODEL_SEEDS:
+        run = prediction_only_runs.get(seed)
+        errors: list[str] = []
+        parsed: dict[str, dict[str, object]] = {}
+        histories = run.get("design_histories") if isinstance(run, Mapping) else None
+        if not isinstance(histories, Mapping) or set(histories) != expected_design_set:
+            errors.append("prediction_only_design_support_incomplete")
+        else:
+            for history_id in design_ids:
+                record, error = parse_design_history(histories[history_id])
+                if error is not None or record is None:
+                    errors.append(f"prediction_only_{history_id}_{error or 'invalid'}")
+                else:
+                    parsed[history_id] = record
+        prediction_metrics[seed] = parsed
+        prediction_errors[seed] = errors
+    for history_id in design_ids:
+        supports = {
+            (
+                cast(str, prediction_metrics[seed][history_id]["support_sha256"]),
+                cast(int, prediction_metrics[seed][history_id]["support_files"]),
+            )
+            for seed in MODEL_SEEDS
+            if history_id in prediction_metrics[seed]
+        }
+        if len(supports) > 1:
+            for seed in MODEL_SEEDS:
+                prediction_errors[seed].append(f"prediction_only_{history_id}_support_mismatch")
+
+    batches_per_epoch = math.ceil(binding.fit_healthy_rows / BATCH_SIZE)
+    expected_observations = {
+        (epoch, step)
+        for epoch in range(26, 31)
+        for step in range((epoch - 1) * batches_per_epoch + 1, epoch * batches_per_epoch + 1)
+        if step % 40 == 0
+    }
+    finite_balance_fields = (
+        "lr",
+        "raw_L_pred",
+        "effective_coefficient_L_pred",
+        "weighted_L_pred",
+        "raw_L_channel",
+        "effective_coefficient_L_channel",
+        "weighted_L_channel",
+        "raw_L_info",
+        "effective_coefficient_L_info",
+        "weighted_L_info",
+        "gradient_norm_L_pred_shared",
+        "gradient_norm_weighted_L_channel_shared",
+        "r_aux",
+        "embedding_support_files",
+        "support_valid_files",
+        "support_valid_patches",
+        "support_prediction_files",
+        "support_prediction_patches",
+        "support_channel_targets",
+        "support_channel_excluded_near_zero",
+        "support_channel_c0",
+        "support_channel_c1",
+        "support_channel_c2",
+        "support_channel_c3",
+        "support_channel_c4",
+        "support_channel_c5",
+        "contrastive_input_files",
+        "embedding_variance_mean",
+        "embedding_std_median",
+        "embedding_effective_rank",
+    )
+    verdicts: list[dict[str, object]] = []
+    selected: float | None = None
+    for coefficient in grid:
+        seed_runs = candidate_runs.get(coefficient)
+        seed_verdicts: list[dict[str, object]] = []
+        for seed in MODEL_SEEDS:
+            failures = list(prediction_errors[seed])
+            median_ratio: float | None = None
+            p90_ratio: float | None = None
+            seed_run = seed_runs.get(seed) if isinstance(seed_runs, Mapping) else None
+            if not isinstance(seed_run, Mapping):
+                failures.append("candidate_seed_run_missing")
+            else:
+                balance_records = seed_run.get("balance_records")
+                if not isinstance(balance_records, Sequence) or isinstance(balance_records, (str, bytes)) or not balance_records:
+                    failures.append("balance_records_missing")
+                    balance_rows: tuple[Mapping[str, object], ...] = ()
+                elif any(not isinstance(row, Mapping) for row in balance_records):
+                    failures.append("balance_record_malformed")
+                    balance_rows = ()
+                else:
+                    balance_rows = tuple(cast(Mapping[str, object], row) for row in balance_records)
+                recorded_epochs: set[int] = set()
+                observed_steps: set[tuple[int, int]] = set()
+                observed_step_count = 0
+                ratios: list[float] = []
+                for row in balance_rows:
+                    epoch = row.get("epoch")
+                    step = row.get("global_step")
+                    if (
+                        not isinstance(epoch, int)
+                        or isinstance(epoch, bool)
+                        or not 1 <= epoch <= TASK9_COEFFICIENT_PILOT_EPOCHS
+                        or not isinstance(step, int)
+                        or isinstance(step, bool)
+                        or step < 1
+                    ):
+                        failures.append("balance_record_epoch_or_step_invalid")
+                        continue
+                    recorded_epochs.add(epoch)
+                    if any(finite_number(row.get(name)) is None for name in finite_balance_fields):
+                        failures.append("nonfinite_or_missing_balance_metric")
+                    channel_total = finite_number(row.get("support_channel_targets"))
+                    excluded = finite_number(row.get("support_channel_excluded_near_zero"))
+                    per_channel = [finite_number(row.get(f"support_channel_c{index}")) for index in range(6)]
+                    if (
+                        channel_total is None
+                        or excluded is None
+                        or any(value is None for value in per_channel)
+                        or channel_total < 0.0
+                        or excluded < 0.0
+                        or any(cast(float, value) < 0.0 for value in per_channel)
+                    ):
+                        failures.append("channel_support_metric_invalid")
+                    elif abs(sum(cast(float, value) for value in per_channel) - channel_total) > 1e-9:
+                        failures.append("channel_support_counts_incoherent")
+                    elif channel_total > 0.0 and max(cast(float, value) for value in per_channel) - min(
+                        cast(float, value) for value in per_channel
+                    ) > 1.0:
+                        failures.append("channel_support_unbalanced")
+                    scheduled = coefficient_for_epoch(coefficient, epoch)
+                    if row.get("effective_coefficient_L_channel") != scheduled:
+                        failures.append("ccrp_coefficient_schedule_mismatch")
+                    if row.get("lr") != learning_rate_for_epoch(epoch):
+                        failures.append("learning_rate_schedule_mismatch")
+                    if all(
+                        finite_number(row.get(name)) is not None
+                        for name in (
+                            "raw_L_pred",
+                            "effective_coefficient_L_pred",
+                            "weighted_L_pred",
+                            "raw_L_channel",
+                            "effective_coefficient_L_channel",
+                            "weighted_L_channel",
+                            "gradient_norm_L_pred_shared",
+                            "gradient_norm_weighted_L_channel_shared",
+                            "r_aux",
+                        )
+                    ):
+                        raw_prediction = cast(float, finite_number(row.get("raw_L_pred")))
+                        prediction_coefficient = cast(float, finite_number(row.get("effective_coefficient_L_pred")))
+                        weighted_prediction = cast(float, finite_number(row.get("weighted_L_pred")))
+                        raw_channel = cast(float, finite_number(row.get("raw_L_channel")))
+                        channel_coefficient = cast(float, finite_number(row.get("effective_coefficient_L_channel")))
+                        weighted_channel = cast(float, finite_number(row.get("weighted_L_channel")))
+                        prediction_norm = cast(float, finite_number(row.get("gradient_norm_L_pred_shared")))
+                        channel_norm = cast(float, finite_number(row.get("gradient_norm_weighted_L_channel_shared")))
+                        ratio = cast(float, finite_number(row.get("r_aux")))
+                        if (
+                            not math.isclose(weighted_prediction, prediction_coefficient * raw_prediction, rel_tol=1e-6, abs_tol=1e-7)
+                            or not math.isclose(weighted_channel, channel_coefficient * raw_channel, rel_tol=1e-6, abs_tol=1e-7)
+                        ):
+                            failures.append("weighted_loss_coefficient_mismatch")
+                        if prediction_norm < 0.0 or channel_norm < 0.0:
+                            failures.append("gradient_norm_negative")
+                        elif not math.isclose(ratio, channel_norm / (prediction_norm + 1e-12), rel_tol=1e-9, abs_tol=1e-12):
+                            failures.append("gradient_ratio_inconsistent")
+                    observation = row.get("protocol_gradient_observation")
+                    if not isinstance(observation, bool):
+                        failures.append("gradient_observation_flag_invalid")
+                    elif observation:
+                        observed_step_count += 1
+                        observed_steps.add((epoch, step))
+                        ratio = finite_number(row.get("r_aux"))
+                        if ratio is not None:
+                            ratios.append(ratio)
+                if observed_step_count != len(observed_steps):
+                    failures.append("protocol_gradient_observations_duplicated")
+                if recorded_epochs != set(range(1, TASK9_COEFFICIENT_PILOT_EPOCHS + 1)):
+                    failures.append("balance_record_epochs_incomplete")
+                if observed_steps != expected_observations:
+                    failures.append("protocol_gradient_observations_incomplete")
+                if ratios:
+                    median_ratio = float(np.median(np.asarray(ratios, dtype=np.float64)))
+                    p90_ratio = float(np.quantile(np.asarray(ratios, dtype=np.float64), 0.90, method="linear"))
+                else:
+                    failures.append("protocol_gradient_observations_missing")
+                if median_ratio is not None and not 0.15 <= median_ratio <= 0.50:
+                    failures.append("median_gradient_ratio_out_of_range")
+                if p90_ratio is not None and p90_ratio > 1.0:
+                    failures.append("p90_gradient_ratio_exceeds_one")
+                active_epoch_rows = [row for row in balance_rows if row.get("epoch") == 30]
+                if not any(
+                    row.get("effective_coefficient_L_channel") == coefficient
+                    and finite_number(row.get("raw_L_channel")) is not None
+                    and cast(float, finite_number(row.get("raw_L_channel"))) > 0.0
+                    and finite_number(row.get("weighted_L_channel")) is not None
+                    and cast(float, finite_number(row.get("weighted_L_channel"))) > 0.0
+                    for row in active_epoch_rows
+                ):
+                    failures.append("full_ramp_ccrp_objective_not_active")
+                if not any(
+                    finite_number(row.get("support_channel_targets")) is not None
+                    and cast(float, finite_number(row.get("support_channel_targets"))) > 0.0
+                    for row in active_epoch_rows
+                ):
+                    failures.append("channel_support_missing")
+                design_histories = seed_run.get("design_histories")
+                if not isinstance(design_histories, Mapping) or set(design_histories) != expected_design_set:
+                    failures.append("candidate_design_support_incomplete")
+                else:
+                    for history_id in design_ids:
+                        candidate_record, error = parse_design_history(design_histories[history_id])
+                        reference_record = prediction_metrics[seed].get(history_id)
+                        if error is not None or candidate_record is None:
+                            failures.append(f"{history_id}_{error or 'invalid'}")
+                            continue
+                        if reference_record is None:
+                            continue
+                        if (
+                            candidate_record["support_sha256"] != reference_record["support_sha256"]
+                            or candidate_record["support_files"] != reference_record["support_files"]
+                        ):
+                            failures.append(f"{history_id}_healthy_support_mismatch")
+                        spread = cast(float, candidate_record["healthy_embedding_std_median"])
+                        if spread < 0.05:
+                            failures.append(f"{history_id}_embedding_collapse")
+                        candidate_loss = cast(float, candidate_record["mean_healthy_fine_prediction_loss"])
+                        reference_loss = cast(float, reference_record["mean_healthy_fine_prediction_loss"])
+                        if candidate_loss > 1.10 * reference_loss:
+                            failures.append(f"{history_id}_healthy_prediction_retention_failed")
+            seed_verdicts.append(
+                {
+                    "model_seed": seed,
+                    "valid": not failures,
+                    "failed_checks": sorted(set(failures)),
+                    "median_r_aux": median_ratio,
+                    "p90_r_aux": p90_ratio,
+                }
+            )
+        valid = all(bool(item["valid"]) for item in seed_verdicts)
+        verdicts.append({"coefficient": coefficient, "valid": valid, "per_seed": seed_verdicts})
+        if selected is None and valid:
+            selected = coefficient
+    return {
+        "grid": list(grid),
+        "candidate_verdicts": verdicts,
+        "selected_coefficient": selected,
+        "selection_state": "selected" if selected is not None else "no_valid_candidate",
+    }
+
 
 @dataclass(frozen=True, slots=True)
 class CommonSupport:
@@ -1930,7 +2252,7 @@ def deterministic_sampler_order(
         raise ValueError("sampler scope is unsupported")
     if scope == "coefficient_pilot" and (
         workload != "representation"
-        or arm.arm_id not in ("B0-FULL", "N1-HCC", "N2-MSP")
+        or arm.arm_id not in ("B0-FULL", "N1-HCC", "N2-MSP", "N3-CCRP")
         or arm.selection_state != "coefficient_pilot"
     ):
         raise ValueError("Task9 coefficient-pilot sampling is restricted to unselected B0 representation runs")

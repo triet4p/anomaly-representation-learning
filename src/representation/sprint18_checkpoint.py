@@ -339,7 +339,7 @@ def _validate_sampler_state(
             maximum_epochs = 100
     elif scope == "coefficient_pilot":
         if (
-            arm.arm_id not in ("B0-FULL", "N1-HCC", "N2-MSP")
+            arm.arm_id not in ("B0-FULL", "N1-HCC", "N2-MSP", "N3-CCRP")
             or arm.selection_state != "coefficient_pilot"
             or workload != "representation"
         ):
@@ -541,7 +541,7 @@ def validate_sprint18_checkpoint(
     if allowed_scope == "task6_smoke_only" and arm.arm_id != "B0-FULL":
         raise ValueError("the only authorized Task6 optimizer-update fixture is B0-FULL")
     if allowed_scope == "coefficient_pilot" and (
-        arm.arm_id not in ("B0-FULL", "N1-HCC", "N2-MSP") or arm.selection_state != "coefficient_pilot"
+        arm.arm_id not in ("B0-FULL", "N1-HCC", "N2-MSP", "N3-CCRP") or arm.selection_state != "coefficient_pilot"
     ):
         raise ValueError("the only authorized Task9 checkpoint is an unselected B0 coefficient pilot")
     arm_sha = arm_config_sha256(arm)

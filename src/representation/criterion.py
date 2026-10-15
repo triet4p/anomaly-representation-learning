@@ -395,6 +395,108 @@ def msp_fine_mask(
     return {"selected": sorted(int(v) for v in selected_set), "composition": realized, "defensive_fill_component": filled_from}
 
 
+N3_CHANNEL_COUNT = 6
+CCRP_PATCH_FRACTION = 0.25
+CCRP_NEAR_ZERO_NORM = 1e-6
+CCRP_AUX_COEFFICIENT_GRID = (0.10, 0.25, 0.50)
+
+
+def ccrp_patch_count(n: int) -> int:
+    """Return the exact N3 per-file relational target request ``Q``."""
+    if isinstance(n, bool) or not isinstance(n, int) or n < 0:
+        raise ValueError("patch count n must be a non-negative integer")
+    if n == 0:
+        return 0
+    return min(n, max(1, int(round(CCRP_PATCH_FRACTION * n))))
+
+
+def ccrp_patch_seed(model_seed: int, epoch: int, fit_role_sha256: str, file_id: str) -> int:
+    """Derive the frozen per-file/epoch N3 patch-selection seed from identity only."""
+    if (
+        isinstance(model_seed, bool)
+        or not isinstance(model_seed, int)
+        or isinstance(epoch, bool)
+        or not isinstance(epoch, int)
+        or not 1 <= epoch <= 100
+        or not isinstance(fit_role_sha256, str)
+        or len(fit_role_sha256) != 64
+        or any(c not in "0123456789abcdef" for c in fit_role_sha256)
+        or not isinstance(file_id, str)
+        or not file_id
+    ):
+        raise ValueError("N3 patch seed requires a valid seed, epoch, role digest, and file ID")
+    key = f"sprint18-n3-patch-v2|{model_seed}|{epoch}|{fit_role_sha256}|{file_id}"
+    return int.from_bytes(sha256(key.encode("utf-8")).digest()[:8], "big") % (2**63 - 1)
+
+
+def ccrp_sample_targets(
+    valid_indices: Sequence[int],
+    q: int,
+    rng: np.random.Generator,
+    fully_masked: Sequence[int] | set[int],
+) -> dict[str, object]:
+    """Draw one permutation of ``V`` and resample fully-masked initials in order."""
+    valid = [int(v) for v in valid_indices]
+    if any(isinstance(v, bool) for v in valid_indices) or any(v < 0 for v in valid):
+        raise ValueError("valid indices must be non-negative integers")
+    if sorted(valid) != valid or len(set(valid)) != len(valid):
+        raise ValueError("valid indices must be sorted and unique")
+    if isinstance(q, bool) or not isinstance(q, int) or q < 0:
+        raise ValueError("requested target count q must be a non-negative integer")
+    if q > len(valid):
+        raise ValueError("requested target count exceeds the valid pool")
+    if not isinstance(rng, np.random.Generator):
+        raise ValueError("N3 patch sampling requires a numpy Generator")
+    masked = {int(v) for v in fully_masked}
+    if any(isinstance(v, bool) for v in fully_masked) or any(v < 0 for v in masked):
+        raise ValueError("masked indices must be non-negative integers")
+    order = [int(v) for v in rng.permutation(np.asarray(valid, dtype=np.int64)).tolist()] if valid else []
+    initial = order[:q]
+    rejected = [v for v in initial if v in masked]
+    kept = [v for v in initial if v not in masked]
+    tail = order[q:]
+    replacements: list[int] = []
+    cursor = 0
+    for _ in rejected:
+        while cursor < len(tail) and tail[cursor] in masked:
+            cursor += 1
+        if cursor >= len(tail):
+            break
+        replacements.append(tail[cursor])
+        cursor += 1
+    selected = kept + replacements
+    unmasked_count = len([v for v in valid if v not in masked])
+    if len(selected) != min(q, unmasked_count):
+        raise ValueError("N3 resampling did not reach its exact eligible target")
+    return {"initial": initial, "rejected": rejected, "replacements": replacements, "selected": selected}
+
+
+def ccrp_assign_channels(
+    sorted_keys: Sequence[tuple[str, int]],
+    model_seed: int,
+    epoch: int,
+) -> dict[str, object]:
+    """Assign exactly one held-out channel per epoch-global relational target."""
+    keys = [(item[0], int(item[1])) for item in sorted_keys]
+    if any(not isinstance(item[0], str) or not item[0] for item in keys):
+        raise ValueError("relational target keys require canonical file IDs")
+    if any(isinstance(item[1], bool) or item[1] < 0 for item in keys):
+        raise ValueError("relational target patch indices must be non-negative integers")
+    if len(set(keys)) != len(keys):
+        raise ValueError("relational target keys must be unique within the epoch")
+    if list(keys) != sorted(keys, key=lambda item: (item[0], item[1])):
+        raise ValueError("relational target keys must arrive in epoch-global sorted order")
+    if isinstance(model_seed, bool) or not isinstance(model_seed, int):
+        raise ValueError("N3 channel assignment requires an integer model seed")
+    if isinstance(epoch, bool) or not isinstance(epoch, int) or not 1 <= epoch <= 100:
+        raise ValueError("N3 channel assignment requires an epoch in [1, 100]")
+    channels = [(ordinal + model_seed + epoch) % N3_CHANNEL_COUNT for ordinal in range(len(keys))]
+    counts = tuple(channels.count(c) for c in range(N3_CHANNEL_COUNT))
+    if keys and max(counts) - min(counts) > 1:
+        raise ValueError("N3 round-robin channel counts differ by more than one")
+    return {"channels": channels, "counts": counts, "total": len(keys)}
+
+
 HCC_AFFINITY_SAME_FILE = 1.0
 HCC_AFFINITY_SAME_ROBOT_PROGRAM = 0.5
 HCC_AFFINITY_SAME_ROBOT_DIFF_PROGRAM = 0.1
@@ -594,6 +696,50 @@ class MultiscaleLatentPredictionCriterion(nn.Module):
     ) -> dict[str, torch.Tensor]:
         """Return per-scale and combined coarse losses with missing-scale exclusion."""
         return self._group_loss(context_latents, target_latents, patch_valid_mask, groups_4, groups_8)
+
+
+class CrossChannelRelationalCriterion(nn.Module):
+    """Apply the frozen N3 held-out-channel relational cosine-distance loss."""
+
+    def __init__(self, empty_policy: str = "exclude") -> None:
+        super().__init__()
+        if empty_policy != "exclude":
+            raise ValueError("channel loss excludes unsupported targets from its denominator")
+        self.empty_policy = empty_policy
+
+    def forward(
+        self,
+        predicted: torch.Tensor,
+        target_full: torch.Tensor,
+        target_without_channel: torch.Tensor,
+    ) -> dict[str, torch.Tensor]:
+        """Return the cosine channel loss over supported targets only."""
+        for name, value in (
+            ("predicted", predicted),
+            ("target_full", target_full),
+            ("target_without_channel", target_without_channel),
+        ):
+            if not isinstance(value, torch.Tensor) or value.ndim != 2:
+                raise ValueError(f"{name} must be a 2D [K, D] torch.Tensor")
+        if predicted.shape != target_full.shape or predicted.shape != target_without_channel.shape:
+            raise ValueError("channel predictions and targets must share shape")
+        if predicted.shape[0] == 0 or predicted.shape[1] == 0:
+            raise ValueError("channel loss requires a non-empty target set")
+        raw_delta = target_full.detach() - target_without_channel.detach()
+        norms = raw_delta.norm(dim=-1)
+        supported = norms >= CCRP_NEAR_ZERO_NORM
+        excluded = int((~supported).sum().item())
+        if int(supported.sum().item()) == 0:
+            raise ValueError("channel loss has no supported targets after near-zero exclusion")
+        student = torch.nn.functional.normalize(predicted[supported], dim=-1)
+        teacher = torch.nn.functional.normalize(raw_delta[supported], dim=-1)
+        loss = 1.0 - (student * teacher).sum(dim=-1).mean()
+        loss = loss + (predicted.sum() * 0.0)
+        return {
+            "channel_loss": loss,
+            "support_channel_targets": torch.tensor(int(supported.sum().item())),
+            "support_channel_excluded_near_zero": torch.tensor(excluded),
+        }
 
 
 class ProgressiveLambda:
