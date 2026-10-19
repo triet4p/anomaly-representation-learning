@@ -565,7 +565,7 @@ class RepresentationTrainer:
         epoch: int,
         collect_balance: bool = True,
     ) -> dict[str, float]:
-        """Run one B0/N1 epoch under the accepted Sprint 18 schedule and diagnostics."""
+        """Run one B0/K/N epoch under the accepted Sprint 18 schedule and diagnostics."""
         from representation.sprint18_checkpoint import (
             coefficient_for_epoch,
             learning_rate_for_epoch,
@@ -576,6 +576,8 @@ class RepresentationTrainer:
         )
 
         validate_arm_config(arm, require_locked=(arm.selection_state == "locked"))
+        if arm.arm_id in ("K3-FULL", "K7-FULL", "K9-FULL"):
+            return self.train_sprint18_k_epoch(batches, arm=arm, epoch=epoch, collect_balance=collect_balance)
         if arm.arm_id == "N1-HCC":
             return self.train_sprint18_hcc_epoch(batches, arm=arm, epoch=epoch, collect_balance=collect_balance)
         if arm.arm_id == "N2-MSP":
@@ -662,6 +664,137 @@ class RepresentationTrainer:
             collect_balance=collect_balance,
             sprint18_view_epoch=epoch,
         )
+
+    def train_sprint18_k_epoch(
+        self,
+        batches: Iterable[RepresentationBatch],
+        *,
+        arm: Sprint18ArmConfig,
+        epoch: int,
+        collect_balance: bool = True,
+    ) -> dict[str, float]:
+        """Run one K3/K7/K9 epoch: exact Sprint17 members + common Sprint18 schedule."""
+        from representation.sprint18_checkpoint import (
+            coefficient_for_epoch,
+            learning_rate_for_epoch,
+        )
+        from representation.sprint18_harness import validate_arm_config
+        from representation.sprint18_k_dispatch import (
+            K_LAMBDA_INFO_MAX,
+            members_for_arm,
+        )
+        from representation.sprint17_c5 import MultiHorizonPredictionCriterion
+        members = members_for_arm(arm.arm_id)
+        if arm.arm_id not in ("K3-FULL", "K7-FULL", "K9-FULL"):
+            raise ValueError("K training requires a K3/K7/K9 arm configuration")
+        if isinstance(epoch, bool) or not isinstance(epoch, int) or not 1 <= epoch <= 100:
+            raise ValueError("Sprint18 K epoch must be in [1, 100]")
+        if self.scheduler is not None:
+            raise ValueError("Sprint18 uses a constant-within-epoch LR; pass no step scheduler")
+        if not isinstance(self.optimizer, torch.optim.AdamW):
+            raise ValueError("Sprint18 representation training requires AdamW")
+        if self.max_grad_norm != 1.0:
+            raise ValueError("Sprint18 representation training requires global L2 clip 1.0")
+        if self.criterion.prediction_weight != 1.0:
+            raise ValueError("Sprint18 prediction objective coefficient must remain 1.0")
+        if not isinstance(self.criterion.prediction, MultiHorizonPredictionCriterion):
+            raise ValueError("K arms require the exact Sprint17 C5-A multi-horizon prediction criterion")
+        if tuple(getattr(self.criterion.prediction, "horizons", ())) != (0, 1, 2):
+            raise ValueError("K prediction horizons differ from the frozen C5-A [0, 1, 2]")
+        coefficient_max = arm.lambda_info_max
+        if (
+            coefficient_max is None
+            or coefficient_max != K_LAMBDA_INFO_MAX
+            or self.criterion.lambda_schedule.lambda_max != coefficient_max
+            or self.model.config.contrastive_weight_max != coefficient_max
+        ):
+            raise ValueError("K contrastive coefficient differs from the frozen Task14 lock (0.05)")
+        model_shape = (
+            self.model.config.n_channels,
+            self.model.config.patch_size,
+            self.model.config.stride,
+            self.model.config.n_robots,
+            self.model.config.n_programs,
+        )
+        arm_shape = (
+            arm.n_channels,
+            arm.patch_size,
+            arm.stride,
+            arm.n_robots,
+            arm.n_programs,
+        )
+        if (
+            model_shape != arm_shape
+            or self.model.config.seed != arm.model_seed
+            or self.model.config.ema_decay != arm.ema_decay
+            or self.model.target_encoder.decay != arm.ema_decay
+            or self.model.patchifier.cfg.patch_size != arm.patch_size
+            or self.model.patchifier.cfg.stride != arm.stride
+        ):
+            raise ValueError("K model configuration differs from its frozen Sprint18 arm")
+        self._require_k_graph(arm.arm_id, members)
+        optimizer_parameters = [
+            parameter
+            for group in self.optimizer.param_groups
+            for parameter in group["params"]
+        ]
+        model_parameters = list(self.model.parameters())
+        optimizer_parameter_ids = {id(parameter) for parameter in optimizer_parameters}
+        model_parameter_ids = {id(parameter) for parameter in model_parameters}
+        trainable_parameter_ids = {
+            id(parameter) for parameter in model_parameters if parameter.requires_grad
+        }
+        if (
+            any(group["weight_decay"] != 0.0 for group in self.optimizer.param_groups)
+            or len(optimizer_parameter_ids) != len(optimizer_parameters)
+            or not trainable_parameter_ids.issubset(optimizer_parameter_ids)
+            or not optimizer_parameter_ids.issubset(model_parameter_ids)
+        ):
+            raise ValueError("K AdamW parameter/weight-decay groups differ from the frozen contract")
+        learning_rate = learning_rate_for_epoch(epoch)
+        effective_lambda = coefficient_for_epoch(coefficient_max, epoch)
+        for group in self.optimizer.param_groups:
+            group["lr"] = learning_rate
+        return self._run_epoch(
+            batches,
+            epoch=epoch,
+            effective_lambda=effective_lambda,
+            learning_rate=learning_rate,
+            collect_balance=collect_balance,
+            sprint18_view_epoch=epoch,
+        )
+
+    def _require_k_graph(self, arm_id: str, members: tuple[str, ...]) -> None:
+        """Fail closed unless the deployed graph carries the exact K members."""
+        from representation.sprint17_c2 import Sprint17C2Patchifier
+        from representation.sprint17_c3 import ResidualDilatedPatchEncoder
+        from representation.sprint17_c6 import C6ArmModel, MeanStdProjectionPooling
+
+        if "C2-A" in members:
+            if not isinstance(self.model.patchifier, Sprint17C2Patchifier):
+                raise ValueError("K model patchifier differs from the frozen Sprint17 C2-A path")
+            if tuple(getattr(self.model.patchifier, "grids", ())) != ((0, 16),):
+                raise ValueError("K C2-A grid lattice differs from the frozen ((0, 16),)")
+        if "C3-A" in members:
+            if not isinstance(self.model.patch_encoder, ResidualDilatedPatchEncoder):
+                raise ValueError("K model patch encoder differs from the frozen Sprint17 C3-A path")
+        if "C6-A" in members:
+            if not isinstance(self.model, C6ArmModel):
+                raise ValueError("K model pooling differs from the frozen Sprint17 C6-A path")
+            pooling = getattr(self.model, "c6_pooling", None)
+            if not isinstance(pooling, MeanStdProjectionPooling):
+                raise ValueError("K model pooling differs from the frozen Sprint17 C6-A path")
+            if getattr(self.model, "c6_arm_id", None) != "C6-A":
+                raise ValueError("K model pooling arm identity differs from C6-A")
+        else:
+            from representation.sprint17_c6 import C6ArmModel as _C6
+
+            if isinstance(self.model, _C6):
+                raise ValueError("non-C6 K model carries an undeclared C6 pooling path")
+        if arm_id == "K9-FULL":
+            for name in ("standardizer", "reference", "window", "scorer"):
+                if hasattr(self.model, name):
+                    raise ValueError("K9 downstream scoring state cannot enter the representation graph")
 
     def train_sprint18_hcc_epoch(
         self,

@@ -539,8 +539,8 @@ def validate_sprint18_checkpoint(
     if payload["arm_id"] != arm.arm_id or payload["arm_configuration"] != arm.model_dump(mode="json"):
         raise ValueError("checkpoint arm/configuration differs from the requested arm")
     validate_arm_config(arm, require_locked=(allowed_scope == "experiment"))
-    if allowed_scope == "task6_smoke_only" and arm.arm_id != "B0-FULL":
-        raise ValueError("the only authorized Task6 optimizer-update fixture is B0-FULL")
+    if allowed_scope == "task6_smoke_only" and arm.arm_id not in ("B0-FULL", "K3-FULL", "K7-FULL", "K9-FULL"):
+        raise ValueError("the only authorized Task6 optimizer-update fixture is B0/K legacy-stack")
     if allowed_scope == "coefficient_pilot" and (
         arm.arm_id not in ("B0-FULL", "N1-HCC", "N2-MSP", "N3-CCRP") or arm.selection_state != "coefficient_pilot"
     ):

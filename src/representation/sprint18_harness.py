@@ -2,8 +2,11 @@
 
 This module validates arm identity, certified role bindings, Fit/Calibration
 provenance, paired support, independent scores, compute observations, and the
-closed v2 result shape. It deliberately does not implement or start experiment
-training or any N1-N4 mechanism.
+closed v2 result shape. Representation training dispatch lives in
+``representation.trainer`` (B0/K/N paths); K3/K7/K9 member assembly lives in
+``representation.sprint18_k_dispatch``. Bank/scoring/calibration entry points
+serve B0-FULL and the K legacy stack; N1-N4 mechanism entry points live in
+their own trainers/modules.
 """
 from __future__ import annotations
 
@@ -2411,8 +2414,8 @@ def fit_fit_reference_bank(
 ) -> ProvenancedBank:
     """Fit an arm/seed bank from eligible healthy Fit embeddings only."""
     validate_arm_config(arm, require_locked=(scope == "experiment"))
-    if arm.arm_id != "B0-FULL":
-        raise ValueError("only B0-FULL inference is implemented in the Task6 common harness")
+    if arm.arm_id not in ("B0-FULL", "K3-FULL", "K7-FULL", "K9-FULL"):
+        raise ValueError("only B0/K legacy-stack inference is implemented in the Sprint18 harness")
     checkpoint_sha256 = _assert_restored_checkpoint(model, arm, binding, checkpoint, scope=scope)
     if not rows:
         raise ValueError("Fit bank source cannot be empty")
@@ -2513,8 +2516,8 @@ def score_certified_rows(
 ) -> HarnessScores:
     """Score every declared row through the public inference pattern without branch fusion."""
     validate_arm_config(arm, require_locked=(scope == "experiment"))
-    if arm.arm_id != "B0-FULL":
-        raise ValueError("only B0-FULL inference is implemented in the Task6 common harness")
+    if arm.arm_id not in ("B0-FULL", "K3-FULL", "K7-FULL", "K9-FULL"):
+        raise ValueError("only B0/K legacy-stack inference is implemented in the Sprint18 harness")
     checkpoint_sha256 = _assert_restored_checkpoint(model, arm, binding, checkpoint, scope=scope)
     if scope == "task6_smoke_only" and action != "calibrate_q95":
         raise ValueError("Task6 smoke scoring is restricted to Calibration-only proof output")
@@ -2675,9 +2678,8 @@ def fit_calibration_q95(
         raise ValueError("calibration scope/data binding differs from scored support")
     history = binding.history(scores.actual_history_id)
     if (
-        scores.arm_id != "B0-FULL"
+        scores.arm_id not in ("B0-FULL", "K3-FULL", "K7-FULL", "K9-FULL")
         or scores.model_seed not in MODEL_SEEDS
-        or (scope == "task6_smoke_only" and scores.arm_id != "B0-FULL")
         or scores.support.actual_history_id != history.actual_history_id
         or scores.support.schema_history_id != history.schema_history_id
         or scores.support.role_manifest_sha256 != history.manifest_sha256
