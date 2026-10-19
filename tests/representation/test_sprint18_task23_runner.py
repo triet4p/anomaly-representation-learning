@@ -6,9 +6,11 @@ manifest/shard checks with the DEVELOPMENT score_development permission, a
 tiny real-schema fixture runs the actual public path end to end (2 genuine
 schedule updates -> coherent save -> strict restore -> Fit bank refit ->
 Calibration q95 -> runner Development scoring -> prediction-cache build with
-serialization readback + consumer-compatibility + patch mapping), and the
+serialization readback + consumer-compatibility + patch mapping), the
 actual production run_seed saves strictly and resumes across every frozen
-diagnostic boundary (10->11, 30->31, 60->61) plus the primary epoch-100 path.
+diagnostic boundary (10->11, 30->31, 60->61) plus the primary epoch-100 path,
+and the restored epoch-100 graph joins the run device for the live-vs-restored
+parity probe after strict verification (CPU/CUDA device-boundary contract).
 Software-only fixture: tiny CPU molecules of the production contract shapes,
 NOT certified DATA, pilot, capacity, or quality evidence. The normative
 production contract (100 epochs, full support, 3 seeds) is unchanged.
@@ -770,3 +772,103 @@ def test_production_checkpoint_resumes_across_all_diagnostic_boundaries(tmp_path
         fit_samples=fit_samples,
         expected_model_sha=boundary_shas[100][0],
         expected_ema_sha=boundary_shas[100][1])
+
+
+def test_restored_epoch100_graph_joins_run_device_after_strict_restore(tmp_path) -> None:
+    """Restored epoch-100 graph joins the run device only after strict checks.
+
+    Reproduces the exact A03 failure shape on the tiny software-only fixture:
+    the epoch-100 primary is strict-restored, the restored model joins the
+    run device only after the digest/byte checks, and the live-vs-restored
+    parity probe runs end to end on that device with diff exactly 0.0. The
+    CUDA half of the boundary is skipped honestly when no CUDA device is
+    present. No batch-CPU fallback, no mock forward, no source assertion.
+    """
+    prod = runner
+    assert prod.EPOCHS == 100
+    binding, catalog = _bind_tiny(tmp_path / "device-boundary")
+    fit_entry = catalog["T23-TINY-FIT-01"]
+    fit_rows = list(load_certified_sample_subset(
+        binding, fit_entry.history.actual_history_id, fit_entry.manifest_path,
+        fit_entry.shard_paths, list(fit_entry.all_ids),
+        role_action="train_fit", verify_all_shards=True))
+    assert len(fit_rows) == 1
+    fit_ids = [row.file_id for row in fit_rows]
+    fit_samples = [row.sample for row in fit_rows]
+    arm = make_sprint18_arm_config("B0-FULL", SEED, dict(COEFFS),
+                                   selection_state="task6_smoke_only")
+    config = _tiny_config()
+    patchifier = Patchifier(PatchConfig(patch_size=32, stride=16, pad_end=True))
+    model = V1RepresentationModel(config, patchifier=patchifier)
+    optimizer = torch.optim.AdamW(model.parameters(),
+                                  lr=learning_rate_for_epoch(1), weight_decay=0.0)
+    run_device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    trainer = RepresentationTrainer(model, optimizer=optimizer, max_grad_norm=1.0,
+                                    device=run_device, seed=SEED)
+    init_sha = state_sha256(model.state_dict())
+    for epoch in range(1, 101):
+        probe = collate_variable_files(fit_samples, patchifier, masking_config=config,
+                                       masking_seed=3000 + epoch)
+        metrics = trainer.train_sprint18_epoch([probe], arm=arm, epoch=epoch)
+        assert trainer.step == epoch
+        assert math.isfinite(metrics["joint_loss"])
+        if epoch == 100:
+            active_epoch = 100
+            for group in optimizer.param_groups:
+                group["lr"] = learning_rate_for_epoch(active_epoch)
+            epoch_seed, order = prod.deterministic_sampler_order(
+                binding, arm, workload="representation", scope="task6_smoke_only",
+                role_history_ids=[fit_entry.history.actual_history_id],
+                epoch=active_epoch, eligible_source_ids=fit_ids)
+            sampler_state, scheduler_state, coeff_state = _coherent_state_for(
+                binding=binding, arm=arm, epoch_seed=epoch_seed, order=order,
+                fit_history_ids=[fit_entry.history.actual_history_id],
+                fit_ids=fit_ids, completed_epoch=100, active_epoch=100,
+                global_step=trainer.step)
+            ckpt_path = tmp_path / "device-boundary-epoch100.pt"
+            primary = save_sprint18_checkpoint(
+                ckpt_path, model, optimizer, arm=arm, binding=binding,
+                global_step=trainer.step, completed_epoch=100,
+                initialization_sha256=init_sha,
+                scheduler_state=scheduler_state,
+                sampler_state=sampler_state,
+                coefficient_state=coeff_state,
+                scope="task6_smoke_only")
+            assert primary and len(primary) == 64
+    live_model_sha = state_sha256(model.state_dict())
+    live_ema_sha = state_sha256(model.target_encoder.state_dict())
+    restored_model = V1RepresentationModel(config, patchifier=patchifier)
+    restored_optimizer = torch.optim.AdamW(restored_model.parameters(),
+                                           lr=learning_rate_for_epoch(100),
+                                           weight_decay=0.0)
+    restored = restore_sprint18_checkpoint(ckpt_path, restored_model, restored_optimizer,
+                                           arm=arm, binding=binding,
+                                           allowed_scope="task6_smoke_only")
+    assert restored.checkpoint_sha256 == primary
+    assert state_sha256(restored_model.state_dict()) == live_model_sha
+    assert state_sha256(restored_model.target_encoder.state_dict()) == live_ema_sha
+    # The corrected production block: strict bytes verified first, then the
+    # restored graph joins the run device for the parity probe.
+    restored_model.to(run_device)
+    assert next(restored_model.parameters()).device == run_device
+    probe = collate_variable_files(fit_samples, patchifier, masking_config=config,
+                                   masking_seed=1)
+    model.eval()
+    restored_model.eval()
+    with torch.no_grad():
+        live_out = model(prod._move({k: v for k, v in probe.items()
+                                     if k != "file_samples"}, run_device))
+        restored_out = restored_model(prod._move({k: v for k, v in probe.items()
+                                                  if k != "file_samples"}, run_device))
+    diff = float((live_out["file_embedding"] - restored_out["file_embedding"]).abs().max().item())
+    assert math.isfinite(diff) and diff == 0.0
+    if torch.cuda.is_available():
+        cuda_device = torch.device("cuda:0")
+        cuda_probe = collate_variable_files(fit_samples, patchifier,
+                                            masking_config=config, masking_seed=2)
+        moved_cuda = prod._move({k: v for k, v in cuda_probe.items()
+                                 if k != "file_samples"}, cuda_device)
+        cuda_tensors = [v for v in moved_cuda.values() if isinstance(v, torch.Tensor)]
+        assert cuda_tensors and all(t.device.type == "cuda" for t in cuda_tensors)
+    else:
+        pytest.skip("no local CUDA device: CUDA half of the restored-device boundary is unverified")

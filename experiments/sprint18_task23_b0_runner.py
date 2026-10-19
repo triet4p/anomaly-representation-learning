@@ -102,8 +102,8 @@ from synth.patchify import Patchifier
 EPOCHS = 100
 DIAGNOSTIC_EPOCHS = (10, 30, 60)
 STEP_300 = 300
-ATTEMPT = "S18-T23-C03"
-AGENT = "S18T23C03"
+ATTEMPT = "S18-T23-C04"
+AGENT = "S18T23C04"
 ARM_ID = "B0-FULL"
 LAMBDA_INFO_MAX = 0.05
 
@@ -487,6 +487,15 @@ def run_seed(*, binding, worktree: Path, seed: int, fit_ids, fit_sample_by_id, f
         raise _fail(f"seed {seed}: strict restore model bytes mismatch")
     if state_sha256(restored_model.target_encoder.state_dict()) != live_ema_sha:
         raise _fail(f"seed {seed}: strict restore EMA bytes mismatch")
+    # Restored-device placement: restore_sprint18_checkpoint loads with
+    # map_location="cpu" and the model constructor places nothing, so the
+    # verified-restored model/EMA graph joins the run device here — after
+    # all strict digest/byte checks — for the parity probe and every
+    # downstream consumer. Saved digests are device-invariant, the frozen
+    # trajectory is untouched (no optimizer step, no RNG draw, no schedule
+    # change), and public bank/scoring co-locate each CPU batch onto the
+    # deployed model device. Never move the probe batch to CPU instead.
+    restored_model.to(device)
     probe_ids = fit_ids[: min(4, len(fit_ids))]
     probe = collate_variable_files([fit_sample_by_id[i] for i in probe_ids], patchifier,
                                    masking_config=config, masking_seed=1)
