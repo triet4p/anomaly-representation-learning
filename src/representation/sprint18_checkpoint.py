@@ -488,21 +488,22 @@ def _validate_n4_arm_state(
         raise ValueError("N4 final scale optimizer steps do not match the frozen Fit scope")
     bounds = state["scale_bounds"]
     if not isinstance(bounds, Mapping) or set(bounds) != {
-        "q05", "q99", "v_floor", "v_cap", "fit_role_sha256", "residual_records_sha256"
+        "q05", "q95", "v_floor", "v_cap", "fit_role_sha256", "residual_records_sha256"
     }:
         raise ValueError("N4 Fit-only residual-bound provenance is incomplete")
     q05 = bounds["q05"]
-    q99 = bounds["q99"]
+    q95 = bounds["q95"]
     floor = bounds["v_floor"]
     cap = bounds["v_cap"]
-    for name, value in (("q05", q05), ("q99", q99), ("v_floor", floor), ("v_cap", cap)):
+    for name, value in (("q05", q05), ("q95", q95), ("v_floor", floor), ("v_cap", cap)):
         if not isinstance(value, (int, float)) or isinstance(value, bool) or not math.isfinite(float(value)) or value < 0:
             raise ValueError(f"N4 {name} residual bound is invalid")
     expected_floor = max(float(q05), 1e-6)
-    expected_cap = max(float(q99), 10 * expected_floor)
+    expected_cap = max(float(q95), 10 * expected_floor)
     if floor != expected_floor or cap != expected_cap:
         raise ValueError("N4 v_floor/v_cap do not match the frozen Fit residual quantile formulas")
-    fit_role_digest = _canonical_sha256(sorted(item.manifest_sha256 for item in binding.role_histories("FIT")))
+    fit_role_digest = _canonical_sha256(
+        sorted(item.manifest_sha256 for item in binding.role_histories("FIT")))
     if bounds["fit_role_sha256"] != fit_role_digest or not _is_hash(bounds["residual_records_sha256"]):
         raise ValueError("N4 residual bounds are not bound to all and only certified Fit histories")
     return cast(Mapping[str, object], state)

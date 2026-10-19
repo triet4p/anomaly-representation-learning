@@ -156,6 +156,30 @@ def n4_patch_residual(
         raise ValueError("N4 patch residuals must be finite and non-negative")
     return residuals
 
+def n4_normalized_patch_scores(
+    residuals: torch.Tensor, log_v: torch.Tensor
+) -> torch.Tensor:
+    """Compute ``S_pred_patch_CRN = e_t / (exp(log_v_t) + 1e-6)``.
+
+    Both inputs are 1D ``[K]`` float tensors with finite non-negative
+    residuals and finite log-variance. The ``1e-6`` denominator guard is the
+    exact N4 v1 S5 constant: it keeps the normalized score finite when the
+    predicted scale is small. Never fuses or returns the raw residual.
+    """
+    for name, value in (("residuals", residuals), ("log_v", log_v)):
+        if not isinstance(value, torch.Tensor) or value.ndim != 1 or value.shape[0] < 1:
+            raise ValueError(f"N4 {name} must be a non-empty 1D tensor")
+    if residuals.shape != log_v.shape:
+        raise ValueError("N4 residuals and log-variance must share length")
+    if not torch.isfinite(residuals).all() or not torch.isfinite(log_v).all():
+        raise ValueError("N4 normalized-score inputs must be finite")
+    if bool((residuals < 0.0).any()):
+        raise ValueError("N4 normalized-score residuals must be non-negative")
+    scores = residuals / (torch.exp(log_v) + 1e-6)
+    if not torch.isfinite(scores).all():
+        raise ValueError("N4 normalized patch scores are nonfinite")
+    return scores
+
 
 def n4_residual_bounds(residuals: np.ndarray | Sequence[float]) -> dict[str, float]:
     """Compute Fit-only quantile bounds with the NumPy linear convention.
@@ -668,3 +692,185 @@ def validate_n4_capacity(
             reasons.append("per-seed scale-update total differs from 50*sum(ceil(N_fold/512))")
     verdict = "PASS" if not reasons else "FAILED"
     return {"verdict": verdict, "reasons": list(reasons), "folds": details}
+
+
+def n4_score_files(
+    *,
+    model: nn.Module,
+    samples: Sequence[object],
+    scale_model: ContextResidualScaleModel,
+    v_floor: float,
+    v_cap: float,
+    patchifier: object,
+    masking_seed: int | None,
+) -> dict[str, dict[str, float]]:
+    """Score files through the frozen B0 encoder plus the fitted N4 scale head.
+
+    Returns per-file ``{"raw": ..., "scale": ..., "normalized": ...}`` where
+    ``raw`` is the file-mean raw B0 residual ``e_t``, ``scale`` is the
+    file-mean predicted variance, and ``normalized`` is the file-mean
+    ``S_pred_patch_CRN``. Patch filtering, patch-to-file aggregation, and
+    patch starts/valid lengths/localization follow the unchanged B0 path:
+    only eligible masked valid patches enter, and the file score is the mean
+    over those patches. The bank/``S_pop`` path is untouched here; callers
+    prove ``S_pop`` parity separately with the restored B0 bank.
+    """
+    from representation.data import collate_variable_files as _collate
+
+    if not isinstance(scale_model, ContextResidualScaleModel):
+        raise ValueError("N4 file scoring requires the fitted context-only scale model")
+    for name, bound in (("v_floor", v_floor), ("v_cap", v_cap)):
+        if isinstance(bound, bool) or not isinstance(bound, (int, float)):
+            raise ValueError(f"N4 {name} bound must be a number")
+        if not math.isfinite(float(bound)) or float(bound) <= 0.0:
+            raise ValueError(f"N4 {name} bound must be finite and positive")
+    if float(v_cap) < float(v_floor):
+        raise ValueError("N4 v_cap must not lie below v_floor")
+    materialized = list(samples)
+    if not materialized:
+        raise ValueError("N4 file scoring requires a non-empty file batch")
+    model.eval()
+    scale_model.eval()
+    scored: dict[str, dict[str, float]] = {}
+    with torch.no_grad():
+        batch = _collate(
+            materialized,  # type: ignore[arg-type]
+            patchifier,  # type: ignore[arg-type]
+            masking_config=getattr(model, "config", None),
+            masking_seed=masking_seed,
+        )
+        clean = {key: value for key, value in batch.items() if key != "file_samples"}
+        output = model(clean)  # type: ignore[operator]
+        context = output["context_latents"].detach()
+        target = output["target_latents"].detach()
+        predicted = output["predicted_latents"].detach()
+        requested = output.get("prediction_mask")
+        valid = output.get("patch_valid_mask")
+        if (
+            not isinstance(requested, torch.Tensor)
+            or not isinstance(valid, torch.Tensor)
+            or requested.dtype is not torch.bool
+            or valid.dtype is not torch.bool
+        ):
+            raise ValueError("N4 encoder output masks are invalid")
+        eligible = requested & valid
+        file_ids = batch["file_ids"]
+        if len(file_ids) != context.shape[0]:
+            raise ValueError("N4 scored batch file IDs differ from the encoded batch")
+        width = context.shape[-1]
+        if width != scale_model.d_model:
+            raise ValueError("N4 scoring scale width differs from the bound model width")
+        residuals = (
+            (torch.nn.functional.layer_norm(target, (width,))
+             - torch.nn.functional.layer_norm(predicted, (width,))).square().mean(dim=-1).detach()
+        )
+        scales = scale_model(
+            context.detach().reshape(-1, width), v_floor=float(v_floor), v_cap=float(v_cap)
+        )["v"].detach().reshape(context.shape[0], context.shape[1])
+        normalized = residuals / (scales + 1e-6)
+        for row, file_id in enumerate(file_ids):
+            if not isinstance(file_id, str) or not file_id:
+                raise ValueError("N4 scoring requires canonical file IDs")
+            rows = torch.nonzero(eligible[row], as_tuple=False).flatten().tolist()
+            if not rows:
+                raise ValueError("N4 scoring file has no eligible masked valid patches")
+            raw_mean = float(residuals[row, rows].mean().item())
+            scale_mean = float(scales[row, rows].mean().item())
+            norm_mean = float(normalized[row, rows].mean().item())
+            for value in (raw_mean, scale_mean, norm_mean):
+                if not math.isfinite(value) or value < 0.0:
+                    raise ValueError("N4 file score must be finite and non-negative")
+            scored[file_id] = {"raw": raw_mean, "scale": scale_mean, "normalized": norm_mean}
+    return scored
+
+
+def n4_calibration_q95(scores: Mapping[str, float]) -> float:
+    """Select the operating threshold as q95 of eligible healthy file scores.
+
+    Uses the exact common-protocol NumPy linear-interpolation convention.
+    Callers pass only eligible Calibration healthy ``normalized`` file scores;
+    history binding is proven by the caller (see the T19 proof script), never
+    inferred here.
+    """
+    values = np.asarray(list(scores.values()), dtype=np.float64).reshape(-1)
+    if values.shape[0] < 1:
+        raise ValueError("N4 calibration requires a non-empty healthy score pool")
+    if not np.isfinite(values).all() or bool((values < 0.0).any()):
+        raise ValueError("N4 calibration scores must be finite and non-negative")
+    threshold = float(np.quantile(values, 0.95, method="linear"))
+    if not math.isfinite(threshold) or threshold < 0.0:
+        raise ValueError("N4 calibration quantile is invalid")
+    return threshold
+
+
+def n4_cache_binding_digest(
+    *,
+    checkpoint_sha256: str,
+    residual_records_sha256: str,
+    fit_role_sha256: str,
+    scale_state_sha256: str,
+    bounds: Mapping[str, float],
+) -> str:
+    """Bind the exact paired B0 checkpoint, Fit cache records, and scale state.
+
+    Returns the SHA-256 of the canonical JSON binding record
+    ``{"checkpoint_sha256", "residual_records_sha256", "fit_role_sha256",
+    "scale_state_sha256", "q05", "q95", "v_floor", "v_cap"}``. Any substituted
+    checkpoint, cache, role digest, scale state, or bound fails closed at the
+    consumer: :func:`verify_n4_cache_binding` recomputes this digest and
+    rejects mismatches. ``q95`` is the exact Fit residual 0.95 quantile name
+    used by :func:`n4_residual_bounds`; the ``q99`` spelling is rejected.
+    """
+    for name, value in (
+        ("checkpoint_sha256", checkpoint_sha256),
+        ("residual_records_sha256", residual_records_sha256),
+        ("fit_role_sha256", fit_role_sha256),
+        ("scale_state_sha256", scale_state_sha256),
+    ):
+        if not isinstance(value, str) or len(value) != 64:
+            raise ValueError(f"N4 {name} must be a lowercase SHA-256 digest")
+        try:
+            int(value, 16)
+        except ValueError as exc:
+            raise ValueError(f"N4 {name} must be a lowercase SHA-256 digest") from exc
+    if not isinstance(bounds, Mapping) or set(bounds) != {"q05", "q95", "v_floor", "v_cap"}:
+        raise ValueError("N4 cache binding requires the exact q05/q95/v_floor/v_cap bound set")
+    for name in ("q05", "q95", "v_floor", "v_cap"):
+        value = bounds[name]
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(float(value)):
+            raise ValueError(f"N4 bound {name} is invalid")
+    record = {
+        "checkpoint_sha256": checkpoint_sha256,
+        "fit_role_sha256": fit_role_sha256,
+        "q05": float(bounds["q05"]),
+        "q95": float(bounds["q95"]),
+        "residual_records_sha256": residual_records_sha256,
+        "scale_state_sha256": scale_state_sha256,
+        "v_cap": float(bounds["v_cap"]),
+        "v_floor": float(bounds["v_floor"]),
+    }
+    return sha256(
+        __import__("json").dumps(record, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+
+
+def verify_n4_cache_binding(
+    *,
+    expected_digest: str,
+    checkpoint_sha256: str,
+    residual_records_sha256: str,
+    fit_role_sha256: str,
+    scale_state_sha256: str,
+    bounds: Mapping[str, float],
+) -> str:
+    """Recompute the cache binding digest and fail closed on any substitution."""
+    observed = n4_cache_binding_digest(
+        checkpoint_sha256=checkpoint_sha256,
+        residual_records_sha256=residual_records_sha256,
+        fit_role_sha256=fit_role_sha256,
+        scale_state_sha256=scale_state_sha256,
+        bounds=bounds,
+    )
+    if not isinstance(expected_digest, str) or observed != expected_digest:
+        raise ValueError("N4 checkpoint/cache binding mismatch: refusing substituted cache or scale state")
+    return observed

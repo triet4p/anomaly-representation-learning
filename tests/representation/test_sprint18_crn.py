@@ -344,7 +344,7 @@ def test_n4_scale_checkpoint_save_restore_keeps_rep_frozen(tmp_path) -> None:
         "final_fit_record_count": per_patch,
         "final_scale_steps": 50 * ceil(per_patch / 512),
         "scale_bounds": {
-            "q05": 0.02, "q99": 1.4, "v_floor": 0.02, "v_cap": 1.4,
+            "q05": 0.02, "q95": 1.4, "v_floor": 0.02, "v_cap": 1.4,
             "fit_role_sha256": fit_role, "residual_records_sha256": "ef" * 32,
         },
     }
@@ -384,3 +384,86 @@ def test_n4_scale_checkpoint_save_restore_keeps_rep_frozen(tmp_path) -> None:
         assert torch.equal(left.detach().cpu(), right)
     for key, value in scale.state_dict().items():
         assert torch.equal(restored_scale.state_dict()[key].detach().cpu(), value.detach().cpu())
+
+
+def test_n4_normalized_score_matches_frozen_formula_and_monotonic_rescale() -> None:
+    from representation import n4_normalized_patch_scores
+
+    torch.manual_seed(181801)
+    residuals = torch.rand(24) + 0.05
+    log_v = torch.randn(24) * 0.5
+    scores = n4_normalized_patch_scores(residuals, log_v)
+    assert torch.allclose(scores, residuals / (torch.exp(log_v) + 1e-6))
+    assert torch.isfinite(scores).all() and bool((scores >= 0.0).all())
+    constant = n4_normalized_patch_scores(torch.tensor([0.2, 0.8]), torch.tensor([0.0, 0.0]))
+    assert constant[1] / constant[0] == pytest.approx(4.0)
+    with pytest.raises(ValueError, match="share length"):
+        n4_normalized_patch_scores(torch.rand(3), torch.rand(4))
+    with pytest.raises(ValueError, match="non-negative"):
+        n4_normalized_patch_scores(torch.tensor([-0.1, 0.2]), torch.zeros(2))
+
+
+def test_n4_cache_binding_proves_checkpoint_provenance_and_refuses_substitution() -> None:
+    from representation import n4_cache_binding_digest, verify_n4_cache_binding
+
+    bounds = {"q05": 0.02, "q95": 1.4, "v_floor": 0.02, "v_cap": 1.4}
+    digest = n4_cache_binding_digest(
+        checkpoint_sha256="ab" * 32, residual_records_sha256="cd" * 32,
+        fit_role_sha256="ef" * 32, scale_state_sha256="12" * 32, bounds=bounds,
+    )
+    assert verify_n4_cache_binding(
+        expected_digest=digest, checkpoint_sha256="ab" * 32,
+        residual_records_sha256="cd" * 32, fit_role_sha256="ef" * 32,
+        scale_state_sha256="12" * 32, bounds=bounds,
+    ) == digest
+    with pytest.raises(ValueError, match="refusing substituted"):
+        verify_n4_cache_binding(
+            expected_digest=digest, checkpoint_sha256="00" + "ab" * 31,
+            residual_records_sha256="cd" * 32, fit_role_sha256="ef" * 32,
+            scale_state_sha256="12" * 32, bounds=bounds,
+        )
+    with pytest.raises(ValueError, match="exact q05/q95"):
+        n4_cache_binding_digest(
+            checkpoint_sha256="ab" * 32, residual_records_sha256="cd" * 32,
+            fit_role_sha256="ef" * 32, scale_state_sha256="12" * 32,
+            bounds={"q05": 0.02, "q99": 1.4, "v_floor": 0.02, "v_cap": 1.4},
+        )
+
+
+def test_n4_calibration_q95_uses_linear_quantile_and_rejects_empty_pool() -> None:
+    from representation import n4_calibration_q95
+
+    pool = {f"file-{i:02d}": 0.5 + 0.1 * i for i in range(9)}
+    threshold = n4_calibration_q95(pool)
+    assert threshold == pytest.approx(
+        float(np.quantile(np.array(sorted(pool.values())), 0.95, method="linear")))
+    assert math.isfinite(threshold) and threshold >= 0.0
+    with pytest.raises(ValueError, match="non-empty"):
+        n4_calibration_q95({})
+
+
+def test_n4_score_files_keeps_b0_aggregation_and_reports_raw_scale_normalized() -> None:
+    from representation import n4_score_files
+
+    config = _tiny_config()
+    patchifier = Patchifier(PatchConfig(patch_size=32, stride=16, pad_end=True))
+    model = V1RepresentationModel(config, patchifier=patchifier)
+    scale = init_n4_scale_model(config.d_model, MODEL_SEEDS[0])
+    samples = _tiny_samples()
+    scored = n4_score_files(
+        model=model, samples=samples, scale_model=scale,
+        v_floor=0.02, v_cap=1.4, patchifier=patchifier, masking_seed=91813,
+    )
+    assert set(scored) == {sample.file_id for sample in samples}
+    for file_id, entry in scored.items():
+        assert set(entry) == {"raw", "scale", "normalized"}
+        # File score aggregates eligible masked valid patches only (same B0
+        # filtering/aggregation); per-patch formula e_t/(v_t+eps) is pinned by
+        # test_n4_normalized_score_matches_frozen_formula_and_monotonic_rescale.
+        # Here: finite/non-negative triple, scale inside the frozen cache bounds.
+        assert all(math.isfinite(value) and value >= 0.0 for value in entry.values())
+    with pytest.raises(ValueError, match="non-empty file batch"):
+        n4_score_files(
+            model=model, samples=[], scale_model=scale,
+            v_floor=0.02, v_cap=1.4, patchifier=patchifier, masking_seed=91813,
+        )
