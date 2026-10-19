@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import math
 
 import numpy as np
@@ -235,16 +236,56 @@ def test_n3_multibatch_epoch_records_coherent_selector_support() -> None:
         assert "channel_support_counts_incoherent" not in seed_verdict["failed_checks"]
 
 def test_n3_beta_zero_removes_auxiliary_but_keeps_infonce_schedule() -> None:
+    """Epoch-1 warmup has effective beta=0: zero auxiliary gradient and a B0-identical cold update."""
     fit_role = _fit_role_sha256()
-    trainer, arm, batch = _ccrp_fixture(coefficient=0.25)
-    trainer.train_sprint18_ccrp_epoch([batch], arm=arm, epoch=11, fit_role_sha256=fit_role)
-    ramped = trainer.objective_balance_history[-1]
-    assert ramped["weighted_L_channel"] == pytest.approx(ramped["effective_coefficient_L_channel"] * ramped["raw_L_channel"])
-    # beta=0 semantics: a zero effective coefficient zeroes the weighted
-    # channel term while raw channel support stays observable.
-    assert 0.0 * ramped["raw_L_channel"] == pytest.approx(0.0)
-    assert ramped["effective_coefficient_L_info"] == pytest.approx(0.05 / 20.0)
+    trainer_n3, arm_n3, batch = _ccrp_fixture(coefficient=0.25)
+    model_b0 = copy.deepcopy(trainer_n3.model)
+    initialization_sha256 = state_sha256(trainer_n3.model.state_dict())
+    assert state_sha256(model_b0.state_dict()) == initialization_sha256
+    optimizer_b0 = torch.optim.AdamW(
+        model_b0.parameters(), lr=learning_rate_for_epoch(1), weight_decay=0.0
+    )
+    trainer_b0 = RepresentationTrainer(
+        model_b0, optimizer=optimizer_b0, max_grad_norm=1.0, seed=arm_n3.model_seed
+    )
+    arm_b0 = make_sprint18_arm_config(
+        "B0-FULL", arm_n3.model_seed,
+        {"lambda_info_max": 0.05, "lambda_hcc_max": None, "alpha": None, "beta": None},
+        selection_state="coefficient_pilot",
+    )
+    # both trainers seed the global torch stream with the same model seed
+    torch_rng_state = torch.get_rng_state().clone()
+
+    trainer_n3.train_sprint18_ccrp_epoch([batch], arm=arm_n3, epoch=1, fit_role_sha256=fit_role)
+    ramped = trainer_n3.objective_balance_history[-1]
+    torch.set_rng_state(torch_rng_state)
+    trainer_b0.train_sprint18_epoch([batch], arm=arm_b0, epoch=1)
+    reference = trainer_b0.objective_balance_history[-1]
+
+    # a zero effective coefficient zeroes the weighted channel term while raw
+    # channel support stays observable
+    assert ramped["effective_coefficient_L_channel"] == 0.0
+    assert ramped["weighted_L_channel"] == pytest.approx(0.0)
+    assert ramped["raw_L_channel"] > 0.0
+    assert ramped["support_channel_targets"] > 0
+    assert ramped["effective_coefficient_L_info"] == 0.0
     assert ramped["raw_L_info"] > 0.0
+    # check 9: the auxiliary path contributes exactly zero shared-encoder gradient mass
+    assert ramped["gradient_norm_weighted_L_channel_shared"] == 0.0
+    assert ramped["r_aux"] == 0.0
+    # checks 3 and 9: the main B0 forward and the cold update are byte-identical
+    for field in (
+        "raw_L_pred", "weighted_L_pred", "raw_L_info", "weighted_L_info",
+        "gradient_norm_L_pred_shared", "lr", "support_prediction_files",
+        "support_prediction_patches", "embedding_variance_mean",
+        "embedding_std_median", "embedding_effective_rank",
+    ):
+        assert ramped[field] == reference[field], field
+    assert state_sha256(trainer_n3.model.state_dict()) == state_sha256(model_b0.state_dict())
+    assert state_sha256(trainer_n3.model.target_encoder.state_dict()) == state_sha256(
+        model_b0.target_encoder.state_dict()
+    )
+    assert state_sha256(trainer_n3.model.state_dict()) != initialization_sha256
 
 
 def test_n3_batches_match_b0_sampler_scope() -> None:
