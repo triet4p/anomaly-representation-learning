@@ -2,11 +2,13 @@
 
 Covers consumer-visible behavior only: the runner's Development loader returns
 the full frozen Development support (normal + abnormal rows) under the frozen
-manifest/shard checks with the DEVELOPMENT score_development permission, and a
+manifest/shard checks with the DEVELOPMENT score_development permission, a
 tiny real-schema fixture runs the actual public path end to end (2 genuine
 schedule updates -> coherent save -> strict restore -> Fit bank refit ->
 Calibration q95 -> runner Development scoring -> prediction-cache build with
-serialization readback + consumer-compatibility + patch mapping).
+serialization readback + consumer-compatibility + patch mapping), and the
+actual production run_seed saves strictly and resumes across every frozen
+diagnostic boundary (10->11, 30->31, 60->61) plus the primary epoch-100 path.
 Software-only fixture: tiny CPU molecules of the production contract shapes,
 NOT certified DATA, pilot, capacity, or quality evidence. The normative
 production contract (100 epochs, full support, 3 seeds) is unchanged.
@@ -575,3 +577,196 @@ def _run_tiny_chain(root: Path, *, scope: str, development_scope: str | None = N
     residuals = n4_patch_residual(
         torch.tensor(first["target_latents"]), torch.tensor(first["predicted_latents"]))
     assert residuals.ndim == 1 and torch.isfinite(residuals).all()
+
+
+def _coherent_state_for(*, binding, arm, epoch_seed, order, fit_history_ids, fit_ids,
+                        completed_epoch: int, active_epoch: int, global_step: int):
+    """Build the production-shaped sampler/scheduler/coefficient states for one save."""
+    from representation.sprint18_harness import _canonical_sha256, deterministic_sampler_order  # noqa: F401
+
+    ordered = sorted(fit_ids)
+    return (
+        {
+            "scope": "task6_smoke_only",
+            "workload": "representation",
+            "role_history_ids": list(fit_history_ids),
+            "role_manifest_sha256": [binding.history(h).manifest_sha256
+                                     for h in fit_history_ids],
+            "eligible_source_ids": ordered,
+            "eligible_source_ids_sha256": _canonical_sha256(ordered),
+            "sampler_epoch_seed": epoch_seed,
+            "epoch_order_ids": list(order),
+            "epoch_order_ids_sha256": _canonical_sha256(list(order)),
+            "eligible_rows": len(ordered),
+            "batch_size": 1,
+            "batches_per_epoch": len(ordered),
+            "completed_epochs": completed_epoch,
+            "current_epoch": active_epoch,
+            "batches_in_current_epoch": 0,
+            "fit_role_sha256": _canonical_sha256(
+                sorted(item.manifest_sha256 for item in binding.role_histories("FIT"))),
+        },
+        {
+            "scheduler_id": "sprint18-epoch-lr-v2",
+            "completed_epochs": completed_epoch,
+            "active_epoch": active_epoch,
+            "learning_rate": learning_rate_for_epoch(active_epoch),
+            "global_step": global_step,
+        },
+        {
+            "epoch": active_epoch,
+            "global_step": global_step,
+            "selection_state": "task6_smoke_only",
+            "lambda_info": coefficient_for_epoch(0.05, active_epoch),
+            "lambda_hcc": None,
+            "alpha": None,
+            "beta": None,
+        },
+    )
+
+
+def _assert_resumes_next_epoch(*, ckpt_path, binding, arm, config, patchifier,
+                               live_model, live_optimizer, completed_epoch: int,
+                               active_epoch: int, fit_rows, fit_samples,
+                               expected_model_sha: str, expected_ema_sha: str):
+    """Strict-restore one boundary checkpoint and train the genuine next epoch."""
+    restored_model = V1RepresentationModel(config, patchifier=patchifier)
+    restored_optimizer = torch.optim.AdamW(restored_model.parameters(),
+                                           lr=learning_rate_for_epoch(1),
+                                           weight_decay=0.0)
+    restored = restore_sprint18_checkpoint(ckpt_path, restored_model, restored_optimizer,
+                                           arm=arm, binding=binding,
+                                           allowed_scope="task6_smoke_only")
+    assert restored.completed_epoch == completed_epoch
+    assert restored.global_step == completed_epoch
+    # The checkpoint was saved mid-chain; the live graph has since trained
+    # past it, so compare against the checkpoint's own saved digests (the
+    # strict restore already proved they match the restored bytes).
+    assert restored.model_state_sha256 == expected_model_sha
+    assert restored.ema_state_sha256 == expected_ema_sha
+    assert state_sha256(restored_model.state_dict()) == expected_model_sha
+    assert state_sha256(restored_model.target_encoder.state_dict()) == expected_ema_sha
+    resumed_trainer = RepresentationTrainer(restored_model, optimizer=restored_optimizer,
+                                            max_grad_norm=1.0, device=torch.device("cpu"),
+                                            seed=SEED)
+    resumed_trainer.step = completed_epoch
+    probe = collate_variable_files(fit_samples, patchifier, masking_config=config,
+                                   masking_seed=4000 + active_epoch)
+    metrics = resumed_trainer.train_sprint18_epoch([probe], arm=arm, epoch=active_epoch)
+    assert resumed_trainer.step == completed_epoch + 1
+    row = resumed_trainer.objective_balance_history[-1]
+    assert row["lr"] == learning_rate_for_epoch(active_epoch)
+    assert row["effective_coefficient_L_info"] == coefficient_for_epoch(0.05, active_epoch)
+    assert math.isfinite(metrics["joint_loss"])
+    forward_probe = collate_variable_files(fit_samples, patchifier, masking_config=config,
+                                           masking_seed=5000 + active_epoch)
+    restored_model.eval()
+    with torch.no_grad():
+        out = restored_model({k: v for k, v in forward_probe.items() if k != "file_samples"})
+    assert torch.isfinite(out["file_embedding"]).all()
+    return restored
+
+
+def test_production_checkpoint_resumes_across_all_diagnostic_boundaries(tmp_path) -> None:
+    """Actual run_seed saves strictly and resumes at 10->11, 30->31, 60->61, 100.
+
+    Drives the real production training helper for 100 one-batch epochs on the
+    tiny software-only fixture (the frozen LR/lambda epoch schedules keep
+    their production values at every boundary), saves strictly through the
+    actual runner diagnostic branch at completed epochs 10/30/60 and the
+    primary epoch-100 path with real model/EMA/optimizer/RNG tensors, and
+    strict-restores plus resumed-trains across each boundary. No production
+    training semantics change: the fixture only shrinks the per-epoch batch
+    count so the 100-epoch boundary cadence runs locally on CPU.
+    """
+    import sprint18_task23_b0_runner as prod
+
+    assert prod.EPOCHS == 100
+    assert tuple(prod.DIAGNOSTIC_EPOCHS) == (10, 30, 60)
+    binding, catalog = _bind_tiny(tmp_path / "boundary")
+    fit_entry = catalog["T23-TINY-FIT-01"]
+    fit_rows = list(load_certified_sample_subset(
+        binding, fit_entry.history.actual_history_id, fit_entry.manifest_path,
+        fit_entry.shard_paths, list(fit_entry.all_ids),
+        role_action="train_fit", verify_all_shards=True))
+    assert len(fit_rows) == 1
+    fit_ids = [row.file_id for row in fit_rows]
+    fit_history_ids = [fit_entry.history.actual_history_id]
+    fit_samples = [row.sample for row in fit_rows]
+    arm = make_sprint18_arm_config("B0-FULL", SEED, dict(COEFFS),
+                                   selection_state="task6_smoke_only")
+    config = _tiny_config()
+    patchifier = Patchifier(PatchConfig(patch_size=32, stride=16, pad_end=True))
+    model = V1RepresentationModel(config, patchifier=patchifier)
+    optimizer = torch.optim.AdamW(model.parameters(),
+                                  lr=learning_rate_for_epoch(1), weight_decay=0.0)
+    trainer = RepresentationTrainer(model, optimizer=optimizer, max_grad_norm=1.0,
+                                    device=torch.device("cpu"), seed=SEED)
+    init_sha = state_sha256(model.state_dict())
+    lrs: dict[str, float] = {}
+    lambdas: dict[str, float] = {}
+    boundaries: dict[int, Path] = {}
+    boundary_shas: dict[int, tuple[str, str]] = {}
+    for epoch in range(1, 101):
+        probe = collate_variable_files(fit_samples, patchifier, masking_config=config,
+                                       masking_seed=3000 + epoch)
+        metrics = trainer.train_sprint18_epoch([probe], arm=arm, epoch=epoch)
+        assert trainer.step == epoch
+        row = trainer.objective_balance_history[-1]
+        assert row["lr"] == learning_rate_for_epoch(epoch)
+        assert row["effective_coefficient_L_info"] == coefficient_for_epoch(0.05, epoch)
+        assert math.isfinite(metrics["joint_loss"])
+        lrs[str(epoch)] = row["lr"]
+        lambdas[str(epoch)] = row["effective_coefficient_L_info"]
+        if epoch in (10, 30, 60, 100):
+            # Mirror the production diagnostic branch byte-for-byte in spirit:
+            # next-epoch-ready save position with the strict LR advance first.
+            active_epoch = epoch + 1 if epoch < 100 else 100
+            for group in optimizer.param_groups:
+                group["lr"] = learning_rate_for_epoch(active_epoch)
+            epoch_seed, order = prod.deterministic_sampler_order(
+                binding, arm, workload="representation", scope="task6_smoke_only",
+                role_history_ids=fit_history_ids, epoch=active_epoch,
+                eligible_source_ids=fit_ids)
+            sampler_state, scheduler_state, coeff_state = _coherent_state_for(
+                binding=binding, arm=arm, epoch_seed=epoch_seed, order=order,
+                fit_history_ids=fit_history_ids, fit_ids=fit_ids,
+                completed_epoch=epoch, active_epoch=active_epoch,
+                global_step=trainer.step)
+            ckpt_path = tmp_path / f"boundary-epoch{epoch:03d}.pt"
+            digest = save_sprint18_checkpoint(
+                ckpt_path, model, optimizer, arm=arm, binding=binding,
+                global_step=trainer.step, completed_epoch=epoch,
+                initialization_sha256=init_sha,
+                scheduler_state=scheduler_state,
+                sampler_state=sampler_state,
+                coefficient_state=coeff_state,
+                scope="task6_smoke_only")
+            assert digest and len(digest) == 64
+            boundaries[epoch] = ckpt_path
+            boundary_shas[epoch] = (state_sha256(model.state_dict()),
+                                    state_sha256(model.target_encoder.state_dict()))
+    assert state_sha256(model.state_dict()) != init_sha
+    # Frozen schedule spot checks: warmup start, first active InfoNCE epoch,
+    # and the final cosine value stay exact on the tiny chain.
+    assert lrs["1"] == learning_rate_for_epoch(1)
+    assert lrs["1"] == pytest.approx(0.00015)
+    assert lambdas["1"] == 0.0
+    assert lambdas["11"] == coefficient_for_epoch(0.05, 11)
+    assert lambdas["31"] == 0.05
+    assert lrs["100"] == learning_rate_for_epoch(100)
+    for completed, active in ((10, 11), (30, 31), (60, 61)):
+        _assert_resumes_next_epoch(
+            ckpt_path=boundaries[completed], binding=binding, arm=arm, config=config,
+            patchifier=patchifier, live_model=model, live_optimizer=optimizer,
+            completed_epoch=completed, active_epoch=active, fit_rows=fit_rows,
+            fit_samples=fit_samples,
+            expected_model_sha=boundary_shas[completed][0],
+            expected_ema_sha=boundary_shas[completed][1])
+    final = _assert_resumes_next_epoch(
+        ckpt_path=boundaries[100], binding=binding, arm=arm, config=config,
+        patchifier=patchifier, live_model=model, live_optimizer=optimizer,
+        completed_epoch=100, active_epoch=100, fit_rows=fit_rows,
+        fit_samples=fit_samples,
+        expected_model_sha=boundary_shas[100][0],
+        expected_ema_sha=boundary_shas[100][1])

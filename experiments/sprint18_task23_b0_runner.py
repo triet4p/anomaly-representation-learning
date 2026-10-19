@@ -102,8 +102,8 @@ from synth.patchify import Patchifier
 EPOCHS = 100
 DIAGNOSTIC_EPOCHS = (10, 30, 60)
 STEP_300 = 300
-ATTEMPT = "S18-T23-C01"
-AGENT = "S18T23C01"
+ATTEMPT = "S18-T23-C03"
+AGENT = "S18T23C03"
 ARM_ID = "B0-FULL"
 LAMBDA_INFO_MAX = 0.05
 
@@ -429,6 +429,16 @@ def run_seed(*, binding, worktree: Path, seed: int, fit_ids, fit_sample_by_id, f
                                  "elapsed_s": time.time() - train_start})
         if epoch in DIAGNOSTIC_EPOCHS or epoch == EPOCHS:
             active_epoch = epoch + 1 if epoch < EPOCHS else EPOCHS
+            # Strict-checkpoint coherence: the validator requires the saved
+            # optimizer LR to equal learning_rate_for_epoch(active_epoch),
+            # matching the next-epoch-ready sampler/scheduler/coefficient
+            # states below. The trainer pins the LR only at each trained
+            # epoch start, so the live optimizer still holds LR(epoch) here;
+            # advance it to LR(active_epoch) before the save. The next epoch
+            # re-pins the identical value, so the trajectory is unchanged.
+            active_lr = learning_rate_for_epoch(active_epoch)
+            for group in optimizer.param_groups:
+                group["lr"] = active_lr
             epoch_seed, next_order = deterministic_sampler_order(
                 binding, arm, workload="representation", scope="experiment",
                 role_history_ids=fit_history_ids, epoch=active_epoch, eligible_source_ids=fit_ids,
