@@ -740,7 +740,24 @@ def n4_score_files(
             masking_seed=masking_seed,
         )
         clean = {key: value for key, value in batch.items() if key != "file_samples"}
+        # Co-locate the collated batch onto the deployed model device before the
+        # frozen forward, mirroring RepresentationInference._move_batch. CPU-only
+        # callers observe a no-op; CUDA-deployed B0/scale heads consume aligned
+        # tensors instead of raising a device mismatch inside layer_norm.
+        _model_device_param = next(model.parameters(), None)
+        _model_device = _model_device_param.device if _model_device_param is not None else None
+        if _model_device is not None:
+            clean = {
+                key: (value.to(_model_device) if isinstance(value, torch.Tensor) else value)
+                for key, value in clean.items()
+            }
         output = model(clean)  # type: ignore[operator]
+        # Fail closed when the fitted scale head is deployed on a different
+        # device than the frozen B0 encoder (normative runners co-deploy both).
+        _scale_device = next(scale_model.parameters(), None)
+        if _scale_device is not None and _model_device is not None:
+            if _scale_device.device != _model_device:
+                raise ValueError("N4 scoring scale head device differs from the B0 model device")
         context = output["context_latents"].detach()
         target = output["target_latents"].detach()
         predicted = output["predicted_latents"].detach()

@@ -467,3 +467,65 @@ def test_n4_score_files_keeps_b0_aggregation_and_reports_raw_scale_normalized() 
             model=model, samples=[], scale_model=scale,
             v_floor=0.02, v_cap=1.4, patchifier=patchifier, masking_seed=91813,
         )
+    with pytest.raises(ValueError, match="scale head device differs"):
+        other = init_n4_scale_model(config.d_model, MODEL_SEEDS[0]).to("meta")
+        n4_score_files(
+            model=model, samples=samples, scale_model=other,
+            v_floor=0.02, v_cap=1.4, patchifier=patchifier, masking_seed=91813,
+        )
+
+
+def test_n4_consumer_scale_containment_covers_float32_rounding() -> None:
+    """File-mean consumer scales stay in bounds modulo float32 rounding steps.
+
+    Guards the exact T13B-A01 public-consumer abort: an absolute tolerance
+    (e.g. 1e-9) is arithmetically unsound because real float32 file-mean
+    rounding near unit-scale values is ~1e-8, strictly above it, so such a
+    check aborts on sound scales. The permanent runner's per-side 8*eps32
+    allowance (each side scaled by its own bound, so the frozen
+    v_cap/v_floor <= 10 edge rule cannot widen one side's margin through the
+    other bound) covers only the two float32 derivation steps (clamp
+    log/exp, then mean accumulation; retained C04 characterization
+    ``artifacts/sprint-18/s18-t13b-c04/characterize_float32.py`` +
+    ``measurements.json``: 472 trials, worst bound excursion ~1.1e-7 with
+    ~8.6x margin on this CPU; backend limits documented there); frozen
+    bounds, per-patch clamp, and cap gate are unchanged. Beyond-allowance
+    excursions -- including the old 1e-5-relative hole at either bound --
+    are rejected.
+    """
+    import sys
+
+    sys.path.insert(0, str(ROOT / "experiments"))
+    from sprint18_task13b_n4_capacity import consumer_scale_within_bounds
+
+    # Genuine escapes are still rejected -- including excursions inside the
+    # old 1e-5-relative hole (1e-6 relative at either bound exceeds the
+    # ~9.5e-7 new allowance and must fail).
+    assert not consumer_scale_within_bounds(0.20, 0.46, 4.64)
+    assert not consumer_scale_within_bounds(9.99, 0.46, 4.64)
+    assert not consumer_scale_within_bounds(4.64 * (1 + 1e-6), 0.46, 4.64)
+    assert not consumer_scale_within_bounds(0.46 * (1 - 1e-6), 0.46, 4.64)
+    assert not consumer_scale_within_bounds(float("nan"), 0.46, 4.64)
+    assert not consumer_scale_within_bounds(-0.01, 0.46, 4.64)
+    # Exact containment passes.
+    assert consumer_scale_within_bounds(0.46, 0.46, 4.64)
+    assert consumer_scale_within_bounds(4.64, 0.46, 4.64)
+    assert consumer_scale_within_bounds(0.81, 0.46, 4.64)
+    # Worst-case float32 rounding magnitude (~1.1e-7 retained measurement) passes.
+    assert consumer_scale_within_bounds(0.46 - 2e-8, 0.46, 4.64)
+    assert consumer_scale_within_bounds(4.64 + 2e-7, 0.46, 4.64)
+    assert consumer_scale_within_bounds(4.64 * (1 + 2.5e-7), 0.46, 4.64)
+    # Real public-consumer triple through the committed entrypoint obeys it.
+    from representation import n4_score_files
+
+    config = _tiny_config()
+    patchifier = Patchifier(PatchConfig(patch_size=32, stride=16, pad_end=True))
+    model = V1RepresentationModel(config, patchifier=patchifier)
+    scale = init_n4_scale_model(config.d_model, MODEL_SEEDS[0])
+    samples = _tiny_samples()
+    scored = n4_score_files(
+        model=model, samples=samples, scale_model=scale,
+        v_floor=0.02, v_cap=1.4, patchifier=patchifier, masking_seed=91813,
+    )
+    for file_id, entry in scored.items():
+        assert consumer_scale_within_bounds(entry["scale"], 0.02, 1.4), file_id
