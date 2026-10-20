@@ -53,6 +53,7 @@ import hashlib
 import json
 import math
 import random
+import re
 import subprocess
 import sys
 import time
@@ -74,8 +75,8 @@ sys.path.insert(0, str(REPO_ROOT / "src"))
 import numpy as np
 import torch
 
-ATTEMPT = "S18-T13B-C04"
-AGENT = "S18T13BC04"
+ATTEMPT = "S18-T13B-C06"
+AGENT = "S18T13BC06"
 ARM_ID = "N4-CRN"
 MODEL_SEEDS = (181801, 181802, 181803)
 #: Per-side file-mean containment allowance for the public-consumer bound
@@ -93,7 +94,6 @@ EXPECTED_CONTRACT = {
     "protocol_sha256": "e1dcd17914e920520ad0d8f50e185874b95414e6a4fe907903619daf145622d2",
     "mechanism_N4-CRN": "4d1c8097c9cc27d3fbeb2e2a6e70a29a7bc63d7899646a9c712a315b39d9ffe3",
     "executable_binding_sha256": "383c62114ee6120d5fd19f866dfd585083d1d5899c9ffe91804761bd8a10a2d5",
-    "source_commit": "1ec9eafb92dc96d536eb3c3507698508d71a67a7",
     "fit_rows": {"S18I-ITER-0005-FIT-01": 1809, "S18I-ITER-0005-FIT-02": 1882, "S18I-ITER-0005-FIT-03": 1755},
     "checkpoints": {
         "181801": "9292d7c59037cba7b7fd337dbb896ed492777abff4713307c98f86a3b5226a8f",
@@ -102,14 +102,61 @@ EXPECTED_CONTRACT = {
     },
     "cache_files": {
         "181801": "18345f863d04f71d16d9be7b6f58982568a4ee4317eba526922369471355bece",
-        "181802": "e0352b7cdac53b6484244239f3db1d851cb0395e2fdd788133de5278f9333b2",
+        "181802": "e035b2b7cdac53b6484244239f3db1d851cb0395e2fdd788133de5278f9333b2",
         "181803": "1d4a2a74de36d8bf45a67e7ff795ce279e6aec08494d8ca27a1bca817db332a7",
     },
 }
+#: Authorized-execution binding supplied per run (never frozen in source):
+#: the external binding document (``--binding``) plus the trusted CLI pins
+#: (``--source-commit`` + ``--driver-sha256``) identify the reviewed commit
+#: the runtime is allowed to execute. Freezing a commit SHA inside this file
+#: would re-freeze every checkpoint that adds this file — the A02 defect —
+#: so the authorized commit is read from the trusted external binding/args
+#: instead of from this source. The scientific fixture identity above stays
+#: immutable in source; the execution identity below stays external.
+EXECUTION_BINDING_FIELDS = ("source_commit", "runner_sha256")
 
 
 def _fail(message: str) -> ValueError:
-    return ValueError(f"S18-T13B-C04 frozen-contract violation: {message}")
+    return ValueError(f"S18-T13B-C06 frozen-contract violation: {message}")
+
+
+_HEX40 = re.compile(r"[0-9a-f]{40}")
+_HEX64 = re.compile(r"[0-9a-f]{64}")
+
+
+def _execution_binding(bdoc: dict, args) -> dict:
+    """Return the externally authorized execution identity, fail-closed.
+
+    Scientific fixture identity (protocol/spec/binding/fit counts/fixture
+    digests) stays frozen in ``EXPECTED_CONTRACT``. The authorized source
+    commit and runner digest are execution authorization, not science: they
+    arrive via the Main-authorized external binding document
+    (``bdoc["source_commit"]``/``bdoc["runner_sha256"]``) and the trusted
+    CLI pins (``args.source_commit``/``args.driver_sha256``), and all four
+    must agree exactly. No untrusted self-report is accepted: live ``HEAD``
+    must equal the authorized commit, and the observed runner bytes must
+    equal the authorized runner digest. Never defaults, never empty-string
+    coercion, never silent acceptance.
+    """
+    if not isinstance(bdoc, dict):
+        raise _fail("execution binding is not a mapping")
+    bdoc_commit = bdoc.get("source_commit")
+    bdoc_runner = bdoc.get("runner_sha256")
+    cli_commit = getattr(args, "source_commit", None)
+    cli_runner = getattr(args, "driver_sha256", None)
+    for value in (bdoc_commit, bdoc_runner, cli_commit, cli_runner):
+        if not isinstance(value, str) or not value:
+            raise _fail("execution binding is missing an authorized identity field")
+    if not _HEX40.fullmatch(bdoc_commit) or not _HEX40.fullmatch(cli_commit):
+        raise _fail("authorized source commit is not a full Git SHA")
+    if not _HEX64.fullmatch(bdoc_runner) or not _HEX64.fullmatch(cli_runner):
+        raise _fail("authorized runner digest is not a SHA-256 hex digest")
+    if bdoc_commit != cli_commit:
+        raise _fail("binding source commit differs from the trusted CLI pin")
+    if bdoc_runner != cli_runner:
+        raise _fail("binding runner digest differs from the trusted CLI pin")
+    return {"source_commit": bdoc_commit, "runner_sha256": bdoc_runner}
 
 
 def _sha_file(path: Path) -> str:
@@ -129,15 +176,16 @@ def load_binding_doc(path: Path) -> dict:
 
 def self_check(args, bdoc: dict) -> dict:
     worktree = Path(args.worktree)
+    authorized = _execution_binding(bdoc, args)
     head = subprocess.run(
         ["git", "-C", str(worktree), "rev-parse", "HEAD"],
         check=True, capture_output=True, text=True,
     ).stdout.strip()
-    if head != bdoc.get("source_commit") or head != EXPECTED_CONTRACT["source_commit"]:
+    if head != authorized["source_commit"]:
         raise _fail(f"source commit differs: observed {head}")
     observed_driver_sha = _sha_file(Path(__file__).resolve())
-    if observed_driver_sha != args.driver_sha256:
-        raise _fail("driver digest differs from the prebound value")
+    if observed_driver_sha != authorized["runner_sha256"]:
+        raise _fail("driver digest differs from the authorized execution binding")
     bdoc_sha = _sha_file(Path(args.binding))
     return {"head": head, "driver_sha256": observed_driver_sha, "binding_sha256": bdoc_sha}
 
@@ -790,6 +838,7 @@ def main() -> int:
     parser.add_argument("--device", required=True)
     args = parser.parse_args()
     bdoc = load_binding_doc(Path(args.binding))
+    _execution_binding(bdoc, args)  # authorize execution identity before any preflight/pilot work
     if args.mode == "preflight":
         preflight = run_preflight(args, bdoc)
         print(json.dumps({"PREFLIGHT_OK": True, **{k: preflight[k] for k in ("fit_eligible_rows", "fit_healthy_rows", "n4_sampler_smoke_ok", "executable_binding_sha256")}}, sort_keys=True))
