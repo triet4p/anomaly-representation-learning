@@ -25,6 +25,9 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from hashlib import sha256
 import math
+import os
+from pathlib import Path
+import tempfile
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -52,6 +55,24 @@ N4_VARIANCE_FLOOR_MIN = 1e-6
 N4_SCALE_PARAM_LIMIT = 100_000
 #: Log-scale tolerance identifying clamped (saturated) predictions.
 N4_SATURATION_LOG_TOL = 1e-6
+#: Frozen v3 initialization parameterization identity (Fit-mean-anchored output bias).
+N4_SCALE_PARAMETERIZATION = "fit-mean-anchored-bias-v1"
+#: Frozen v3 fail-closed startup guard contract identity.
+N4_GUARD_CONTRACT = "n4-v3-guards-v1"
+#: Versioned scale-checkpoint envelope identity; bare legacy state dicts are refused.
+N4_SCALE_CHECKPOINT_SCHEMA = "s18-n4-scale-checkpoint-v2"
+#: Frozen deployed latent width and the exact parameter roster of the scale head.
+N4_SCALE_LATENT_WIDTH = 128
+N4_SCALE_PARAMETER_ROSTER: tuple[tuple[str, int], ...] = (
+    ("norm.weight", N4_SCALE_LATENT_WIDTH),
+    ("norm.bias", N4_SCALE_LATENT_WIDTH),
+    ("hidden.weight", N4_SCALE_HIDDEN_WIDTH * N4_SCALE_LATENT_WIDTH),
+    ("hidden.bias", N4_SCALE_HIDDEN_WIDTH),
+    ("out.weight", N4_SCALE_HIDDEN_WIDTH),
+    ("out.bias", 1),
+)
+#: Exact deployed scale-head parameter count at the frozen latent width (4,417).
+N4_SCALE_PARAM_COUNT = sum(numel for _name, numel in N4_SCALE_PARAMETER_ROSTER)
 
 
 class ContextResidualScaleModel(nn.Module):
@@ -128,6 +149,256 @@ def init_n4_scale_model(d_model: int, model_seed: int) -> ContextResidualScaleMo
         torch.manual_seed(int(model_seed))
         model = ContextResidualScaleModel(d_model)
     return model
+
+
+class N4ScaleGuardError(RuntimeError):
+    """Fail-closed ``n4-v3-guards-v1`` failure carrying its identity and diagnostics.
+
+    Raised before any optimizer state exists (initialized-interiority guard) or
+    before the unchanged clip/step of the first normal backward
+    (first-step-gradient guard), so a failure applies zero optimizer updates.
+    """
+
+    def __init__(self, guard_id: str, message: str, diagnostics: Mapping[str, object]) -> None:
+        super().__init__(f"{guard_id}: {message}")
+        self.guard_id = str(guard_id)
+        self.diagnostics = dict(diagnostics)
+
+
+def n4_anchor_scale_model(
+    scale_model: ContextResidualScaleModel, residuals: Sequence[float]
+) -> dict[str, object]:
+    """Anchor ``out.bias`` at ``log(v_ref)`` for the Fit-only in-scope residual mean.
+
+    ``v_ref`` is the float64 mean of the exact in-scope Fit training residuals.
+    Only ``out.bias`` is written; ``out.weight``, ``hidden`` and ``norm`` keep
+    their seeded values (the last layer is never zeroed). The bias anchor is an
+    initialization of the scalar offset, not a claim that every predicted
+    ``log_v`` equals ``log(v_ref)``. Non-finite or non-positive ``v_ref`` fails
+    closed, so a zero residual pool can never produce ``log(0) = -inf``.
+    """
+    if not isinstance(scale_model, ContextResidualScaleModel):
+        raise ValueError("N4 scale anchoring requires the context-only scale model")
+    values = np.asarray(residuals, dtype=np.float64).reshape(-1)
+    if values.shape[0] < 1:
+        raise ValueError("N4 scale anchoring requires a non-empty residual pool")
+    if not np.isfinite(values).all() or bool((values < 0.0).any()):
+        raise ValueError("N4 anchor residuals must be finite and non-negative")
+    v_ref = float(values.mean())
+    if not math.isfinite(v_ref) or v_ref <= 0.0:
+        raise ValueError("N4 anchor reference v_ref must be finite and positive")
+    log_v_ref = math.log(v_ref)
+    if not math.isfinite(log_v_ref):
+        raise ValueError("N4 anchor log(v_ref) must be finite")
+    with torch.no_grad():
+        scale_model.out.bias.fill_(log_v_ref)
+    return {"v_ref": v_ref, "log_v_ref": log_v_ref, "record_count": int(values.shape[0])}
+
+
+def _n4_scale_bounds(v_floor: float, v_cap: float) -> tuple[float, float, float, float]:
+    """Validate one frozen bound pair and return ``(floor, cap, log_floor, log_cap)``."""
+    for name, bound in (("v_floor", v_floor), ("v_cap", v_cap)):
+        if isinstance(bound, bool) or not isinstance(bound, (int, float)):
+            raise ValueError(f"N4 {name} bound must be a number")
+        if not math.isfinite(float(bound)) or float(bound) <= 0.0:
+            raise ValueError(f"N4 {name} bound must be finite and positive")
+    floor = float(v_floor)
+    cap = float(v_cap)
+    if cap < floor:
+        raise ValueError("N4 v_cap must not lie below v_floor")
+    log_floor = math.log(floor)
+    log_cap = math.log(cap)
+    if not log_cap > log_floor:
+        raise ValueError("N4 initialized-interiority guard requires log(v_cap) > log(v_floor)")
+    return floor, cap, log_floor, log_cap
+
+
+def n4_guard_initialized_interiority(
+    scale_model: ContextResidualScaleModel,
+    contexts: Sequence[torch.Tensor],
+    *,
+    v_floor: float,
+    v_cap: float,
+) -> dict[str, object]:
+    """Guard A: forward-only full-scope initialized-interiority check.
+
+    Runs after the anchor and the canonical context materialization and before
+    ``torch.optim.AdamW`` is constructed. Reads the anchored parameters only:
+    no parameter/buffer/``.grad``/mode write, no RNG or sampler call, no
+    backward, no extra zeroing. The unchanged clamped forward is evaluated
+    under ``torch.no_grad()`` in contiguous chunks of at most 512 records over
+    the WHOLE in-scope pool, and every returned ``log_v`` must be strictly
+    interior by more than the frozen ``1e-6`` tolerance. Structural
+    precondition violations raise :class:`ValueError` before any forward; a
+    clamp hit or a non-finite/invalid forward (including a non-finite context
+    rejected by the public forward's own validation) fails closed with
+    :class:`N4ScaleGuardError` after zero optimizer updates.
+    """
+    if not isinstance(scale_model, ContextResidualScaleModel):
+        raise ValueError("N4 initialized-interiority guard requires the context-only scale model")
+    parameters = sum(p.numel() for p in scale_model.parameters())
+    if parameters != N4_SCALE_PARAM_COUNT or parameters > N4_SCALE_PARAM_LIMIT:
+        raise ValueError(
+            "N4 initialized-interiority guard requires the exact frozen 4417-parameter scale head"
+        )
+    if any(True for _ in scale_model.buffers()):
+        raise ValueError("N4 initialized-interiority guard requires a buffer-free scale model")
+    for module in scale_model.modules():
+        if isinstance(
+            module,
+            (nn.Dropout, nn.Dropout1d, nn.Dropout2d, nn.Dropout3d,
+             nn.BatchNorm1d, nn.BatchNorm2d, nn.BatchNorm3d, nn.SyncBatchNorm),
+        ):
+            raise ValueError(
+                "N4 initialized-interiority guard forbids stochastic or batch-statistics layers"
+            )
+    _floor, _cap, log_floor, log_cap = _n4_scale_bounds(v_floor, v_cap)
+    record_total = len(contexts)
+    if record_total < 1:
+        raise ValueError("N4 initialized-interiority guard requires a non-empty in-scope pool")
+    reference = scale_model.out.bias
+    # Structural checks are metadata-only: no per-record tensor value is read
+    # and the already-materialized context sequence is never copied.
+    for row in contexts:
+        if not isinstance(row, torch.Tensor) or row.ndim != 1 or row.shape[0] != scale_model.d_model:
+            raise ValueError("N4 guard context must be a 1D latent row of the bound width")
+        if row.device != reference.device or row.dtype != reference.dtype:
+            raise ValueError("N4 guard context dtype/device must match the scale head")
+    tolerance = N4_SATURATION_LOG_TOL
+    record_count = 0
+    log_v_min = math.inf
+    log_v_max = -math.inf
+    at_floor = 0
+    at_cap = 0
+
+    def _diagnostics() -> dict[str, object]:
+        return {
+            "record_count": record_count,
+            "log_v_min": log_v_min if record_count else None,
+            "log_v_max": log_v_max if record_count else None,
+            "log_floor": log_floor,
+            "log_cap": log_cap,
+            "floor_margin": (log_v_min - log_floor) if record_count else None,
+            "cap_margin": (log_cap - log_v_max) if record_count else None,
+            "frac_at_floor": (at_floor / record_count) if record_count else None,
+            "frac_at_cap": (at_cap / record_count) if record_count else None,
+            "tolerance": tolerance,
+        }
+
+    with torch.no_grad():
+        for start in range(0, record_total, N4_SCALE_BATCH_SIZE):
+            stop = min(start + N4_SCALE_BATCH_SIZE, record_total)
+            chunk = torch.stack([contexts[index] for index in range(start, stop)], dim=0)
+            # The unchanged public forward already validates context finiteness
+            # exactly once for this chunk; its ValueError is classified below as
+            # the guard failure for an invalid context (no duplicate device scan).
+            try:
+                log_v = scale_model(chunk, v_floor=_floor, v_cap=_cap)["log_v"]
+            except ValueError as exc:
+                raise N4ScaleGuardError(
+                    "n4-scale-init-interiority",
+                    f"initialized forward is invalid: {exc}",
+                    _diagnostics(),
+                ) from exc
+            if log_v.shape[0] != chunk.shape[0] or not torch.isfinite(log_v).all():
+                raise N4ScaleGuardError(
+                    "n4-scale-init-interiority",
+                    "initialized forward returned malformed/non-finite log-variance",
+                    _diagnostics(),
+                )
+            record_count += int(log_v.shape[0])
+            log_v_min = min(log_v_min, float(log_v.min().item()))
+            log_v_max = max(log_v_max, float(log_v.max().item()))
+            at_floor += int((log_v <= log_floor + tolerance).sum().item())
+            at_cap += int((log_v >= log_cap - tolerance).sum().item())
+    diagnostics = _diagnostics()
+    if record_count != record_total:
+        raise N4ScaleGuardError(
+            "n4-scale-init-interiority",
+            "initialized forward did not cover the in-scope pool",
+            diagnostics,
+        )
+    if diagnostics["frac_at_floor"] != 0.0 or diagnostics["frac_at_cap"] != 0.0:
+        raise N4ScaleGuardError(
+            "n4-scale-init-interiority",
+            "initialized log-variance is not strictly interior",
+            diagnostics,
+        )
+    return diagnostics
+
+
+def n4_guard_first_step_gradients(
+    scale_model: ContextResidualScaleModel,
+) -> dict[str, object]:
+    """Guard B: read-only inspection of the first normal backward's gradients.
+
+    Called after the sole ``loss.backward()`` at ``global_step == 0`` and before
+    the unchanged ``clip_grad_norm_(..., 1.0)``/``optimizer.step()``. Fails
+    closed on a missing gradient, any non-finite gradient element, or an
+    aggregate all-exactly-zero gradient. Individual zero coordinates and whole
+    zero tensors are legitimate and are recorded only as diagnostics. Never
+    calls ``backward``/``zero_grad``, never mutates ``.grad``, draws no RNG, and
+    touches no optimizer, mode, or checkpoint state.
+    """
+    if not isinstance(scale_model, ContextResidualScaleModel):
+        raise ValueError("N4 first-step gradient guard requires the context-only scale model")
+    named = list(scale_model.named_parameters())
+    if not named:
+        raise ValueError("N4 first-step gradient guard requires a non-empty parameter set")
+    tensors: list[dict[str, object]] = []
+    missing: list[str] = []
+    total_nonzero = 0
+    total_nonfinite = 0
+    for name, parameter in named:
+        grad = parameter.grad
+        if grad is None:
+            missing.append(name)
+            tensors.append(
+                {"name": name, "numel": int(parameter.numel()), "nonzero": None,
+                 "zero": None, "nonfinite": None, "norm": None}
+            )
+            continue
+        nonzero = int(torch.count_nonzero(grad).item())
+        nonfinite = int((~torch.isfinite(grad)).sum().item())
+        numel = int(grad.numel())
+        norm_value = float(grad.detach().double().norm().item())
+        tensors.append(
+            {
+                "name": name,
+                "numel": numel,
+                "nonzero": nonzero,
+                "zero": numel - nonzero,
+                "nonfinite": nonfinite,
+                "norm": norm_value if math.isfinite(norm_value) else None,
+            }
+        )
+        total_nonzero += nonzero
+        total_nonfinite += nonfinite
+    diagnostics: dict[str, object] = {
+        "total_nonzero": total_nonzero,
+        "total_nonfinite": total_nonfinite,
+        "missing_grad_parameters": missing,
+        "tensors": tensors,
+    }
+    if missing:
+        raise N4ScaleGuardError(
+            "n4-scale-first-step-gradients",
+            "a parameter received no gradient",
+            diagnostics,
+        )
+    if total_nonfinite:
+        raise N4ScaleGuardError(
+            "n4-scale-first-step-gradients",
+            "nonfinite gradient before the first optimizer step",
+            diagnostics,
+        )
+    if total_nonzero < 1:
+        raise N4ScaleGuardError(
+            "n4-scale-first-step-gradients",
+            "all parameter gradients are exactly zero",
+            diagnostics,
+        )
+    return diagnostics
 
 
 def n4_patch_residual(
@@ -453,8 +724,12 @@ def fit_n4_scale_scope(
             raise ValueError("N4 record identity is invalid")
         if not isinstance(record.context, torch.Tensor) or record.context.ndim != 1:
             raise ValueError("N4 record context must be a detached 1D latent row")
-        if record.context.shape[0] != scale_model.d_model or not torch.isfinite(record.context).all():
-            raise ValueError("N4 record context must match the scale width and be finite")
+        # Structural shape/type checks only: context finiteness is validated
+        # exactly once per bounded chunk by the forward inside Guard A, which
+        # classifies an invalid context as N4ScaleGuardError before the
+        # optimizer exists.
+        if record.context.shape[0] != scale_model.d_model:
+            raise ValueError("N4 record context must match the scale width")
         if (
             isinstance(record.residual, bool)
             or not isinstance(record.residual, (int, float))
@@ -485,9 +760,15 @@ def fit_n4_scale_scope(
         raise ValueError("N4 scale capacity is outside the frozen parameter envelope")
     target_device = torch.device(device)
     scale_model.to(target_device)
-    scale_model.train()
+    init_anchor = n4_anchor_scale_model(scale_model, [float(r.residual) for r in ordered])
     contexts = [r.context.detach().to(device=target_device, dtype=torch.float32) for r in ordered]
     targets = torch.tensor([float(r.residual) for r in ordered], dtype=torch.float32, device=target_device)
+    scale_model.train()
+    # Guard A runs before the optimizer object exists, so optimizer state can
+    # never be affected; it is forward-only over the whole in-scope pool.
+    init_interiority = n4_guard_initialized_interiority(
+        scale_model, contexts, v_floor=float(v_floor), v_cap=float(v_cap)
+    )
     id_to_index = {key: index for index, key in enumerate(canonical_ids)}
     optimizer = torch.optim.AdamW(
         scale_model.parameters(), lr=N4_SCALE_LR, weight_decay=N4_SCALE_WEIGHT_DECAY
@@ -497,6 +778,7 @@ def fit_n4_scale_scope(
     per_epoch_nll: list[float] = []
     epoch_order_seeds: list[int] = []
     global_step = 0
+    first_step_gradients: dict[str, object] | None = None
     for epoch in range(1, N4_SCALE_EPOCHS + 1):
         seed, order = deterministic_sampler_order(
             binding,
@@ -522,6 +804,10 @@ def fit_n4_scale_scope(
             predicted = scale_model(batch_context, v_floor=float(v_floor), v_cap=float(v_cap))
             loss = n4_scale_nll(batch_residual, predicted["log_v"])
             loss.backward()
+            if global_step == 0:
+                # Guard B inspects the sole normal backward result before the
+                # unchanged clip/step; it never mutates gradients or state.
+                first_step_gradients = n4_guard_first_step_gradients(scale_model)
             clip_grad_norm_(scale_model.parameters(), N4_SCALE_CLIP_NORM)
             optimizer.step()
             global_step += 1
@@ -564,10 +850,17 @@ def fit_n4_scale_scope(
     ):
         if not math.isfinite(float(value)):
             raise ValueError("N4 scope fit produced a nonfinite diagnostic")
+    if first_step_gradients is None:
+        raise ValueError("N4 first-step gradient guard did not run")
     result: dict[str, Any] = {
         "scope": scope,
         "training_history_ids": list(training_ids),
         "heldout_history_id": heldout_id,
+        "scale_parameterization": N4_SCALE_PARAMETERIZATION,
+        "guard_contract": N4_GUARD_CONTRACT,
+        "init_anchor": dict(init_anchor),
+        "init_interiority": dict(init_interiority),
+        "first_step_gradients": dict(first_step_gradients),
         "record_count": record_count,
         "heldout_count": len(heldout_records),
         "bounds": {"v_floor": float(v_floor), "v_cap": float(v_cap)},
@@ -590,6 +883,334 @@ def fit_n4_scale_scope(
         "scale_parameters": scale_parameters,
     }
     return result
+
+def _n4_validate_initialization(
+    initialization: Mapping[str, object],
+    *,
+    bounds: tuple[float, float] | None = None,
+) -> dict[str, object]:
+    """Validate the recorded v3 initialization/guard provenance, fail closed.
+
+    Besides key sets and finite fields, every recorded diagnostic must follow
+    from the values it claims to summarize: ``log_v_ref`` from ``v_ref``, the
+    recorded log bounds from the checkpoint bounds when supplied, the
+    interiority margins from the recorded extrema and log bounds, the frozen
+    saturation tolerance, and the per-tensor first-step gradient counts from
+    the frozen parameter roster and the aggregate totals. A checkpoint can
+    therefore not claim a successful guard on contradictory evidence.
+    """
+    if not isinstance(initialization, Mapping) or set(initialization) != {
+        "init_anchor", "init_interiority", "first_step_gradients"
+    }:
+        raise ValueError("N4 scale initialization diagnostics are incomplete")
+    anchor = initialization["init_anchor"]
+    interiority = initialization["init_interiority"]
+    gradients = initialization["first_step_gradients"]
+    if not isinstance(anchor, Mapping) or set(anchor) != {"v_ref", "log_v_ref", "record_count"}:
+        raise ValueError("N4 anchor diagnostics are incomplete")
+    v_ref = anchor["v_ref"]
+    log_v_ref = anchor["log_v_ref"]
+    anchor_count = anchor["record_count"]
+    if (
+        isinstance(v_ref, bool) or not isinstance(v_ref, (int, float))
+        or not math.isfinite(float(v_ref)) or float(v_ref) <= 0.0
+    ):
+        raise ValueError("N4 anchor v_ref is invalid")
+    if (
+        isinstance(log_v_ref, bool) or not isinstance(log_v_ref, (int, float))
+        or not math.isfinite(float(log_v_ref))
+    ):
+        raise ValueError("N4 anchor log(v_ref) is invalid")
+    if float(log_v_ref) != math.log(float(v_ref)):
+        raise ValueError("N4 anchor log(v_ref) does not follow from v_ref")
+    if isinstance(anchor_count, bool) or not isinstance(anchor_count, int) or anchor_count < 1:
+        raise ValueError("N4 anchor record count is invalid")
+    if not isinstance(interiority, Mapping) or set(interiority) != {
+        "record_count", "log_v_min", "log_v_max", "log_floor", "log_cap",
+        "floor_margin", "cap_margin", "frac_at_floor", "frac_at_cap", "tolerance",
+    }:
+        raise ValueError("N4 initialized-interiority diagnostics are incomplete")
+    if interiority["record_count"] != anchor_count:
+        raise ValueError("N4 initialized-interiority scope differs from the anchor scope")
+    for name in ("log_v_min", "log_v_max", "log_floor", "log_cap", "floor_margin", "cap_margin", "tolerance"):
+        value = interiority[name]
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(float(value)):
+            raise ValueError(f"N4 initialized-interiority {name} is invalid")
+    for name in ("frac_at_floor", "frac_at_cap"):
+        value = interiority[name]
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or float(value) != 0.0:
+            raise ValueError(f"N4 initialized-interiority {name} must be exactly zero")
+    log_v_min = float(interiority["log_v_min"])
+    log_v_max = float(interiority["log_v_max"])
+    log_floor = float(interiority["log_floor"])
+    log_cap = float(interiority["log_cap"])
+    tolerance = float(interiority["tolerance"])
+    if tolerance != N4_SATURATION_LOG_TOL:
+        raise ValueError("N4 initialized-interiority tolerance differs from the frozen tolerance")
+    if log_cap <= log_floor:
+        raise ValueError("N4 initialized-interiority log bounds are not strictly ordered")
+    if log_v_min > log_v_max:
+        raise ValueError("N4 initialized-interiority extrema are inverted")
+    if float(interiority["floor_margin"]) != log_v_min - log_floor:
+        raise ValueError("N4 initialized-interiority floor margin does not follow from the extrema")
+    if float(interiority["cap_margin"]) != log_cap - log_v_max:
+        raise ValueError("N4 initialized-interiority cap margin does not follow from the extrema")
+    if log_v_min <= log_floor + tolerance or log_v_max >= log_cap - tolerance:
+        raise ValueError("N4 initialized-interiority extrema are not strictly interior")
+    if bounds is not None and (
+        log_floor != math.log(float(bounds[0])) or log_cap != math.log(float(bounds[1]))
+    ):
+        raise ValueError("N4 initialized-interiority log bounds differ from the checkpoint bounds")
+    if not isinstance(gradients, Mapping) or set(gradients) != {
+        "total_nonzero", "total_nonfinite", "missing_grad_parameters", "tensors"
+    }:
+        raise ValueError("N4 first-step gradient diagnostics are incomplete")
+    total_nonzero = gradients["total_nonzero"]
+    total_nonfinite = gradients["total_nonfinite"]
+    missing = gradients["missing_grad_parameters"]
+    tensors = gradients["tensors"]
+    if isinstance(total_nonzero, bool) or not isinstance(total_nonzero, int) or total_nonzero < 1:
+        raise ValueError("N4 first-step gradients must contain a nonzero coordinate")
+    if isinstance(total_nonfinite, bool) or not isinstance(total_nonfinite, int) or total_nonfinite != 0:
+        raise ValueError("N4 first-step gradients must be finite")
+    if not isinstance(missing, list) or missing:
+        raise ValueError("N4 first-step gradients must cover every parameter")
+    if not isinstance(tensors, list) or len(tensors) != len(N4_SCALE_PARAMETER_ROSTER):
+        raise ValueError("N4 first-step per-tensor diagnostics do not cover the frozen parameter roster")
+    roster_nonzero = 0
+    roster_nonfinite = 0
+    for entry, (expected_name, expected_numel) in zip(tensors, N4_SCALE_PARAMETER_ROSTER):
+        if not isinstance(entry, Mapping) or set(entry) != {
+            "name", "numel", "nonzero", "zero", "nonfinite", "norm"
+        }:
+            raise ValueError("N4 first-step per-tensor diagnostics are incomplete")
+        if entry["name"] != expected_name:
+            raise ValueError("N4 first-step per-tensor names differ from the frozen parameter roster")
+        numel = entry["numel"]
+        nonzero = entry["nonzero"]
+        zero = entry["zero"]
+        nonfinite = entry["nonfinite"]
+        if (
+            isinstance(numel, bool) or not isinstance(numel, int) or numel != expected_numel
+            or any(
+                isinstance(value, bool) or not isinstance(value, int)
+                for value in (nonzero, zero, nonfinite)
+            )
+            or nonzero < 0 or zero < 0 or nonfinite < 0
+            or nonzero + zero != numel or nonfinite > numel
+        ):
+            raise ValueError("N4 first-step per-tensor counts are inconsistent with the frozen roster")
+        if nonfinite:
+            raise ValueError("N4 first-step per-tensor gradients must be finite")
+        norm = entry["norm"]
+        if (
+            isinstance(norm, bool) or not isinstance(norm, (int, float))
+            or not math.isfinite(float(norm)) or float(norm) < 0.0
+        ):
+            raise ValueError("N4 first-step per-tensor gradient norm is invalid")
+        roster_nonzero += nonzero
+        roster_nonfinite += nonfinite
+    if roster_nonzero != total_nonzero or roster_nonfinite != total_nonfinite:
+        raise ValueError("N4 first-step gradient totals do not reconcile with the per-tensor diagnostics")
+    return {
+        "init_anchor": dict(anchor),
+        "init_interiority": dict(interiority),
+        "first_step_gradients": {
+            "total_nonzero": total_nonzero,
+            "total_nonfinite": total_nonfinite,
+            "missing_grad_parameters": list(missing),
+            "tensors": [dict(entry) for entry in tensors],
+        },
+    }
+
+
+_N4_SCALE_CHECKPOINT_KEYS = {
+    "schema", "parameterization", "guard_contract", "fit_scope",
+    "training_history_ids", "v_floor", "v_cap", "initialization",
+    "state_dict_sha256", "state_dict",
+}
+
+
+def _n4_scale_state_sha256(state: Mapping[str, torch.Tensor]) -> str:
+    from representation.sprint18_checkpoint import state_sha256
+
+    return state_sha256(state)
+
+
+def _n4_scale_cpu_state(
+    scale_model: ContextResidualScaleModel,
+) -> dict[str, torch.Tensor]:
+    return {name: value.detach().cpu().clone() for name, value in scale_model.state_dict().items()}
+
+
+def save_n4_scale_checkpoint(
+    path: str | Path,
+    scale_model: ContextResidualScaleModel,
+    *,
+    fit_scope: str,
+    training_history_ids: Sequence[str],
+    v_floor: float,
+    v_cap: float,
+    initialization: Mapping[str, object],
+) -> dict[str, object]:
+    """Write one ``s18-n4-scale-checkpoint-v2`` envelope for a fitted scale head.
+
+    The bare ``state_dict`` form used by the rejected v1 (dead-zone) runs is
+    never written again. The envelope carries the exact parameterization and
+    guard identities, the Fit scope and history roster, the frozen bounds, the
+    recorded initialization/guard diagnostics, and a canonical digest of the
+    scale state it serializes.
+    """
+    if not isinstance(scale_model, ContextResidualScaleModel):
+        raise ValueError("N4 scale checkpoint save requires the context-only scale model")
+    if fit_scope != "final" and not fit_scope.startswith("fold:"):
+        raise ValueError("N4 scale checkpoint scope must be 'final' or 'fold:<heldout_history_id>'")
+    histories = [str(h) for h in training_history_ids]
+    if not histories or len(set(histories)) != len(histories) or any(not h for h in histories):
+        raise ValueError("N4 scale checkpoint history IDs must be non-empty and unique")
+    if sorted(histories) != histories:
+        raise ValueError("N4 scale checkpoint history IDs must arrive in sorted canonical order")
+    floor, cap, _log_floor, _log_cap = _n4_scale_bounds(v_floor, v_cap)
+    provenance = _n4_validate_initialization(initialization, bounds=(floor, cap))
+    state = _n4_scale_cpu_state(scale_model)
+    state_digest = _n4_scale_state_sha256(state)
+    payload: dict[str, object] = {
+        "schema": N4_SCALE_CHECKPOINT_SCHEMA,
+        "parameterization": N4_SCALE_PARAMETERIZATION,
+        "guard_contract": N4_GUARD_CONTRACT,
+        "fit_scope": fit_scope,
+        "training_history_ids": histories,
+        "v_floor": floor,
+        "v_cap": cap,
+        "initialization": provenance,
+        "state_dict_sha256": state_digest,
+        "state_dict": state,
+    }
+    destination = Path(path)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    temporary: str | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="wb", prefix=f".{destination.name}.", suffix=".tmp",
+            dir=destination.parent, delete=False,
+        ) as handle:
+            temporary = handle.name
+        torch.save(payload, temporary)
+        os.replace(temporary, destination)
+        temporary = None
+    finally:
+        if temporary is not None:
+            try:
+                os.unlink(temporary)
+            except FileNotFoundError:
+                pass
+    return {
+        "schema": N4_SCALE_CHECKPOINT_SCHEMA,
+        "parameterization": N4_SCALE_PARAMETERIZATION,
+        "guard_contract": N4_GUARD_CONTRACT,
+        "fit_scope": fit_scope,
+        "training_history_ids": histories,
+        "v_floor": floor,
+        "v_cap": cap,
+        "state_dict_sha256": state_digest,
+        "initialization": provenance,
+    }
+
+
+def load_n4_scale_checkpoint(
+    path: str | Path,
+    scale_model: ContextResidualScaleModel,
+    *,
+    expected_fit_scope: str | None = None,
+    expected_training_history_ids: Sequence[str] | None = None,
+    expected_bounds: Mapping[str, float] | None = None,
+) -> dict[str, object]:
+    """Strictly restore one v3 scale envelope; refuse legacy/unknown checkpoints.
+
+    Accepts only ``s18-n4-scale-checkpoint-v2`` with
+    ``parameterization == "fit-mean-anchored-bias-v1"`` and
+    ``guard_contract == "n4-v3-guards-v1"``, recomputes the state digest, and
+    fails closed on a bare legacy ``state_dict`` (the rejected A03 dead-zone
+    form), an unknown parameterization, a stale scope/history/bound binding, or
+    corrupted/unsafe bytes. This is an N4 scale-checkpoint refusal, not the
+    generic Sprint18 coherent-checkpoint path.
+    """
+    if not isinstance(scale_model, ContextResidualScaleModel):
+        raise ValueError("N4 scale checkpoint restore requires the context-only scale model")
+    checkpoint_path = Path(path)
+    if not checkpoint_path.is_file():
+        raise FileNotFoundError(f"N4 scale checkpoint not found: {checkpoint_path}")
+    try:
+        payload = torch.load(checkpoint_path, map_location="cpu", weights_only=True)
+    except Exception as exc:  # noqa: BLE001 - normalize unsafe/legacy bytes to one refusal
+        raise ValueError(
+            "N4 scale checkpoint is not a safe s18-n4-scale-checkpoint-v2 envelope; "
+            "legacy or foreign bytes are refused"
+        ) from exc
+    if not isinstance(payload, Mapping):
+        raise ValueError("N4 scale checkpoint payload is not an envelope mapping")
+    if payload.get("schema") != N4_SCALE_CHECKPOINT_SCHEMA:
+        raise ValueError(
+            "legacy or incompatible N4 scale checkpoint refused: only "
+            f"{N4_SCALE_CHECKPOINT_SCHEMA} is accepted"
+        )
+    if set(payload) != _N4_SCALE_CHECKPOINT_KEYS:
+        raise ValueError("N4 scale checkpoint envelope is incomplete or has unknown keys")
+    if payload["parameterization"] != N4_SCALE_PARAMETERIZATION:
+        raise ValueError("N4 scale checkpoint parameterization is unknown")
+    if payload["guard_contract"] != N4_GUARD_CONTRACT:
+        raise ValueError("N4 scale checkpoint guard contract is unknown")
+    fit_scope = payload["fit_scope"]
+    if not isinstance(fit_scope, str) or (
+        fit_scope != "final" and not fit_scope.startswith("fold:")
+    ):
+        raise ValueError("N4 scale checkpoint fit scope is invalid")
+    histories = payload["training_history_ids"]
+    if (
+        not isinstance(histories, list)
+        or not histories
+        or any(not isinstance(h, str) or not h for h in histories)
+        or sorted(histories) != histories
+        or len(set(histories)) != len(histories)
+    ):
+        raise ValueError("N4 scale checkpoint history roster is invalid")
+    floor, cap, _log_floor, _log_cap = _n4_scale_bounds(payload["v_floor"], payload["v_cap"])
+    state = payload["state_dict"]
+    if not isinstance(state, Mapping) or not state:
+        raise ValueError("N4 scale checkpoint state dict is missing")
+    if not all(isinstance(value, torch.Tensor) for value in state.values()):
+        raise ValueError("N4 scale checkpoint state dict contains non-tensor values")
+    observed_state_sha = _n4_scale_state_sha256(state)
+    if payload["state_dict_sha256"] != observed_state_sha:
+        raise ValueError("N4 scale checkpoint state digest mismatch")
+    provenance = _n4_validate_initialization(payload["initialization"], bounds=(floor, cap))
+    if expected_fit_scope is not None and fit_scope != expected_fit_scope:
+        raise ValueError("N4 scale checkpoint fit scope differs from the requested scope")
+    if expected_training_history_ids is not None:
+        expected = [str(h) for h in expected_training_history_ids]
+        if histories != expected:
+            raise ValueError("N4 scale checkpoint histories differ from the requested roster")
+    if expected_bounds is not None:
+        if (
+            not isinstance(expected_bounds, Mapping)
+            or set(expected_bounds) != {"v_floor", "v_cap"}
+            or float(expected_bounds["v_floor"]) != floor
+            or float(expected_bounds["v_cap"]) != cap
+        ):
+            raise ValueError("N4 scale checkpoint bounds differ from the requested frozen bounds")
+    scale_model.load_state_dict({name: value for name, value in state.items()}, strict=True)
+    return {
+        "schema": N4_SCALE_CHECKPOINT_SCHEMA,
+        "parameterization": N4_SCALE_PARAMETERIZATION,
+        "guard_contract": N4_GUARD_CONTRACT,
+        "fit_scope": fit_scope,
+        "training_history_ids": list(histories),
+        "v_floor": floor,
+        "v_cap": cap,
+        "state_dict_sha256": observed_state_sha,
+        "initialization": provenance,
+    }
+
 
 def validate_n4_capacity(
     fold_results: Sequence[Mapping[str, object]],
@@ -629,9 +1250,29 @@ def validate_n4_capacity(
             "per_epoch_nll", "final_train_nll", "heldout_nll",
             "heldout_spearman", "saturation_train", "saturation_heldout",
             "cap_gate_pass_train", "bounds", "scale_parameters",
+            "scale_parameterization", "guard_contract", "init_anchor",
+            "init_interiority", "first_step_gradients",
         ):
             if key not in fold:
                 reasons.append(f"fold {index} is missing {key}")
+        if fold.get("scale_parameterization") != N4_SCALE_PARAMETERIZATION:
+            reasons.append(f"fold {index} scale parameterization is not the frozen v3 identity")
+        if fold.get("guard_contract") != N4_GUARD_CONTRACT:
+            reasons.append(f"fold {index} guard contract is not the frozen v3 identity")
+        try:
+            provenance = _n4_validate_initialization(
+                {
+                    "init_anchor": fold.get("init_anchor"),
+                    "init_interiority": fold.get("init_interiority"),
+                    "first_step_gradients": fold.get("first_step_gradients"),
+                }
+            )
+        except ValueError as exc:
+            reasons.append(f"fold {index} initialization/guard provenance is invalid: {exc}")
+        else:
+            entry["init_frac_at_floor"] = provenance["init_interiority"]["frac_at_floor"]
+            entry["init_frac_at_cap"] = provenance["init_interiority"]["frac_at_cap"]
+            entry["first_step_total_nonzero"] = provenance["first_step_gradients"]["total_nonzero"]
         n_scope = fold.get("record_count")
         steps = fold.get("optimizer_steps")
         per_epoch = fold.get("per_epoch_steps")
@@ -826,16 +1467,19 @@ def n4_cache_binding_digest(
     residual_records_sha256: str,
     fit_role_sha256: str,
     scale_state_sha256: str,
+    scale_parameterization: str,
     bounds: Mapping[str, float],
 ) -> str:
     """Bind the exact paired B0 checkpoint, Fit cache records, and scale state.
 
     Returns the SHA-256 of the canonical JSON binding record
     ``{"checkpoint_sha256", "residual_records_sha256", "fit_role_sha256",
-    "scale_state_sha256", "q05", "q95", "v_floor", "v_cap"}``. Any substituted
-    checkpoint, cache, role digest, scale state, or bound fails closed at the
+    "scale_state_sha256", "scale_parameterization", "q05", "q95", "v_floor",
+    "v_cap"}``. Any substituted checkpoint, cache, role digest, scale state,
+    bound, or a missing/unknown ``scale_parameterization`` fails closed at the
     consumer: :func:`verify_n4_cache_binding` recomputes this digest and
-    rejects mismatches. ``q95`` is the exact Fit residual 0.95 quantile name
+    rejects mismatches. Legacy v1 A03 digests carry no parameterization and are
+    not valid v3 bindings. ``q95`` is the exact Fit residual 0.95 quantile name
     used by :func:`n4_residual_bounds`; the ``q99`` spelling is rejected.
     """
     for name, value in (
@@ -850,6 +1494,8 @@ def n4_cache_binding_digest(
             int(value, 16)
         except ValueError as exc:
             raise ValueError(f"N4 {name} must be a lowercase SHA-256 digest") from exc
+    if not isinstance(scale_parameterization, str) or scale_parameterization != N4_SCALE_PARAMETERIZATION:
+        raise ValueError("N4 cache binding requires the frozen v3 scale parameterization identity")
     if not isinstance(bounds, Mapping) or set(bounds) != {"q05", "q95", "v_floor", "v_cap"}:
         raise ValueError("N4 cache binding requires the exact q05/q95/v_floor/v_cap bound set")
     for name in ("q05", "q95", "v_floor", "v_cap"):
@@ -862,6 +1508,7 @@ def n4_cache_binding_digest(
         "q05": float(bounds["q05"]),
         "q95": float(bounds["q95"]),
         "residual_records_sha256": residual_records_sha256,
+        "scale_parameterization": scale_parameterization,
         "scale_state_sha256": scale_state_sha256,
         "v_cap": float(bounds["v_cap"]),
         "v_floor": float(bounds["v_floor"]),
@@ -878,6 +1525,7 @@ def verify_n4_cache_binding(
     residual_records_sha256: str,
     fit_role_sha256: str,
     scale_state_sha256: str,
+    scale_parameterization: str,
     bounds: Mapping[str, float],
 ) -> str:
     """Recompute the cache binding digest and fail closed on any substitution."""
@@ -886,6 +1534,7 @@ def verify_n4_cache_binding(
         residual_records_sha256=residual_records_sha256,
         fit_role_sha256=fit_role_sha256,
         scale_state_sha256=scale_state_sha256,
+        scale_parameterization=scale_parameterization,
         bounds=bounds,
     )
     if not isinstance(expected_digest, str) or observed != expected_digest:

@@ -4,12 +4,23 @@ Binds the exact final epoch-100 B0-FULL online/EMA checkpoints and prediction
 caches for seeds 181801/181802/181803 (Task23 A04), strict-restores each
 checkpoint (experiment scope), rebuilds N4 scale records from the bound cache
 latents (context-only inputs, detached, no re-encoding, no re-masking), and
-runs the frozen Task14 N4 recipe: 3 Fit-history cross-fold scale fits per seed
+runs the prospective v3 N4 recipe: 3 Fit-history cross-fold scale fits per seed
 (50 epochs, batch<=512, frozen sprint18-n4-scale-order-v2 CPU permutations,
 AdamW 1e-3/1e-4, clip 1.0, Fit-only linear q05/q95 bounds, cap-only 20% gate,
-zero representation updates). Proves scale-checkpoint strict restore plus the
-public forward/output parity through the committed ``n4_score_files`` consumer
-triple per fold.
+zero representation updates), with the accepted Fit-mean-anchored output-bias
+initialization (``fit-mean-anchored-bias-v1``) and fail-closed startup guards
+(``n4-v3-guards-v1``). Proves v3 scale-checkpoint envelope save/strict restore
+plus the public forward/output parity through the committed ``n4_score_files``
+consumer triple per fold.
+
+The operative N4 mechanism specification is the prospective v3 amendment
+(``experiments/sprint18-context-residual-normalization-spec-v3.md``); the
+v1/v2 files remain immutable historical records. The Task14 coefficient lock
+still binds the v2 base digest and is not edited here: a normative v3 run
+requires a new lock version binding the v3 digest, which this runner records
+explicitly instead of silently reinterpreting the v2 lock. The nine A03 scale
+checkpoints are reclassified ``rejected_failed_dead_zone_v1`` and are never
+loaded by this path.
 
 Product-device contract: ``n4_score_files`` co-locates the collated batch onto
 the deployed model device (CPU callers observe a no-op). This runner
@@ -75,8 +86,7 @@ sys.path.insert(0, str(REPO_ROOT / "src"))
 import numpy as np
 import torch
 
-ATTEMPT = "S18-T13B-C06"
-AGENT = "S18T13BC06"
+ATTEMPT = "S18-T13B-V3"
 ARM_ID = "N4-CRN"
 MODEL_SEEDS = (181801, 181802, 181803)
 #: Per-side file-mean containment allowance for the public-consumer bound
@@ -92,7 +102,10 @@ CONSUMER_FILES_PER_FOLD = 2
 
 EXPECTED_CONTRACT = {
     "protocol_sha256": "e1dcd17914e920520ad0d8f50e185874b95414e6a4fe907903619daf145622d2",
-    "mechanism_N4-CRN": "4d1c8097c9cc27d3fbeb2e2a6e70a29a7bc63d7899646a9c712a315b39d9ffe3",
+    #: Operative prospective v3 N4 mechanism amendment.
+    "mechanism_N4-CRN": "e7fe42e41832ae283614ee6a76c0623ee567068dcc540a222f5b66a9d4262da2",
+    #: Immutable v2 base amendment retained for historical integrity + lock identity.
+    "mechanism_N4-CRN-v2-base": "4d1c8097c9cc27d3fbeb2e2a6e70a29a7bc63d7899646a9c712a315b39d9ffe3",
     "executable_binding_sha256": "383c62114ee6120d5fd19f866dfd585083d1d5899c9ffe91804761bd8a10a2d5",
     "fit_rows": {"S18I-ITER-0005-FIT-01": 1809, "S18I-ITER-0005-FIT-02": 1882, "S18I-ITER-0005-FIT-03": 1755},
     "checkpoints": {
@@ -106,6 +119,20 @@ EXPECTED_CONTRACT = {
         "181803": "1d4a2a74de36d8bf45a67e7ff795ce279e6aec08494d8ca27a1bca817db332a7",
     },
 }
+#: Frozen disposition of the failed A03 v1 (dead-zone) scale evidence. It is
+#: provenance only: those checkpoints/results are never loaded or consumed by
+#: this v3 path, and their bytes are never edited.
+LEGACY_A03_DISPOSITION = {
+    "label": "rejected_failed_dead_zone_v1",
+    "runs_root": "/home/trietlm/s18-t13b-a03-runs/",
+    "consumed_by_v3": False,
+    "reason": (
+        "initialized pre-clamp log-variance above the hard cap produced exactly zero loss "
+        "gradients; AdamW decoupled decay was the only parameter motion on all nine folds"
+    ),
+}
+#: The v3 amendment's operative mechanism spec path (verified by digest).
+MECHANISM_SPEC_PATH = "experiments/sprint18-context-residual-normalization-spec-v3.md"
 #: Authorized-execution binding supplied per run (never frozen in source):
 #: the external binding document (``--binding``) plus the trusted CLI pins
 #: (``--source-commit`` + ``--driver-sha256``) identify the reviewed commit
@@ -196,8 +223,13 @@ def _check_contract_files(worktree: Path) -> None:
     observed = verify_contract_files(worktree)
     if observed.get("experiments/sprint18-full-training-protocol-v2.md") != EXPECTED_CONTRACT["protocol_sha256"]:
         raise _fail("protocol v2 digest changed")
-    if observed.get("experiments/sprint18-context-residual-normalization-spec-v2.md") != EXPECTED_CONTRACT["mechanism_N4-CRN"]:
-        raise _fail("N4 v2 digest changed")
+    if observed.get("experiments/sprint18-context-residual-normalization-spec-v2.md") != EXPECTED_CONTRACT["mechanism_N4-CRN-v2-base"]:
+        raise _fail("historical N4 v2 base digest changed")
+    v3_path = worktree / MECHANISM_SPEC_PATH
+    if not v3_path.is_file():
+        raise _fail("prospective N4 v3 mechanism amendment is missing")
+    if _sha_file(v3_path) != EXPECTED_CONTRACT["mechanism_N4-CRN"]:
+        raise _fail("prospective N4 v3 mechanism amendment digest changed")
 
 
 def consumer_scale_within_bounds(scale: float, v_floor: float, v_cap: float) -> bool:
@@ -303,6 +335,8 @@ def run_preflight(args, bdoc: dict) -> dict:
     n4lock = lock["arms"]["N4-CRN"]
     if n4lock.get("status") != "locked_executable":
         raise _fail("Task14 N4-CRN lock status changed")
+    if n4lock.get("mechanism_spec_sha256") != EXPECTED_CONTRACT["mechanism_N4-CRN-v2-base"]:
+        raise _fail("historical Task14 N4 v2 mechanism binding changed")
     binding = load_task6_binding(args.handoff)
     if binding.executable_binding_sha256 != EXPECTED_CONTRACT["executable_binding_sha256"]:
         raise _fail("executable binding digest changed")
@@ -320,7 +354,12 @@ def run_preflight(args, bdoc: dict) -> dict:
             raise _fail(f"prediction cache missing for seed {seed}")
         if _sha_file(cache_path) != EXPECTED_CONTRACT["cache_files"][str(seed)]:
             raise _fail(f"prediction cache hash mismatch for seed {seed}")
-    from representation.crn import n4_canonical_fold_splits
+    from representation.crn import (
+        N4_GUARD_CONTRACT,
+        N4_SCALE_CHECKPOINT_SCHEMA,
+        N4_SCALE_PARAMETERIZATION,
+        n4_canonical_fold_splits,
+    )
 
     splits = n4_canonical_fold_splits(binding)
     if len(splits) != 3:
@@ -343,7 +382,7 @@ def run_preflight(args, bdoc: dict) -> dict:
                 raise _fail("N4 sampler smoke permutation malformed")
             sampler_ok += 1
     preflight = {
-        "schema": "s18-task13b-c01-preflight-v1",
+        "schema": "s18-task13b-c01-preflight-v3",
         "task_id": "S18-T13B",
         "attempt_id": ATTEMPT,
         "source_commit": checks["head"],
@@ -353,6 +392,22 @@ def run_preflight(args, bdoc: dict) -> dict:
         "executable_binding_sha256": binding.executable_binding_sha256,
         "protocol_sha256": EXPECTED_CONTRACT["protocol_sha256"],
         "mechanism_spec_sha256": {"N4-CRN": EXPECTED_CONTRACT["mechanism_N4-CRN"]},
+        "mechanism_spec_base_sha256": {"N4-CRN": EXPECTED_CONTRACT["mechanism_N4-CRN-v2-base"]},
+        "mechanism_spec_path": MECHANISM_SPEC_PATH,
+        "scale_parameterization": N4_SCALE_PARAMETERIZATION,
+        "guard_contract": N4_GUARD_CONTRACT,
+        "scale_checkpoint_schema": N4_SCALE_CHECKPOINT_SCHEMA,
+        "task14_lock_binding": {
+            "coefficient_lock_sha256": lock["coefficient_lock_sha256"],
+            "n4_mechanism_spec_sha256": n4lock.get("mechanism_spec_sha256"),
+            "status": n4lock.get("status"),
+            "lock_version_requirement": (
+                "a normative v3 run requires a new Task14 lock version binding the v3 "
+                "amendment digest; this runner records the lock's historical v2 mechanism "
+                "binding explicitly and never reinterprets it as v3"
+            ),
+        },
+        "legacy_a03_disposition": dict(LEGACY_A03_DISPOSITION),
         "fit_history_ids": fit_histories,
         "fit_eligible_rows": dict(EXPECTED_CONTRACT["fit_rows"]),
         "fit_healthy_rows": FIT_HEALTHY_ROWS,
@@ -370,14 +425,20 @@ def run_preflight(args, bdoc: dict) -> dict:
 def run_pilot(args, bdoc: dict) -> dict:
     from representation.config import V1Config
     from representation.crn import (
+        N4_GUARD_CONTRACT,
         N4_SCALE_BATCH_SIZE,
+        N4_SCALE_CHECKPOINT_SCHEMA,
         N4_SCALE_EPOCHS,
+        N4_SCALE_PARAMETERIZATION,
+        N4ScaleGuardError,
         fit_n4_scale_scope,
         init_n4_scale_model,
+        load_n4_scale_checkpoint,
         n4_canonical_fold_splits,
         n4_residual_bounds,
         n4_scale_nll,
         n4_score_files,
+        save_n4_scale_checkpoint,
         validate_n4_capacity,
     )
     from representation.model import V1RepresentationModel
@@ -527,12 +588,37 @@ def run_pilot(args, bdoc: dict) -> dict:
             if scale_before_nparams <= 0 or scale_before_nparams > 100_000:
                 raise _fail("scale capacity outside the frozen envelope")
             scope = f"fold:{heldout_id}"
-            result = fit_n4_scale_scope(
-                records=train_pool, training_history_ids=training_ids, scope=scope,
-                arm=arm, binding=binding, scale_model=scale,
-                v_floor=bounds["v_floor"], v_cap=bounds["v_cap"],
-                heldout_records=heldout_pool, device=device,
-            )
+            try:
+                result = fit_n4_scale_scope(
+                    records=train_pool, training_history_ids=training_ids, scope=scope,
+                    arm=arm, binding=binding, scale_model=scale,
+                    v_floor=bounds["v_floor"], v_cap=bounds["v_cap"],
+                    heldout_records=heldout_pool, device=device,
+                )
+            except N4ScaleGuardError as exc:
+                failure = {
+                    "schema": "s18-task13b-v3-guard-failure-v1",
+                    "task_id": "S18-T13B",
+                    "attempt_id": ATTEMPT,
+                    "model_seed": seed,
+                    "fold_index": fold_index,
+                    "scope": scope,
+                    "training_history_ids": list(training_ids),
+                    "heldout_history_id": heldout_id,
+                    "guard_id": exc.guard_id,
+                    "guard_contract": N4_GUARD_CONTRACT,
+                    "message": str(exc),
+                    "diagnostics": exc.diagnostics,
+                    "optimizer_steps_applied": 0,
+                    "checkpoint_written": False,
+                    "run_status": "FAILED",
+                }
+                (out_dir / "guard_failure.json").write_text(
+                    json.dumps(failure, indent=2, sort_keys=True), encoding="utf-8"
+                )
+                emit({"event": "scale_guard_failure", "seed": seed,
+                      "fold": fold_index, "scope": scope, "guard_id": exc.guard_id})
+                raise
             if result["record_count"] != len(train_pool) or result["heldout_count"] != len(heldout_pool):
                 raise _fail("fold record counts differ from the cached pools")
             expected_steps = N4_SCALE_EPOCHS * math.ceil(len(train_pool) / N4_SCALE_BATCH_SIZE)
@@ -542,11 +628,33 @@ def run_pilot(args, bdoc: dict) -> dict:
                 raise _fail("fold NLL is nonfinite")
             ckpt_name = f"seed{seed}-fold{fold_index}-{heldout_id}.pt"
             ckpt_path = out_dir / "checkpoints" / ckpt_name
-            torch.save(scale.state_dict(), ckpt_path)
+            checkpoint_meta = save_n4_scale_checkpoint(
+                ckpt_path, scale, fit_scope=scope,
+                training_history_ids=training_ids,
+                v_floor=float(bounds["v_floor"]), v_cap=float(bounds["v_cap"]),
+                initialization={
+                    "init_anchor": dict(result["init_anchor"]),
+                    "init_interiority": dict(result["init_interiority"]),
+                    "first_step_gradients": dict(result["first_step_gradients"]),
+                },
+            )
             ckpt_sha = _sha_file(ckpt_path)
-            restored_scale = init_n4_scale_model(128, seed + 999999)
-            restored_scale.load_state_dict(torch.load(ckpt_path, map_location="cpu"), strict=True)
             live_sha = state_sha256(scale.state_dict())
+            if live_sha != checkpoint_meta["state_dict_sha256"]:
+                raise _fail("v3 scale checkpoint state digest differs from the trained scale")
+            restored_scale = init_n4_scale_model(128, seed + 999999)
+            restored_meta = load_n4_scale_checkpoint(
+                ckpt_path, restored_scale, expected_fit_scope=scope,
+                expected_training_history_ids=training_ids,
+                expected_bounds={
+                    "v_floor": float(bounds["v_floor"]),
+                    "v_cap": float(bounds["v_cap"]),
+                },
+            )
+            if restored_meta["state_dict_sha256"] != live_sha:
+                raise _fail("strict v3 restore digest differs from the trained scale")
+            if restored_meta["parameterization"] != N4_SCALE_PARAMETERIZATION:
+                raise _fail("strict v3 restore parameterization differs from the frozen identity")
             restored_sha = state_sha256(restored_scale.state_dict())
             if live_sha != restored_sha:
                 raise _fail("restored scale bytes differ from the trained scale")
@@ -591,12 +699,17 @@ def run_pilot(args, bdoc: dict) -> dict:
                 "scores": {k: dict(v) for k, v in consumer_scores.items()},
             }
             run_record = {
-                "schema": "s18-task13b-c01-fold-run-v1",
+                "schema": "s18-task13b-c01-fold-run-v3",
                 "model_seed": seed,
                 "fold_index": fold_index,
                 "scope": scope,
                 "training_history_ids": list(training_ids),
                 "heldout_history_id": heldout_id,
+                "scale_parameterization": result["scale_parameterization"],
+                "guard_contract": result["guard_contract"],
+                "init_anchor": dict(result["init_anchor"]),
+                "init_interiority": dict(result["init_interiority"]),
+                "first_step_gradients": dict(result["first_step_gradients"]),
                 "record_count": result["record_count"],
                 "heldout_count": result["heldout_count"],
                 "bounds": dict(result["bounds"]),
@@ -614,6 +727,8 @@ def run_pilot(args, bdoc: dict) -> dict:
                 "order_seed_rule": str(result["order_seed_rule"]),
                 "scale_parameters": int(result["scale_parameters"]),
                 "scale_state_sha256": live_sha,
+                "checkpoint_schema": checkpoint_meta["schema"],
+                "checkpoint_parameterization": checkpoint_meta["parameterization"],
                 "checkpoint_path": f"checkpoints/{ckpt_name}",
                 "checkpoint_sha256": ckpt_sha,
                 "restored_forward_max_abs_diff": fwd_diff,
@@ -622,7 +737,12 @@ def run_pilot(args, bdoc: dict) -> dict:
             (out_dir / "runs" / f"seed{seed}-fold{fold_index}.json").write_text(
                 json.dumps(run_record, indent=2, sort_keys=True), encoding="utf-8"
             )
-            fold_checkpoints.append({"seed": seed, "fold": fold_index, "checkpoint_sha256": ckpt_sha})
+            fold_checkpoints.append({
+                "seed": seed, "fold": fold_index, "checkpoint_sha256": ckpt_sha,
+                "schema": checkpoint_meta["schema"],
+                "parameterization": checkpoint_meta["parameterization"],
+                "state_dict_sha256": checkpoint_meta["state_dict_sha256"],
+            })
             seed_fold_results.append(result)
             seed_counts.append(len(train_pool))
             all_fold_results.append(run_record)
@@ -670,7 +790,7 @@ def run_pilot(args, bdoc: dict) -> dict:
         except Exception as exc:  # noqa: BLE001 - record, never fail the run
             cuda_info["mem_probe_error"] = str(exc)
     results = {
-        "schema": "s18-task13b-c01-results-v1",
+        "schema": "s18-task13b-c01-results-v3",
         "task_id": "S18-T13B",
         "attempt_id": ATTEMPT,
         "source_commit": checks["head"],
@@ -680,6 +800,13 @@ def run_pilot(args, bdoc: dict) -> dict:
         "executable_binding_sha256": binding.executable_binding_sha256,
         "protocol_sha256": EXPECTED_CONTRACT["protocol_sha256"],
         "mechanism_spec_sha256": {"N4-CRN": EXPECTED_CONTRACT["mechanism_N4-CRN"]},
+        "mechanism_spec_base_sha256": {"N4-CRN": EXPECTED_CONTRACT["mechanism_N4-CRN-v2-base"]},
+        "mechanism_spec_path": MECHANISM_SPEC_PATH,
+        "scale_parameterization": N4_SCALE_PARAMETERIZATION,
+        "guard_contract": N4_GUARD_CONTRACT,
+        "scale_checkpoint_schema": N4_SCALE_CHECKPOINT_SCHEMA,
+        "task14_lock_binding": dict(preflight["task14_lock_binding"]),
+        "legacy_a03_disposition": dict(LEGACY_A03_DISPOSITION),
         "model_seeds": seeds,
         "fit_history_ids": fit_histories,
         "support": support_proof,
@@ -696,12 +823,18 @@ def run_pilot(args, bdoc: dict) -> dict:
     }
     (out_dir / "results.json").write_text(json.dumps(results, indent=2, sort_keys=True), encoding="utf-8")
     capacity = {
-        "schema": "s18-task13-n4-capacity-v1",
+        "schema": "s18-task13-n4-capacity-v3",
         "task_id": "S18-T13",
         "attempt_id": ATTEMPT,
         "source_commit": checks["head"],
         "driver_sha256": checks["driver_sha256"],
         "executable_binding_sha256": binding.executable_binding_sha256,
+        "mechanism_spec_sha256": {"N4-CRN": EXPECTED_CONTRACT["mechanism_N4-CRN"]},
+        "mechanism_spec_base_sha256": {"N4-CRN": EXPECTED_CONTRACT["mechanism_N4-CRN-v2-base"]},
+        "scale_parameterization": N4_SCALE_PARAMETERIZATION,
+        "guard_contract": N4_GUARD_CONTRACT,
+        "scale_checkpoint_schema": N4_SCALE_CHECKPOINT_SCHEMA,
+        "legacy_a03_disposition": dict(LEGACY_A03_DISPOSITION),
         "model_seeds": seeds,
         "fit_history_ids": fit_histories,
         "folds": [
@@ -711,6 +844,11 @@ def run_pilot(args, bdoc: dict) -> dict:
                 "scope": r["scope"],
                 "training_history_ids": r["training_history_ids"],
                 "heldout_history_id": r["heldout_history_id"],
+                "scale_parameterization": r["scale_parameterization"],
+                "guard_contract": r["guard_contract"],
+                "init_anchor": dict(r["init_anchor"]),
+                "init_interiority": dict(r["init_interiority"]),
+                "first_step_gradients": dict(r["first_step_gradients"]),
                 "record_count": r["record_count"],
                 "heldout_count": r["heldout_count"],
                 "bounds": r["bounds"],
@@ -724,6 +862,7 @@ def run_pilot(args, bdoc: dict) -> dict:
                 "scale_parameters": r["scale_parameters"],
                 "scale_state_sha256": r["scale_state_sha256"],
                 "checkpoint_sha256": r["checkpoint_sha256"],
+                "checkpoint_schema": r["checkpoint_schema"],
             }
             for r in all_fold_results
         ],

@@ -441,9 +441,33 @@ def _validate_n4_arm_state(
         "paired_b0_model_state_sha256", "paired_b0_ema_state_sha256",
         "scale_model_state", "scale_model_state_sha256", "diagnostic_folds",
         "final_fit_record_count", "final_scale_steps", "scale_bounds",
+        "scale_parameterization", "guard_contract", "scale_initialization",
     }
     if not isinstance(state, Mapping) or set(state) != expected_keys:
-        raise ValueError("N4 checkpoint must bind its paired B0 state, scale model, folds, and Fit bounds")
+        legacy_keys = expected_keys - {
+            "scale_parameterization", "guard_contract", "scale_initialization"
+        }
+        if isinstance(state, Mapping) and set(state) == legacy_keys:
+            raise ValueError(
+                "legacy v1 N4 dead-zone scale checkpoint is reclassified "
+                "rejected_failed_dead_zone_v1 and refused by the v3 restore path"
+            )
+        raise ValueError(
+            "N4 checkpoint must bind its paired B0 state, scale model, folds, "
+            "Fit bounds, and v3 scale parameterization/guard provenance"
+        )
+    from representation.crn import (
+        N4_GUARD_CONTRACT,
+        N4_SCALE_PARAMETERIZATION,
+        _n4_validate_initialization,
+    )
+
+    if state["scale_parameterization"] != N4_SCALE_PARAMETERIZATION:
+        raise ValueError(
+            "N4 checkpoint scale parameterization is not the frozen v3 identity"
+        )
+    if state["guard_contract"] != N4_GUARD_CONTRACT:
+        raise ValueError("N4 checkpoint guard contract is not the frozen v3 identity")
     if not _is_hash(state["paired_b0_checkpoint_sha256"]) or state["paired_b0_checkpoint_sha256"] != paired_b0_checkpoint_sha256:
         raise ValueError("N4 checkpoint must bind the same exact paired B0 checkpoint at both scopes")
     paired_step = 100 * math.ceil(FIT_HEALTHY_ROWS / 128)
@@ -506,6 +530,19 @@ def _validate_n4_arm_state(
         sorted(item.manifest_sha256 for item in binding.role_histories("FIT")))
     if bounds["fit_role_sha256"] != fit_role_digest or not _is_hash(bounds["residual_records_sha256"]):
         raise ValueError("N4 residual bounds are not bound to all and only certified Fit histories")
+    try:
+        initialization = _n4_validate_initialization(
+            cast(Mapping[str, object], state["scale_initialization"]),
+            bounds=(float(floor), float(cap)),
+        )
+    except ValueError as exc:
+        raise ValueError(
+            f"N4 checkpoint scale initialization/guard provenance is invalid: {exc}"
+        ) from exc
+    if initialization["init_anchor"]["record_count"] != final_records:
+        raise ValueError(
+            "N4 checkpoint scale initialization record count differs from the final Fit scope"
+        )
     return cast(Mapping[str, object], state)
 
 
