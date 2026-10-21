@@ -2401,6 +2401,26 @@ def _assert_restored_checkpoint(
 
 
 
+def _arm_scoring_masking_policy(
+    arm: Sprint18ArmConfig,
+) -> Callable[..., tuple[np.ndarray, dict[str, int]]] | None:
+    """Return the arm's frozen collation mask policy for bank/scoring.
+
+    The K legacy stack declares C5-A channel-time block masking as part of its
+    exact mechanism: Sprint 17 applied ``c5a_block_policy`` when fitting the
+    reference bank and when scoring Calibration/Development rows
+    (``experiments/sprint17_task12_c5.py``, ``experiments/sprint17_task20_k.py``).
+    B0 and the N mechanisms keep the frozen B0 composition (``None``). The
+    policy is derived from the arm identity instead of caller input so a K
+    bank/scoring request cannot silently reuse B0 masks.
+    """
+    if arm.arm_id in ("K3-FULL", "K7-FULL", "K9-FULL"):
+        from representation.sprint18_k_dispatch import masking_policy_for_arm
+
+        return masking_policy_for_arm(arm.arm_id)
+    return None
+
+
 @torch.no_grad()
 def fit_fit_reference_bank(
     binding: Task6Binding,
@@ -2412,7 +2432,12 @@ def fit_fit_reference_bank(
     checkpoint: RestoredSprint18Checkpoint,
     scope: Literal["experiment", "task6_smoke_only"],
 ) -> ProvenancedBank:
-    """Fit an arm/seed bank from eligible healthy Fit embeddings only."""
+    """Fit an arm/seed bank from eligible healthy Fit embeddings only.
+
+    Collation uses the arm's frozen masking policy (C5-A block masks for the K
+    legacy stack; the B0 composition otherwise) so the bank matches the arm's
+    exact Sprint 17 scoring semantics.
+    """
     validate_arm_config(arm, require_locked=(scope == "experiment"))
     if arm.arm_id not in ("B0-FULL", "K3-FULL", "K7-FULL", "K9-FULL"):
         raise ValueError("only B0/K legacy-stack inference is implemented in the Sprint18 harness")
@@ -2437,12 +2462,14 @@ def fit_fit_reference_bank(
     if (model_config.n_robots, model_config.n_programs) != (9, 8):
         raise ValueError("bank model conditioning cardinalities differ from the certified roster")
     model.eval()
+    masking_policy = _arm_scoring_masking_policy(arm)
     probe_inference = RepresentationInference(model, NormalReferenceBank(k=model_config.knn_k), patchifier)
     embeddings: list[torch.Tensor] = []
     for row in rows:
         seed = deterministic_mask_seed(arm.model_seed, row.actual_history_id, row.file_id)
         batch = collate_variable_files(
-            [row.sample], patchifier, masking_config=model_config, masking_seed=seed
+            [row.sample], patchifier, masking_config=model_config, masking_seed=seed,
+            masking_policy=masking_policy,
         )
         device_batch = cast(dict[str, object], probe_inference.co_locate_batch(cast(dict[str, object], _encoder_batch(batch))))
         output = model(device_batch)
@@ -2514,7 +2541,12 @@ def score_certified_rows(
     confirmation_review_sha256: str | None = None,
     main_confirmation_release: bool = False,
 ) -> HarnessScores:
-    """Score every declared row through the public inference pattern without branch fusion."""
+    """Score every declared row through the public inference pattern without branch fusion.
+
+    Collation uses the arm's frozen masking policy (C5-A block masks for the K
+    legacy stack; the B0 composition otherwise), matching the bank that was
+    fitted for the same arm.
+    """
     validate_arm_config(arm, require_locked=(scope == "experiment"))
     if arm.arm_id not in ("B0-FULL", "K3-FULL", "K7-FULL", "K9-FULL"):
         raise ValueError("only B0/K legacy-stack inference is implemented in the Sprint18 harness")
@@ -2578,6 +2610,7 @@ def score_certified_rows(
     if (model_config.n_robots, model_config.n_programs, model_config.n_channels, model_config.patch_size, model_config.stride) != (9, 8, 6, 32, 16):
         raise ValueError("inference model config is incompatible with certified DATA conditioning/geometry")
     model.eval()
+    masking_policy = _arm_scoring_masking_policy(arm)
     inference = RepresentationInference(
         model,
         provenanced_bank.bank,
@@ -2589,7 +2622,8 @@ def score_certified_rows(
     for row in rows:
         seed = deterministic_mask_seed(arm.model_seed, actual_history_id, row.file_id)
         batch = collate_variable_files(
-            [row.sample], patchifier, masking_config=model_config, masking_seed=seed
+            [row.sample], patchifier, masking_config=model_config, masking_seed=seed,
+            masking_policy=masking_policy,
         )
         clean_batch = cast(dict[str, object], inference.co_locate_batch(cast(dict[str, object], _encoder_batch(batch))))
         scored = inference.score_batch(clean_batch)  # type: ignore[arg-type]

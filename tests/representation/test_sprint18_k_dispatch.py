@@ -449,6 +449,46 @@ def test_harness_bank_scoring_dispatch_serves_k_arms(tmp_path) -> None:
         calibration = fit_calibration_q95(binding, scored, cal_rows, scope="task6_smoke_only")
         assert math.isfinite(calibration.S_pred.threshold)
         assert math.isfinite(calibration.S_pop.threshold)
+        # Exact-mechanism behavior: the arm bank embeddings and Calibration
+        # branch scores equal a direct public-inference run under the arm's
+        # frozen C5-A policy, and the bank differs from the B0 composition.
+        from representation.inference import RepresentationInference
+        from representation.sprint18_harness import deterministic_mask_seed
+
+        policy = masking_policy_for_arm(arm_id)
+        model_cfg = restored_model.config
+        inference = RepresentationInference(
+            restored_model, provenanced.bank, patchifier, masking_config=model_cfg)
+
+        def _clean(batch):
+            return {
+                key: value for key, value in batch.items()
+                if key not in ("file_labels", "anomaly_meta", "anomaly_masks", "file_samples")
+            }
+
+        def _policy_embeddings(policy_arg):
+            vectors = []
+            for row in fit_rows:
+                mask_seed = deterministic_mask_seed(
+                    arm.model_seed, row.actual_history_id, row.file_id)
+                batch = collate_variable_files(
+                    [row.sample], patchifier, masking_config=model_cfg,
+                    masking_seed=mask_seed, masking_policy=policy_arg)
+                with torch.no_grad():
+                    vectors.append(restored_model(_clean(batch))["file_embedding"].detach().cpu())
+            return torch.cat(vectors, dim=0)
+
+        assert torch.equal(provenanced.bank.embeddings, _policy_embeddings(policy))
+        assert not torch.equal(provenanced.bank.embeddings, _policy_embeddings(None))
+        for row in cal_rows:
+            mask_seed = deterministic_mask_seed(
+                arm.model_seed, row.actual_history_id, row.file_id)
+            batch = collate_variable_files(
+                [row.sample], patchifier, masking_config=model_cfg,
+                masking_seed=mask_seed, masking_policy=policy)
+            direct = inference.score_batch(_clean(batch))
+            assert float(direct["S_pred"][0].item()) == scored.scores["S_pred"][row.file_id]
+            assert float(direct["S_pop"][0].item()) == scored.scores["S_pop"][row.file_id]
         served[arm_id] = {"bank_sha256": provenanced.provenance.bank_sha256,
                           "checkpoint_sha256": digest}
     # Mechanism arms stay refused through the same public entry points: K/N
@@ -476,3 +516,39 @@ def test_k_build_config_matches_task14_lock() -> None:
                                        coefficient_lock_sha256=LOCK)
         assert arm.lambda_info_max == 0.05
         assert arm.alpha is None and arm.beta is None and arm.lambda_hcc_max is None
+
+
+def test_k3_runner_training_batches_use_frozen_c5a_policy(tmp_path) -> None:
+    import sprint18_task24_k3_runner as runner
+
+    binding, histories = _tiny_certified_binding(tmp_path)
+    fit_rows = _tiny_certified_fit_rows(binding, histories)
+    fit_ids = sorted(row.file_id for row in fit_rows)
+    sample_by_id = {row.file_id: row.sample for row in fit_rows}
+    fit_history_ids = [
+        item.history.actual_history_id
+        for item in histories.values()
+        if item.history.assigned_role == "FIT"
+    ]
+    cfg = build_k_config("K3-FULL", SEED, d_model=16)
+    patchifier = Patchifier(
+        PatchConfig(patch_size=cfg.patch_size, stride=cfg.stride, pad_end=True))
+    arm = make_sprint18_arm_config("K3-FULL", SEED, dict(COEFFS), selection_state="locked",
+                                   coefficient_lock_sha256=LOCK)
+    order, batches = runner._build_epoch_batches(
+        binding=binding, arm=arm, epoch=1, config=cfg, patchifier=patchifier,
+        fit_ids=fit_ids, fit_sample_by_id=sample_by_id, fit_history_ids=fit_history_ids,
+    )
+    assert sorted(order) == fit_ids
+    assert len(batches) == math.ceil(len(fit_ids) / BATCH_SIZE) == 1
+    policy = masking_policy_for_arm("K3-FULL")
+    expected = collate_variable_files(
+        [sample_by_id[file_id] for file_id in order], patchifier,
+        masking_config=cfg, masking_seed=1, masking_policy=policy,
+    )
+    default = collate_variable_files(
+        [sample_by_id[file_id] for file_id in order], patchifier,
+        masking_config=cfg, masking_seed=1,
+    )
+    assert torch.equal(batches[0]["mask"], expected["mask"])
+    assert not torch.equal(batches[0]["mask"], default["mask"])
