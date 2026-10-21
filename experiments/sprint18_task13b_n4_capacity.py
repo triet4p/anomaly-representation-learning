@@ -21,7 +21,11 @@ the versioned prospective Task14 lock
 amendment digest, the reviewed model-implementation commit, the required
 runner digest, the final-B0/cache identities and the three N4-CRN seed
 configs. The historical v1 lock is preserved byte-identically and continues
-to bind every other arm; this runner never edits or reinterprets it. The nine
+to bind every other arm; this runner never edits or reinterprets it. In
+particular the three B0-FULL strict restores bind the v1 coefficient-lock
+digest (their checkpoints' producing lock) and are verified against the v1
+locked arm configurations; only the N4-CRN arms bind the prospective v3
+digest. The nine
 A03 scale checkpoints are reclassified ``rejected_failed_dead_zone_v1`` and
 are never loaded by this path.
 
@@ -167,6 +171,16 @@ LEGACY_TASK14_COEFFICIENT_LOCK_SHA256 = (
 #: N4-CRN declares no representation-loss coefficients.
 TASK14_LOCK_COEFFICIENTS = {
     "lambda_info_max": None,
+    "lambda_hcc_max": None,
+    "alpha": None,
+    "beta": None,
+}
+#: Historical B0-FULL coefficient selection. The final epoch-100 B0
+#: checkpoints were produced and locked under the v1 lock; the v3 lock
+#: supersedes that lock for N4-CRN only, so the B0 restore arm keeps the
+#: historical selection and must bind the v1 coefficient-lock digest.
+B0_FULL_COEFFICIENTS = {
+    "lambda_info_max": 0.05,
     "lambda_hcc_max": None,
     "alpha": None,
     "beta": None,
@@ -543,6 +557,63 @@ def validate_task14_v3_lock(
     }
 
 
+def load_legacy_b0_lock(worktree: Path) -> dict:
+    """Bind the B0-FULL restore arms to the preserved historical v1 lock.
+
+    All three final epoch-100 B0-FULL checkpoints were produced under the
+    historical v1 coefficient lock. The prospective v3 lock supersedes that
+    lock for N4-CRN only: reinstating the v3 core digest on the B0 restore
+    arm is a wire/binding error, not a weight change (the strict checkpoint
+    validator compares the whole closed arm configuration). The v1 bytes are
+    SHA-pinned and never edited; every B0 arm rebuilt from the v1 digest must
+    equal the v1 locked configuration and config digest exactly.
+    """
+    from representation.sprint18_harness import arm_config_sha256, make_sprint18_arm_config
+
+    path = Path(worktree) / TASK14_LEGACY_LOCK_PATH
+    if not path.is_file():
+        raise _fail(f"historical Task14 v1 lock is missing: {TASK14_LEGACY_LOCK_PATH}")
+    file_sha = _sha_file(path)
+    if file_sha != LEGACY_TASK14_LOCK_SHA256:
+        raise _fail("historical Task14 lock bytes changed")
+    legacy = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(legacy, dict) or legacy.get("schema") != "s18-task14-config-lock-v1":
+        raise _fail("historical Task14 lock schema changed")
+    digest = legacy.get("coefficient_lock_sha256")
+    if digest != LEGACY_TASK14_COEFFICIENT_LOCK_SHA256:
+        raise _fail("historical Task14 coefficient lock digest changed")
+    locked = legacy.get("locked_configs")
+    config_sha = legacy.get("config_sha256")
+    if not isinstance(locked, dict) or not isinstance(config_sha, dict):
+        raise _fail("historical Task14 locked configs are missing")
+    config_shas: dict[str, str] = {}
+    for seed in MODEL_SEEDS:
+        key = f"B0-FULL/seed-{seed}"
+        if key not in locked or key not in config_sha:
+            raise _fail(f"historical Task14 lock lacks the B0-FULL config for seed {seed}")
+        config = make_sprint18_arm_config(
+            "B0-FULL",
+            seed,
+            B0_FULL_COEFFICIENTS,
+            selection_state="locked",
+            coefficient_lock_sha256=digest,
+        )
+        if config.model_dump(mode="json") != locked[key]:
+            raise _fail(f"historical Task14 B0-FULL locked config differs for seed {seed}")
+        observed = arm_config_sha256(config)
+        if observed != config_sha[key]:
+            raise _fail(f"historical Task14 B0-FULL config digest differs for seed {seed}")
+        config_shas[str(seed)] = observed
+    return {
+        "path": TASK14_LEGACY_LOCK_PATH,
+        "schema": legacy["schema"],
+        "file_sha256": file_sha,
+        "coefficient_lock_sha256": digest,
+        "locked_config_keys": sorted(f"B0-FULL/seed-{seed}" for seed in MODEL_SEEDS),
+        "config_sha256": config_shas,
+    }
+
+
 def consumer_scale_within_bounds(scale: float, v_floor: float, v_cap: float) -> bool:
     """Return True when a file-mean consumer scale is within the frozen bounds.
 
@@ -644,6 +715,7 @@ def run_preflight(args, bdoc: dict) -> dict:
     lock_binding = validate_task14_v3_lock(
         lock, worktree=worktree, observed_runner_sha256=checks["driver_sha256"]
     )
+    legacy_b0 = load_legacy_b0_lock(worktree)
     binding = load_task6_binding(args.handoff)
     if binding.executable_binding_sha256 != EXPECTED_CONTRACT["executable_binding_sha256"]:
         raise _fail("executable binding digest changed")
@@ -705,6 +777,7 @@ def run_preflight(args, bdoc: dict) -> dict:
         "guard_contract": N4_GUARD_CONTRACT,
         "scale_checkpoint_schema": N4_SCALE_CHECKPOINT_SCHEMA,
         "task14_lock_binding": {**lock_binding, "status": "locked_executable"},
+        "b0_legacy_lock_binding": dict(legacy_b0),
         "legacy_a03_disposition": dict(LEGACY_A03_DISPOSITION),
         "fit_history_ids": fit_histories,
         "fit_eligible_rows": dict(EXPECTED_CONTRACT["fit_rows"]),
@@ -742,6 +815,7 @@ def run_pilot(args, bdoc: dict) -> dict:
     from representation.model import V1RepresentationModel
     from representation.sprint18_checkpoint import restore_sprint18_checkpoint, state_sha256
     from representation.sprint18_harness import (
+        arm_config_sha256,
         deterministic_mask_seed,
         load_certified_sample_subset,
         load_task6_binding,
@@ -759,10 +833,13 @@ def run_pilot(args, bdoc: dict) -> dict:
     checks = self_check(args, bdoc)
     _check_contract_files(worktree)
 
-    # The digest is read early (as before) so the real fit path does not depend
-    # on the preflight dict shape; run_preflight below fails closed first.
+    # The digests are read early (as before) so the real fit path does not
+    # depend on the preflight dict shape; run_preflight below fails closed
+    # first. N4-CRN binds the prospective v3 digest; the B0 restore arms keep
+    # the historical v1 digest their checkpoints were produced under.
     lock = load_task14_v3_lock(worktree)
     lock_digest = lock["coefficient_lock_sha256"]
+    legacy_b0 = load_legacy_b0_lock(worktree)
     binding = load_task6_binding(args.handoff)
     preflight = run_preflight(args, bdoc)
     (out_dir / "preflight.json").write_text(json.dumps(preflight, indent=2, sort_keys=True), encoding="utf-8")
@@ -824,10 +901,12 @@ def run_pilot(args, bdoc: dict) -> dict:
         )
         model = V1RepresentationModel(config, patchifier=patchifier)
         arm_b0 = make_sprint18_arm_config(
-            "B0-FULL", seed,
-            {"lambda_info_max": 0.05, "lambda_hcc_max": None, "alpha": None, "beta": None},
-            selection_state="locked", coefficient_lock_sha256=lock_digest,
+            "B0-FULL", seed, B0_FULL_COEFFICIENTS,
+            selection_state="locked",
+            coefficient_lock_sha256=legacy_b0["coefficient_lock_sha256"],
         )
+        if arm_config_sha256(arm_b0) != legacy_b0["config_sha256"][str(seed)]:
+            raise _fail(f"B0-FULL legacy lock binding differs for seed {seed}")
         ckpt_path = Path(bdoc["fixture"]["checkpoints"][str(seed)]["path"])
         optimizer = torch.optim.AdamW(model.parameters(), lr=1e-5, weight_decay=0.0)
         restored = restore_sprint18_checkpoint(
@@ -856,6 +935,8 @@ def run_pilot(args, bdoc: dict) -> dict:
             "cache_records": len(cache_records),
             "representation_epochs_completed": 100,
             "representation_optimizer_steps": 0,
+            "coefficient_lock_sha256": arm_b0.coefficient_lock_sha256,
+            "arm_config_sha256": arm_config_sha256(arm_b0),
         }
         arm = make_sprint18_arm_config(
             "N4-CRN", seed,
@@ -1106,6 +1187,7 @@ def run_pilot(args, bdoc: dict) -> dict:
         "guard_contract": N4_GUARD_CONTRACT,
         "scale_checkpoint_schema": N4_SCALE_CHECKPOINT_SCHEMA,
         "task14_lock_binding": dict(preflight["task14_lock_binding"]),
+        "b0_legacy_lock_binding": dict(preflight["b0_legacy_lock_binding"]),
         "legacy_a03_disposition": dict(LEGACY_A03_DISPOSITION),
         "model_seeds": seeds,
         "fit_history_ids": fit_histories,
@@ -1129,6 +1211,8 @@ def run_pilot(args, bdoc: dict) -> dict:
         "source_commit": checks["head"],
         "driver_sha256": checks["driver_sha256"],
         "executable_binding_sha256": binding.executable_binding_sha256,
+        "task14_lock_binding": dict(preflight["task14_lock_binding"]),
+        "b0_legacy_lock_binding": dict(preflight["b0_legacy_lock_binding"]),
         "mechanism_spec_sha256": {"N4-CRN": EXPECTED_CONTRACT["mechanism_N4-CRN"]},
         "mechanism_spec_base_sha256": {"N4-CRN": EXPECTED_CONTRACT["mechanism_N4-CRN-v2-base"]},
         "scale_parameterization": N4_SCALE_PARAMETERIZATION,
@@ -1280,7 +1364,7 @@ def main() -> int:
     _execution_binding(bdoc, args)  # authorize execution identity before any preflight/pilot work
     if args.mode == "preflight":
         preflight = run_preflight(args, bdoc)
-        print(json.dumps({"PREFLIGHT_OK": True, **{k: preflight[k] for k in ("source_commit", "driver_sha256", "fit_eligible_rows", "fit_healthy_rows", "n4_sampler_smoke_ok", "executable_binding_sha256", "task14_lock_binding")}}, sort_keys=True))
+        print(json.dumps({"PREFLIGHT_OK": True, **{k: preflight[k] for k in ("source_commit", "driver_sha256", "fit_eligible_rows", "fit_healthy_rows", "n4_sampler_smoke_ok", "executable_binding_sha256", "task14_lock_binding", "b0_legacy_lock_binding")}}, sort_keys=True))
         print(json.dumps({"PILOT_EXIT": "preflight_ok"}))
         return 0
     outcome = run_pilot(args, bdoc)

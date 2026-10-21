@@ -112,8 +112,8 @@ def test_lock_v3_digest_supersedes_and_preserved_history() -> None:
     assert lock["source_parent"] == "fe17b9ed9bb76d353ed45db9344198461d6f8e78"
     assert lock["target_ref"] == "refs/heads/master"
     assert lock["created_by"] == {
-        "task_id": "S18-T13B-LOCK-V3",
-        "attempt_id": "S18T13BLOCKV3C01",
+        "task_id": "S18-T13B-V3-B0-FIX",
+        "attempt_id": "S18T13BV3FIXA01",
         "role": "gold-task",
         "route": "full",
     }
@@ -404,3 +404,75 @@ def test_v3_lock_runner_refuses_stale_historical_lock() -> None:
             worktree=ROOT,
             observed_runner_sha256=_sha256(ROOT / "experiments" / "sprint18_task13b_n4_capacity.py"),
         )
+
+
+def test_v3_lock_b0_restore_arms_bind_historical_v1_lock() -> None:
+    """The B0-FULL strict restores keep the v1 boundary; N4 keeps v3.
+
+    All three final epoch-100 B0 checkpoints were produced under the v1 lock.
+    The prospective v3 lock supersedes it for N4-CRN only, so a B0 restore arm
+    built with the v3 core digest is a wrong-lock binding, not a weight change.
+    """
+    lock = _load_lock()
+    legacy = _load_legacy_lock()
+    record = runner.load_legacy_b0_lock(ROOT)
+    assert record["schema"] == "s18-task14-config-lock-v1"
+    assert record["file_sha256"] == LEGACY_LOCK_SHA256
+    assert record["coefficient_lock_sha256"] == LEGACY_COEFFICIENT_LOCK_SHA256
+    assert record["coefficient_lock_sha256"] != lock["coefficient_lock_sha256"]
+    b0_coefficients = {
+        "lambda_info_max": 0.05,
+        "lambda_hcc_max": None,
+        "alpha": None,
+        "beta": None,
+    }
+    for seed in MODEL_SEEDS:
+        key = f"B0-FULL/seed-{seed}"
+        arm = make_sprint18_arm_config(
+            "B0-FULL",
+            seed,
+            b0_coefficients,
+            selection_state="locked",
+            coefficient_lock_sha256=record["coefficient_lock_sha256"],
+        )
+        validate_arm_config(arm, require_locked=True)
+        assert arm.model_dump(mode="json") == legacy["locked_configs"][key]
+        assert arm_config_sha256(arm) == legacy["config_sha256"][key]
+        assert record["config_sha256"][str(seed)] == legacy["config_sha256"][key]
+        wrong = make_sprint18_arm_config(
+            "B0-FULL",
+            seed,
+            b0_coefficients,
+            selection_state="locked",
+            coefficient_lock_sha256=lock["coefficient_lock_sha256"],
+        )
+        differing = {
+            name
+            for name, value in arm.model_dump(mode="json").items()
+            if value != wrong.model_dump(mode="json")[name]
+        }
+        assert differing == {"coefficient_lock_sha256"}
+        assert wrong.model_dump(mode="json") != legacy["locked_configs"][key]
+        # The N4-CRN arm on the same seed keeps the prospective v3 digest.
+        n4_arm = make_sprint18_arm_config(
+            "N4-CRN",
+            seed,
+            COEFFICIENTS,
+            selection_state="locked",
+            coefficient_lock_sha256=lock["coefficient_lock_sha256"],
+        )
+        assert n4_arm.model_dump(mode="json") == lock["locked_configs"][f"N4-CRN/seed-{seed}"]
+
+
+def test_v3_lock_b0_restore_refuses_unpinned_legacy_lock(tmp_path: Path) -> None:
+    experiments = tmp_path / "experiments"
+    experiments.mkdir()
+    with pytest.raises(ValueError, match="historical Task14 v1 lock is missing"):
+        runner.load_legacy_b0_lock(tmp_path)
+    tampered = _load_legacy_lock()
+    tampered["coefficient_lock_sha256"] = _load_lock()["coefficient_lock_sha256"]
+    (experiments / LEGACY_LOCK_PATH.name).write_text(
+        json.dumps(tampered, sort_keys=True, separators=(",", ":")), encoding="utf-8"
+    )
+    with pytest.raises(ValueError, match="historical Task14 lock bytes changed"):
+        runner.load_legacy_b0_lock(tmp_path)
