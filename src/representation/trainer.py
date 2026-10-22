@@ -412,6 +412,7 @@ class RepresentationTrainer:
         self,
         output: Mapping[str, object],
         terms: Mapping[str, torch.Tensor | float | int],
+        coarse_terms: Mapping[str, torch.Tensor],
         coarse_loss: torch.Tensor,
         weighted_coarse_loss: torch.Tensor,
         effective_alpha: float,
@@ -427,6 +428,10 @@ class RepresentationTrainer:
         prediction_loss = terms["prediction_loss"]
         if not isinstance(prediction_loss, torch.Tensor) or not isinstance(weighted_coarse_loss, torch.Tensor):
             raise TypeError("objective losses must be tensors for gradient diagnostics")
+        group4_loss = coarse_terms.get("group4_loss")
+        group8_loss = coarse_terms.get("group8_loss")
+        if not isinstance(group4_loss, torch.Tensor) or not isinstance(group8_loss, torch.Tensor):
+            raise TypeError("per-scale coarse losses must be tensors for scale diagnostics")
         prediction_norm = self._gradient_norm(prediction_loss, parameters)
         coarse_norm = self._gradient_norm(weighted_coarse_loss, parameters)
         prediction_mask = output.get("prediction_mask")
@@ -459,6 +464,8 @@ class RepresentationTrainer:
             "effective_coefficient_L_pred": effective_prediction,
             "weighted_L_pred": self._scalar(terms["weighted_prediction_loss"]),
             "raw_L_coarse": raw_coarse,
+            "raw_L_group4": self._scalar(group4_loss),
+            "raw_L_group8": self._scalar(group8_loss),
             "effective_coefficient_L_coarse": effective_alpha,
             "weighted_L_coarse": float(weighted_coarse_loss.detach().cpu().item()),
             "raw_L_info": self._scalar(terms["contrastive_loss"]),
@@ -1072,18 +1079,17 @@ class RepresentationTrainer:
             else:
                 groups_4 = masks["groups_4"]  # type: ignore[assignment]
                 groups_8 = masks["groups_8"]  # type: ignore[assignment]
-            # Per-file groups address global patch indices; the batch shares one
-            # N dimension, so flatten per-file groups into batch-global lists with
-            # row offsets. Here rows share geometry only in tests; pilots pass
-            # per-file batches via collation. Use row 0 groups for the single-row
-            # path and require explicit per-row handling otherwise.
-            flat_4: list[tuple[int, ...]] = []
-            flat_8: list[tuple[int, ...]] = []
-            for row_groups in groups_4:
-                flat_4.extend(tuple(int(m) for m in g) for g in row_groups)
-            for row_groups in groups_8:
-                flat_8.extend(tuple(int(m) for m in g) for g in row_groups)
-            coarse_terms = self.model.msp_coarse_terms(context, target, valid, flat_4, flat_8)
+            # Per-file groups address that file's own patch positions. Keep the
+            # row structure: a group is only ever evaluated against its own
+            # file's latents, never fanned out across the batch.
+            valid_len = moved.get("valid_len")
+            if not isinstance(valid_len, torch.Tensor) or valid_len.ndim != 2:
+                raise TypeError("N2 coarse loss requires the collated valid_len geometry")
+            # N2 v2 valid_weight_t is the valid-timestep fraction of patch t.
+            patch_weights = valid_len.to(dtype=context.dtype) / float(self.model.config.patch_size)
+            coarse_terms = self.model.msp_coarse_terms(
+                context, target, valid, patch_weights, groups_4, groups_8
+            )
             coarse_loss = coarse_terms["coarse_loss"]
             if not isinstance(coarse_loss, torch.Tensor):
                 raise TypeError("coarse loss must be a tensor")
@@ -1099,6 +1105,7 @@ class RepresentationTrainer:
                 pending_record = self._msp_balance_record(
                     output,
                     terms,
+                    coarse_terms,
                     coarse_loss,
                     weighted_coarse_loss,
                     effective_alpha,
@@ -1107,8 +1114,8 @@ class RepresentationTrainer:
                     global_step=next_step,
                     learning_rate=learning_rate,
                     parameters=shared_parameters,
-                    groups_4_count=len(flat_4),
-                    groups_8_count=len(flat_8),
+                    groups_4_count=int(coarse_terms["group4_count"].item()),
+                    groups_8_count=int(coarse_terms["group8_count"].item()),
                 )
             joint_loss.backward()
             parameters = [parameter for parameter in self.model.parameters() if parameter.requires_grad]

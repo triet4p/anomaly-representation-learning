@@ -130,7 +130,11 @@ def test_msp_coarse_members_hidden_and_teacher_stop_gradient() -> None:
     context = torch.randn(batch_size, patches, width)
     target = torch.randn(batch_size, patches, width, requires_grad=True)
     valid = torch.ones(batch_size, patches, dtype=torch.bool)
-    out = model.msp_coarse_terms(context, target, valid, [(0, 1, 2, 3)], [(4, 5, 6, 7, 8, 9, 10, 11)])
+    weights = torch.ones(batch_size, patches)
+    out = model.msp_coarse_terms(
+        context, target, valid, weights,
+        [[(0, 1, 2, 3)], []], [[(4, 5, 6, 7, 8, 9, 10, 11)], []],
+    )
     assert math.isfinite(float(out["coarse_loss"].detach())) and float(out["coarse_loss"].detach()) > 0.0
     out["coarse_loss"].backward()
     assert target.grad is None
@@ -143,13 +147,49 @@ def test_msp_coarse_members_hidden_and_teacher_stop_gradient() -> None:
     shown, _, _, _ = model._encode_patches(raw, pad, valid, torch.zeros_like(union))
     assert (hidden - shown).abs().sum().item() > 0.0
     # Missing scale support is excluded from the denominator, never zero-filled.
-    only4 = model.msp_coarse_terms(context, target, valid, [(0, 1, 2, 3)], [])
+    only4 = model.msp_coarse_terms(context, target, valid, weights, [[(0, 1, 2, 3)], []], [[], []])
     assert only4["coarse_loss"].equal(only4["group4_loss"])
-    none = model.msp_coarse_terms(context, target, valid, [], [])
+    none = model.msp_coarse_terms(context, target, valid, weights, [[], []], [[], []])
     assert float(none["coarse_loss"]) == 0.0
     criterion = MultiscaleLatentPredictionCriterion()
-    grouped = criterion(context.detach(), target.detach(), valid, [(0, 1, 2, 3)], [])
+    grouped = criterion(context.detach(), target.detach(), valid, weights, [[(0, 1, 2, 3)], []], [[], []])
     assert math.isfinite(float(grouped["coarse_loss"]))
+
+
+def test_msp_coarse_groups_use_only_their_own_file_and_valid_weight_members() -> None:
+    """A group is evaluated against its own file only, weighted by valid timesteps."""
+    config = V1Config(
+        n_channels=6, patch_size=32, stride=16, n_robots=9, n_programs=8,
+        seed=181801, contrastive_weight_max=0.05, ema_decay=0.996, dropout=0.0,
+    )
+    patchifier = Patchifier(PatchConfig(patch_size=32, stride=16, pad_end=True))
+    model = V1RepresentationModel(config, patchifier=patchifier)
+    model.train()
+    batch_size, patches, width = 2, 12, config.d_model
+    torch.manual_seed(3)
+    context = torch.randn(batch_size, patches, width)
+    target = torch.randn(batch_size, patches, width)
+    valid = torch.ones(batch_size, patches, dtype=torch.bool)
+    weights = torch.ones(batch_size, patches)
+    groups_4 = [[(0, 1, 2, 3)], []]
+    baseline = model.msp_coarse_terms(context, target, valid, weights, groups_4, [[], []])
+    changed_context = context.clone()
+    changed_context[1] += 5.0
+    changed_target = target.clone()
+    changed_target[1] -= 5.0
+    after = model.msp_coarse_terms(changed_context, changed_target, valid, weights, groups_4, [[], []])
+    assert torch.equal(baseline["group4_loss"], after["group4_loss"])
+    # N2 v2 valid_weight_t is the valid-timestep fraction, not a uniform mean.
+    weighted = weights.clone()
+    weighted[0, 0] = 0.25
+    weighted_loss = model.msp_coarse_terms(context, target, valid, weighted, groups_4, [[], []])
+    assert not torch.equal(baseline["group4_loss"], weighted_loss["group4_loss"])
+    all_zero = weights.clone()
+    all_zero[0, 0:4] = 0.0
+    with pytest.raises(ValueError, match="positive total valid weight"):
+        model.msp_coarse_terms(context, target, valid, all_zero, groups_4, [[], []])
+    with pytest.raises(ValueError, match="one entry per batch row"):
+        model.msp_coarse_terms(context, target, valid, weights, [(0, 1, 2, 3)], [[], []])
 
 
 def _canonical_sha256_for_test() -> str:

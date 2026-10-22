@@ -621,8 +621,9 @@ class MultiscaleLatentPredictionCriterion(nn.Module):
         context: torch.Tensor,
         target: torch.Tensor,
         valid: torch.Tensor,
-        groups_4: Sequence[Sequence[int]],
-        groups_8: Sequence[Sequence[int]],
+        patch_weights: torch.Tensor,
+        groups_4: Sequence[Sequence[Sequence[int]]],
+        groups_8: Sequence[Sequence[Sequence[int]]],
     ) -> dict[str, torch.Tensor]:
         for name, value in (("context_latents", context), ("target_latents", target)):
             if not isinstance(value, torch.Tensor) or value.ndim != 3:
@@ -634,39 +635,59 @@ class MultiscaleLatentPredictionCriterion(nn.Module):
         if tuple(valid.shape) != tuple(context.shape[:2]):
             raise ValueError("patch_valid_mask must match latent batch and count")
         batch, count, width = context.shape
+        if (
+            not isinstance(patch_weights, torch.Tensor)
+            or patch_weights.ndim != 2
+            or tuple(patch_weights.shape) != (batch, count)
+            or not torch.isfinite(patch_weights).all()
+            or bool((patch_weights < 0).any())
+        ):
+            raise ValueError("patch_weights must be a finite non-negative [B, N] tensor")
+        weights = patch_weights.detach().to(device=context.device, dtype=context.dtype)
         for scale, groups in (("group4", groups_4), ("group8", groups_8)):
-            if not isinstance(groups, Sequence) or isinstance(groups, (str, bytes)):
-                raise ValueError(f"{scale} groups must be a sequence of index tuples")
-            for group in groups:
-                if not isinstance(group, Sequence) or isinstance(group, (str, bytes)):
-                    raise ValueError(f"{scale} group members must be index sequences")
-                if len(group) not in (4, 8):
-                    raise ValueError(f"{scale} groups must have length 4 or 8")
-                for member in group:
-                    if isinstance(member, bool) or not isinstance(member, int) or not 0 <= member < count:
-                        raise ValueError(f"{scale} member indices must be valid patch positions")
+            if not isinstance(groups, Sequence) or isinstance(groups, (str, bytes)) or len(groups) != batch:
+                raise ValueError(f"{scale} groups must provide one entry per batch row")
+            for row_groups in groups:
+                if not isinstance(row_groups, Sequence) or isinstance(row_groups, (str, bytes)):
+                    raise ValueError(f"{scale} row groups must be index-sequence sequences")
+                for group in row_groups:
+                    if not isinstance(group, Sequence) or isinstance(group, (str, bytes)):
+                        raise ValueError(f"{scale} group members must be index sequences")
+                    if len(group) not in (4, 8):
+                        raise ValueError(f"{scale} groups must have length 4 or 8")
+                    for member in group:
+                        if isinstance(member, bool) or not isinstance(member, int) or not 0 <= member < count:
+                            raise ValueError(f"{scale} member indices must be valid patch positions")
         # Teacher targets are stop-gradient; detach once here.
         detached = target.detach()
         per_scale: dict[str, torch.Tensor] = {}
         counts: dict[str, int] = {}
         for scale, groups, span in (("group4", groups_4, 4), ("group8", groups_8, 8)):
             errors: list[torch.Tensor] = []
-            for group in groups:
-                members = [int(m) for m in group]
-                if len(members) != span:
-                    raise ValueError(f"{scale} groups must have exactly {span} members")
-                teacher_rows = detached[:, members, :]
-                # Uniform member weighting: N2 v2 valid_weight_t is the valid-timestep
-                # fraction per patch; padded weight zero is handled by eligibility
-                # (groups never contain padding) and valid-mask gating below.
-                teacher = torch.layer_norm(teacher_rows.mean(dim=1), (width,))
-                student_in = context[:, members, :].mean(dim=1)
-                student = torch.layer_norm(student_in, (width,))
-                errors.append(((student - teacher).square().mean(dim=-1)))
+            for row, row_groups in enumerate(groups):
+                for group in row_groups:
+                    members = [int(m) for m in group]
+                    if len(members) != span:
+                        raise ValueError(f"{scale} groups must have exactly {span} members")
+                    if not bool(valid[row, members].all()):
+                        raise ValueError(f"{scale} groups must not include padding positions")
+                    member_weights = weights[row, members]
+                    total_weight = member_weights.sum()
+                    if not bool(total_weight > 0):
+                        raise ValueError(f"{scale} groups must have positive total valid weight")
+                    member_weights = member_weights / total_weight
+                    teacher = torch.layer_norm(
+                        (detached[row, members, :] * member_weights.unsqueeze(-1)).sum(dim=0),
+                        (width,),
+                    )
+                    student = torch.layer_norm(
+                        (context[row, members, :] * member_weights.unsqueeze(-1)).sum(dim=0),
+                        (width,),
+                    )
+                    errors.append((student - teacher).square().mean())
             if errors:
-                stacked = torch.stack(errors, dim=1)
-                per_scale[scale] = stacked.mean()
-                counts[scale] = len(groups)
+                per_scale[scale] = torch.stack(errors).mean()
+                counts[scale] = len(errors)
             else:
                 per_scale[scale] = (context.sum() * 0.0) + 0.0
                 counts[scale] = 0
@@ -691,11 +712,14 @@ class MultiscaleLatentPredictionCriterion(nn.Module):
         context_latents: torch.Tensor,
         target_latents: torch.Tensor,
         patch_valid_mask: torch.Tensor,
-        groups_4: Sequence[Sequence[int]],
-        groups_8: Sequence[Sequence[int]],
+        patch_weights: torch.Tensor,
+        groups_4: Sequence[Sequence[Sequence[int]]],
+        groups_8: Sequence[Sequence[Sequence[int]]],
     ) -> dict[str, torch.Tensor]:
         """Return per-scale and combined coarse losses with missing-scale exclusion."""
-        return self._group_loss(context_latents, target_latents, patch_valid_mask, groups_4, groups_8)
+        return self._group_loss(
+            context_latents, target_latents, patch_valid_mask, patch_weights, groups_4, groups_8
+        )
 
 
 class CrossChannelRelationalCriterion(nn.Module):

@@ -840,6 +840,116 @@ def load_certified_healthy_role_support(
     return loaded
 
 
+def load_certified_development_support(
+    binding: Task6Binding,
+    actual_history_id: str,
+    manifest_path: str | Path,
+    shard_paths: Mapping[str, str | Path],
+) -> tuple[CertifiedSample, ...]:
+    """Load the complete manifest-bound Development support without label filtering.
+
+    Development histories carry normal and abnormal rows, so the healthy-only
+    Fit/Calibration loaders are inapplicable. This loader performs the frozen
+    manifest/shard verification inline (manifest digest vs the certified
+    binding, format/role/protocol/config identity, file/shard membership,
+    exact shard coverage, per-shard sha256, member identity/label match,
+    channel/length/cardinality bounds) and returns every requested row. It
+    applies no eligibility, quarantine/censoring, or healthy predicate: the
+    manifest file list is the complete frozen Development support.
+    """
+    validate_role_permission(binding, actual_history_id, "score_development", healthy=False)
+    history = binding.history(actual_history_id)
+    raw = Path(manifest_path).read_bytes()
+    if sha256(raw).hexdigest() != history.manifest_sha256:
+        raise ValueError(f"source role manifest digest mismatch for {actual_history_id}")
+    manifest = json.loads(raw)
+    if not isinstance(manifest, dict):
+        raise ValueError("source role manifest must be a JSON object")
+    if manifest.get("format") != 1 or manifest.get("role") != actual_history_id:
+        raise ValueError("source manifest format or role identity differs from the certified handoff")
+    if manifest.get("protocol") != "sprint15-benchmark-protocol-v7" or manifest.get("config_hash") != history.config_hash:
+        raise ValueError("source manifest protocol/config identity differs from the certified handoff")
+    files = manifest.get("files")
+    shards = manifest.get("shards")
+    if not isinstance(files, list) or not isinstance(shards, list):
+        raise ValueError("source manifest is missing file or shard rows")
+    file_by_id: dict[str, dict[str, object]] = {}
+    for row in files:
+        if not isinstance(row, dict) or not isinstance(row.get("file_id"), str):
+            raise ValueError("source manifest contains a malformed file row")
+        file_id = cast(str, row["file_id"])
+        if file_id in file_by_id:
+            raise ValueError("source manifest contains duplicate file IDs")
+        file_by_id[file_id] = row
+    shard_by_id: dict[str, dict[str, object]] = {}
+    shard_by_path: dict[str, dict[str, object]] = {}
+    for row in shards:
+        if not isinstance(row, dict) or not isinstance(row.get("path"), str) or not isinstance(row.get("file_ids"), list):
+            raise ValueError("source manifest contains a malformed shard row")
+        relative = cast(str, row["path"])
+        if relative in shard_by_path:
+            raise ValueError("source manifest contains duplicate shard paths")
+        shard_by_path[relative] = row
+        for file_id in cast(list[object], row["file_ids"]):
+            if not isinstance(file_id, str) or file_id in shard_by_id:
+                raise ValueError("source shard membership is malformed or duplicated")
+            shard_by_id[file_id] = row
+    if set(file_by_id) != set(shard_by_id):
+        raise ValueError("source manifest file and shard membership differ")
+    requested = tuple(sorted(file_by_id))
+    if not requested:
+        raise ValueError("source manifest contains no Development rows")
+    selected_shards = {cast(str, shard_by_id[file_id]["path"]) for file_id in requested}
+    if set(shard_paths) != set(shard_by_path):
+        raise ValueError("shard path inputs do not exactly cover the manifest verification scope")
+    archive_by_shard: dict[str, zipfile.ZipFile] = {}
+    shard_digest_by_path: dict[str, str] = {}
+    try:
+        for relative in sorted(shard_by_path):
+            shard_record = shard_by_path[relative]
+            expected_digest = shard_record.get("sha256")
+            if not isinstance(expected_digest, str) or not _is_hash(expected_digest):
+                raise ValueError(f"source shard digest is malformed: {relative}")
+            local_path = Path(shard_paths[relative])
+            observed_digest = _sha256_file(local_path)
+            if observed_digest != expected_digest:
+                raise ValueError(f"source shard checksum mismatch: {relative}")
+            shard_digest_by_path[relative] = observed_digest
+            if relative in selected_shards:
+                archive_by_shard[relative] = zipfile.ZipFile(local_path)
+        rows: list[CertifiedSample] = []
+        for file_id in requested:
+            shard_record = shard_by_id[file_id]
+            relative = cast(str, shard_record["path"])
+            member_name = f"{file_id}.npz"
+            archive = archive_by_shard[relative]
+            if member_name not in archive.namelist():
+                raise ValueError(f"source shard is missing manifest-bound member {member_name}")
+            sample = load_sample_bytes(archive.read(member_name))
+            sample.validate()
+            manifest_row = file_by_id[file_id]
+            if sample.file_id != file_id or sample.file_label.value != manifest_row.get("file_label"):
+                raise ValueError(f"source member identity/label mismatch for {file_id}")
+            if sample.C != 6 or not 200 <= sample.T <= 800:
+                raise ValueError(f"source sample violates the certified channel/length contract: {file_id}")
+            if not 0 <= sample.robot_idx < 9 or not 0 <= sample.program_idx < 8:
+                raise ValueError(f"source conditioning ID is outside the certified model cardinalities: {file_id}")
+            rows.append(
+                CertifiedSample(
+                    sample=sample,
+                    actual_history_id=actual_history_id,
+                    manifest_sha256=history.manifest_sha256,
+                    shard_path=relative,
+                    shard_sha256=shard_digest_by_path[relative],
+                    manifest_row=MappingProxyType(dict(manifest_row)),
+                )
+            )
+    finally:
+        for archive in archive_by_shard.values():
+            archive.close()
+    return tuple(rows)
+
+
 def validate_role_permission(
     binding: Task6Binding,
     actual_history_id: str,
@@ -2439,8 +2549,8 @@ def fit_fit_reference_bank(
     exact Sprint 17 scoring semantics.
     """
     validate_arm_config(arm, require_locked=(scope == "experiment"))
-    if arm.arm_id not in ("B0-FULL", "K3-FULL", "K7-FULL", "K9-FULL"):
-        raise ValueError("only B0/K legacy-stack inference is implemented in the Sprint18 harness")
+    if arm.arm_id not in ("B0-FULL", "K3-FULL", "K7-FULL", "K9-FULL", "N2-MSP"):
+        raise ValueError("only B0/K legacy-stack and N2-MSP inference is implemented in the Sprint18 harness")
     checkpoint_sha256 = _assert_restored_checkpoint(model, arm, binding, checkpoint, scope=scope)
     if not rows:
         raise ValueError("Fit bank source cannot be empty")
@@ -2548,8 +2658,8 @@ def score_certified_rows(
     fitted for the same arm.
     """
     validate_arm_config(arm, require_locked=(scope == "experiment"))
-    if arm.arm_id not in ("B0-FULL", "K3-FULL", "K7-FULL", "K9-FULL"):
-        raise ValueError("only B0/K legacy-stack inference is implemented in the Sprint18 harness")
+    if arm.arm_id not in ("B0-FULL", "K3-FULL", "K7-FULL", "K9-FULL", "N2-MSP"):
+        raise ValueError("only B0/K legacy-stack and N2-MSP inference is implemented in the Sprint18 harness")
     checkpoint_sha256 = _assert_restored_checkpoint(model, arm, binding, checkpoint, scope=scope)
     if scope == "task6_smoke_only" and action != "calibrate_q95":
         raise ValueError("Task6 smoke scoring is restricted to Calibration-only proof output")
@@ -2674,6 +2784,155 @@ def score_certified_rows(
 
 
 @dataclass(frozen=True, slots=True)
+class MspCoarseFileRecord:
+    """Per-file N2 coarse residual on its own frozen-per-file mask realization."""
+
+    file_id: str
+    n_valid_patches: int
+    mask_budget: int
+    allocation: tuple[int, int, int]
+    groups_4: int
+    groups_8: int
+    group4_loss: float
+    group8_loss: float
+    coarse_loss: float
+    q8_fallback_to_4: int
+    q4_fallback_to_fine: int
+
+
+@dataclass(frozen=True, slots=True)
+class MspCoarseScores:
+    """Descriptive coarse-scale residuals; never fused into S_pred/S_pop."""
+
+    arm_id: ArmId
+    model_seed: int
+    actual_history_id: str
+    support: CommonSupport
+    checkpoint_sha256: str
+    diagnostic_epoch: int
+    records: tuple[MspCoarseFileRecord, ...]
+
+
+@torch.no_grad()
+def score_msp_coarse_rows(
+    binding: Task6Binding,
+    arm: Sprint18ArmConfig,
+    model: V1RepresentationModel,
+    rows: Sequence[CertifiedSample],
+    patchifier: Patchifier,
+    *,
+    checkpoint: RestoredSprint18Checkpoint,
+    action: Literal["score_development"],
+    scope: Literal["experiment", "task6_smoke_only"],
+    diagnostic_epoch: int = 100,
+    device: torch.device | None = None,
+) -> MspCoarseScores:
+    """Compute per-file N2 coarse-4/8 residuals on the arm's own mask realization.
+
+    Diagnostic-only surface required by the N2 specification: the values are
+    never fused into ``S_pred``, ``S_pop``, any threshold, or any promotion
+    metric. Each file is scored alone so its coarse groups are evaluated only
+    against its own latents; the mask realization is the frozen N2 v2 per-file
+    mask seed at ``diagnostic_epoch`` (the primary checkpoint epoch by
+    default), and the online path hides the union mask before context
+    encoding exactly as in training.
+    """
+    from representation.trainer import RepresentationTrainer
+
+    if arm.arm_id != "N2-MSP":
+        raise ValueError("coarse residual scoring is only defined for N2-MSP")
+    validate_arm_config(arm, require_locked=(scope == "experiment"))
+    checkpoint_sha256 = _assert_restored_checkpoint(model, arm, binding, checkpoint, scope=scope)
+    if scope == "task6_smoke_only" and action != "score_development":
+        raise ValueError("Task6 smoke coarse scoring is restricted to Development proof output")
+    if not isinstance(diagnostic_epoch, int) or isinstance(diagnostic_epoch, bool) or not 1 <= diagnostic_epoch <= 100:
+        raise ValueError("coarse diagnostic epoch must be in [1, 100]")
+    if not rows:
+        raise ValueError("coarse residual support cannot be empty")
+    history_ids = {row.actual_history_id for row in rows}
+    if len(history_ids) != 1:
+        raise ValueError("one coarse residual support cannot pool multiple histories")
+    actual_history_id = next(iter(history_ids))
+    history = binding.history(actual_history_id)
+    validate_role_permission(binding, actual_history_id, action, healthy=False)
+    if any(row.manifest_sha256 != history.manifest_sha256 for row in rows):
+        raise ValueError("coarse residual support contains rows from a different manifest")
+    ids = [row.file_id for row in rows]
+    if len(set(ids)) != len(ids):
+        raise ValueError("coarse residual support contains duplicate file IDs")
+    support = make_common_support(binding, actual_history_id, ids)
+    model_config = model.config
+    if (model_config.n_robots, model_config.n_programs, model_config.n_channels, model_config.patch_size, model_config.stride) != (9, 8, 6, 32, 16):
+        raise ValueError("coarse diagnostic model config is incompatible with certified DATA conditioning/geometry")
+    fit_role_sha256 = _canonical_sha256(
+        sorted(item.manifest_sha256 for item in binding.role_histories("FIT"))
+    )
+    target_device = device if device is not None else next(model.parameters()).device
+    model.eval()
+    records: list[MspCoarseFileRecord] = []
+    for row in rows:
+        seed = deterministic_mask_seed(arm.model_seed, actual_history_id, row.file_id)
+        batch = collate_variable_files(
+            [row.sample], patchifier, masking_config=model_config, masking_seed=seed,
+        )
+        masks = RepresentationTrainer.msp_batch_masks(
+            batch, model_seed=arm.model_seed, epoch=diagnostic_epoch,
+            fit_role_sha256=fit_role_sha256,
+        )
+        union = masks["union_mask"]
+        diagnostic = masks["diagnostics"]
+        if not isinstance(union, torch.Tensor) or not isinstance(diagnostic, list) or len(diagnostic) != 1:
+            raise ValueError("coarse diagnostic mask construction returned malformed output")
+        batch["mask"] = union.to(dtype=torch.bool)
+        encoder_batch = _encoder_batch(batch)
+        moved = {
+            key: (value.to(target_device) if isinstance(value, torch.Tensor) else value)
+            for key, value in encoder_batch.items()
+        }
+        output = model(moved)  # type: ignore[arg-type]
+        context = output.get("context_latents")
+        target = output.get("target_latents")
+        valid = output.get("patch_valid_mask")
+        valid_len = moved.get("valid_len")
+        if (
+            not isinstance(context, torch.Tensor)
+            or not isinstance(target, torch.Tensor)
+            or not isinstance(valid, torch.Tensor)
+            or not isinstance(valid_len, torch.Tensor)
+        ):
+            raise ValueError("coarse diagnostic forward is missing context/target/valid outputs")
+        weights = valid_len.to(dtype=context.dtype) / float(model_config.patch_size)
+        terms = model.msp_coarse_terms(
+            context, target, valid, weights, masks["groups_4"], masks["groups_8"],
+        )
+        item = diagnostic[0]
+        records.append(
+            MspCoarseFileRecord(
+                file_id=row.file_id,
+                n_valid_patches=int(item["n"]),
+                mask_budget=int(item["M"]),
+                allocation=tuple(int(v) for v in item["allocation"]),
+                groups_4=int(terms["group4_count"].item()),
+                groups_8=int(terms["group8_count"].item()),
+                group4_loss=float(terms["group4_loss"].item()),
+                group8_loss=float(terms["group8_loss"].item()),
+                coarse_loss=float(terms["coarse_loss"].item()),
+                q8_fallback_to_4=int(item["q8_fallback_to_4"]),
+                q4_fallback_to_fine=int(item["q4_fallback_to_fine"]),
+            )
+        )
+    return MspCoarseScores(
+        arm_id=arm.arm_id,
+        model_seed=arm.model_seed,
+        actual_history_id=actual_history_id,
+        support=support,
+        checkpoint_sha256=checkpoint_sha256,
+        diagnostic_epoch=diagnostic_epoch,
+        records=tuple(records),
+    )
+
+
+@dataclass(frozen=True, slots=True)
 class BranchCalibration:
     branch: ScoreBranchName
     quantile: float
@@ -2712,7 +2971,7 @@ def fit_calibration_q95(
         raise ValueError("calibration scope/data binding differs from scored support")
     history = binding.history(scores.actual_history_id)
     if (
-        scores.arm_id not in ("B0-FULL", "K3-FULL", "K7-FULL", "K9-FULL")
+        scores.arm_id not in ("B0-FULL", "K3-FULL", "K7-FULL", "K9-FULL", "N2-MSP")
         or scores.model_seed not in MODEL_SEEDS
         or scores.support.actual_history_id != history.actual_history_id
         or scores.support.schema_history_id != history.schema_history_id
