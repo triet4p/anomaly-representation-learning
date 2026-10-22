@@ -653,3 +653,31 @@ def test_n3_run_seed_reaches_bank_q95_development_and_channel_reports(tmp_path) 
     assert record["compute"]["parameters_by_branch"] == record["compute"]["b0_parameters_by_branch"]
     # the frozen N3 aux head is training-only and excluded from the inference path
     assert record["compute"]["channel_head_parameters_training_only"] > 0
+
+
+@pytest.mark.skipif(
+    not torch.cuda.is_available(),
+    reason="CUDA required for N3 paired-B0 device-placement proof",
+)
+def test_n3_compute_block_profiles_paired_b0_on_the_requested_cuda_device(tmp_path) -> None:
+    """The real compute block must forward its paired B0 counter on the N3 model's device."""
+    binding, histories = _tiny_binding(tmp_path / "fixture")
+    fit_rows = _rows(binding, histories, "FIT")
+    patchifier = runner._n3_patchifier()
+    device = torch.device("cuda:0")
+    model = V1RepresentationModel(runner._n3_config(SEED), patchifier=patchifier).to(device)
+    payload = runner._compute_block(
+        binding=binding,
+        arm=_arm("locked"),
+        model=model,
+        patchifier=patchifier,
+        fit_ids=sorted(row.file_id for row in fit_rows),
+        fit_sample_by_id={row.file_id: row.sample for row in fit_rows},
+        fit_history_ids=list(FIT_HISTORIES),
+        device=device,
+        profile_epoch=1,
+    )
+    assert payload["envelope_pass"] is True
+    for key in ("inference_flops_per_fit_file_by_branch", "b0_inference_flops_per_fit_file_by_branch"):
+        assert set(payload[key]) == {"S_pred", "S_pop"}
+        assert all(isinstance(value, int) and value > 0 for value in payload[key].values())

@@ -905,6 +905,7 @@ def _compute_block(*, binding, arm, model, patchifier, fit_ids, fit_sample_by_id
     fit_role_sha256 = _canonical_sha256(sorted(binding.history(h).manifest_sha256 for h in fit_history_ids))
     b0_arm = _b0_arm(arm.model_seed, lock_digest)
     b0_model = V1RepresentationModel(model.config, patchifier=patchifier)
+    b0_model.to(device)
     parameter_counts = {
         branch: primary_inference_parameters(model, branch) for branch in ("S_pred", "S_pop")
     }
