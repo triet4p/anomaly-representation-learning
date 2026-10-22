@@ -659,7 +659,7 @@ def _coarse_descriptive(*, binding, arm, model, patchifier, checkpoint, worktree
 
 def _score_development_descriptive(*, binding, arm, model, bank, patchifier, checkpoint,
                                    worktree, development_history_ids, thresholds,
-                                   scope: str = "experiment", device: torch.device | None = None) -> dict:
+                                   scope: str = "experiment") -> dict:
     """Descriptive Development scoring on frozen common support (no selection)."""
     from synth import events as E
     from synth import probe15 as P
@@ -678,7 +678,7 @@ def _score_development_descriptive(*, binding, arm, model, bank, patchifier, che
         rows = load_certified_development_support(binding, history_id, manifest_path, shard_paths)
         scores = score_certified_rows(
             binding, arm, model, bank, rows, patchifier,
-            checkpoint=checkpoint, action="score_development", scope=scope, device=device,
+            checkpoint=checkpoint, action="score_development", scope=scope,
         )
         validate_score_maps(scores.support, scores.scores)
         per_branch_file_scores[history_id] = (dict(scores.scores["S_pred"]), dict(scores.scores["S_pop"]))
@@ -889,7 +889,7 @@ def _run_seed(
     for history_id, rows in calibration_rows_by_history.items():
         scores = score_certified_rows(
             binding, arm, restored_model, bank, rows, patchifier,
-            checkpoint=restored, action="calibrate_q95", scope="experiment", device=device,
+            checkpoint=restored, action="calibrate_q95", scope="experiment",
         )
         validate_score_maps(scores.support, scores.scores)
         calibration_scores[history_id] = {
@@ -903,7 +903,7 @@ def _run_seed(
         }
     calibration_scores_obj = score_certified_rows(
         binding, arm, restored_model, bank, calibration_rows, patchifier,
-        checkpoint=restored, action="calibrate_q95", scope="experiment", device=device,
+        checkpoint=restored, action="calibrate_q95", scope="experiment",
     )
     calibration = fit_calibration_q95(binding, calibration_scores_obj, calibration_rows, scope="experiment")
     thresholds = {
@@ -913,7 +913,7 @@ def _run_seed(
     development = _score_development_descriptive(
         binding=binding, arm=arm, model=restored_model, bank=bank, patchifier=patchifier,
         checkpoint=restored, worktree=worktree, development_history_ids=development_history_ids,
-        thresholds=thresholds, device=device,
+        thresholds=thresholds,
     )
     coarse = _coarse_descriptive(
         binding=binding, arm=arm, model=restored_model, patchifier=patchifier,

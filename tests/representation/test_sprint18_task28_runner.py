@@ -15,7 +15,7 @@ import json
 import math
 import sys
 import zipfile
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 import numpy as np
@@ -468,3 +468,126 @@ def test_n2_task14_lock_binds_alpha_and_seed_configs() -> None:
     from representation.sprint18_harness import arm_config_sha256
 
     assert arm_config_sha256(arm) == hashes["N2-MSP/seed-181801"]
+
+
+def _development_probe15_manifests(binding: Task6Binding, histories: dict[str, _TinyHistory], worktree: Path) -> dict[str, bytes]:
+    """Lay the roster out for the runner and give Development its frozen probe15 fields.
+
+    The tiny Development histories need ``member_views`` on every file row and a
+    P/W failure ledger for the frozen event metrics to be computable; a second,
+    failure-free robot supplies the control windows.
+    """
+    raw_by_history: dict[str, bytes] = {}
+    for history_id, item in histories.items():
+        raw = item.manifest_path.read_bytes()
+        manifest = json.loads(raw)
+        if item.history.assigned_role == "DEVELOPMENT":
+            for row in manifest["files"]:
+                row["member_views"] = ["test-temporal"]
+            robot = manifest["files"][0]["robot_id"]
+            end = float(manifest["files"][0]["end_time"])
+            manifest["failure_events"] = [
+                {
+                    "cohort": "P",
+                    "severity": 2.0,
+                    "robot_id": robot,
+                    "degradation_onset": end - 1.0,
+                    "failure_time": end,
+                    "duration_d": 0.5,
+                },
+                {
+                    "cohort": "W",
+                    "severity": 2.0,
+                    "robot_id": robot,
+                    "degradation_onset": end,
+                    "failure_time": end + 1.0,
+                    "duration_d": 0.5,
+                },
+            ]
+            raw = json.dumps(manifest, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        raw_by_history[history_id] = raw
+        role_dir = worktree / item.history.relative_path
+        role_dir.mkdir(parents=True, exist_ok=True)
+        (role_dir / "manifest.json").write_bytes(raw)
+        for shard in manifest["shards"]:
+            target = role_dir / shard["path"]
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(Path(item.shard_paths[shard["path"]]).read_bytes())
+    return raw_by_history
+
+
+def _rebind_development_manifests(binding: Task6Binding, histories: dict[str, _TinyHistory], raw_by_history: dict[str, bytes]) -> Task6Binding:
+    updated = []
+    for item in histories.values():
+        history = item.history
+        if history.assigned_role == "DEVELOPMENT":
+            history = replace(
+                history,
+                manifest_sha256=hashlib.sha256(raw_by_history[history.actual_history_id]).hexdigest(),
+            )
+        updated.append(history)
+    aggregate = hashlib.sha256("".join(item.manifest_sha256 for item in updated).encode("ascii")).hexdigest()
+    return replace(
+        binding,
+        histories=tuple(updated),
+        manifest_aggregate_sha256=aggregate,
+        executable_binding_sha256=aggregate,
+    )
+
+
+def test_n2_run_seed_reaches_bank_q95_and_development(tmp_path) -> None:
+    """The corrected per-seed runner must reach bank/q95/Development and write its record.
+
+    The three former ``device=`` forwardings to ``score_certified_rows`` used to
+    raise ``TypeError`` after training, strict restore and the Fit bank, so no
+    seed record, q95 or Development output could exist.
+    """
+    binding, histories = _tiny_binding(tmp_path / "fixture")
+    worktree = tmp_path / "worktree"
+    raw_by_history = _development_probe15_manifests(binding, histories, worktree)
+    binding = _rebind_development_manifests(binding, histories, raw_by_history)
+    fit_rows = _rows(binding, histories, "FIT")
+    calibration_rows = _rows(binding, histories, "CALIBRATION")
+    fit_ids = sorted(row.file_id for row in fit_rows)
+    seed_dir = tmp_path / f"seed-{SEED}"
+    seed_dir.mkdir()
+    with (tmp_path / "progress.jsonl").open("w", encoding="utf-8") as progress:
+        result = runner._run_seed(
+            binding=binding,
+            worktree=worktree,
+            seed=SEED,
+            fit_ids=fit_ids,
+            fit_sample_by_id={row.file_id: row.sample for row in fit_rows},
+            fit_history_ids=list(FIT_HISTORIES),
+            calibration_rows=calibration_rows,
+            calibration_rows_by_history={
+                CALIBRATION_HISTORY: [
+                    row for row in calibration_rows if row.actual_history_id == CALIBRATION_HISTORY
+                ]
+            },
+            development_history_ids=list(DEVELOPMENT_HISTORIES),
+            device=torch.device("cpu"),
+            progress=progress,
+            seed_dir=seed_dir,
+            fit_rows_by_id={row.file_id: row for row in fit_rows},
+        )
+    record = result["record"]
+    assert json.loads((seed_dir / "seed_record.json").read_text(encoding="utf-8")) == record
+    assert record["status"] == "ok"
+    assert record["global_step"] == runner.EPOCHS
+    assert sorted(record["checkpoints"], key=int) == ["10", "30", "60", "100"]
+    assert record["primary"]["restored_forward_max_abs_diff"] == 0.0
+    assert record["bank"]["source_rows"] == len(fit_ids)
+    assert math.isfinite(record["calibration"]["S_pred_threshold"])
+    assert math.isfinite(record["calibration"]["S_pop_threshold"])
+    for branch in ("S_pred", "S_pop"):
+        payload = record["development"]["branches"][branch]
+        assert [row["history_id"] for row in payload["per_history"]] == list(DEVELOPMENT_HISTORIES)
+    coarse = record["coarse_diagnostics"]
+    assert coarse["fusion"].startswith("none")
+    assert sorted(coarse["per_history"]) == sorted(DEVELOPMENT_HISTORIES)
+    for payload in coarse["per_history"].values():
+        assert payload["records"]
+        for row in payload["records"]:
+            assert row["mask_budget"] == 19
+            assert row["allocation"] == [7, 1, 1]
