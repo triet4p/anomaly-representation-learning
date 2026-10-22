@@ -2549,8 +2549,10 @@ def fit_fit_reference_bank(
     exact Sprint 17 scoring semantics.
     """
     validate_arm_config(arm, require_locked=(scope == "experiment"))
-    if arm.arm_id not in ("B0-FULL", "K3-FULL", "K7-FULL", "K9-FULL", "N2-MSP"):
-        raise ValueError("only B0/K legacy-stack and N2-MSP inference is implemented in the Sprint18 harness")
+    if arm.arm_id not in ("B0-FULL", "K3-FULL", "K7-FULL", "K9-FULL", "N2-MSP", "N3-CCRP"):
+        raise ValueError(
+            "only B0/K legacy-stack, N2-MSP, and N3-CCRP inference is implemented in the Sprint18 harness"
+        )
     checkpoint_sha256 = _assert_restored_checkpoint(model, arm, binding, checkpoint, scope=scope)
     if not rows:
         raise ValueError("Fit bank source cannot be empty")
@@ -2658,8 +2660,10 @@ def score_certified_rows(
     fitted for the same arm.
     """
     validate_arm_config(arm, require_locked=(scope == "experiment"))
-    if arm.arm_id not in ("B0-FULL", "K3-FULL", "K7-FULL", "K9-FULL", "N2-MSP"):
-        raise ValueError("only B0/K legacy-stack and N2-MSP inference is implemented in the Sprint18 harness")
+    if arm.arm_id not in ("B0-FULL", "K3-FULL", "K7-FULL", "K9-FULL", "N2-MSP", "N3-CCRP"):
+        raise ValueError(
+            "only B0/K legacy-stack, N2-MSP, and N3-CCRP inference is implemented in the Sprint18 harness"
+        )
     checkpoint_sha256 = _assert_restored_checkpoint(model, arm, binding, checkpoint, scope=scope)
     if scope == "task6_smoke_only" and action != "calibrate_q95":
         raise ValueError("Task6 smoke scoring is restricted to Calibration-only proof output")
@@ -2933,6 +2937,259 @@ def score_msp_coarse_rows(
 
 
 @dataclass(frozen=True, slots=True)
+class CcrpChannelFileRecord:
+    """Per-file N3 cross-channel contribution diagnostics; never fused into a primary score."""
+
+    file_id: str
+    n_valid_patches: int
+    selected_targets: int
+    near_zero_excluded: int
+    supported_targets: int
+    channel_counts: tuple[int, ...]
+    channel_supported: tuple[int, ...]
+    channel_mean_delta_norm: tuple[float | None, ...]
+    channel_mean_prediction_residual: tuple[float | None, ...]
+    contribution_target_delta_norm_mean: float | None
+    contribution_target_variance: float | None
+    predictor_effective_rank: float | None
+    channel_loss: float | None
+
+
+@dataclass(frozen=True, slots=True)
+class CcrpChannelScores:
+    """Descriptive cross-channel residuals; diagnostics only, never fused."""
+
+    arm_id: ArmId
+    model_seed: int
+    actual_history_id: str
+    support: CommonSupport
+    checkpoint_sha256: str
+    diagnostic_epoch: int
+    records: tuple[CcrpChannelFileRecord, ...]
+
+
+@torch.no_grad()
+def score_ccrp_channel_rows(
+    binding: Task6Binding,
+    arm: Sprint18ArmConfig,
+    model: V1RepresentationModel,
+    rows: Sequence[CertifiedSample],
+    patchifier: Patchifier,
+    *,
+    checkpoint: RestoredSprint18Checkpoint,
+    action: Literal["score_development"],
+    scope: Literal["experiment", "task6_smoke_only"],
+    diagnostic_epoch: int = 100,
+    device: torch.device | None = None,
+) -> CcrpChannelScores:
+    """Compute per-file N3 held-out-channel contribution diagnostics on a restored checkpoint.
+
+    Each file is evaluated alone on its frozen B0 composition mask realization,
+    reusing the committed selector and the committed `ccrp_aux_local` /
+    `ccrp_channel_terms` methods. The per-file held-out channel follows the
+    frozen ``c = (ordinal + model_seed + epoch) mod 6`` formula applied to that
+    file's sorted selected keys; this is a post-hoc diagnostic derivation only,
+    not the normative epoch-global training assignment. Values never enter
+    ``S_pred``, ``S_pop``, any threshold, or any promotion metric.
+    """
+    from representation.criterion import CCRP_NEAR_ZERO_NORM, ccrp_assign_channels
+    from representation.trainer import RepresentationTrainer
+    from representation.v2_batch_f1 import effective_rank
+
+    if arm.arm_id != "N3-CCRP":
+        raise ValueError("cross-channel residual scoring is only defined for N3-CCRP")
+    validate_arm_config(arm, require_locked=(scope == "experiment"))
+    checkpoint_sha256 = _assert_restored_checkpoint(model, arm, binding, checkpoint, scope=scope)
+    if scope == "task6_smoke_only" and action != "score_development":
+        raise ValueError("Task6 smoke channel scoring is restricted to Development proof output")
+    if not isinstance(diagnostic_epoch, int) or isinstance(diagnostic_epoch, bool) or not 1 <= diagnostic_epoch <= 100:
+        raise ValueError("channel diagnostic epoch must be in [1, 100]")
+    if not rows:
+        raise ValueError("channel diagnostic support cannot be empty")
+    history_ids = {row.actual_history_id for row in rows}
+    if len(history_ids) != 1:
+        raise ValueError("one channel diagnostic support cannot pool multiple histories")
+    actual_history_id = next(iter(history_ids))
+    history = binding.history(actual_history_id)
+    validate_role_permission(binding, actual_history_id, action, healthy=False)
+    if any(row.manifest_sha256 != history.manifest_sha256 for row in rows):
+        raise ValueError("channel diagnostic support contains rows from a different manifest")
+    ids = [row.file_id for row in rows]
+    if len(set(ids)) != len(ids):
+        raise ValueError("channel diagnostic support contains duplicate file IDs")
+    support = make_common_support(binding, actual_history_id, ids)
+    model_config = model.config
+    if (model_config.n_robots, model_config.n_programs, model_config.n_channels, model_config.patch_size, model_config.stride) != (9, 8, 6, 32, 16):
+        raise ValueError("channel diagnostic model config is incompatible with certified DATA conditioning/geometry")
+    if model.conditional_norm is None:
+        raise ValueError("channel diagnostic requires the certified conditional normalization path")
+    fit_role_sha256 = _canonical_sha256(
+        sorted(item.manifest_sha256 for item in binding.role_histories("FIT"))
+    )
+    target_device = device if device is not None else next(model.parameters()).device
+    model.eval()
+    records: list[CcrpChannelFileRecord] = []
+    for row in rows:
+        seed = deterministic_mask_seed(arm.model_seed, actual_history_id, row.file_id)
+        batch = collate_variable_files(
+            [row.sample], patchifier, masking_config=model_config, masking_seed=seed,
+        )
+        selections = RepresentationTrainer.ccrp_batch_selections(
+            batch, model_seed=arm.model_seed, epoch=diagnostic_epoch, fit_role_sha256=fit_role_sha256,
+        )
+        selected = selections["selected"]
+        diagnostics = selections["diagnostics"]
+        if not isinstance(selected, list) or not isinstance(diagnostics, list) or len(diagnostics) != 1:
+            raise ValueError("channel diagnostic selector returned malformed output")
+        item = diagnostics[0]
+        patches = [int(value) for value in selected[0]]
+        keys = sorted(((row.file_id, patch) for patch in patches), key=lambda entry: entry[1])
+        assignment = ccrp_assign_channels(keys, arm.model_seed, diagnostic_epoch)
+        channels = [int(value) for value in assignment["channels"]]  # type: ignore[union-attr]
+        if not keys:
+            records.append(
+                CcrpChannelFileRecord(
+                    file_id=row.file_id,
+                    n_valid_patches=int(item["n"]),
+                    selected_targets=0,
+                    near_zero_excluded=0,
+                    supported_targets=0,
+                    channel_counts=(0,) * 6,
+                    channel_supported=(0,) * 6,
+                    channel_mean_delta_norm=(None,) * 6,
+                    channel_mean_prediction_residual=(None,) * 6,
+                    contribution_target_delta_norm_mean=None,
+                    contribution_target_variance=None,
+                    predictor_effective_rank=None,
+                    channel_loss=None,
+                )
+            )
+            continue
+        encoder_batch = _encoder_batch(batch)
+        moved = {
+            key: (value.to(target_device) if isinstance(value, torch.Tensor) else value)
+            for key, value in encoder_batch.items()
+        }
+        signals = moved.get("signals")
+        file_valid = moved.get("file_valid_mask")
+        raw_patches = moved.get("patches")
+        pad_mask = moved.get("patch_pad_mask")
+        temporal_mask = moved.get("mask")
+        valid_mask = moved.get("patch_valid_mask")
+        robot_idx = moved.get("robot_idx")
+        program_idx = moved.get("program_idx")
+        if not all(
+            isinstance(value, torch.Tensor)
+            for value in (signals, file_valid, raw_patches, pad_mask, temporal_mask, valid_mask, robot_idx, program_idx)
+        ):
+            raise ValueError("channel diagnostic batch is missing certified model inputs")
+        norm_out = model.conditional_norm(
+            {
+                "input": signals,
+                "valid_mask": file_valid,
+                "robot_idx": robot_idx,
+                "program_idx": program_idx,
+            }
+        )
+        means = norm_out.get("mean")
+        stds = norm_out.get("std")
+        if not isinstance(means, torch.Tensor) or not isinstance(stds, torch.Tensor):
+            raise ValueError("channel diagnostic normalization returned no statistics")
+        normalized = (raw_patches - means.unsqueeze(1).unsqueeze(-1)) / stds.unsqueeze(1).unsqueeze(-1)
+        normalized = normalized.masked_fill(pad_mask.unsqueeze(2), 0.0)
+        aux = normalized.clone()
+        for patch, channel in zip([entry[1] for entry in keys], channels):
+            aux[0, patch, channel, :] = 0.0
+        aux = aux.masked_fill(pad_mask.unsqueeze(2), 0.0)
+        full_local, zeroed_local = model.ccrp_aux_local(normalized, aux, pad_mask)
+        patch_index = torch.tensor([entry[1] for entry in keys], dtype=torch.long, device=target_device)
+        local_full = full_local[0].index_select(0, patch_index)
+        local_without = zeroed_local[0].index_select(0, patch_index)
+        if full_local.shape[0] != 1 or zeroed_local.shape[0] != 1:
+            raise ValueError("channel diagnostic expects a single collated file")
+        aux_visible = model.patch_encoder(aux, pad_mask)
+        aux_visible = aux_visible.masked_fill(temporal_mask.unsqueeze(-1), 0.0)
+        context_full = model.context_encoder(aux_visible, valid_mask)
+        context = context_full[0].index_select(0, patch_index)
+        channel_ids = torch.tensor(channels, dtype=torch.long, device=target_device)
+        width = model_config.d_model
+        delta = torch.layer_norm(local_full, (width,)) - torch.layer_norm(local_without, (width,))
+        delta_norms = delta.norm(dim=-1)
+        supported = delta_norms >= CCRP_NEAR_ZERO_NORM
+        supported_count = int(supported.sum().item())
+        near_zero = len(keys) - supported_count
+        if supported_count:
+            terms = model.ccrp_channel_terms(context, local_full, local_without, channel_ids)
+            predicted = terms["predicted"]
+            if not isinstance(predicted, torch.Tensor):
+                raise TypeError("channel diagnostic predictor returned no prediction tensor")
+            teacher = torch.nn.functional.normalize(delta[supported], dim=-1)
+            student = torch.nn.functional.normalize(predicted[supported], dim=-1)
+            residual = 1.0 - (student * teacher).sum(dim=-1)
+            channel_loss = float(terms["channel_loss"].detach().cpu().item())
+            contribution_variance = (
+                float(delta_norms[supported].var(unbiased=False).detach().cpu().item())
+                if supported_count >= 1 else None
+            )
+            predictor_rank = (
+                float(effective_rank(predicted[supported].detach().to(torch.float64).cpu().numpy()))
+                if supported_count >= 2 else None
+            )
+        else:
+            residual = torch.zeros(0, device=target_device)
+            channel_loss = None
+            contribution_variance = None
+            predictor_rank = None
+        channel_counts = tuple(channels.count(channel) for channel in range(6))
+        channel_supported: list[int] = []
+        channel_delta: list[float | None] = []
+        channel_residual: list[float | None] = []
+        supported_indices = [index for index, keep in enumerate(supported.detach().cpu().tolist()) if keep]
+        supported_position = {index: position for position, index in enumerate(supported_indices)}
+        for channel in range(6):
+            indices = [index for index in supported_indices if channels[index] == channel]
+            channel_supported.append(len(indices))
+            if not indices:
+                channel_delta.append(None)
+                channel_residual.append(None)
+                continue
+            selection = torch.tensor(indices, dtype=torch.long, device=target_device)
+            residual_selection = torch.tensor(
+                [supported_position[index] for index in indices], dtype=torch.long, device=target_device,
+            )
+            channel_delta.append(float(delta_norms.index_select(0, selection).mean().detach().cpu().item()))
+            channel_residual.append(float(residual.index_select(0, residual_selection).mean().detach().cpu().item()))
+        records.append(
+            CcrpChannelFileRecord(
+                file_id=row.file_id,
+                n_valid_patches=int(item["n"]),
+                selected_targets=len(keys),
+                near_zero_excluded=near_zero,
+                supported_targets=supported_count,
+                channel_counts=channel_counts,
+                channel_supported=tuple(channel_supported),
+                channel_mean_delta_norm=tuple(channel_delta),
+                channel_mean_prediction_residual=tuple(channel_residual),
+                contribution_target_delta_norm_mean=(
+                    float(delta_norms[supported].mean().detach().cpu().item()) if supported_count else None
+                ),
+                contribution_target_variance=contribution_variance,
+                predictor_effective_rank=predictor_rank,
+                channel_loss=channel_loss,
+            )
+        )
+    return CcrpChannelScores(
+        arm_id=arm.arm_id,
+        model_seed=arm.model_seed,
+        actual_history_id=actual_history_id,
+        support=support,
+        checkpoint_sha256=checkpoint_sha256,
+        diagnostic_epoch=diagnostic_epoch,
+        records=tuple(records),
+    )
+
+
+@dataclass(frozen=True, slots=True)
 class BranchCalibration:
     branch: ScoreBranchName
     quantile: float
@@ -2971,7 +3228,7 @@ def fit_calibration_q95(
         raise ValueError("calibration scope/data binding differs from scored support")
     history = binding.history(scores.actual_history_id)
     if (
-        scores.arm_id not in ("B0-FULL", "K3-FULL", "K7-FULL", "K9-FULL", "N2-MSP")
+        scores.arm_id not in ("B0-FULL", "K3-FULL", "K7-FULL", "K9-FULL", "N2-MSP", "N3-CCRP")
         or scores.model_seed not in MODEL_SEEDS
         or scores.support.actual_history_id != history.actual_history_id
         or scores.support.schema_history_id != history.schema_history_id
