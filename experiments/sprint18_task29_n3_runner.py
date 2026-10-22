@@ -120,7 +120,7 @@ AGENT = "S18T29A01"
 ARM_ID = "N3-CCRP"
 BASELINE_ARM_ID = "B0-FULL"
 RUN_ID_PREFIX = "n3"
-PREFLIGHT_SCHEMA = "s18-t29-n3-preflight-v1"
+PREFLIGHT_SCHEMA = "s18-t29-n3-preflight-v2"
 PAIRED_SCHEMA = "s18-t29-n3-paired-development-v1"
 CHANNEL_DIAGNOSTIC_SCHEMA = "s18-t29-n3-channel-diagnostics-v1"
 SMOKE_SCHEMA = "s18-t29-n3-smoke-v1"
@@ -385,6 +385,33 @@ def _selector_observation(
     }
 
 
+def _selector_observations(
+    *, binding, lock_digest: str, fit_ids, fit_sample_by_id, fit_history_ids,
+    fit_role_sha256: str, epoch: int = 1,
+) -> dict[str, dict]:
+    """Derive the frozen epoch-1 selector observation once per frozen model seed."""
+    patchifier = _n3_patchifier()
+    return {
+        str(seed): _selector_observation(
+            binding=binding, arm=_n3_arm(seed, lock_digest), config=_n3_config(seed),
+            patchifier=patchifier, fit_ids=fit_ids, fit_sample_by_id=fit_sample_by_id,
+            fit_history_ids=fit_history_ids, fit_role_sha256=fit_role_sha256, epoch=epoch,
+        )
+        for seed in MODEL_SEEDS
+    }
+
+
+def _selector_expectation(preflight_payload: dict, seed: int) -> dict:
+    """Return the persisted preflight selector observation the given seed must reproduce."""
+    observations = preflight_payload.get("selector_observations")
+    if not isinstance(observations, dict):
+        raise _fail("preflight payload carries no per-seed selector observations")
+    expectation = observations.get(str(seed))
+    if not isinstance(expectation, dict):
+        raise _fail(f"seed {seed}: preflight payload carries no selector observation for this seed")
+    return expectation
+
+
 def run_preflight(*, binding, binding_doc, worktree: Path, out_dir: Path, environment) -> dict:
     fit_history_ids = [item.actual_history_id for item in binding.role_histories("FIT")]
     calibration_history_ids = [item.actual_history_id for item in binding.role_histories("CALIBRATION")]
@@ -480,13 +507,15 @@ def run_preflight(*, binding, binding_doc, worktree: Path, out_dir: Path, enviro
             })
     fit_role_sha256 = _canonical_sha256(sorted(binding.history(h).manifest_sha256 for h in fit_history_ids))
     fit_sample_by_id = {row.file_id: row.sample for row in fit_rows}
-    # Bounded selector observation on the complete real epoch-1 Fit workload:
-    # frozen per-file Q/permutation/resampling plus the epoch-global round-robin
-    # channel assignment. No model forward or optimizer step.
-    selector_observation = _selector_observation(
-        binding=binding, arm=_n3_arm(MODEL_SEEDS[0], lock_digest), config=_n3_config(MODEL_SEEDS[0]),
-        patchifier=_n3_patchifier(), fit_ids=fit_ids, fit_sample_by_id=fit_sample_by_id,
-        fit_history_ids=fit_history_ids, fit_role_sha256=fit_role_sha256, epoch=1,
+    # One frozen selector observation per frozen seed over the complete real
+    # epoch-1 Fit workload: frozen per-file Q/permutation/resampling plus the
+    # epoch-global round-robin channel assignment. No model forward or optimizer
+    # step. The frozen selector rotates with the model seed, so each seed owns
+    # its own observation and is validated against that one only.
+    selector_observations = _selector_observations(
+        binding=binding, lock_digest=lock_digest, fit_ids=fit_ids,
+        fit_sample_by_id=fit_sample_by_id, fit_history_ids=fit_history_ids,
+        fit_role_sha256=fit_role_sha256,
     )
     payload = {
         "schema": PREFLIGHT_SCHEMA,
@@ -526,7 +555,7 @@ def run_preflight(*, binding, binding_doc, worktree: Path, out_dir: Path, enviro
         },
         "support": support_records,
         "sampler_checks": sampler_records,
-        "selector_observation": selector_observation,
+        "selector_observations": selector_observations,
         "preflight_wall_s": time.time() - started,
     }
     if EPOCHS * batches_per_epoch != 4300:
@@ -536,8 +565,12 @@ def run_preflight(*, binding, binding_doc, worktree: Path, out_dir: Path, enviro
         "PREFLIGHT_OK": True, "fit_rows": len(fit_ids), "fit_patches": fit_valid_patches,
         "calibration_rows": len(calibration_rows_all),
         "steps_per_seed": EPOCHS * batches_per_epoch,
-        "epoch1_targets": selector_observation["targets"],
-        "epoch1_channel_counts": selector_observation["channel_counts"],
+        "epoch1_targets": {
+            seed: observation["targets"] for seed, observation in selector_observations.items()
+        },
+        "epoch1_channel_counts": {
+            seed: observation["channel_counts"] for seed, observation in selector_observations.items()
+        },
     }, sort_keys=True), flush=True)
     return {
         "fit_rows": fit_rows, "fit_ids": fit_ids,
@@ -550,7 +583,6 @@ def run_preflight(*, binding, binding_doc, worktree: Path, out_dir: Path, enviro
         "calibration_history_ids": calibration_history_ids,
         "development_history_ids": development_history_ids,
         "payload": payload,
-        "selector_expectation": selector_observation,
     }
 
 
@@ -1128,11 +1160,19 @@ def _run_seed(
             raise _fail(f"seed {seed} epoch {epoch}: channel support does not sum to its target total")
         if epoch_targets and max(epoch_counts) - min(epoch_counts) > 1:
             raise _fail(f"seed {seed} epoch {epoch}: channel support is not round-robin balanced")
-        if epoch == 1 and selector_expectation is not None and not smoke:
+        if epoch == 1 and not smoke:
+            if selector_expectation is None:
+                raise _fail(f"seed {seed}: no preflight selector observation was supplied")
             if epoch_counts != list(selector_expectation["channel_counts"]):
-                raise _fail(f"seed {seed}: epoch-1 channel counts differ from the preflight selector observation")
+                raise _fail(
+                    f"seed {seed}: epoch-1 channel counts differ from this seed's "
+                    "preflight selector observation"
+                )
             if epoch_targets != int(selector_expectation["targets"]):
-                raise _fail(f"seed {seed}: epoch-1 target total differs from the preflight selector observation")
+                raise _fail(
+                    f"seed {seed}: epoch-1 target total differs from this seed's "
+                    "preflight selector observation"
+                )
         _log_progress(progress, {
             "run": run_id, "model_seed": seed, "epoch": epoch,
             "global_step": trainer.step, "lr": row["lr"],
@@ -1603,6 +1643,7 @@ def main() -> int:
         run_root = out_dir / "smoke"
         run_root.mkdir(parents=True, exist_ok=True)
     fit_rows_by_id = {row.file_id: row for row in preflight["fit_rows"]}
+    preflight_payload = preflight["payload"]
     progress = (run_root / "progress.jsonl").open("a", encoding="utf-8")
     seed_records = {}
     try:
@@ -1620,7 +1661,7 @@ def main() -> int:
                 device=device, progress=progress, seed_dir=seed_dir,
                 fit_rows_by_id=fit_rows_by_id,
                 epochs=epochs, smoke=args.mode == "smoke",
-                selector_expectation=preflight["selector_expectation"],
+                selector_expectation=_selector_expectation(preflight_payload, seed),
             )
             seed_records[str(seed)] = result["record"]
             _write_json(seed_dir / "balance_history.json", result["balance_records"])

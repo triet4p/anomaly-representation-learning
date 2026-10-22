@@ -5,7 +5,9 @@ reference-bank, q95 and Development scoring path on its own restored primary
 checkpoint; the frozen N3 selector over a complete real Fit epoch is
 reproducible and round-robin balanced; and cross-channel contribution
 diagnostics are per-file, deterministic, never fused, and cannot change
-``S_pred``/``S_pop`` even when the auxiliary head is overwritten. No
+``S_pred``/``S_pop`` even when the auxiliary head is overwritten. The persisted
+preflight payload dispatches each frozen seed its own selector observation, and
+the actual per-seed runner rejects another seed's observation. No
 wiring/source-text/incidental assertions.
 """
 
@@ -67,9 +69,9 @@ LOCK = "6eb108b2073181d427f1aedfc81fb3bae4c29595108d15de486082800bdd9d6e"
 FIT_HISTORIES = tuple(f"S18I-ITER-0005-FIT-TINY-0{index}" for index in range(1, 4))
 CALIBRATION_HISTORY = "S18I-ITER-0005-CAL-TINY-01"
 DEVELOPMENT_HISTORIES = tuple(f"S18I-ITER-0005-DEV-TINY-0{index}" for index in range(1, 5))
-# 784 timesteps -> 48 fully valid patches -> N3 Q = max(1, round(0.25*48)) = 12.
+# 784 timesteps -> 48 fully valid patches -> N3 Q = max(1, round(0.25*48)) = 12;
+# per-file patch counts (and therefore Q) are derived by ``_patch_count``.
 FILE_TIMESTEPS = 784
-PATCHES_PER_FILE = 48
 
 
 @dataclass(frozen=True)
@@ -112,7 +114,18 @@ def _arm(selection_state: str = "locked"):
     )
 
 
-def _tiny_binding(root: Path) -> tuple[Task6Binding, dict[str, _TinyHistory]]:
+def _patch_count(timesteps: int) -> int:
+    """Mirror the frozen Patchifier window geometry for a single-timestep axis."""
+    starts = list(range(0, timesteps - 32 + 1, 16)) if timesteps >= 32 else []
+    if not starts:
+        return 1
+    covered_end = starts[-1] + 32
+    return len(starts) + (1 if covered_end < timesteps else 0)
+
+
+def _tiny_binding(
+    root: Path, *, timesteps_by_index: dict[int, int] | None = None,
+) -> tuple[Task6Binding, dict[str, _TinyHistory]]:
     """Bind a tiny 3-FIT/1-CALIBRATION/4-DEVELOPMENT certified-shaped roster."""
     generator = "s18-t29-n3-fixture"
     config_hash = "s18-t29-n3-config"
@@ -123,8 +136,9 @@ def _tiny_binding(root: Path) -> tuple[Task6Binding, dict[str, _TinyHistory]]:
     )
     rng = np.random.default_rng(92901)
     total = sum(int(item[-1]) for item in plan)
+    lengths = {index: (timesteps_by_index or {}).get(index, FILE_TIMESTEPS) for index in range(total)}
     signals = {
-        f"n29-tiny-{index:02d}": rng.normal(size=(6, FILE_TIMESTEPS)).astype(np.float32)
+        f"n29-tiny-{index:02d}": rng.normal(size=(6, lengths[index])).astype(np.float32)
         for index in range(total)
     }
     histories: dict[str, _TinyHistory] = {}
@@ -168,10 +182,10 @@ def _tiny_binding(root: Path) -> tuple[Task6Binding, dict[str, _TinyHistory]]:
                     "is_quarantined": False,
                     "is_censored": False,
                     "start_time": 0.0,
-                    "end_time": float(FILE_TIMESTEPS),
-                    "n_valid_patches": PATCHES_PER_FILE,
+                    "end_time": float(lengths[cursor + offset]),
+                    "n_valid_patches": _patch_count(lengths[cursor + offset]),
                 }
-                for item in items
+                for offset, item in enumerate(items)
             ],
             "shards": [
                 {
@@ -653,6 +667,104 @@ def test_n3_run_seed_reaches_bank_q95_development_and_channel_reports(tmp_path) 
     assert record["compute"]["parameters_by_branch"] == record["compute"]["b0_parameters_by_branch"]
     # the frozen N3 aux head is training-only and excluded from the inference path
     assert record["compute"]["channel_head_parameters_training_only"] > 0
+
+
+def test_n3_preflight_binds_each_frozen_seed_to_its_own_selector_observation(tmp_path) -> None:
+    """The persisted preflight payload must hand each frozen seed its own observation."""
+    # Eleven default-length Fit files (48 patches -> Q=12) plus one 736-step
+    # file (45 patches -> Q=11): 11*12 + 11 = 143 targets, so the frozen
+    # (ordinal + model_seed + epoch) mod 6 rotation puts the shortfall on a
+    # different channel for each frozen seed.
+    binding, histories = _tiny_binding(tmp_path / "fixture", timesteps_by_index={11: 736})
+    worktree = tmp_path / "worktree"
+    raw_by_history = _development_probe15_manifests(binding, histories, worktree)
+    binding = _rebind_development_manifests(binding, histories, raw_by_history)
+    fit_rows = _rows(binding, histories, "FIT")
+    calibration_rows = _rows(binding, histories, "CALIBRATION")
+    fit_ids = sorted(row.file_id for row in fit_rows)
+    fit_sample_by_id = {row.file_id: row.sample for row in fit_rows}
+    fit_history_ids = list(FIT_HISTORIES)
+    fit_role_sha256 = _canonical_sha256(
+        sorted(binding.history(h).manifest_sha256 for h in fit_history_ids)
+    )
+    observations = runner._selector_observations(
+        binding=binding,
+        lock_digest=runner._coefficient_lock(binding),
+        fit_ids=fit_ids,
+        fit_sample_by_id=fit_sample_by_id,
+        fit_history_ids=fit_history_ids,
+        fit_role_sha256=fit_role_sha256,
+    )
+    assert sorted(observations) == sorted(str(seed) for seed in MODEL_SEEDS)
+    assert len({tuple(item["channel_counts"]) for item in observations.values()}) == len(MODEL_SEEDS)
+    assert len({item["target_keys_sha256"] for item in observations.values()}) == len(MODEL_SEEDS)
+    # The persisted preflight payload is the dispatch contract.
+    payload = {"schema": runner.PREFLIGHT_SCHEMA, "selector_observations": observations}
+    for seed in MODEL_SEEDS:
+        assert runner._selector_expectation(payload, seed) is observations[str(seed)]
+    with pytest.raises(SystemExit):
+        runner._selector_expectation(payload, MODEL_SEEDS[-1] + 1000)
+    with pytest.raises(SystemExit):
+        runner._selector_expectation({}, MODEL_SEEDS[0])
+
+    calibration_rows_by_history = {
+        CALIBRATION_HISTORY: [
+            row for row in calibration_rows if row.actual_history_id == CALIBRATION_HISTORY
+        ]
+    }
+    fit_rows_by_id = {row.file_id: row for row in fit_rows}
+    # The actual runner accepts each seed's own observation over the real
+    # post-train path (2 isolated epochs) and rejects another seed's observation.
+    for seed in MODEL_SEEDS:
+        seed_dir = tmp_path / f"seed-{seed}"
+        seed_dir.mkdir()
+        with (tmp_path / f"progress-{seed}.jsonl").open("w", encoding="utf-8") as progress:
+            result = runner._run_seed(
+                binding=binding,
+                worktree=worktree,
+                seed=seed,
+                fit_ids=fit_ids,
+                fit_sample_by_id=fit_sample_by_id,
+                fit_history_ids=fit_history_ids,
+                calibration_rows=calibration_rows,
+                calibration_rows_by_history=calibration_rows_by_history,
+                development_history_ids=list(DEVELOPMENT_HISTORIES),
+                device=torch.device("cpu"),
+                progress=progress,
+                seed_dir=seed_dir,
+                fit_rows_by_id=fit_rows_by_id,
+                epochs=2,
+                selector_expectation=runner._selector_expectation(payload, seed),
+            )
+        record = result["record"]
+        per_epoch = record["channel_diagnostics"]["training"]["per_epoch"]
+        assert record["status"] == "ok"
+        assert record["representation_epochs_completed"] == 2
+        assert per_epoch[0]["channel_counts"] == observations[str(seed)]["channel_counts"]
+        assert per_epoch[0]["targets"] == observations[str(seed)]["targets"]
+
+    wrong_seed = MODEL_SEEDS[1]
+    wrong_dir = tmp_path / f"seed-{wrong_seed}-wrong"
+    wrong_dir.mkdir()
+    with (tmp_path / "progress-wrong.jsonl").open("w", encoding="utf-8") as progress:
+        with pytest.raises(SystemExit, match="epoch-1 channel counts differ from this seed's"):
+            runner._run_seed(
+                binding=binding,
+                worktree=worktree,
+                seed=wrong_seed,
+                fit_ids=fit_ids,
+                fit_sample_by_id=fit_sample_by_id,
+                fit_history_ids=fit_history_ids,
+                calibration_rows=calibration_rows,
+                calibration_rows_by_history=calibration_rows_by_history,
+                development_history_ids=list(DEVELOPMENT_HISTORIES),
+                device=torch.device("cpu"),
+                progress=progress,
+                seed_dir=wrong_dir,
+                fit_rows_by_id=fit_rows_by_id,
+                epochs=2,
+                selector_expectation=observations[str(MODEL_SEEDS[0])],
+            )
 
 
 @pytest.mark.skipif(
