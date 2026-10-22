@@ -82,6 +82,16 @@ from representation.sprint18_k_dispatch import (
     s17_k_id_for_arm,
     score_k9_files,
 )
+from representation.sprint18_k9_downstream import (
+    K9_ARM_ID,
+    K9_MASKING_POLICY_ID,
+    K9DownstreamProvenance,
+    ProvenancedK9Downstream,
+    fit_k9_downstream_members,
+    load_k9_downstream,
+    save_k9_downstream,
+    score_k9_certified_rows,
+)
 from representation.crn import (
     N4_GUARD_CONTRACT,
     N4_SATURATION_CAP_GATE,
@@ -332,6 +342,14 @@ __all__ = [
     "members_for_arm",
     "s17_k_id_for_arm",
     "score_k9_files",
+    "K9_ARM_ID",
+    "K9_MASKING_POLICY_ID",
+    "K9DownstreamProvenance",
+    "ProvenancedK9Downstream",
+    "fit_k9_downstream_members",
+    "load_k9_downstream",
+    "save_k9_downstream",
+    "score_k9_certified_rows",
     "fit_calibration_q95",
     "fit_fit_reference_bank",
     "is_verified_healthy",

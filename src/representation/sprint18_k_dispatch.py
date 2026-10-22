@@ -420,7 +420,10 @@ def fit_k9_downstream(
                 [sample], patchifier, masking_config=config, masking_seed=_file_seed(file_id),  # type: ignore[arg-type]
                 masking_policy=policy,
             )
-            moved = {k: (v.to(dev) if isinstance(v, torch.Tensor) else v) for k, v in batch.items()}
+            moved = {
+                k: (v.to(dev) if isinstance(v, torch.Tensor) else v)
+                for k, v in _downstream_model_batch(batch).items()
+            }
             res = model(moved)
             lat_rows.append(
                 {
@@ -467,9 +470,25 @@ def fit_k9_downstream(
 
 
 def _file_seed(file_id: str) -> int:
-    """Deterministic per-file masking seed (exact Sprint 17 K rule)."""
+    """Deterministic per-file masking seed (exact Sprint 17 K9 rule)."""
     digest = sha256(file_id.encode("utf-8")).digest()
     return int.from_bytes(digest[:4], "big") % (2**31)
+
+
+def _downstream_model_batch(batch: dict) -> dict:
+    """Drop the raw file samples before a downstream forward.
+
+    The model generates contrastive views from the raw samples whenever they
+    are present, and that generation consumes the model's augmentation RNG
+    state, which is part of the serialized model state and therefore part of
+    the restored-checkpoint identity checked before every bank/scoring
+    operation. The K9 downstream members never use the view embeddings, and
+    the primary latents/embeddings do not depend on them, so the raw samples
+    are dropped exactly as the common harness drops the diagnostic-only
+    collator fields for every other arm. The upstream model is therefore
+    never mutated by a downstream fit or scoring pass.
+    """
+    return {key: value for key, value in batch.items() if key != "file_samples"}
 
 
 def k9_forward_latents(
@@ -493,7 +512,10 @@ def k9_forward_latents(
                 [sample], patchifier, masking_config=config, masking_seed=_file_seed(file_id),  # type: ignore[arg-type]
                 masking_policy=policy,
             )
-            moved = {k: (v.to(dev) if isinstance(v, torch.Tensor) else v) for k, v in batch.items()}
+            moved = {
+                k: (v.to(dev) if isinstance(v, torch.Tensor) else v)
+                for k, v in _downstream_model_batch(batch).items()
+            }
             res = model(moved)
             out.append(
                 {
