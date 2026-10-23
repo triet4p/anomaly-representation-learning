@@ -701,6 +701,41 @@ def _fit_final_scope(*, records, fit_history_ids, arm, binding, seed, bounds, de
     return scale, result, optimizer
 
 
+def _probe_scale_parity(*, live_scale, restored_scale, probe, v_floor: float, v_cap: float) -> tuple[float, float, float]:
+    """Compare the live and strict-restored scale heads on one actual device.
+
+    The certified cache loader materializes N4 context rows on CPU while the live
+    head is deployed on the run device, so a raw forward would cross devices.
+    Align the probe context and the restored head to the live head's actual
+    device for the comparison and return the restored head to where it came
+    from afterwards; nothing is copied when the devices already match. This is
+    the same contract the certified Task13B runner applies to its held-out
+    probe. Strict forward and NLL parity checks stay with the caller.
+    """
+    target = next(live_scale.parameters()).device
+    context = torch.stack([record.context.float() for record in probe], dim=0)
+    if context.device != target:
+        context = context.to(target)
+    residual = torch.tensor([float(record.residual) for record in probe], dtype=torch.float32)
+    restored_origin = next(restored_scale.parameters()).device
+    restored_on_device = restored_scale if restored_origin == target else restored_scale.to(target)
+    live_scale.eval()
+    restored_on_device.eval()
+    try:
+        with torch.no_grad():
+            live_out = live_scale(context, v_floor=float(v_floor), v_cap=float(v_cap))
+            restored_out = restored_on_device(context, v_floor=float(v_floor), v_cap=float(v_cap))
+            forward_diff = float(
+                (live_out["log_v"].detach().cpu() - restored_out["log_v"].detach().cpu()).abs().max().item()
+            )
+            live_nll = float(n4_scale_nll(residual, live_out["log_v"].detach().cpu()).item())
+            restored_nll = float(n4_scale_nll(residual, restored_out["log_v"].detach().cpu()).item())
+    finally:
+        if restored_on_device is not restored_scale:
+            restored_scale.to(restored_origin)
+    return forward_diff, live_nll, restored_nll
+
+
 def _save_and_restore_scale(*, scale, out_dir: Path, seed: int, fit_history_ids, bounds, fit_result) -> dict:
     training_ids = list(sorted(fit_history_ids))
     checkpoint_path = Path(out_dir) / "checkpoints" / f"n4-seed{seed}-final.pt"
@@ -733,18 +768,10 @@ def _save_and_restore_scale(*, scale, out_dir: Path, seed: int, fit_history_ids,
     forward_diff = 0.0
     restored_nll = None
     if probe:
-        context = torch.stack([record.context.float() for record in probe], dim=0)
-        residual = torch.tensor([float(record.residual) for record in probe], dtype=torch.float32)
-        scale.eval()
-        restored_scale.eval()
-        with torch.no_grad():
-            live_out = scale(context, v_floor=float(bounds["v_floor"]), v_cap=float(bounds["v_cap"]))
-            restored_out = restored_scale(context, v_floor=float(bounds["v_floor"]), v_cap=float(bounds["v_cap"]))
-            forward_diff = float(
-                (live_out["log_v"].detach().cpu() - restored_out["log_v"].detach().cpu()).abs().max().item()
-            )
-            live_nll = float(n4_scale_nll(residual, live_out["log_v"].detach().cpu()).item())
-            restored_nll = float(n4_scale_nll(residual, restored_out["log_v"].detach().cpu()).item())
+        forward_diff, live_nll, restored_nll = _probe_scale_parity(
+            live_scale=scale, restored_scale=restored_scale, probe=probe,
+            v_floor=float(bounds["v_floor"]), v_cap=float(bounds["v_cap"]),
+        )
         if forward_diff != 0.0 or live_nll != restored_nll:
             raise _fail(f"seed {seed}: strict scale restore forward/NLL parity failed")
     return {
@@ -830,22 +857,14 @@ def _run_capacity_folds(*, pools, fit_history_ids, arm, binding, seed, device, o
         probe = sorted(heldout_pool, key=lambda record: (record.file_id, record.patch_index))[:64]
         forward_diff = 0.0
         if probe:
-            context = torch.stack([record.context.float() for record in probe], dim=0)
-            residual = torch.tensor([float(record.residual) for record in probe], dtype=torch.float32)
-            scale.eval()
-            restored_scale.eval()
-            with torch.no_grad():
-                live_out = scale(context, v_floor=float(bounds["v_floor"]), v_cap=float(bounds["v_cap"]))
-                restored_out = restored_scale(context, v_floor=float(bounds["v_floor"]), v_cap=float(bounds["v_cap"]))
-                forward_diff = float(
-                    (live_out["log_v"].detach().cpu() - restored_out["log_v"].detach().cpu()).abs().max().item()
-                )
-                if forward_diff != 0.0:
-                    raise _fail(f"seed {seed}: fold {heldout} strict restore forward parity failed")
-                if float(n4_scale_nll(residual, live_out["log_v"].detach().cpu()).item()) != float(
-                    n4_scale_nll(residual, restored_out["log_v"].detach().cpu()).item()
-                ):
-                    raise _fail(f"seed {seed}: fold {heldout} strict restore NLL parity failed")
+            forward_diff, live_nll, restored_nll = _probe_scale_parity(
+                live_scale=scale, restored_scale=restored_scale, probe=probe,
+                v_floor=float(bounds["v_floor"]), v_cap=float(bounds["v_cap"]),
+            )
+            if forward_diff != 0.0:
+                raise _fail(f"seed {seed}: fold {heldout} strict restore forward parity failed")
+            if live_nll != restored_nll:
+                raise _fail(f"seed {seed}: fold {heldout} strict restore NLL parity failed")
         matches_certified = envelope_sha == certified_folds[index]
         if normative and not matches_certified:
             raise _fail(

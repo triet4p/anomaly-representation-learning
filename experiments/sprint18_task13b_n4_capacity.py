@@ -17,15 +17,17 @@ The operative N4 mechanism specification is the prospective v3 amendment
 (``experiments/sprint18-context-residual-normalization-spec-v3.md``); the
 v1/v2 files remain immutable historical records. A normative v3 run requires
 the versioned prospective Task14 lock
-(``experiments/sprint18-task14-config-lock-v4.json``), which binds the v3
+(``experiments/sprint18-task14-config-lock-v5.json``), which binds the v3
 amendment digest, the reviewed model-implementation snapshot, the required
 runner digest, the final-B0/cache identities and the three N4-CRN seed
-configs. The historical v1 lock and the superseded v2 and v3 prospective locks
-are preserved byte-identically and chained by digest: the v2 lock supersedes
-v1 for N4-CRN only, the v3 lock supersedes v2 for the reviewed implementation
-snapshot and the N4 in-scope record contract, and the v4 lock supersedes v3
-only for the corrected Task30 prediction-cache binding contract and the
-refreshed reviewed pin while carrying the same scientific recipe. Every
+configs. The historical v1 lock and the superseded v2, v3 and v4 prospective
+locks are preserved byte-identically and chained by digest: the v2 lock
+supersedes v1 for N4-CRN only, the v3 lock supersedes v2 for the reviewed
+implementation snapshot and the N4 in-scope record contract, the v4 lock
+supersedes v3 for the corrected Task30 prediction-cache binding contract, and
+the v5 lock supersedes v4 only for the corrected strict-restore probe device
+alignment and its refreshed reviewed runner pin while carrying the same
+scientific recipe. Every
 other arm stays bound by the historical v1 lock; this runner never edits or
 reinterprets them. In
 particular the three B0-FULL strict restores bind the v1 coefficient-lock
@@ -157,29 +159,39 @@ MECHANISM_SPEC_PATH = "experiments/sprint18-context-residual-normalization-spec-
 EXECUTION_BINDING_FIELDS = ("source_commit", "runner_sha256")
 
 #: Versioned prospective Task14 lock activating N4-CRN v3. The historical v1
-#: lock and the superseded v2/v3 prospective locks stay byte-identical and are
-#: referenced (never edited) by this version; every arm other than N4-CRN
+#: lock and the superseded v2/v3/v4 prospective locks stay byte-identical and
+#: are referenced (never edited) by this version; every arm other than N4-CRN
 #: remains bound by the historical v1 lock.
-TASK14_LOCK_PATH = "experiments/sprint18-task14-config-lock-v4.json"
-TASK14_SUPERSEDED_LOCK_PATH = "experiments/sprint18-task14-config-lock-v3.json"
+TASK14_LOCK_PATH = "experiments/sprint18-task14-config-lock-v5.json"
+TASK14_SUPERSEDED_LOCK_PATH = "experiments/sprint18-task14-config-lock-v4.json"
+TASK14_V3_LOCK_PATH = "experiments/sprint18-task14-config-lock-v3.json"
 TASK14_V2_LOCK_PATH = "experiments/sprint18-task14-config-lock-v2.json"
 TASK14_LEGACY_LOCK_PATH = "experiments/sprint18-task14-config-lock.json"
-TASK14_LOCK_SCHEMA = "s18-task14-config-lock-v4"
-TASK14_LOCK_VERSION = 4
+TASK14_LOCK_SCHEMA = "s18-task14-config-lock-v5"
+TASK14_LOCK_VERSION = 5
 #: Frozen lock-digest rule: SHA-256 over canonical JSON of the core (every
 #: field except these derived containers).
 TASK14_LOCK_CORE_EXCLUDE = frozenset(
     {"coefficient_lock_sha256", "locked_configs", "config_sha256", "file_sha256"}
 )
-#: Superseded prospective v3 lock identities (immutable). The v4 lock must
+#: Superseded prospective v4 lock identities (immutable). The v5 lock must
 #: supersede these exact bytes and never rewrite them.
 SUPERSEDED_TASK14_LOCK_SHA256 = (
-    "5ce105b495b9f89569054b5bd512a2f80d31d14c89545b7463a22c8a4bd59a4e"
+    "edbd65f35474375b0472c0752cea83c0029282a1f955522e462bfb85f66d1829"
 )
 SUPERSEDED_TASK14_LOCK_COEFFICIENT_SHA256 = (
+    "3151a4ea795ea5dfa881ee33b2887a1a0b3958b91006cd13e7cb7efb0f05b490"
+)
+SUPERSEDED_TASK14_LOCK_SCHEMA = "s18-task14-config-lock-v4"
+#: Superseded prospective v3 lock identities (immutable). The v4 lock in the
+#: preserved chain must supersede these exact bytes and never rewrite them.
+V3_TASK14_LOCK_SHA256 = (
+    "5ce105b495b9f89569054b5bd512a2f80d31d14c89545b7463a22c8a4bd59a4e"
+)
+V3_TASK14_LOCK_COEFFICIENT_SHA256 = (
     "c6c3fe84dece2a76b21cafbb87ceccfdb028b123edb138c084594db90170210b"
 )
-SUPERSEDED_TASK14_LOCK_SCHEMA = "s18-task14-config-lock-v3"
+V3_TASK14_LOCK_SCHEMA = "s18-task14-config-lock-v3"
 #: Superseded prospective v2 lock identities (immutable). The v3 lock in the
 #: preserved chain must supersede these exact bytes and never rewrite them.
 V2_TASK14_LOCK_SHA256 = (
@@ -190,13 +202,14 @@ V2_TASK14_LOCK_COEFFICIENT_SHA256 = (
 )
 V2_TASK14_LOCK_SCHEMA = "s18-task14-config-lock-v2"
 #: Historical v1 lock identities. The current lock must supersede these exact
-#: bytes (through the preserved v3 -> v2 chain) and never rewrite them.
+#: bytes (through the preserved v4 -> v3 -> v2 chain) and never rewrite them.
 LEGACY_TASK14_LOCK_SHA256 = "c4c1a8bde14310cf4436c10762e3e98475f7c84eb74fcb8a74b3e267885edec3"
 LEGACY_TASK14_COEFFICIENT_LOCK_SHA256 = (
     "6eb108b2073181d427f1aedfc81fb3bae4c29595108d15de486082800bdd9d6e"
 )
-#: Reviewed implementation scope pinned by the v3 lock. Every path here must
-#: be present and byte-identical; dropping or adding a pin is refused.
+#: Reviewed implementation scope pinned by the current prospective lock. Every
+#: path here must be present and byte-identical; dropping or adding a pin is
+#: refused.
 TASK14_REVIEWED_IMPLEMENTATION_PATHS = frozenset(
     {
         "experiments/sprint18-context-residual-normalization-spec-v3.md",
@@ -397,7 +410,7 @@ def validate_task14_lock(
 
     supersedes = lock.get("supersedes")
     if not isinstance(supersedes, dict) or supersedes.get("path") != TASK14_SUPERSEDED_LOCK_PATH:
-        raise _fail("Task14 lock does not supersede the prospective v3 lock path")
+        raise _fail("Task14 lock does not supersede the prospective v4 lock path")
     if supersedes.get("schema") != SUPERSEDED_TASK14_LOCK_SCHEMA:
         raise _fail("Task14 lock supersedes the wrong lock schema")
     if supersedes.get("coefficient_lock_sha256") != SUPERSEDED_TASK14_LOCK_COEFFICIENT_SHA256:
@@ -406,15 +419,34 @@ def validate_task14_lock(
         raise _fail("Task14 lock supersedes the wrong prospective lock bytes")
     superseded_path = Path(worktree) / TASK14_SUPERSEDED_LOCK_PATH
     if not superseded_path.is_file() or _sha_file(superseded_path) != SUPERSEDED_TASK14_LOCK_SHA256:
-        raise _fail("superseded prospective v3 Task14 lock bytes changed")
+        raise _fail("superseded prospective v4 Task14 lock bytes changed")
     superseded = json.loads(superseded_path.read_text(encoding="utf-8"))
     if (
         superseded.get("schema") != SUPERSEDED_TASK14_LOCK_SCHEMA
-        or superseded.get("lock_version") != 3
+        or superseded.get("lock_version") != 4
         or task14_lock_core_digest(superseded) != SUPERSEDED_TASK14_LOCK_COEFFICIENT_SHA256
     ):
+        raise _fail("superseded prospective v4 Task14 lock identity is inconsistent")
+    v4_supersedes = superseded.get("supersedes")
+    if not isinstance(v4_supersedes, dict) or v4_supersedes.get("path") != TASK14_V3_LOCK_PATH:
+        raise _fail("superseded v4 lock does not supersede the prospective v3 lock path")
+    if v4_supersedes.get("schema") != V3_TASK14_LOCK_SCHEMA:
+        raise _fail("superseded v4 lock supersedes the wrong lock schema")
+    if v4_supersedes.get("coefficient_lock_sha256") != V3_TASK14_LOCK_COEFFICIENT_SHA256:
+        raise _fail("superseded v4 lock supersedes the wrong v3 coefficient digest")
+    if v4_supersedes.get("file_sha256") != V3_TASK14_LOCK_SHA256:
+        raise _fail("superseded v4 lock supersedes the wrong v3 lock bytes")
+    v3_path = Path(worktree) / TASK14_V3_LOCK_PATH
+    if not v3_path.is_file() or _sha_file(v3_path) != V3_TASK14_LOCK_SHA256:
+        raise _fail("superseded prospective v3 Task14 lock bytes changed")
+    v3_lock = json.loads(v3_path.read_text(encoding="utf-8"))
+    if (
+        v3_lock.get("schema") != V3_TASK14_LOCK_SCHEMA
+        or v3_lock.get("lock_version") != 3
+        or task14_lock_core_digest(v3_lock) != V3_TASK14_LOCK_COEFFICIENT_SHA256
+    ):
         raise _fail("superseded prospective v3 Task14 lock identity is inconsistent")
-    v3_supersedes = superseded.get("supersedes")
+    v3_supersedes = v3_lock.get("supersedes")
     if not isinstance(v3_supersedes, dict) or v3_supersedes.get("path") != TASK14_V2_LOCK_PATH:
         raise _fail("superseded v3 lock does not supersede the prospective v2 lock path")
     if v3_supersedes.get("schema") != V2_TASK14_LOCK_SCHEMA:
@@ -714,6 +746,12 @@ def validate_task14_lock(
             "file_sha256": supersedes["file_sha256"],
             "coefficient_lock_sha256": supersedes["coefficient_lock_sha256"],
             "scope": supersedes.get("scope"),
+        },
+        "historical_v3_lock": {
+            "path": TASK14_V3_LOCK_PATH,
+            "schema": v3_lock["schema"],
+            "file_sha256": V3_TASK14_LOCK_SHA256,
+            "coefficient_lock_sha256": V3_TASK14_LOCK_COEFFICIENT_SHA256,
         },
         "historical_v2_lock": {
             "path": TASK14_V2_LOCK_PATH,

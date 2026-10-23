@@ -15,6 +15,7 @@ import json
 import math
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -401,3 +402,164 @@ def test_b0_cache_identity_refuses_legacy_single_key_and_checkpoint_drift(tmp_pa
     checkpoint.write_bytes(b"different checkpoint bytes")
     with pytest.raises(SystemExit, match="B0 checkpoint bytes differ from the bound digest"):
         runner._b0_restore_identity(fixture=fixture, seed=seed, b0_record=b0_record)
+
+
+def _tiny_n4_pools() -> dict[str, list[N4ScaleRecord]]:
+    """Tiny deterministic Fit pools whose residual bounds pass the frozen guards."""
+    pools: dict[str, list[N4ScaleRecord]] = {}
+    for ordinal, history_id in enumerate(HISTORIES):
+        generator = torch.Generator().manual_seed(181801 + ordinal)
+        pools[history_id] = [
+            N4ScaleRecord(
+                history_id=history_id,
+                file_id=f"probe-{ordinal}-{index:03d}",
+                patch_index=0,
+                context=torch.randn(128, generator=generator) * 0.01,
+                residual=0.08 + 0.04 * index,
+            )
+            for index in range(6)
+        ]
+    return pools
+
+
+def _fit_binding_stub() -> SimpleNamespace:
+    """Minimal Fit-role binding for the sampler identity only.
+
+    The device-alignment regression exercises the frozen fit/probe mechanics,
+    not the certified DATA binding: ``deterministic_sampler_order`` reads only
+    the Fit history roster for the N4 scale workload.
+    """
+    histories = tuple(
+        SimpleNamespace(actual_history_id=history_id, assigned_role="FIT")
+        for history_id in HISTORIES
+    )
+    return SimpleNamespace(
+        role_histories=lambda role: tuple(
+            item for item in histories if item.assigned_role == role
+        )
+    )
+
+
+#: The probe restoration must run on the head's real device. CUDA is the case
+#: the CPU-only suites could never reach, so it is exercised when available and
+#: honestly skipped otherwise.
+DEVICE_CASES = [
+    pytest.param("cpu", id="cpu"),
+    pytest.param(
+        "cuda",
+        id="cuda",
+        marks=pytest.mark.skipif(
+            not torch.cuda.is_available(),
+            reason="device-alignment regression needs a real CUDA device",
+        ),
+    ),
+]
+
+
+@pytest.mark.parametrize("device", DEVICE_CASES)
+def test_final_scale_restore_probe_forwards_on_the_live_head_device(
+    tmp_path: Path, device: str
+) -> None:
+    """The strict final-envelope probe must not forward CPU rows into a CUDA head."""
+    seed = runner.MODEL_SEEDS[0]
+    pools = _tiny_n4_pools()
+    records = [record for history_id in HISTORIES for record in pools[history_id]]
+    bounds = runner._final_bounds(pools, list(HISTORIES))
+    scale = runner.init_n4_scale_model(128, seed)
+    result = runner.fit_n4_scale_scope(
+        records=records, training_history_ids=list(HISTORIES), scope="final",
+        arm=runner._n4_arm(seed, "ab" * 32), binding=_fit_binding_stub(),
+        scale_model=scale, v_floor=bounds["v_floor"], v_cap=bounds["v_cap"],
+        device=device,
+    )
+    block = runner._save_and_restore_scale(
+        scale=scale, out_dir=tmp_path, seed=seed, fit_history_ids=list(HISTORIES),
+        bounds=bounds, fit_result={**result, "probe_records": records},
+    )
+    assert block["restored_forward_max_abs_diff"] == 0.0
+    assert block["probe_records"] == len(records)
+    assert math.isfinite(block["restored_probe_nll"])
+    assert block["restored_state_dict_sha256"] == block["state_dict_sha256"]
+
+
+@pytest.mark.parametrize("device", DEVICE_CASES)
+def test_capacity_fold_restore_probe_forwards_on_the_live_head_device(
+    tmp_path: Path, device: str
+) -> None:
+    """Each fold strict-restore probe must align CPU rows with the CUDA head."""
+    seed = runner.MODEL_SEEDS[0]
+    block = runner._run_capacity_folds(
+        pools=_tiny_n4_pools(), fit_history_ids=list(HISTORIES),
+        arm=runner._n4_arm(seed, "ab" * 32), binding=_fit_binding_stub(),
+        seed=seed, device=torch.device(device), out_dir=tmp_path,
+        certified_folds=["0" * 64 for _ in HISTORIES], normative=False,
+    )
+    assert block["folds_evaluated"] == len(HISTORIES)
+    assert block["all_fold_cap_gates_pass"] is True
+    for fold in block["folds"]:
+        assert fold["restored_forward_max_abs_diff"] == 0.0
+        assert fold["restored_state_dict_sha256"] == fold["scale_state_sha256"]
+        assert fold["matches_certified_task13b_fold_digest"] is False
+        assert Path(fold["scale_checkpoint_path"]).is_file()
+
+
+def test_saved_scale_envelope_restores_and_scores_through_public_consumer(
+    tmp_path: Path,
+) -> None:
+    """A real saved envelope restores into a fresh head that drives public scoring."""
+    from representation import n4_score_files
+    from representation.config import V1Config
+    from representation.model import V1RepresentationModel
+    from representation.sprint18_harness import deterministic_mask_seed
+    from synth.config import PatchConfig
+    from synth.patchify import Patchifier
+    from synth.schema import FileSample, SampleLabel
+
+    seed = runner.MODEL_SEEDS[0]
+    pools = _tiny_n4_pools()
+    records = [record for history_id in HISTORIES for record in pools[history_id]]
+    bounds = runner._final_bounds(pools, list(HISTORIES))
+    scale = runner.init_n4_scale_model(128, seed)
+    result = runner.fit_n4_scale_scope(
+        records=records, training_history_ids=list(HISTORIES), scope="final",
+        arm=runner._n4_arm(seed, "ab" * 32), binding=_fit_binding_stub(),
+        scale_model=scale, v_floor=bounds["v_floor"], v_cap=bounds["v_cap"],
+    )
+    block = runner._save_and_restore_scale(
+        scale=scale, out_dir=tmp_path, seed=seed, fit_history_ids=list(HISTORIES),
+        bounds=bounds, fit_result={**result, "probe_records": records},
+    )
+    checkpoint_path = Path(block["path"])
+    assert block["sha256"] == hashlib.sha256(checkpoint_path.read_bytes()).hexdigest()
+
+    restored = runner.init_n4_scale_model(128, seed + 999999)
+    meta = runner.load_n4_scale_checkpoint(
+        checkpoint_path, restored, expected_fit_scope="final",
+        expected_training_history_ids=list(HISTORIES),
+        expected_bounds={"v_floor": bounds["v_floor"], "v_cap": bounds["v_cap"]},
+    )
+    assert meta["state_dict_sha256"] == block["state_dict_sha256"]
+
+    config = V1Config(
+        n_channels=6, patch_size=32, stride=16, d_model=128, attention_heads=4,
+        sequence_layers=1, dropout=0.0, n_robots=9, n_programs=8, seed=seed,
+        contrastive_weight_max=0.05, ema_decay=0.996,
+    )
+    patchifier = Patchifier(PatchConfig(patch_size=32, stride=16, pad_end=True))
+    model = V1RepresentationModel(config, patchifier=patchifier)
+    sample = FileSample(
+        x=np.random.default_rng(181801).normal(size=(6, 640)).astype(np.float32),
+        file_id="t30-envelope-00", file_label=SampleLabel.NORMAL, seed=seed,
+        generator_version="t30-test", config_hash="t30-test", regime_sequence=[],
+        robot_idx=0, program_idx=0,
+    )
+    sample.validate()
+    triples = n4_score_files(
+        model=model, samples=[sample], scale_model=restored,
+        v_floor=bounds["v_floor"], v_cap=bounds["v_cap"], patchifier=patchifier,
+        masking_seed=deterministic_mask_seed(seed, HISTORIES[0], sample.file_id),
+    )
+    triple = triples[sample.file_id]
+    assert set(triple) == {"raw", "scale", "normalized"}
+    assert all(math.isfinite(float(value)) for value in triple.values())
+    assert float(triple["scale"]) > 0.0
