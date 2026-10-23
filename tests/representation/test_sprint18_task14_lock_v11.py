@@ -1,15 +1,18 @@
-"""Versioned prospective Task14 N4-CRN v10 lock regression test.
+"""Versioned prospective Task14 N4-CRN v11 lock regression test.
 
 Protects the lock that carries the reviewed N4 v3 initialization/guard
 contract, the corrected Task30 prediction-cache binding contract, the
 corrected strict-restore probe device alignment, the corrected Task30
 Fit-bank row ordering, the certified-capacity identity comparison, the
 corrected historical envelope directory derivation, the corrected Task30 N4
-compute-probe record contract, and the corrected Task30 Development
-per-history row identity/provenance contract (every recomputed arm row now
-carries ``history_id`` plus the accepted provenance, and the paired consumer
-indexes by authenticated identity). The historical v1 lock and the superseded
-v2-v9 prospective locks must stay byte-identical; the v10 lock must recompute
+compute-probe record contract, the corrected Task30 Development per-history
+row identity/provenance contract, and the corrected Task30 paired Development
+B0 support/identity join (the accepted ``development.support.per_history``
+record carries exactly ``branch_provenance_sha256``/``file_ids``/
+``support_sha256``; the certified ``role_manifest_sha256``/
+``schema_history_id`` identity is joined from the public B0 branch rows with
+exact cross-branch agreement). The historical v1 lock and the superseded
+v2-v10 prospective locks must stay byte-identical; the v11 lock must recompute
 its canonical core digest, re-materialize the three N4-CRN seed configs through
 the real arm-config consumer without reclaiming the other arms, and the
 runner's lock consumer must accept it while refusing stale or tampered
@@ -53,8 +56,9 @@ from representation.sprint18_harness import (  # noqa: E402
     validate_arm_config,
 )
 
-LOCK_PATH = ROOT / "experiments" / "sprint18-task14-config-lock-v10.json"
-SUPERSEDED_LOCK_PATH = ROOT / "experiments" / "sprint18-task14-config-lock-v9.json"
+LOCK_PATH = ROOT / "experiments" / "sprint18-task14-config-lock-v11.json"
+SUPERSEDED_LOCK_PATH = ROOT / "experiments" / "sprint18-task14-config-lock-v10.json"
+V9_LOCK_PATH = ROOT / "experiments" / "sprint18-task14-config-lock-v9.json"
 V8_LOCK_PATH = ROOT / "experiments" / "sprint18-task14-config-lock-v8.json"
 V7_LOCK_PATH = ROOT / "experiments" / "sprint18-task14-config-lock-v7.json"
 V6_LOCK_PATH = ROOT / "experiments" / "sprint18-task14-config-lock-v6.json"
@@ -71,9 +75,14 @@ LEGACY_LOCK_SHA256 = "c4c1a8bde14310cf4436c10762e3e98475f7c84eb74fcb8a74b3e26788
 LEGACY_COEFFICIENT_LOCK_SHA256 = (
     "6eb108b2073181d427f1aedfc81fb3bae4c29595108d15de486082800bdd9d6e"
 )
-#: Superseded prospective v9 lock (raw bytes + canonical core digest).
-SUPERSEDED_LOCK_SHA256 = "a9990bd189706a0fdadfeaee422ef307599e3f4d9c5a72102dfa1f015d5cd57a"
+#: Superseded prospective v10 lock (raw bytes + canonical core digest).
+SUPERSEDED_LOCK_SHA256 = "d0a2dc09e1048b1f857bdb326ba7360d43abb70ea1a45e98967e44338b43c5d0"
 SUPERSEDED_COEFFICIENT_LOCK_SHA256 = (
+    "552991453e501d6fa48e514ae6a6adca1cafad284ce9843d17192a3afbb48396"
+)
+#: Superseded prospective v9 lock (raw bytes + canonical core digest).
+V9_LOCK_SHA256 = "a9990bd189706a0fdadfeaee422ef307599e3f4d9c5a72102dfa1f015d5cd57a"
+V9_COEFFICIENT_LOCK_SHA256 = (
     "b171e50014a9bfad0edc865fc42a52a49d073b8b0a2e47788d5020b741266bbf"
 )
 #: Superseded prospective v8 lock (raw bytes + canonical core digest).
@@ -108,18 +117,19 @@ V2_COEFFICIENT_LOCK_SHA256 = (
 SPEC_V1_SHA256 = "fd0e1722ea4f248a354086bbdf44bc486d741a9cfb018f68ef08277827d7954d"
 SPEC_V2_SHA256 = "4d1c8097c9cc27d3fbeb2e2a6e70a29a7bc63d7899646a9c712a315b39d9ffe3"
 SPEC_V3_SHA256 = "e7fe42e41832ae283614ee6a76c0623ee567068dcc540a222f5b66a9d4262da2"
-#: Task13B capacity-runner bytes at the reviewed source commit (6ffcfc9f).
-REVIEWED_RUNNER_SHA256 = "02e0d1096ed1115a95710b3152b14937e2d78419781e53b6fbeb02ad742864a8"
-#: Superseded v9 reviewed Task30 runner pin, plus the older preserved pins.
-SUPERSEDED_RUNNER_PIN = "3af994ba002b5eb79599858ba90ceff18e099accdd79b28c0f1d63a31caaff80"
+#: Task13B capacity-runner bytes at the reviewed source commit (2b0cb38c).
+REVIEWED_RUNNER_SHA256 = "6c3542cfda05ebc72ab98c12f3077562f9754339b79fce4b5e72f648dddb8084"
+#: Superseded v10 reviewed Task30 runner pin, plus the older preserved pins.
+SUPERSEDED_RUNNER_PIN = "d8b70a83283608ff96e250094f1b9f94f68df15933b475a27c4c3b2d3c2f8260"
+V9_RUNNER_PIN = "3af994ba002b5eb79599858ba90ceff18e099accdd79b28c0f1d63a31caaff80"
 V8_RUNNER_PIN = "a1110f77b06a56c452269fd468b65678b8cf9623c37df319772fee64a1bd4453"
 V7_RUNNER_PIN = "ad7fd8616aebd70390d32baeb7ad604d218d1ce07a45b98441349062609d92ba"
 V6_RUNNER_PIN = "4bb560e179cf385a95a0eca4a603827cc642e9109063687c82d04ea98ae85322"
 V5_RUNNER_PIN = "19331f57e0d7b307085bd8e69f67740f693448096c82adede89b207cff39c36f"
 V4_RUNNER_PIN = "f24e825ed242942045f7c69c0daac08a8a8374f897914acafddbca0902bac3f9"
 V3_RUNNER_PIN = "e923732778c1479f2bcac1c107c792e4a6c5730b717854b87b064dc86f0b78db"
-BASE_COMMIT = "6ffcfc9f4ab339604ff201abb75f9d18fb12466d"
-BASE_PARENT = "1d9a646e9f57051fdc582e950919905f1dd70326"
+BASE_COMMIT = "2b0cb38c33c0022412e5dd57f424a2c6c053aea2"
+BASE_PARENT = "6ffcfc9f4ab339604ff201abb75f9d18fb12466d"
 FIT_HISTORIES = [
     "S18I-ITER-0005-FIT-01",
     "S18I-ITER-0005-FIT-02",
@@ -127,13 +137,15 @@ FIT_HISTORIES = [
 ]
 COEFFICIENTS = {"lambda_info_max": None, "lambda_hcc_max": None, "alpha": None, "beta": None}
 SUPERSEDES_SCOPE = (
-    "supersedes the v9 prospective lock for the corrected Task30 Development per-history "
-    "row identity/provenance contract (every recomputed arm per-history row now carries "
-    "history_id plus the accepted role_manifest_sha256/schema_history_id/support_sha256, and "
-    "the paired consumer indexes rows by authenticated identity instead of assuming the key) "
-    "and the refreshed reviewed implementation pins only; the v9, v8, v7, v6, v5, v4, v3, v2 "
-    "and v1 lock bytes, every other arm, the frozen scientific recipe, the final-B0/DATA "
-    "identities and all historical evidence remain unchanged"
+    "supersedes the v10 prospective lock for the corrected Task30 paired Development "
+    "consumer: the per-history identity is joined from the accepted B0 branch rows "
+    "(role_manifest_sha256/schema_history_id, exact agreement across S_pred and S_pop) "
+    "and validated against the accepted B0 development.support record (exactly "
+    "branch_provenance_sha256/file_ids/support_sha256), instead of requiring identity "
+    "fields the accepted ledger does not carry; plus the refreshed reviewed "
+    "implementation pins only. The v10, v9, v8, v7, v6, v5, v4, v3, v2 and v1 lock "
+    "bytes, every other arm, the frozen scientific recipe, the final-B0/DATA identities "
+    "and all historical evidence remain unchanged"
 )
 
 
@@ -155,6 +167,10 @@ def _load_legacy_lock() -> dict:
 
 def _load_superseded_lock() -> dict:
     return _load(SUPERSEDED_LOCK_PATH)
+
+
+def _load_v9_lock() -> dict:
+    return _load(V9_LOCK_PATH)
 
 
 def _load_v8_lock() -> dict:
@@ -217,18 +233,18 @@ def _validate(lock: dict):
     )
 
 
-def test_lock_v10_digest_supersedes_and_preserved_history() -> None:
+def test_lock_v11_digest_supersedes_and_preserved_history() -> None:
     lock = _load_lock()
-    assert lock["schema"] == "s18-task14-config-lock-v10"
-    assert lock["lock_version"] == 10
-    assert lock["attempt_id"] == "S18-T30-A15"
+    assert lock["schema"] == "s18-task14-config-lock-v11"
+    assert lock["lock_version"] == 11
+    assert lock["attempt_id"] == "S18-T30-A17"
     assert lock["task_id"] == "S18-T14"
     assert lock["source_commit"] == BASE_COMMIT
     assert lock["source_parent"] == BASE_PARENT
     assert lock["target_ref"] == "refs/heads/master"
     assert lock["created_by"] == {
         "task_id": "S18-T30",
-        "attempt_id": "S18-T30-A15",
+        "attempt_id": "S18-T30-A17",
         "role": "gold-task",
         "route": "full",
         "review_status": "pending_independent_source_review",
@@ -243,6 +259,7 @@ def test_lock_v10_digest_supersedes_and_preserved_history() -> None:
     ).hexdigest()
     assert recomputed == lock["coefficient_lock_sha256"]
     assert lock["coefficient_lock_sha256"] != SUPERSEDED_COEFFICIENT_LOCK_SHA256
+    assert lock["coefficient_lock_sha256"] != V9_COEFFICIENT_LOCK_SHA256
     assert lock["coefficient_lock_sha256"] != V8_COEFFICIENT_LOCK_SHA256
     assert lock["coefficient_lock_sha256"] != V7_COEFFICIENT_LOCK_SHA256
     assert lock["coefficient_lock_sha256"] != V6_COEFFICIENT_LOCK_SHA256
@@ -253,23 +270,33 @@ def test_lock_v10_digest_supersedes_and_preserved_history() -> None:
     assert lock["coefficient_lock_sha256"] != LEGACY_COEFFICIENT_LOCK_SHA256
     assert lock["coefficient_selections"] == _load_legacy_lock()["coefficient_selections"]
     assert lock["supersedes"] == {
-        "path": "experiments/sprint18-task14-config-lock-v9.json",
-        "schema": "s18-task14-config-lock-v9",
+        "path": "experiments/sprint18-task14-config-lock-v10.json",
+        "schema": "s18-task14-config-lock-v10",
         "file_sha256": SUPERSEDED_LOCK_SHA256,
         "coefficient_lock_sha256": SUPERSEDED_COEFFICIENT_LOCK_SHA256,
         "scope": SUPERSEDES_SCOPE,
     }
     # Historical bytes are preserved exactly through the
-    # v9 -> v8 -> v7 -> v6 -> v5 -> v4 -> v3 -> v2 -> v1 chain.
+    # v10 -> v9 -> v8 -> v7 -> v6 -> v5 -> v4 -> v3 -> v2 -> v1 chain.
     assert _sha256(SUPERSEDED_LOCK_PATH) == SUPERSEDED_LOCK_SHA256
     superseded = _load_superseded_lock()
-    assert superseded["schema"] == "s18-task14-config-lock-v9"
-    assert superseded["lock_version"] == 9
+    assert superseded["schema"] == "s18-task14-config-lock-v10"
+    assert superseded["lock_version"] == 10
     assert superseded["coefficient_lock_sha256"] == SUPERSEDED_COEFFICIENT_LOCK_SHA256
     assert superseded["source_commit"] == BASE_PARENT
-    assert superseded["supersedes"]["path"] == "experiments/sprint18-task14-config-lock-v8.json"
-    assert superseded["supersedes"]["file_sha256"] == V8_LOCK_SHA256
-    assert superseded["supersedes"]["coefficient_lock_sha256"] == V8_COEFFICIENT_LOCK_SHA256
+    assert superseded["supersedes"]["path"] == "experiments/sprint18-task14-config-lock-v9.json"
+    assert superseded["supersedes"]["schema"] == "s18-task14-config-lock-v9"
+    assert superseded["supersedes"]["file_sha256"] == V9_LOCK_SHA256
+    assert superseded["supersedes"]["coefficient_lock_sha256"] == V9_COEFFICIENT_LOCK_SHA256
+    assert _sha256(V9_LOCK_PATH) == V9_LOCK_SHA256
+    v9 = _load_v9_lock()
+    assert v9["schema"] == "s18-task14-config-lock-v9"
+    assert v9["lock_version"] == 9
+    assert v9["coefficient_lock_sha256"] == V9_COEFFICIENT_LOCK_SHA256
+    assert v9["source_commit"] == "1d9a646e9f57051fdc582e950919905f1dd70326"
+    assert v9["supersedes"]["path"] == "experiments/sprint18-task14-config-lock-v8.json"
+    assert v9["supersedes"]["file_sha256"] == V8_LOCK_SHA256
+    assert v9["supersedes"]["coefficient_lock_sha256"] == V8_COEFFICIENT_LOCK_SHA256
     assert _sha256(V8_LOCK_PATH) == V8_LOCK_SHA256
     v8 = _load_v8_lock()
     assert v8["schema"] == "s18-task14-config-lock-v8"
@@ -344,7 +371,7 @@ def test_lock_v10_digest_supersedes_and_preserved_history() -> None:
     assert lock["arms"]["N1-HCC"]["executable"] is False
 
 
-def test_lock_v10_n4_provenance_matches_live_contract() -> None:
+def test_lock_v11_n4_provenance_matches_live_contract() -> None:
     lock = _load_lock()
     legacy = _load_legacy_lock()
     activation = lock["n4_v3_activation"]
@@ -491,9 +518,19 @@ def test_lock_v10_n4_provenance_matches_live_contract() -> None:
             continue
         assert expected == implementation["paths"][relative]
     superseded_v9_pins = implementation["review"]["superseded_v9_implementation_pins"]
-    assert superseded_v9_pins["experiments/sprint18_task30_n4_runner.py"] == SUPERSEDED_RUNNER_PIN
+    assert superseded_v9_pins["experiments/sprint18_task30_n4_runner.py"] == V9_RUNNER_PIN
     assert set(superseded_v9_pins) == set(implementation["paths"])
     for relative, expected in superseded_v9_pins.items():
+        if relative == "experiments/sprint18_task30_n4_runner.py":
+            continue
+        assert expected == implementation["paths"][relative]
+    superseded_v10_pins = implementation["review"]["superseded_v10_implementation_pins"]
+    assert (
+        superseded_v10_pins["experiments/sprint18_task30_n4_runner.py"]
+        == SUPERSEDED_RUNNER_PIN
+    )
+    assert set(superseded_v10_pins) == set(implementation["paths"])
+    for relative, expected in superseded_v10_pins.items():
         if relative == "experiments/sprint18_task30_n4_runner.py":
             continue
         assert expected == implementation["paths"][relative]
@@ -506,9 +543,10 @@ def test_lock_v10_n4_provenance_matches_live_contract() -> None:
     assert correction["recipe_numeric_semantics_changed"] is False
     assert correction["b0_data_identities_changed"] is False
     assert correction["no_self_approval"] is True
-    assert "history_id" in correction["defect"]
-    assert "_paired_development" in correction["defect"]
-    assert "_score_metrics" in correction["correction"]
+    assert "role_manifest_sha256" in correction["defect"]
+    assert "_paired_development_roster" in correction["defect"]
+    assert "_paired_development_roster" in correction["correction"]
+    assert "branch_provenance_sha256/file_ids/support_sha256" in correction["correction"]
     assert lock["runner_identity"]["sha256"] == _sha256(
         ROOT / "experiments" / "sprint18_task13b_n4_capacity.py"
     )
@@ -546,7 +584,7 @@ def test_lock_v10_n4_provenance_matches_live_contract() -> None:
     assert "remote_full" in certification["applicability"]
 
 
-def test_lock_v10_certified_envelope_root_uses_actual_output_directory() -> None:
+def test_lock_v11_certified_envelope_root_uses_actual_output_directory() -> None:
     """The certified envelope dir is the recorded ``--out-dir``, not the run root."""
     certification = json.loads(
         (ROOT / "experiments" / "sprint18-task13-n4-capacity-v3-a02.json").read_text(
@@ -571,7 +609,7 @@ def test_lock_v10_certified_envelope_root_uses_actual_output_directory() -> None
         runner.certified_envelope_root(tampered)
 
 
-def test_lock_v10_n4_configs_rebuild_through_real_consumer() -> None:
+def test_lock_v11_n4_configs_rebuild_through_real_consumer() -> None:
     lock = _load_lock()
     digest = lock["coefficient_lock_sha256"]
     for seed in MODEL_SEEDS:
@@ -595,18 +633,20 @@ def test_lock_v10_n4_configs_rebuild_through_real_consumer() -> None:
         assert (embedded["representation_epochs"], embedded["scale_epochs"]) == (0, 50)
 
 
-def test_v10_lock_runner_accepts_reviewed_lock() -> None:
+def test_v11_lock_runner_accepts_reviewed_lock() -> None:
     lock = _load_lock()
     record = _validate(lock)
-    assert record["schema"] == "s18-task14-config-lock-v10"
-    assert record["lock_version"] == 10
+    assert record["schema"] == "s18-task14-config-lock-v11"
+    assert record["lock_version"] == 11
     assert record["coefficient_lock_sha256"] == lock["coefficient_lock_sha256"]
     assert record["file_sha256"] == _sha256(LOCK_PATH)
     assert record["mechanism_spec_sha256"] == SPEC_V3_SHA256
     assert record["mechanism_spec_base_sha256"] == SPEC_V2_SHA256
     assert record["source_commit"] == BASE_COMMIT
     assert record["supersedes"]["file_sha256"] == SUPERSEDED_LOCK_SHA256
-    assert record["supersedes"]["schema"] == "s18-task14-config-lock-v9"
+    assert record["supersedes"]["schema"] == "s18-task14-config-lock-v10"
+    assert record["historical_v9_lock"]["file_sha256"] == V9_LOCK_SHA256
+    assert record["historical_v9_lock"]["schema"] == "s18-task14-config-lock-v9"
     assert record["historical_v8_lock"]["file_sha256"] == V8_LOCK_SHA256
     assert record["historical_v8_lock"]["schema"] == "s18-task14-config-lock-v8"
     assert record["historical_v7_lock"]["file_sha256"] == V7_LOCK_SHA256
@@ -670,7 +710,7 @@ def test_v10_lock_runner_accepts_reviewed_lock() -> None:
         ),
     ],
 )
-def test_v10_lock_runner_refuses_tampered_lock(mutate, message) -> None:
+def test_v11_lock_runner_refuses_tampered_lock(mutate, message) -> None:
     lock = copy.deepcopy(_load_lock())
     mutate(lock)
     _resign(lock)  # a coordinated edit must still fail semantic binding
@@ -725,7 +765,7 @@ def test_v10_lock_runner_refuses_tampered_lock(mutate, message) -> None:
         ),
     ],
 )
-def test_v10_lock_runner_refuses_coordinated_recipe_tamper(mutate, message) -> None:
+def test_v11_lock_runner_refuses_coordinated_recipe_tamper(mutate, message) -> None:
     """A re-digested lock whose recipe contradicts actual execution is refused."""
     lock = copy.deepcopy(_load_lock())
     mutate(lock)
@@ -735,7 +775,7 @@ def test_v10_lock_runner_refuses_coordinated_recipe_tamper(mutate, message) -> N
         _validate(lock)
 
 
-def test_v10_lock_runner_refuses_carried_recipe_contradiction() -> None:
+def test_v11_lock_runner_refuses_carried_recipe_contradiction() -> None:
     """Recipe prose outside the live constants still must equal the pinned recipe."""
     lock = copy.deepcopy(_load_lock())
     lock["n4_recipe"]["fit_recipe"]["optimizer_step_formula"] = "per scope 51*ceil(N_scope/512)"
@@ -776,7 +816,7 @@ def test_v10_lock_runner_refuses_carried_recipe_contradiction() -> None:
         ),
     ],
 )
-def test_v10_lock_runner_refuses_scope_and_certification_tamper(mutate, message) -> None:
+def test_v11_lock_runner_refuses_scope_and_certification_tamper(mutate, message) -> None:
     """The in-scope record contract and certified capacity evidence are load-bearing."""
     lock = copy.deepcopy(_load_lock())
     mutate(lock)
@@ -786,7 +826,7 @@ def test_v10_lock_runner_refuses_scope_and_certification_tamper(mutate, message)
         _validate(lock)
 
 
-def test_v10_lock_runner_refuses_dropped_implementation_pin() -> None:
+def test_v11_lock_runner_refuses_dropped_implementation_pin() -> None:
     lock = copy.deepcopy(_load_lock())
     lock["n4_v3_activation"]["reviewed_implementation"]["paths"].pop(
         "experiments/sprint18_task30_n4_runner.py"
@@ -797,7 +837,7 @@ def test_v10_lock_runner_refuses_dropped_implementation_pin() -> None:
         _validate(lock)
 
 
-def test_v10_lock_runner_refuses_inconsistent_digest_and_wrong_runner() -> None:
+def test_v11_lock_runner_refuses_inconsistent_digest_and_wrong_runner() -> None:
     lock = copy.deepcopy(_load_lock())
     lock["n4_v3_activation"]["guard_contract"] = "legacy-guards"
     with pytest.raises(ValueError, match="core digest is inconsistent"):
@@ -807,11 +847,12 @@ def test_v10_lock_runner_refuses_inconsistent_digest_and_wrong_runner() -> None:
         runner.validate_task14_lock(lock, worktree=ROOT, observed_runner_sha256="0" * 64)
 
 
-def test_v10_lock_runner_refuses_stale_historical_and_superseded_locks() -> None:
+def test_v11_lock_runner_refuses_stale_historical_and_superseded_locks() -> None:
     runner_sha = _sha256(ROOT / "experiments" / "sprint18_task13b_n4_capacity.py")
     for stale in (
         _load_legacy_lock(),
         _load_superseded_lock(),
+        _load_v9_lock(),
         _load_v8_lock(),
         _load_v7_lock(),
         _load_v6_lock(),
@@ -824,12 +865,12 @@ def test_v10_lock_runner_refuses_stale_historical_and_superseded_locks() -> None
             runner.validate_task14_lock(stale, worktree=ROOT, observed_runner_sha256=runner_sha)
 
 
-def test_v10_lock_b0_restore_arms_bind_historical_v1_lock() -> None:
+def test_v11_lock_b0_restore_arms_bind_historical_v1_lock() -> None:
     """The B0-FULL strict restores keep the v1 boundary; N4 keeps the current lock.
 
     All three final epoch-100 B0 checkpoints were produced under the v1 lock.
-    The prospective v10 lock supersedes it for N4-CRN only, so a B0 restore arm
-    built with the v10 core digest is a wrong-lock binding, not a weight change.
+    The prospective v11 lock supersedes it for N4-CRN only, so a B0 restore arm
+    built with the v11 core digest is a wrong-lock binding, not a weight change.
     """
     lock = _load_lock()
     legacy = _load_legacy_lock()
@@ -882,7 +923,7 @@ def test_v10_lock_b0_restore_arms_bind_historical_v1_lock() -> None:
         assert n4_arm.model_dump(mode="json") == lock["locked_configs"][f"N4-CRN/seed-{seed}"]
 
 
-def test_v10_lock_b0_restore_refuses_unpinned_legacy_lock(tmp_path: Path) -> None:
+def test_v11_lock_b0_restore_refuses_unpinned_legacy_lock(tmp_path: Path) -> None:
     experiments = tmp_path / "experiments"
     experiments.mkdir()
     with pytest.raises(ValueError, match="historical Task14 v1 lock is missing"):

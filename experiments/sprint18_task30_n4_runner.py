@@ -232,6 +232,12 @@ DEVELOPMENT_ROW_METRICS = (
     "P_median_lead_days", "W_median_lead_days", "FAR_per_robot_day",
     "robot_days", "false_episodes", "n_p", "n_w",
 )
+#: The frozen Development branch names (the public two-branch score contract).
+SUPPORT_BRANCHES = ("S_pred", "S_pop")
+#: The accepted B0 ``development.support.per_history`` record carries exactly
+#: these three fields. It does *not* carry the per-history identity; that lives
+#: on the accepted B0 branch rows, so pairing joins support to those rows.
+DEVELOPMENT_SUPPORT_FIELDS = ("branch_provenance_sha256", "file_ids", "support_sha256")
 COMPUTE_SCOPE = (
     "one real Fit file forward for inference FLOPs; one real 128-file B0 training "
     "step and one real 512-record N4 scale step for training FLOPs; operational "
@@ -2115,15 +2121,138 @@ def _compute_block(*, config, model, scale, arm_n4, arm_b0, binding, fit_rows, s
     }
 
 
+def _accepted_b0_branch_rows(*, b0_record: dict, histories: list[str],
+                             seed: str) -> dict[str, dict[str, dict]]:
+    """Index the accepted B0 Development branch rows by ``history_id``.
+
+    The accepted ledger stores the certified per-history identity
+    (``role_manifest_sha256`` / ``schema_history_id``) on the two branch rows
+    (the frozen 17-key row schema), never inside ``development.support``. Rows
+    are matched by identity, so their order is irrelevant; a missing, foreign,
+    duplicated or schema-drifted row fails closed.
+    """
+    development = b0_record.get("development") if isinstance(b0_record, dict) else None
+    branches = development.get("branches") if isinstance(development, dict) else None
+    if not isinstance(branches, dict) or set(branches) != set(SUPPORT_BRANCHES):
+        raise _fail(f"accepted B0 seed {seed} development branches differ from the frozen branches")
+    expected = set(DEVELOPMENT_IDENTITY_FIELDS) | set(DEVELOPMENT_ROW_METRICS)
+    indexed: dict[str, dict[str, dict]] = {}
+    for branch in SUPPORT_BRANCHES:
+        block = branches[branch]
+        rows = block.get("per_history") if isinstance(block, dict) else None
+        if not isinstance(rows, list):
+            raise _fail(f"accepted B0 {branch} per-history rows are missing (seed {seed})")
+        by_history: dict[str, dict] = {}
+        for row in rows:
+            if not isinstance(row, dict) or set(row) != expected:
+                raise _fail(
+                    f"accepted B0 {branch} per-history row differs from the frozen row "
+                    f"schema (seed {seed})"
+                )
+            history_id = row["history_id"]
+            if history_id not in histories:
+                raise _fail(
+                    f"accepted B0 {branch} row names a history outside the frozen roster: "
+                    f"{history_id}"
+                )
+            if history_id in by_history:
+                raise _fail(
+                    f"accepted B0 {branch} per-history rows duplicate {history_id} (seed {seed})"
+                )
+            by_history[history_id] = row
+        if set(by_history) != set(histories):
+            raise _fail(f"accepted B0 {branch} per-history rows omit a frozen history (seed {seed})")
+        indexed[branch] = by_history
+    return indexed
+
+
+def _accepted_b0_identity(*, b0_record: dict, histories: list[str], seed: str) -> dict[str, dict]:
+    """Derive the per-history identity from the accepted B0 branch rows.
+
+    The identity is read from both branches and must agree exactly; a missing or
+    differing ``role_manifest_sha256`` / ``schema_history_id`` / ``support_sha256``
+    on either branch fails closed instead of being silently repaired.
+    """
+    indexed = _accepted_b0_branch_rows(b0_record=b0_record, histories=histories, seed=seed)
+    identity: dict[str, dict] = {}
+    for history_id in histories:
+        entry = {"history_id": history_id}
+        for field in ("role_manifest_sha256", "schema_history_id", "support_sha256"):
+            observed = {branch: indexed[branch][history_id][field] for branch in SUPPORT_BRANCHES}
+            for branch, value in observed.items():
+                if not isinstance(value, str) or not value:
+                    raise _fail(
+                        f"accepted B0 {branch} {history_id} lacks {field} (seed {seed})"
+                    )
+            if observed["S_pred"] != observed["S_pop"]:
+                raise _fail(
+                    f"accepted B0 branches disagree on {history_id} {field} (seed {seed})"
+                )
+            entry[field] = observed["S_pred"]
+        identity[history_id] = entry
+    return identity
+
+
+def _check_b0_support_record(*, record: object, history_id: str, support_sha256: str,
+                             branch_identity: dict, seed: str) -> None:
+    """Validate one accepted B0 Development support record against the branch identity.
+
+    The accepted record is exactly ``branch_provenance_sha256`` / ``file_ids`` /
+    ``support_sha256``. Its support digest must equal both the arm's validated
+    per-history support and the digest carried by the B0 branch rows, and its
+    branch provenance must be the complete, distinct two-branch public contract.
+    """
+    if not isinstance(record, dict) or set(record) != set(DEVELOPMENT_SUPPORT_FIELDS):
+        raise _fail(
+            f"accepted B0 development support record for {history_id} differs from the "
+            "frozen shape"
+        )
+    support = record["support_sha256"]
+    if not isinstance(support, str) or not support:
+        raise _fail(f"accepted B0 development support lacks support_sha256 for {history_id}")
+    file_ids = record["file_ids"]
+    if (
+        not isinstance(file_ids, list)
+        or not file_ids
+        or any(not isinstance(item, str) or not item for item in file_ids)
+        or len(file_ids) != len(set(file_ids))
+    ):
+        raise _fail(f"accepted B0 development support file IDs are malformed for {history_id}")
+    provenance = record["branch_provenance_sha256"]
+    if (
+        not isinstance(provenance, dict)
+        or set(provenance) != set(SUPPORT_BRANCHES)
+        or any(
+            not isinstance(provenance[branch], str) or not _HEX64.fullmatch(provenance[branch])
+            for branch in SUPPORT_BRANCHES
+        )
+        or provenance["S_pred"] == provenance["S_pop"]
+    ):
+        raise _fail(
+            f"accepted B0 development support branch provenance is incomplete or "
+            f"inconsistent for {history_id}"
+        )
+    if support != support_sha256:
+        raise _fail(f"paired Development support differs for {history_id} (seed {seed})")
+    if support != branch_identity["support_sha256"]:
+        raise _fail(
+            f"accepted B0 development support differs from its branch rows for {history_id} "
+            f"(seed {seed})"
+        )
+
+
 def _paired_development_roster(*, arm_records: dict, b0_records: dict,
                                expected_keys: list[str]) -> tuple[dict[str, dict], list[str]]:
     """Build the authenticated per-history roster shared by every paired seed.
 
-    Identity comes only from the accepted B0 development support (which carries
-    the certified ``role_manifest_sha256`` / ``schema_history_id``) and the
-    validated per-history scoring support of the arm records. Every seed must
-    agree; a differing roster, an unreported history or a support mismatch fails
-    closed before any metric is paired.
+    Identity is the public B0 branch-row provenance joined to the accepted B0
+    ``development.support`` record: the support record carries only the support
+    digest, the file-ID sequence and the two branch provenance digests, while
+    ``role_manifest_sha256`` / ``schema_history_id`` live on the branch rows. The
+    validated per-history scoring support of the arm records must agree with the
+    accepted B0 support. Every seed must agree; a differing roster, an
+    unreported history or a support mismatch fails closed before any metric is
+    paired.
     """
     roster: dict[str, dict] | None = None
     order: list[str] | None = None
@@ -2139,21 +2268,21 @@ def _paired_development_roster(*, arm_records: dict, b0_records: dict,
         if list(b0_support["evaluation_histories"]) != histories:
             raise _fail(f"paired Development history roster differs from the accepted B0 record for seed {key}")
         b0_rows = b0_support["per_history"]
-        if set(b0_rows) != set(histories):
+        if not isinstance(b0_rows, dict) or set(b0_rows) != set(histories):
             raise _fail(f"accepted B0 per-history support differs from the roster for seed {key}")
+        identity = _accepted_b0_identity(
+            b0_record=b0_records[key], histories=histories, seed=key,
+        )
         observed: dict[str, dict] = {}
         for history_id in histories:
-            record = b0_rows[history_id]
-            for field in ("role_manifest_sha256", "schema_history_id", "support_sha256"):
-                value = record.get(field)
-                if not isinstance(value, str) or not value:
-                    raise _fail(f"accepted B0 development support lacks {field} for {history_id}")
-            if record["support_sha256"] != hashes[history_id]:
-                raise _fail(f"paired Development support differs for {history_id} (seed {key})")
+            _check_b0_support_record(
+                record=b0_rows[history_id], history_id=history_id,
+                support_sha256=hashes[history_id], branch_identity=identity[history_id], seed=key,
+            )
             observed[history_id] = {
                 "history_id": history_id,
-                "role_manifest_sha256": record["role_manifest_sha256"],
-                "schema_history_id": record["schema_history_id"],
+                "role_manifest_sha256": identity[history_id]["role_manifest_sha256"],
+                "schema_history_id": identity[history_id]["schema_history_id"],
                 "support_sha256": hashes[history_id],
             }
         if roster is None:
@@ -2366,7 +2495,7 @@ _REPORT_ARTIFACT_KEYS = frozenset(
 _REPORT_CERTIFIED_DATA_KEYS = frozenset({"authenticated", "folds_authenticated", "evidence"})
 #: A consumed run may have executed under any superseded prospective lock; the
 #: live lock is always the current one and is validated separately.
-_SUPERSEDED_LOCK_SCHEMAS = frozenset(f"s18-task14-config-lock-v{version}" for version in range(1, 10))
+_SUPERSEDED_LOCK_SCHEMAS = frozenset(f"s18-task14-config-lock-v{version}" for version in range(1, 11))
 
 
 def _require_hex(value: object, label: str) -> str:
@@ -2739,20 +2868,14 @@ def _enrich_report_development(*, records: dict, b0_records: dict, auth: dict, b
         b0_support = b0_record["development"]["support"]
         if list(b0_support["evaluation_histories"]) != order:
             raise _fail(f"accepted B0 seed {key} Development roster differs from the authenticated roster")
-        b0_rows_by_branch = {
-            branch: {
-                row["history_id"]: row
-                for row in b0_record["development"]["branches"][branch]["per_history"]
-            }
-            for branch in ("S_pred", "S_pop")
-        }
-        for branch in ("S_pred", "S_pop"):
+        b0_rows_by_branch = _accepted_b0_branch_rows(
+            b0_record=b0_record, histories=order, seed=key,
+        )
+        for branch in SUPPORT_BRANCHES:
             anchor = record["development"]["b0_reference"][branch]["per_history"]
             if [row.get("history_id") for row in anchor] != order:
                 raise _fail(f"seed {key} recorded B0 reference {branch} order differs from the roster")
             accepted = b0_rows_by_branch[branch]
-            if set(accepted) != set(order):
-                raise _fail(f"accepted B0 {branch} rows do not cover the frozen roster")
             for row in anchor:
                 history_id = row["history_id"]
                 identity = roster[history_id]

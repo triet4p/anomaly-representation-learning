@@ -119,6 +119,25 @@ def _identity(history_id: str, support: str) -> dict:
     }
 
 
+def _b0_support_record(history_id: str, support: str) -> dict:
+    """The accepted B0 ``development.support.per_history`` record, exactly.
+
+    The accepted ledger carries three keys here — never the history identity,
+    which lives on the B0 branch rows. The two branch provenance digests are
+    distinct, as the public harness requires.
+    """
+    return {
+        "branch_provenance_sha256": {
+            branch: hashlib.sha256(
+                f"{history_id}:{branch}".encode("utf-8")
+            ).hexdigest()
+            for branch in runner.SUPPORT_BRANCHES
+        },
+        "file_ids": [f"{history_id}-file-0", f"{history_id}-file-1"],
+        "support_sha256": support,
+    }
+
+
 def _row_metrics(value: float) -> dict:
     metrics = {name: value for name in runner.PAIRED_HISTORY_METRICS}
     metrics.update({"robot_days": 1692.0, "false_episodes": 0, "n_p": 80, "n_w": 47})
@@ -166,7 +185,8 @@ def _seed_record(seed: int, *, arm: bool, support: str, bank_sha: str, macro_shi
             "support": {
                 "evaluation_histories": histories,
                 "per_history": {
-                    history_id: _identity(history_id, support) for history_id in histories
+                    history_id: _b0_support_record(history_id, support)
+                    for history_id in histories
                 }
                 if not arm
                 else {},
@@ -322,6 +342,104 @@ def test_paired_development_refuses_missing_duplicate_provenance_and_legacy_rows
         row["support_sha256"] = "11" * 32
     with pytest.raises(SystemExit, match="provenance differs"):
         runner._paired_development(arm_records=unsupported, b0_records=b0_records, **extra)
+
+
+def test_paired_development_joins_accepted_b0_support_to_branch_identity() -> None:
+    """The accepted B0 support record is three keys; identity lives on the branch rows.
+
+    This is the A14/A16 defect: pairing used to demand ``role_manifest_sha256``
+    inside ``development.support.per_history``, which the accepted ledger never
+    carries. The roster must be the branch-row provenance joined to the support
+    record, with exact cross-branch agreement and support-digest equality.
+    """
+    arm_records, b0_records = _paired_case()
+    extra = {"b0_records_sha256": "ef" * 32}
+    support = "ab" * 32
+    for record in b0_records.values():
+        for history_id in DEVELOPMENT_HISTORIES:
+            entry = record["development"]["support"]["per_history"][history_id]
+            assert set(entry) == {"branch_provenance_sha256", "file_ids", "support_sha256"}
+            assert set(entry) == set(runner.DEVELOPMENT_SUPPORT_FIELDS)
+        for branch in runner.SUPPORT_BRANCHES:
+            for row in record["development"]["branches"][branch]["per_history"]:
+                assert set(row) == set(runner.DEVELOPMENT_IDENTITY_FIELDS) | set(
+                    runner.DEVELOPMENT_ROW_METRICS
+                )
+                assert len(row) == 17
+
+    paired = runner._paired_development(
+        arm_records=arm_records, b0_records=b0_records, **extra,
+    )
+    for history_id, (manifest, schema) in DEVELOPMENT_PROVENANCE.items():
+        assert paired["support"]["per_history_identity"][history_id] == {
+            "role_manifest_sha256": manifest,
+            "schema_history_id": schema,
+            "support_sha256": support,
+        }
+
+    # The pre-A16 fixture shape (identity dict inside the support record) is drift.
+    enriched = copy.deepcopy(b0_records)
+    first_history = DEVELOPMENT_HISTORIES[0]
+    enriched["181801"]["development"]["support"]["per_history"][first_history] = _identity(
+        first_history, support
+    )
+    with pytest.raises(SystemExit, match="frozen shape"):
+        runner._paired_development(arm_records=arm_records, b0_records=enriched, **extra)
+
+    # A missing support record cannot be repaired from the branch rows.
+    absent = copy.deepcopy(b0_records)
+    absent["181802"]["development"]["support"]["per_history"].pop(DEVELOPMENT_HISTORIES[1])
+    with pytest.raises(SystemExit, match="per-history support differs from the roster"):
+        runner._paired_development(arm_records=arm_records, b0_records=absent, **extra)
+
+    # A missing support field fails closed.
+    partial = copy.deepcopy(b0_records)
+    partial["181803"]["development"]["support"]["per_history"][first_history].pop("file_ids")
+    with pytest.raises(SystemExit, match="frozen shape"):
+        runner._paired_development(arm_records=arm_records, b0_records=partial, **extra)
+
+    # Aliased branch provenance is refused (the public two-branch contract).
+    aliased = copy.deepcopy(b0_records)
+    provenance = aliased["181801"]["development"]["support"]["per_history"][first_history][
+        "branch_provenance_sha256"
+    ]
+    provenance["S_pop"] = provenance["S_pred"]
+    with pytest.raises(SystemExit, match="branch provenance"):
+        runner._paired_development(arm_records=arm_records, b0_records=aliased, **extra)
+
+    # A drifted support digest is refused against the arm support map ...
+    drifted_support = copy.deepcopy(b0_records)
+    drifted_support["181801"]["development"]["support"]["per_history"][first_history][
+        "support_sha256"
+    ] = "11" * 32
+    with pytest.raises(SystemExit, match="paired Development support differs"):
+        runner._paired_development(arm_records=arm_records, b0_records=drifted_support, **extra)
+
+    # ... and against the branch rows it has to agree with.
+    drifted_rows = copy.deepcopy(b0_records)
+    for branch in runner.SUPPORT_BRANCHES:
+        for row in drifted_rows["181802"]["development"]["branches"][branch]["per_history"]:
+            if row["history_id"] == first_history:
+                row["support_sha256"] = "22" * 32
+    with pytest.raises(SystemExit, match="differs from its branch rows"):
+        runner._paired_development(arm_records=arm_records, b0_records=drifted_rows, **extra)
+
+    # Cross-branch identity disagreement fails closed.
+    cross = copy.deepcopy(b0_records)
+    for row in cross["181803"]["development"]["branches"]["S_pop"]["per_history"]:
+        if row["history_id"] == first_history:
+            row["role_manifest_sha256"] = "00" * 32
+    with pytest.raises(SystemExit, match="branches disagree"):
+        runner._paired_development(arm_records=arm_records, b0_records=cross, **extra)
+
+    # A duplicated branch row is refused instead of silently collapsed.
+    duplicated = copy.deepcopy(b0_records)
+    rows = duplicated["181801"]["development"]["branches"]["S_pred"]["per_history"]
+    duplicated["181801"]["development"]["branches"]["S_pred"]["per_history"] = [
+        rows[0], rows[0], rows[1], rows[2],
+    ]
+    with pytest.raises(SystemExit, match="duplicate"):
+        runner._paired_development(arm_records=arm_records, b0_records=duplicated, **extra)
 
 
 DAY = 86400.0
@@ -549,7 +667,7 @@ def _tiny_b0_record(seed: int) -> dict:
             "support": {
                 "evaluation_histories": list(DEVELOPMENT_HISTORIES),
                 "per_history": {
-                    history_id: _identity(history_id, TINY_SUPPORT[history_id])
+                    history_id: _b0_support_record(history_id, TINY_SUPPORT[history_id])
                     for history_id in DEVELOPMENT_HISTORIES
                 },
             },
