@@ -1919,8 +1919,9 @@ def _development_proof(*, binding, arm_b0, model, scale, bank, development_rows:
     }
 
 
-def _compute_block(*, config, model, scale, arm_n4, arm_b0, binding, fit_rows, fit_history_ids,
-                   probe_row, probe_history_id, bounds, device, patchifier, final_steps: int) -> dict:
+def _compute_block(*, config, model, scale, arm_n4, arm_b0, binding, fit_rows, scale_records,
+                   fit_history_ids, probe_row, probe_history_id, bounds, device, patchifier,
+                   final_steps: int) -> dict:
     profile_device = "cuda" if device.type == "cuda" else "cpu"
     b0_model = V1RepresentationModel(config, patchifier=patchifier)
     b0_model.to(device)
@@ -1952,9 +1953,12 @@ def _compute_block(*, config, model, scale, arm_n4, arm_b0, binding, fit_rows, f
     b0_flops_by_branch = {"S_pred": b0_forward_flops, "S_pop": b0_forward_flops}
     # N4 scale-fit training FLOPs: one real 50-epoch fit over a bounded real
     # 512-record scope on a disposable head, scaled to the frozen final scope.
+    # ``scale_records`` are the cache-derived ``N4ScaleRecord`` rows (exactly
+    # what the final fit consumes); ``fit_rows`` are certified Fit file rows
+    # and feed only the file-level probes below.
     torch.manual_seed(11)
     probe_scale = init_n4_scale_model(128, arm_n4.model_seed)
-    probe_records = list(fit_rows)[:512]
+    probe_records = list(scale_records)[:512]
     probe_fit_flops = profile_inference_flops(
         lambda: fit_n4_scale_scope(
             records=probe_records, training_history_ids=list(sorted(fit_history_ids)),
@@ -2497,7 +2501,9 @@ def _run_seed(*, seed: int, fixture: dict, b0_record: dict, binding, legacy_b0: 
     probe_row = support["fit_rows"][0]
     compute = _compute_block(
         config=config, model=model, scale=scale, arm_n4=arm_n4, arm_b0=restored_b0["arm_b0"],
-        binding=binding, fit_rows=support["fit_rows"], fit_history_ids=fit_history_ids,
+        binding=binding, fit_rows=support["fit_rows"],
+        scale_records=_probe_records(pools, fit_history_ids),
+        fit_history_ids=fit_history_ids,
         probe_row=probe_row, probe_history_id=probe_row.actual_history_id,
         bounds=bounds, device=device, patchifier=patchifier,
         final_steps=int(result["optimizer_steps"]),

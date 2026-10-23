@@ -27,6 +27,10 @@ sys.path.insert(0, str(REPO_ROOT / "src"))
 sys.path.insert(0, str(REPO_ROOT / "experiments"))
 
 from representation.crn import N4ScaleRecord  # noqa: E402
+from representation.config import V1Config  # noqa: E402
+from representation.model import V1RepresentationModel  # noqa: E402
+from representation.sprint18_harness import CertifiedSample  # noqa: E402
+from synth.schema import FileSample, SampleLabel  # noqa: E402
 
 import sprint18_task30_n4_runner as runner
 import sprint18_task13b_n4_capacity as capacity  # noqa: E402
@@ -507,6 +511,150 @@ def test_capacity_fold_restore_probe_forwards_on_the_live_head_device(
         assert fold["certified_payload_matches"] is None
         assert fold["certified_custody_authenticated"] is False
         assert Path(fold["scale_checkpoint_path"]).is_file()
+
+
+def _compute_probe_pools() -> dict[str, list[N4ScaleRecord]]:
+    """Tiny Fit pools of real N4 scale records (600 rows; the probe prefix is 512)."""
+    pools: dict[str, list[N4ScaleRecord]] = {}
+    for ordinal, history_id in enumerate(HISTORIES):
+        generator = torch.Generator().manual_seed(181801)
+        pools[history_id] = [
+            N4ScaleRecord(
+                history_id=history_id,
+                file_id=f"compute-{ordinal}-{index:04d}",
+                patch_index=index % 7,
+                context=torch.randn(128, generator=generator) * 0.01,
+                residual=0.05 + 0.0009 * index,
+            )
+            for index in range(300)
+        ]
+    return pools
+
+
+def _compute_config(seed: int) -> V1Config:
+    """A real, deliberately small V1 config that matches the frozen B0 arm geometry."""
+    return V1Config(
+        n_channels=6, patch_size=32, stride=16, d_model=128, sequence_layers=1,
+        attention_heads=4, dropout=0.1, n_robots=9, n_programs=8, ema_decay=0.996,
+        contrastive_weight_max=0.05, seed=seed,
+    )
+
+
+def _compute_fit_files(seed: int, count: int = 128) -> list[CertifiedSample]:
+    """Real tiny normal ``FileSample`` rows in the certified Fit row shape."""
+    generator = np.random.default_rng(seed)
+    rows: list[CertifiedSample] = []
+    for index in range(count):
+        sample = FileSample(
+            x=(generator.standard_normal((6, 256)) * 0.1).astype(np.float32),
+            file_id=f"fit-file-{index:04d}",
+            file_label=SampleLabel.NORMAL,
+            seed=index,
+            generator_version="s18-t30-a13-tiny",
+            config_hash="0" * 8,
+            regime_sequence=[],
+            robot_idx=index % 9,
+            program_idx=index % 8,
+        )
+        rows.append(
+            CertifiedSample(
+                sample=sample,
+                actual_history_id=HISTORIES[index % len(HISTORIES)],
+                manifest_sha256="0" * 64,
+                shard_path=f"tiny-shard-{index // 64}.npz",
+                shard_sha256="1" * 64,
+                manifest_row={},
+            )
+        )
+    return rows
+
+
+def _compute_block_inputs(device: str) -> dict:
+    """Complete non-normative ``_compute_block`` input set on a real tiny model.
+
+    The certified DATA/B0 caches are server-only, so this proof uses real
+    ``FileSample``/``CertifiedSample`` rows and real ``N4ScaleRecord`` pools
+    through the same public constructors, collator, profiler and gates.
+    """
+    seed = runner.MODEL_SEEDS[0]
+    config = _compute_config(seed)
+    patchifier = runner._patchifier()
+    files = _compute_fit_files(seed)
+    pools = _compute_probe_pools()
+    return {
+        "config": config,
+        "model": V1RepresentationModel(config, patchifier=patchifier).to(device).eval(),
+        "scale": runner.init_n4_scale_model(128, seed).to(device),
+        "arm_n4": runner._n4_arm(seed, "ab" * 32),
+        "arm_b0": runner._b0_arm(seed, "cd" * 32),
+        "binding": _fit_binding_stub(),
+        "fit_rows": files,
+        "scale_records": runner._probe_records(pools, list(HISTORIES)),
+        "fit_history_ids": list(HISTORIES),
+        "probe_row": files[0],
+        "probe_history_id": files[0].actual_history_id,
+        "bounds": runner._final_bounds(pools, list(HISTORIES)),
+        "device": torch.device(device),
+        "patchifier": patchifier,
+    }
+
+
+@pytest.mark.parametrize("device", DEVICE_CASES)
+def test_compute_block_probes_certified_scale_records_end_to_end(device: str) -> None:
+    """The real compute block must fit the certified N4ScaleRecord probe and return its envelope.
+
+    A12 smoke defect: ``_compute_block`` fed Fit *file* rows to
+    ``fit_n4_scale_scope`` and failed closed after the bank/calibration/
+    development gates. The corrected call executes the real 512-record probe,
+    the real paired B0 step, the real profiler and the real envelope gate.
+    """
+    inputs = _compute_block_inputs(device)
+    assert len(inputs["scale_records"]) == 512
+    assert all(isinstance(record, N4ScaleRecord) for record in inputs["scale_records"])
+    rng_state = torch.get_rng_state()
+    try:
+        compute = runner._compute_block(**inputs, final_steps=6550)
+    finally:
+        torch.set_rng_state(rng_state)
+    assert compute["scope"] == runner.COMPUTE_SCOPE
+    assert compute["envelope_pass"] is True
+    assert compute["n4_scale_parameters"] == 4417
+    assert compute["n4_scale_fit_steps"] == 6550
+    assert compute["n4_scale_fit_flops_total"] > 0
+    assert compute["n4_scale_fit_flops_total"] == pytest.approx(
+        compute["n4_training_flops_per_fit_file"] * runner.FIT_HEALTHY_ROWS, rel=1e-9
+    )
+    assert compute["n4_training_flops_per_fit_file"] > 0
+    assert compute["b0_training_flops_per_fit_file"] > 0
+    assert compute["training_flops_ratio_vs_B0"] == pytest.approx(
+        compute["n4_training_flops_per_fit_file"] / compute["b0_training_flops_per_fit_file"]
+    )
+    assert 0 < compute["training_flops_ratio_vs_B0"] <= 0.25
+    assert (
+        compute["parameters_inference"]["S_pop"]
+        == compute["paired_b0_parameters_inference"]["S_pop"]
+    )
+    assert (
+        compute["parameters_inference"]["S_pred"]
+        - compute["paired_b0_parameters_inference"]["S_pred"]
+    ) == compute["n4_scale_parameters"]
+    for branch in ("S_pred", "S_pop"):
+        assert compute["inference_flops_per_fit_file"][branch] > 0
+        assert compute["paired_b0_inference_flops_per_fit_file"][branch] > 0
+    assert compute["combined_inference_flops_ratio_vs_B0"] <= 1.10
+
+
+def test_compute_block_refuses_fit_file_rows_in_the_scale_probe() -> None:
+    """File rows in the N4 probe must still fail closed (the A12 smoke defect)."""
+    inputs = _compute_block_inputs("cpu")
+    wrong = dict(inputs)
+    wrong["scale_records"] = inputs["fit_rows"]
+    rng_state = torch.get_rng_state()
+    try:
+        with pytest.raises(ValueError, match="N4 fit records must be N4ScaleRecord entries"):
+            runner._compute_block(**wrong, final_steps=6550)
+    finally:
+        torch.set_rng_state(rng_state)
 
 
 def _sha256_file(path: Path) -> str:
