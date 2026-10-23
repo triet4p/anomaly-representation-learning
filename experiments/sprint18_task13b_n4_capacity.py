@@ -173,8 +173,9 @@ EXECUTION_BINDING_FIELDS = ("source_commit", "runner_sha256")
 #: lock and the superseded v2-v8 prospective locks stay byte-identical and
 #: are referenced (never edited) by this version; every arm other than N4-CRN
 #: remains bound by the historical v1 lock.
-TASK14_LOCK_PATH = "experiments/sprint18-task14-config-lock-v9.json"
-TASK14_SUPERSEDED_LOCK_PATH = "experiments/sprint18-task14-config-lock-v8.json"
+TASK14_LOCK_PATH = "experiments/sprint18-task14-config-lock-v10.json"
+TASK14_SUPERSEDED_LOCK_PATH = "experiments/sprint18-task14-config-lock-v9.json"
+TASK14_V8_LOCK_PATH = "experiments/sprint18-task14-config-lock-v8.json"
 TASK14_V7_LOCK_PATH = "experiments/sprint18-task14-config-lock-v7.json"
 TASK14_V6_LOCK_PATH = "experiments/sprint18-task14-config-lock-v6.json"
 TASK14_V5_LOCK_PATH = "experiments/sprint18-task14-config-lock-v5.json"
@@ -182,22 +183,31 @@ TASK14_V4_LOCK_PATH = "experiments/sprint18-task14-config-lock-v4.json"
 TASK14_V3_LOCK_PATH = "experiments/sprint18-task14-config-lock-v3.json"
 TASK14_V2_LOCK_PATH = "experiments/sprint18-task14-config-lock-v2.json"
 TASK14_LEGACY_LOCK_PATH = "experiments/sprint18-task14-config-lock.json"
-TASK14_LOCK_SCHEMA = "s18-task14-config-lock-v9"
-TASK14_LOCK_VERSION = 9
+TASK14_LOCK_SCHEMA = "s18-task14-config-lock-v10"
+TASK14_LOCK_VERSION = 10
 #: Frozen lock-digest rule: SHA-256 over canonical JSON of the core (every
 #: field except these derived containers).
 TASK14_LOCK_CORE_EXCLUDE = frozenset(
     {"coefficient_lock_sha256", "locked_configs", "config_sha256", "file_sha256"}
 )
-#: Superseded prospective v8 lock identities (immutable). The v9 lock must
+#: Superseded prospective v9 lock identities (immutable). The v10 lock must
 #: supersede these exact bytes and never rewrite them.
 SUPERSEDED_TASK14_LOCK_SHA256 = (
-    "8258a439fff9bd23a74367baa4758baf001fb9e8dcb0f2652667a175518e7155"
+    "a9990bd189706a0fdadfeaee422ef307599e3f4d9c5a72102dfa1f015d5cd57a"
 )
 SUPERSEDED_TASK14_LOCK_COEFFICIENT_SHA256 = (
+    "b171e50014a9bfad0edc865fc42a52a49d073b8b0a2e47788d5020b741266bbf"
+)
+SUPERSEDED_TASK14_LOCK_SCHEMA = "s18-task14-config-lock-v9"
+#: Superseded prospective v8 lock identities (immutable). The v9 lock in the
+#: preserved chain must supersede these exact bytes and never rewrite them.
+V8_TASK14_LOCK_SHA256 = (
+    "8258a439fff9bd23a74367baa4758baf001fb9e8dcb0f2652667a175518e7155"
+)
+V8_TASK14_LOCK_COEFFICIENT_SHA256 = (
     "e4482efb194dded34f5c3b1754610c5d9e2a359378e7cb72c9ca065bceac75c6"
 )
-SUPERSEDED_TASK14_LOCK_SCHEMA = "s18-task14-config-lock-v8"
+V8_TASK14_LOCK_SCHEMA = "s18-task14-config-lock-v8"
 #: Superseded prospective v7 lock identities (immutable). The v8 lock in the
 #: preserved chain must supersede these exact bytes and never rewrite them.
 V7_TASK14_LOCK_SHA256 = (
@@ -525,7 +535,7 @@ def validate_task14_lock(
 
     supersedes = lock.get("supersedes")
     if not isinstance(supersedes, dict) or supersedes.get("path") != TASK14_SUPERSEDED_LOCK_PATH:
-        raise _fail("Task14 lock does not supersede the prospective v8 lock path")
+        raise _fail("Task14 lock does not supersede the prospective v9 lock path")
     if supersedes.get("schema") != SUPERSEDED_TASK14_LOCK_SCHEMA:
         raise _fail("Task14 lock supersedes the wrong lock schema")
     if supersedes.get("coefficient_lock_sha256") != SUPERSEDED_TASK14_LOCK_COEFFICIENT_SHA256:
@@ -534,15 +544,34 @@ def validate_task14_lock(
         raise _fail("Task14 lock supersedes the wrong prospective lock bytes")
     superseded_path = Path(worktree) / TASK14_SUPERSEDED_LOCK_PATH
     if not superseded_path.is_file() or _sha_file(superseded_path) != SUPERSEDED_TASK14_LOCK_SHA256:
-        raise _fail("superseded prospective v8 Task14 lock bytes changed")
+        raise _fail("superseded prospective v9 Task14 lock bytes changed")
     superseded = json.loads(superseded_path.read_text(encoding="utf-8"))
     if (
         superseded.get("schema") != SUPERSEDED_TASK14_LOCK_SCHEMA
-        or superseded.get("lock_version") != 8
+        or superseded.get("lock_version") != 9
         or task14_lock_core_digest(superseded) != SUPERSEDED_TASK14_LOCK_COEFFICIENT_SHA256
     ):
+        raise _fail("superseded prospective v9 Task14 lock identity is inconsistent")
+    v9_supersedes = superseded.get("supersedes")
+    if not isinstance(v9_supersedes, dict) or v9_supersedes.get("path") != TASK14_V8_LOCK_PATH:
+        raise _fail("superseded v9 lock does not supersede the prospective v8 lock path")
+    if v9_supersedes.get("schema") != V8_TASK14_LOCK_SCHEMA:
+        raise _fail("superseded v9 lock supersedes the wrong lock schema")
+    if v9_supersedes.get("coefficient_lock_sha256") != V8_TASK14_LOCK_COEFFICIENT_SHA256:
+        raise _fail("superseded v9 lock supersedes the wrong v8 coefficient digest")
+    if v9_supersedes.get("file_sha256") != V8_TASK14_LOCK_SHA256:
+        raise _fail("superseded v9 lock supersedes the wrong v8 lock bytes")
+    v8_path = Path(worktree) / TASK14_V8_LOCK_PATH
+    if not v8_path.is_file() or _sha_file(v8_path) != V8_TASK14_LOCK_SHA256:
+        raise _fail("superseded prospective v8 Task14 lock bytes changed")
+    v8_lock = json.loads(v8_path.read_text(encoding="utf-8"))
+    if (
+        v8_lock.get("schema") != V8_TASK14_LOCK_SCHEMA
+        or v8_lock.get("lock_version") != 8
+        or task14_lock_core_digest(v8_lock) != V8_TASK14_LOCK_COEFFICIENT_SHA256
+    ):
         raise _fail("superseded prospective v8 Task14 lock identity is inconsistent")
-    v8_supersedes = superseded.get("supersedes")
+    v8_supersedes = v8_lock.get("supersedes")
     if not isinstance(v8_supersedes, dict) or v8_supersedes.get("path") != TASK14_V7_LOCK_PATH:
         raise _fail("superseded v8 lock does not supersede the prospective v7 lock path")
     if v8_supersedes.get("schema") != V7_TASK14_LOCK_SCHEMA:
@@ -1020,6 +1049,12 @@ def validate_task14_lock(
             "file_sha256": supersedes["file_sha256"],
             "coefficient_lock_sha256": supersedes["coefficient_lock_sha256"],
             "scope": supersedes.get("scope"),
+        },
+        "historical_v8_lock": {
+            "path": TASK14_V8_LOCK_PATH,
+            "schema": v8_lock["schema"],
+            "file_sha256": V8_TASK14_LOCK_SHA256,
+            "coefficient_lock_sha256": V8_TASK14_LOCK_COEFFICIENT_SHA256,
         },
         "historical_v7_lock": {
             "path": TASK14_V7_LOCK_PATH,

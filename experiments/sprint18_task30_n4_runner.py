@@ -52,6 +52,16 @@ Modes:
               Every output is marked non-normative; it can never be promoted.
   full      - the normative three-seed final fit + calibration + Development
               evaluation and the paired Development report.
+  report    - report/audit-only consumer of an already-executed full run. It
+              performs no fitting, no optimizer step and no model scoring:
+              the immutable seed records, their preflight/environment/progress
+              logs, the recorded checkpoints/score maps and the accepted B0
+              ledger are digest-authenticated against an explicit pinned
+              expected-value document, the per-history identity is joined from
+              the certified binding and the validated support, and a derived
+              ``paired_development.json`` plus a report record and manifest
+              (original source vs report source) are written to a fresh
+              separate directory. The consumed bytes are re-hashed unchanged.
 """
 
 from __future__ import annotations
@@ -147,7 +157,13 @@ BASELINE_ARM_ID = "B0-FULL"
 RUN_ID_PREFIX = "n4"
 PREFLIGHT_SCHEMA = "s18-t30-n4-preflight-v2"
 SEED_SCHEMA = "s18-t30-n4-seed-record-v2"
-PAIRED_SCHEMA = "s18-t30-n4-paired-development-v2"
+#: v3 adds the authenticated per-history identity/provenance fields to every
+#: paired row and the per-seed record/failure state to the report. The metric
+#: values are unchanged; only the previously missing row identity was added.
+PAIRED_SCHEMA = "s18-t30-n4-paired-development-v3"
+REPORT_SCHEMA = "s18-t30-n4-report-v1"
+REPORT_AUTH_SCHEMA = "s18-t30-n4-report-auth-v1"
+REPORT_MANIFEST_SCHEMA = "s18-t30-n4-report-manifest-v1"
 SMOKE_SCHEMA = "s18-t30-n4-smoke-v2"
 GUARD_FAILURE_SCHEMA = "s18-t30-n4-guard-failure-v2"
 COHERENT_CHECKPOINT_SCHEMA = "s18-t30-n4-coherent-artifact-v1"
@@ -181,6 +197,7 @@ FIXTURE_KEYS = frozenset(
 #: Superseded ambiguous binding key. Refused by name, never interpreted.
 AMBIGUOUS_PREDICTION_CACHE_KEY = "prediction_cache_sha256"
 _HEX64 = re.compile(r"[0-9a-f]{64}")
+_HEX40 = re.compile(r"[0-9a-f]{40}")
 #: Certified per-history eligible *masked* Fit patch record counts (Task13B A02;
 #: identical for all three model seeds because the mask budget is count-deterministic).
 #: Sourced from the frozen implementation constant so the runner, the coherent
@@ -200,6 +217,20 @@ PAIRED_MACRO_METRICS = ("P_macro", "W_macro", "PW_macro", "PW_lcb95", "direction
 PAIRED_HISTORY_METRICS = (
     "P_AUROC", "W_AUROC", "PW_AUROC", "A_AUROC", "P_recall", "W_recall",
     "P_median_lead_days", "W_median_lead_days", "FAR_per_robot_day",
+)
+#: Per-history identity/provenance carried by every published Development row.
+#: The accepted B0 record already used exactly these four fields; the arm rows
+#: now carry them too so a row can never be published under another history.
+DEVELOPMENT_IDENTITY_FIELDS = (
+    "history_id", "role_manifest_sha256", "schema_history_id", "support_sha256",
+)
+#: The complete frozen per-history metric payload (the published row minus the
+#: identity fields). The metric code returns a subset; the counts and
+#: ``false_episodes`` are part of the accepted B0 row shape.
+DEVELOPMENT_ROW_METRICS = (
+    "P_AUROC", "W_AUROC", "PW_AUROC", "A_AUROC", "P_recall", "W_recall",
+    "P_median_lead_days", "W_median_lead_days", "FAR_per_robot_day",
+    "robot_days", "false_episodes", "n_p", "n_w",
 )
 COMPUTE_SCOPE = (
     "one real Fit file forward for inference FLOPs; one real 128-file B0 training "
@@ -1638,21 +1669,52 @@ def _n4_score_rows(*, model, scale, rows, history_id: str, seed: int, patchifier
     return {"rows": file_rows}
 
 
-def _score_metrics(*, file_scores: dict, rows_by_history, ledgers, windows, threshold: float) -> dict:
+def _score_metrics(*, file_scores: dict, rows_by_history, ledgers, windows, threshold: float,
+                   roster: list[dict]) -> dict:
+    """Evaluate the frozen metrics with the authenticated per-history identity.
+
+    ``rows_by_history``/``ledgers``/``windows`` are the Development roster in the
+    order the frozen metric code evaluates them; ``roster`` is the authenticated
+    identity for those same histories, built alongside them from the certified
+    binding and the validated per-history scoring support. The join is verified,
+    never a blind positional ``zip``: each roster entry carries the canonical
+    digest of the file-ID sequence it was built from and it must equal the
+    evaluated sequence. Missing, duplicated, reordered or foreign histories fail
+    closed, so a published metric row can never carry another history's identity.
+    """
+    if not (len(roster) == len(rows_by_history) == len(ledgers) == len(windows)):
+        raise _fail("Development roster length differs from the evaluated history count")
+    seen: set[str] = set()
+    for rows, identity in zip(rows_by_history, roster):
+        for field in DEVELOPMENT_IDENTITY_FIELDS:
+            value = identity.get(field)
+            if not isinstance(value, str) or not value:
+                raise _fail(f"Development roster entry lacks {field}")
+        history_id = identity["history_id"]
+        if history_id in seen:
+            raise _fail(f"Development roster repeats history {history_id}")
+        seen.add(history_id)
+        observed = _canonical_sha256([row["file_id"] for row in rows])
+        if identity.get("file_ids_sha256") != observed:
+            raise _fail(f"Development roster entry {history_id} does not match its evaluated rows")
     canonical = P.evaluate_histories(file_scores, rows_by_history, ledgers, windows, threshold)
+    entries = canonical["per_history"]
+    if len(entries) != len(roster):
+        raise _fail("frozen metric code did not return exactly one row per Development history")
     per_history = []
-    for index, entry in enumerate(canonical["per_history"]):
-        per_history.append(
-            {
-                "P_AUROC": entry["auc_p"], "W_AUROC": entry["auc_w"],
-                "PW_AUROC": entry["auc_pw"], "A_AUROC": entry["auc_a"],
-                "P_recall": entry["recall_p"], "P_median_lead_days": entry["lead_p_median"],
-                "W_recall": entry["recall_w"], "W_median_lead_days": entry["lead_w_median"],
-                "FAR_per_robot_day": entry["far"], "robot_days": entry["robot_days"],
-                "false_episodes": entry["false_episodes"],
-                "n_p": entry["n_p"], "n_w": entry["n_w"],
-            }
-        )
+    for entry, identity in zip(entries, roster):
+        row = {
+            "P_AUROC": entry["auc_p"], "W_AUROC": entry["auc_w"],
+            "PW_AUROC": entry["auc_pw"], "A_AUROC": entry["auc_a"],
+            "P_recall": entry["recall_p"], "P_median_lead_days": entry["lead_p_median"],
+            "W_recall": entry["recall_w"], "W_median_lead_days": entry["lead_w_median"],
+            "FAR_per_robot_day": entry["far"], "robot_days": entry["robot_days"],
+            "false_episodes": entry["false_episodes"],
+            "n_p": entry["n_p"], "n_w": entry["n_w"],
+        }
+        for field in DEVELOPMENT_IDENTITY_FIELDS:
+            row[field] = identity[field]
+        per_history.append(row)
     return {
         "threshold": float(threshold),
         "macro": {
@@ -1739,6 +1801,12 @@ def _development_proof(*, binding, arm_b0, model, scale, bank, development_rows:
     rows_by_history = []
     ledgers = []
     windows = []
+    # Authenticated per-history identity for every evaluated history. The
+    # identity fields come from the certified binding and the support digest
+    # comes from the public scoring support that was just validated against the
+    # accepted B0 record; the file-ID digest ties each entry to the exact rows
+    # the metric code evaluates.
+    roster: list[dict] = []
     b0_maps: dict[str, dict[str, dict[str, float]]] = {"S_pred": {}, "S_pop": {}}
     n4_maps: dict[str, dict[str, float]] = {}
     support_hashes: dict[str, str] = {}
@@ -1759,6 +1827,11 @@ def _development_proof(*, binding, arm_b0, model, scale, bank, development_rows:
         validate_score_maps(scores.support, scores.scores)
         if smoke_limit is None and scores.support.support_sha256 != recorded_support:
             raise _fail(f"seed {seed}: Development support differs from the accepted B0 record for {history_id}")
+        if (
+            scores.support.schema_history_id != history.schema_history_id
+            or scores.support.role_manifest_sha256 != history.manifest_sha256
+        ):
+            raise _fail(f"seed {seed}: Development scoring support identity differs for {history_id}")
         support_hashes[history_id] = scores.support.support_sha256
         for branch in ("S_pred", "S_pop"):
             b0_maps[branch].update({file_id: float(value) for file_id, value in dict(scores.scores[branch]).items()})
@@ -1795,9 +1868,19 @@ def _development_proof(*, binding, arm_b0, model, scale, bank, development_rows:
             correlation_values.append(float(entry["spearman_scale_residual"]))
             robot_id, program_id = robot_program.get(entry["file_id"], ("unknown", "unknown"))
             tier_accumulator.setdefault((robot_id, program_id), []).append(float(entry["scale"]))
-        rows_by_history.append(list(manifest["files"]))
+        manifest_rows = list(manifest["files"])
+        rows_by_history.append(manifest_rows)
         ledgers.append(E.failure_ledger(manifest))
         windows.append(manifest["maintenance_windows"])
+        roster.append(
+            {
+                "history_id": history_id,
+                "role_manifest_sha256": history.manifest_sha256,
+                "schema_history_id": history.schema_history_id,
+                "support_sha256": scores.support.support_sha256,
+                "file_ids_sha256": _canonical_sha256([row["file_id"] for row in manifest_rows]),
+            }
+        )
     saturation_frac_cap = (
         saturation["cap_patches"] / saturation["eligible_patches"] if saturation["eligible_patches"] else 0.0
     )
@@ -1809,11 +1892,11 @@ def _development_proof(*, binding, arm_b0, model, scale, bank, development_rows:
         branches = {
             "S_pred": _score_metrics(
                 file_scores=n4_maps, rows_by_history=rows_by_history, ledgers=ledgers,
-                windows=windows, threshold=float(thresholds["S_pred"]),
+                windows=windows, threshold=float(thresholds["S_pred"]), roster=roster,
             ),
             "S_pop": _score_metrics(
                 file_scores=b0_maps["S_pop"], rows_by_history=rows_by_history, ledgers=ledgers,
-                windows=windows, threshold=float(thresholds["S_pop"]),
+                windows=windows, threshold=float(thresholds["S_pop"]), roster=roster,
             ),
         }
     else:
@@ -1850,16 +1933,21 @@ def _development_proof(*, binding, arm_b0, model, scale, bank, development_rows:
             recomputed = _score_metrics(
                 file_scores=b0_maps[branch], rows_by_history=rows_by_history, ledgers=ledgers,
                 windows=windows,
-                threshold=float(b0_reference[branch]["threshold"]),
+                threshold=float(b0_reference[branch]["threshold"]), roster=roster,
             )
             if recomputed["macro"] != b0_reference[branch]["macro"]:
                 raise _fail(f"seed {seed}: recomputed B0 {branch} macro metrics differ from the accepted record")
-            recorded_rows = {row["history_id"]: row for row in b0_reference[branch]["per_history"]}
-            for index, row in enumerate(recomputed["per_history"]):
-                history_id = list(development_history_ids)[index]
-                expected = recorded_rows.get(history_id)
-                if expected is None:
-                    raise _fail(f"seed {seed}: accepted B0 record lacks {branch} metrics for {history_id}")
+            recorded_rows: dict[str, dict] = {}
+            for recorded in b0_reference[branch]["per_history"]:
+                recorded_history = recorded.get("history_id")
+                if not isinstance(recorded_history, str) or recorded_history in recorded_rows:
+                    raise _fail(f"seed {seed}: accepted B0 {branch} per-history identity is missing or duplicated")
+                recorded_rows[recorded_history] = recorded
+            if set(recorded_rows) != {entry["history_id"] for entry in roster}:
+                raise _fail(f"seed {seed}: accepted B0 {branch} per-history rows differ from the frozen roster")
+            for row in recomputed["per_history"]:
+                history_id = row["history_id"]
+                expected = recorded_rows[history_id]
                 for name in PAIRED_HISTORY_METRICS:
                     if float(row[name]) != float(expected[name]):
                         raise _fail(
@@ -2027,14 +2115,99 @@ def _compute_block(*, config, model, scale, arm_n4, arm_b0, binding, fit_rows, s
     }
 
 
+def _paired_development_roster(*, arm_records: dict, b0_records: dict,
+                               expected_keys: list[str]) -> tuple[dict[str, dict], list[str]]:
+    """Build the authenticated per-history roster shared by every paired seed.
+
+    Identity comes only from the accepted B0 development support (which carries
+    the certified ``role_manifest_sha256`` / ``schema_history_id``) and the
+    validated per-history scoring support of the arm records. Every seed must
+    agree; a differing roster, an unreported history or a support mismatch fails
+    closed before any metric is paired.
+    """
+    roster: dict[str, dict] | None = None
+    order: list[str] | None = None
+    for key in expected_keys:
+        arm_support = arm_records[key]["development"]["support"]
+        b0_support = b0_records[key]["development"]["support"]
+        histories = list(arm_support["evaluation_histories"])
+        hashes = arm_support["per_history_support_sha256"]
+        if len(histories) != len(set(histories)):
+            raise _fail(f"paired Development roster repeats a history for seed {key}")
+        if set(hashes) != set(histories):
+            raise _fail(f"paired Development support map differs from the roster for seed {key}")
+        if list(b0_support["evaluation_histories"]) != histories:
+            raise _fail(f"paired Development history roster differs from the accepted B0 record for seed {key}")
+        b0_rows = b0_support["per_history"]
+        if set(b0_rows) != set(histories):
+            raise _fail(f"accepted B0 per-history support differs from the roster for seed {key}")
+        observed: dict[str, dict] = {}
+        for history_id in histories:
+            record = b0_rows[history_id]
+            for field in ("role_manifest_sha256", "schema_history_id", "support_sha256"):
+                value = record.get(field)
+                if not isinstance(value, str) or not value:
+                    raise _fail(f"accepted B0 development support lacks {field} for {history_id}")
+            if record["support_sha256"] != hashes[history_id]:
+                raise _fail(f"paired Development support differs for {history_id} (seed {key})")
+            observed[history_id] = {
+                "history_id": history_id,
+                "role_manifest_sha256": record["role_manifest_sha256"],
+                "schema_history_id": record["schema_history_id"],
+                "support_sha256": hashes[history_id],
+            }
+        if roster is None:
+            roster = observed
+            order = histories
+        elif observed != roster or sorted(histories) != sorted(order):
+            raise _fail("Development roster or identity differs across seeds")
+    assert roster is not None and order is not None
+    return roster, order
+
+
+def _paired_history_rows(*, rows, roster: dict[str, dict], branch: str, seed: str,
+                         source: str) -> dict[str, dict]:
+    """Index published per-history rows by their authenticated identity, strictly.
+
+    Missing identity keys, a history outside the frozen roster, a duplicate
+    history, a row-schema drift or a provenance/support mismatch all fail closed.
+    Row order is irrelevant: the caller matches by identity, never by position.
+    """
+    expected = set(DEVELOPMENT_IDENTITY_FIELDS) | set(DEVELOPMENT_ROW_METRICS)
+    indexed: dict[str, dict] = {}
+    for row in rows:
+        if not isinstance(row, dict):
+            raise _fail(f"{source} {branch} per-history row is not an object (seed {seed})")
+        if set(row) != expected:
+            raise _fail(
+                f"{source} {branch} per-history row for seed {seed} differs from the frozen row schema"
+            )
+        history_id = row["history_id"]
+        if history_id not in roster:
+            raise _fail(f"{source} {branch} row names a history outside the frozen roster: {history_id}")
+        if history_id in indexed:
+            raise _fail(f"{source} {branch} per-history rows duplicate {history_id} (seed {seed})")
+        identity = roster[history_id]
+        for field in ("role_manifest_sha256", "schema_history_id", "support_sha256"):
+            if row[field] != identity[field]:
+                raise _fail(f"{source} {branch} {history_id} provenance differs (seed {seed})")
+        indexed[history_id] = row
+    if set(indexed) != set(roster):
+        raise _fail(f"{source} {branch} per-history rows omit a frozen history (seed {seed})")
+    return indexed
+
+
 def _paired_development(*, arm_records: dict, b0_records: dict, b0_records_sha256: str,
                         arm_id: str = ARM_ID) -> dict:
     expected_keys = [str(seed) for seed in MODEL_SEEDS]
     if sorted(arm_records) != expected_keys or sorted(b0_records) != expected_keys:
         raise _fail("paired Development requires exactly the frozen three model seeds")
-    histories: list[str] | None = None
-    per_history_support: dict[str, str] = {}
+    roster, histories = _paired_development_roster(
+        arm_records=arm_records, b0_records=b0_records, expected_keys=expected_keys,
+    )
+    per_history_support = {history_id: roster[history_id]["support_sha256"] for history_id in histories}
     calibration_support: dict[str, str] = {}
+    record_states: dict[str, dict] = {}
     for key in expected_keys:
         arm = arm_records[key]
         b0 = b0_records[key]
@@ -2042,22 +2215,8 @@ def _paired_development(*, arm_records: dict, b0_records: dict, b0_records_sha25
             raise _fail(f"{arm_id} seed {key} record is not a completed run")
         if b0.get("arm_id") != BASELINE_ARM_ID or b0.get("status") != "ok":
             raise _fail(f"B0 seed {key} record is not a completed B0-FULL run")
-        arm_support = arm["development"]["support"]
-        b0_development_support = b0["development"]["support"]
-        if arm_support["evaluation_histories"] != b0_development_support["evaluation_histories"]:
-            raise _fail(f"paired Development history roster differs for seed {key}")
-        if histories is None:
-            histories = list(arm_support["evaluation_histories"])
-        elif list(arm_support["evaluation_histories"]) != histories:
-            raise _fail("Development history roster differs across seeds")
-        for history_id in histories:
-            arm_hash = arm_support["per_history_support_sha256"][history_id]
-            b0_hash = b0_development_support["per_history"][history_id]["support_sha256"]
-            if arm_hash != b0_hash:
-                raise _fail(f"paired Development support differs for {history_id} (seed {key})")
-            per_history_support.setdefault(history_id, arm_hash)
-            if per_history_support[history_id] != arm_hash:
-                raise _fail(f"Development support differs across seeds for {history_id}")
+        if arm.get("normative") is not True or arm.get("failure_reasons") != []:
+            raise _fail(f"{arm_id} seed {key} record is not a complete normative run")
         if arm["calibration"]["support"]["support_sha256"] != b0["calibration"]["source_support_sha256"]:
             raise _fail(f"Calibration support differs from B0 for seed {key}")
         calibration_support[key] = arm["calibration"]["support"]["support_sha256"]
@@ -2065,17 +2224,29 @@ def _paired_development(*, arm_records: dict, b0_records: dict, b0_records_sha25
             raise _fail(f"Fit bank source rows differ from B0 for seed {key}")
         if arm["bank"]["bank_sha256"] != b0["bank"]["bank_sha256"]:
             raise _fail(f"Fit bank digest differs from B0 for seed {key}")
-    assert histories is not None
+        record_states[key] = {
+            "status": arm["status"],
+            "normative": bool(arm["normative"]),
+            "failure_reasons": list(arm["failure_reasons"]),
+            "cap_gate_pass": bool(arm["development"]["saturation"]["cap_gate_pass"]),
+            "s_pop_bitwise_equal_to_B0": bool(
+                arm["development"]["s_pop_parity"]["S_pop_bitwise_equal_to_B0"]
+            ),
+        }
     branches: dict[str, object] = {}
     for branch in ("S_pred", "S_pop"):
         per_seed = []
         for key in expected_keys:
             arm_branch = arm_records[key]["development"]["branches"][branch]
             b0_branch = b0_records[key]["development"]["branches"][branch]
-            arm_histories = {row["history_id"]: row for row in arm_branch["per_history"]}
-            b0_histories = {row["history_id"]: row for row in b0_branch["per_history"]}
-            if set(arm_histories) != set(histories) or set(b0_histories) != set(histories):
-                raise _fail(f"{branch} per-history rows differ from the frozen Development roster")
+            arm_histories = _paired_history_rows(
+                rows=arm_branch["per_history"], roster=roster, branch=branch, seed=key,
+                source=arm_id,
+            )
+            b0_histories = _paired_history_rows(
+                rows=b0_branch["per_history"], roster=roster, branch=branch, seed=key,
+                source="B0",
+            )
             macro = {}
             for name in PAIRED_MACRO_METRICS:
                 arm_value = arm_branch["macro"].get(name)
@@ -2142,9 +2313,24 @@ def _paired_development(*, arm_records: dict, b0_records: dict, b0_records_sha25
         "support": {
             "evaluation_histories": histories,
             "per_history_support_sha256": per_history_support,
+            "per_history_identity": {
+                history_id: {
+                    "role_manifest_sha256": roster[history_id]["role_manifest_sha256"],
+                    "schema_history_id": roster[history_id]["schema_history_id"],
+                    "support_sha256": roster[history_id]["support_sha256"],
+                }
+                for history_id in histories
+            },
             "calibration_support_sha256": calibration_support,
         },
+        "record_states": record_states,
         "branches": branches,
+        "aggregation": {
+            "unit": "mean_delta across the three frozen model seeds, per branch and per history",
+            "positive_seeds": "count of seeds with a strictly positive arm-minus-B0 delta",
+            "paired_uncertainty": "not_estimated",
+            "confidence_intervals": "none; no paired interval, p-value or significance claim is produced",
+        },
         "interpretation": (
             "Descriptive paired Development differences only (N4-CRN minus B0-FULL at the same model "
             "seed and frozen support). Each arm uses its own q95 thresholds; no selection, promotion, "
@@ -2154,7 +2340,692 @@ def _paired_development(*, arm_records: dict, b0_records: dict, b0_records_sha25
     }
 
 
-def _environment_block(args) -> dict:
+# ---------------------------------------------------------------------------
+# Report / audit-only consumer of an already-executed run
+# ---------------------------------------------------------------------------
+# The report path consumes the immutable seed records plus the artifacts they
+# bind and emits a *derived* paired Development report. It never fits, never
+# optimizes, never restores a model for scoring, and never rewrites an input:
+# every digest it declares is re-verified from the actual bytes, every
+# Development row is joined to the authenticated roster produced by the
+# certified binding and the validated per-history support, and the two
+# execution identities (the original scientific run and this report run) are
+# recorded separately.
+_REPORT_AUTH_KEYS = frozenset(
+    {
+        "schema", "task_id", "original_execution", "report_execution", "source_commit",
+        "source_tree", "runner_sha256", "binding_sha256", "handoff_sha256", "lock",
+        "b0_seed_records", "run", "development_history_ids", "development_support_sha256",
+        "artifacts", "certified_data",
+    }
+)
+_REPORT_EXECUTION_KEYS = frozenset({"task_id", "attempt_id", "agent_id"})
+_REPORT_ARTIFACT_KEYS = frozenset(
+    {"coherent_checkpoint_sha256", "scale_envelope_sha256", "development_scores_sha256"}
+)
+_REPORT_CERTIFIED_DATA_KEYS = frozenset({"authenticated", "folds_authenticated", "evidence"})
+#: A consumed run may have executed under any superseded prospective lock; the
+#: live lock is always the current one and is validated separately.
+_SUPERSEDED_LOCK_SCHEMAS = frozenset(f"s18-task14-config-lock-v{version}" for version in range(1, 10))
+
+
+def _require_hex(value: object, label: str) -> str:
+    if not isinstance(value, str) or not _HEX64.fullmatch(value):
+        raise _fail(f"report auth {label} is missing or not a SHA-256 digest")
+    return value
+
+
+def _require_sha40(value: object, label: str) -> str:
+    if not isinstance(value, str) or not _HEX40.fullmatch(value):
+        raise _fail(f"report auth {label} is missing or not a Git SHA")
+    return value
+
+
+def _load_report_auth(path_value: str, expected_sha256: str) -> dict:
+    """Load the caller's explicit expected-value document and pin its bytes."""
+    path = Path(path_value)
+    if not path.is_file():
+        raise _fail(f"report auth document is missing: {path}")
+    expected = _require_hex(expected_sha256, "document sha256")
+    if _sha256_file(path) != expected:
+        raise _fail("report auth document bytes differ from the pinned digest")
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict) or set(payload) != _REPORT_AUTH_KEYS:
+        raise _fail("report auth document differs from the frozen schema")
+    if payload.get("schema") != REPORT_AUTH_SCHEMA or payload.get("task_id") != TASK_ID:
+        raise _fail("report auth document identity differs")
+    return payload
+
+
+def _check_execution_identity(value: object, label: str) -> dict:
+    if not isinstance(value, dict) or set(value) != _REPORT_EXECUTION_KEYS:
+        raise _fail(f"report auth {label} identity differs from the frozen schema")
+    if value.get("task_id") != TASK_ID:
+        raise _fail(f"report auth {label} task identity differs")
+    for field in ("attempt_id", "agent_id"):
+        if not isinstance(value.get(field), str) or not value[field]:
+            raise _fail(f"report auth {label} lacks {field}")
+    return dict(value)
+
+
+def _check_report_auth(*, auth: dict, checks: dict, tree: str, binding, lock: dict,
+                       lock_binding: dict, bdoc: dict, original_binding: dict,
+                       original_binding_path: Path, handoff_path: Path) -> dict:
+    """Re-verify every declared expected value against the live bytes.
+
+    The consumed run's identity is taken from its own immutable binding
+    document, never from the reporting execution. This function therefore
+    compares the declared original source/runner/binding against that document
+    and the pinned preflight, while separately recording that the report itself
+    ran on the current source.
+    """
+    original_binding_sha = _sha256_file(original_binding_path)
+    if original_binding_sha != _require_hex(auth.get("binding_sha256"), "binding_sha256"):
+        raise _fail("original execution binding bytes differ from the report auth pin")
+    original_commit = _require_sha40(auth.get("source_commit"), "source_commit")
+    original_tree = _require_sha40(auth.get("source_tree"), "source_tree")
+    original_runner = _require_hex(auth.get("runner_sha256"), "runner_sha256")
+    for label, observed, expected in (
+        ("source commit", original_binding.get("source_commit"), original_commit),
+        ("source tree", original_binding.get("source_tree"), original_tree),
+        ("runner digest", original_binding.get("runner_sha256"), original_runner),
+        ("handoff digest", original_binding.get("handoff_sha256"), auth.get("handoff_sha256")),
+        (
+            "B0 ledger digest",
+            original_binding.get("b0_seed_records_sha256"),
+            (auth.get("b0_seed_records") or {}).get("sha256"),
+        ),
+    ):
+        if observed != expected:
+            raise _fail(f"original execution binding {label} differs from the report auth pin")
+    if not isinstance(tree, str) or not _HEX40.fullmatch(tree):
+        raise _fail("report execution tree is not a Git tree SHA")
+    if bdoc.get("source_commit") != checks["head"] or bdoc.get("runner_sha256") != checks["runner_sha256"]:
+        raise _fail("report execution binding is not the live source/runner")
+    if _require_hex(auth.get("handoff_sha256"), "handoff_sha256") != binding.handoff_sha256:
+        raise _fail("report auth handoff digest differs from the certified handoff")
+    if _sha256_file(handoff_path) != binding.handoff_sha256:
+        raise _fail("certified handoff bytes changed")
+    lock_auth = auth.get("lock")
+    if not isinstance(lock_auth, dict) or set(lock_auth) != {"path", "schema", "version", "file_sha256", "core_sha256"}:
+        raise _fail("report auth lock block differs from the frozen schema")
+    if not isinstance(lock_auth["path"], str) or not lock_auth["path"]:
+        raise _fail("report auth original lock path is missing")
+    if not isinstance(lock_auth["schema"], str) or not lock_auth["schema"]:
+        raise _fail("report auth original lock schema is missing")
+    if not isinstance(lock_auth["version"], int) or isinstance(lock_auth["version"], bool):
+        raise _fail("report auth original lock version is missing")
+    _require_hex(lock_auth["file_sha256"], "lock.file_sha256")
+    _require_hex(lock_auth["core_sha256"], "lock.core_sha256")
+    if lock_auth["schema"] != lock["schema"] and lock_auth["schema"] not in _SUPERSEDED_LOCK_SCHEMAS:
+        raise _fail("report auth original lock schema is not a known superseded Task14 lock")
+    if lock_auth["path"] == capacity.TASK14_LOCK_PATH:
+        raise _fail("report auth must name the original superseded lock, not the live lock")
+    # The live (report) lock is validated separately by the caller; the auth
+    # document pins the lock the consumed scientific run actually executed under.
+    b0_auth = auth.get("b0_seed_records")
+    if not isinstance(b0_auth, dict) or set(b0_auth) != {"path", "sha256"}:
+        raise _fail("report auth B0 ledger block differs from the frozen schema")
+    if not isinstance(b0_auth["path"], str) or not b0_auth["path"]:
+        raise _fail("report auth B0 ledger path is missing")
+    b0_sha = _require_hex(b0_auth["sha256"], "b0_seed_records.sha256")
+    b0_path = Path(b0_auth["path"])
+    if not b0_path.is_file() or _sha256_file(b0_path) != b0_sha:
+        raise _fail("accepted B0 ledger bytes differ from the report auth pin")
+    run_auth = auth.get("run")
+    if not isinstance(run_auth, dict) or set(run_auth) != {
+        "seed_records_sha256", "preflight_sha256", "environment_sha256", "progress_sha256",
+    }:
+        raise _fail("report auth run block differs from the frozen schema")
+    for field in ("seed_records_sha256", "preflight_sha256", "environment_sha256", "progress_sha256"):
+        _require_hex(run_auth[field], f"run.{field}")
+    original = _check_execution_identity(auth.get("original_execution"), "original execution")
+    report = _check_execution_identity(auth.get("report_execution"), "report execution")
+    if original["task_id"] != TASK_ID or original["attempt_id"] == report["attempt_id"]:
+        raise _fail("report auth does not separate the original and report execution identities")
+    roster = auth.get("development_history_ids")
+    binding_roster = [item.actual_history_id for item in binding.role_histories("DEVELOPMENT")]
+    if not isinstance(roster, list) or roster != binding_roster:
+        raise _fail("report auth Development roster differs from the certified binding")
+    support = auth.get("development_support_sha256")
+    if not isinstance(support, dict) or list(support) != roster:
+        raise _fail("report auth Development support map differs from the frozen roster")
+    for history_id in roster:
+        _require_hex(support[history_id], f"development_support_sha256.{history_id}")
+    artifacts = auth.get("artifacts")
+    expected_seeds = [str(seed) for seed in MODEL_SEEDS]
+    if not isinstance(artifacts, dict) or sorted(artifacts) != expected_seeds:
+        raise _fail("report auth artifact block does not cover exactly the frozen model seeds")
+    for seed in expected_seeds:
+        entry = artifacts[seed]
+        if not isinstance(entry, dict) or set(entry) != _REPORT_ARTIFACT_KEYS:
+            raise _fail(f"report auth artifact block for seed {seed} differs from the frozen schema")
+        for field in _REPORT_ARTIFACT_KEYS:
+            _require_hex(entry[field], f"artifacts.{seed}.{field}")
+    certified = auth.get("certified_data")
+    if not isinstance(certified, dict) or set(certified) != _REPORT_CERTIFIED_DATA_KEYS:
+        raise _fail("report auth certified-DATA block differs from the frozen schema")
+    if certified.get("authenticated") is not True or certified.get("folds_authenticated") != 9:
+        raise _fail("report auth does not assert the nine-fold certified-DATA custody")
+    if certified.get("evidence") != "pinned_preflight_task14_envelope_custody":
+        raise _fail("report auth certified-DATA evidence label is not the frozen one")
+    return {
+        "original_execution": original,
+        "report_execution": report,
+        "original_binding_sha256": original_binding_sha,
+        "b0_seed_records_path": b0_path,
+        "b0_seed_records_sha256": b0_sha,
+        "development_roster": roster,
+        "development_support_sha256": dict(support),
+        "artifacts": artifacts,
+    }
+
+
+def _load_pinned_json(path: Path, expected_sha256: str, label: str) -> dict:
+    if not path.is_file():
+        raise _fail(f"report {label} is missing: {path}")
+    if _sha256_file(path) != expected_sha256:
+        raise _fail(f"report {label} bytes differ from the pinned digest")
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise _fail(f"report {label} is not a mapping")
+    return payload
+
+
+def _check_json_file_matches(path: Path, expected: dict, label: str) -> None:
+    if not path.is_file():
+        raise _fail(f"report {label} is missing: {path}")
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if payload != expected:
+        raise _fail(f"report {label} differs from the pinned seed-record entry")
+
+
+def _check_recorded_preflight(*, preflight: dict, auth: dict, binding,
+                              lock_binding: dict, original_execution: dict) -> dict:
+    """Authenticate the consumed run's recorded preflight against the live contract."""
+    if preflight.get("PREFLIGHT_OK") is not True or preflight.get("schema") != PREFLIGHT_SCHEMA:
+        raise _fail("recorded preflight is not a successful frozen-schema preflight")
+    lock_block = preflight.get("task14_lock_binding") or {}
+    for label, observed, expected in (
+        ("source commit", preflight.get("source_commit"), auth["source_commit"]),
+        ("runner digest", preflight.get("runner_sha256"), auth["runner_sha256"]),
+        ("binding digest", preflight.get("binding_sha256"), auth["binding_sha256"]),
+        ("handoff digest", preflight.get("handoff_sha256"), binding.handoff_sha256),
+        ("B0 ledger", preflight.get("b0_seed_records_sha256"), auth["b0_seed_records"]["sha256"]),
+        ("lock schema", lock_block.get("schema"), auth["lock"]["schema"]),
+        ("lock version", lock_block.get("lock_version"), auth["lock"]["version"]),
+        ("lock path", lock_block.get("path"), auth["lock"]["path"]),
+        ("lock file", lock_block.get("file_sha256"), auth["lock"]["file_sha256"]),
+        ("lock core", lock_block.get("coefficient_lock_sha256"), auth["lock"]["core_sha256"]),
+    ):
+        if observed != expected:
+            raise _fail(f"recorded preflight {label} differs from the authenticated value")
+    custody = preflight.get("capacity_custody_authentication") or {}
+    if custody.get("authenticated") is not True or custody.get("folds_authenticated") != 9:
+        raise _fail("recorded preflight does not carry the nine-fold certified-DATA custody")
+    certified = lock_binding["capacity_certification"]
+    declared = {str(seed): list(values) for seed, values in certified["fold_checkpoint_sha256"].items()}
+    observed: dict[str, list] = {}
+    for entry in custody.get("files") or []:
+        observed.setdefault(str(entry.get("model_seed")), []).append(entry.get("container_sha256"))
+    if observed != declared:
+        raise _fail("recorded preflight custody digests differ from the certified fold containers")
+    recorded_roster = {
+        row.get("history_id"): row.get("manifest_sha256_bound")
+        for row in (preflight.get("development_support") or [])
+    }
+    expected_roster = {
+        item.actual_history_id: item.manifest_sha256 for item in binding.role_histories("DEVELOPMENT")
+    }
+    if recorded_roster != expected_roster or recorded_roster != {
+        history_id: recorded_roster[history_id] for history_id in auth["development_history_ids"]
+    }:
+        raise _fail("recorded preflight Development roster differs from the certified binding")
+    return {
+        "preflight_schema": preflight["schema"],
+        "capacity_custody_authenticated": True,
+        "folds_authenticated": 9,
+        "certified_fold_container_match": True,
+        "development_manifests_match_binding": True,
+    }
+
+
+def _check_report_seed_records(*, records: dict, b0_records: dict, auth: dict, binding,
+                               preflight: dict, seed_records_path: Path,
+                               original_execution: dict) -> dict:
+    expected_keys = [str(seed) for seed in MODEL_SEEDS]
+    if sorted(records) != expected_keys:
+        raise _fail("seed-records ledger does not cover exactly the frozen model seeds")
+    run_root = seed_records_path.parent
+    artifact_digests: dict[str, dict] = {}
+    for key in expected_keys:
+        record = records[key]
+        if record.get("schema") != SEED_SCHEMA:
+            raise _fail(f"seed {key} record schema differs")
+        for label, observed, expected in (
+            ("task", record.get("task_id"), TASK_ID),
+            ("arm", record.get("arm_id"), ARM_ID),
+            ("baseline arm", record.get("baseline_arm_id"), BASELINE_ARM_ID),
+            ("model seed", record.get("model_seed"), int(key)),
+            ("original attempt", record.get("attempt_id"), original_execution["attempt_id"]),
+            ("original agent", record.get("agent_id"), original_execution["agent_id"]),
+        ):
+            if observed != expected:
+                raise _fail(f"seed {key} record {label} differs from the authenticated value")
+        if record.get("status") != "ok" or record.get("normative") is not True:
+            raise _fail(f"seed {key} record is not a completed normative run")
+        if record.get("failure_reasons") != []:
+            raise _fail(f"seed {key} record carries failure reasons")
+        if record.get("development", {}).get("saturation", {}).get("cap_gate_pass") is not True:
+            raise _fail(f"seed {key} record did not pass the Development saturation cap gate")
+        if record.get("development", {}).get("s_pop_parity", {}).get(
+            "S_pop_bitwise_equal_to_B0"
+        ) is not True:
+            raise _fail(f"seed {key} record does not prove S_pop parity with B0")
+        coherent = record.get("coherent_checkpoint") or {}
+        if (
+            coherent.get("schema") != COHERENT_CHECKPOINT_SCHEMA
+            or coherent.get("strict_restore_b0_model_ema_scale_equal") is not True
+            or int(coherent.get("representation_step", -1)) != 0
+        ):
+            raise _fail(f"seed {key} coherent artifact is not a strict-restored zero-representation N4 artifact")
+        block = (preflight.get("seeds") or {}).get(key) or {}
+        scale_fit = record.get("scale_fit") or {}
+        if block.get("record_total") != scale_fit.get("record_total"):
+            raise _fail(f"seed {key} final Fit record total differs from the recorded preflight")
+        if block.get("final_scale_steps") != scale_fit.get("optimizer_steps"):
+            raise _fail(f"seed {key} final scale steps differ from the recorded preflight")
+        if block.get("record_counts") != scale_fit.get("record_counts"):
+            raise _fail(f"seed {key} per-history Fit record counts differ from the recorded preflight")
+        expected_artifacts = auth["artifacts"][key]
+        checks = {
+            "coherent_checkpoint_sha256": coherent.get("path"),
+            "scale_envelope_sha256": (record.get("scale_checkpoint") or {}).get("path"),
+            "development_scores_sha256": (record.get("next_stage") or {}).get("development_scores_path"),
+        }
+        for label, path_value in checks.items():
+            if not isinstance(path_value, str) or not path_value:
+                raise _fail(f"seed {key} record lacks the {label} artifact path")
+            path = Path(path_value)
+            if not path.is_file():
+                raise _fail(f"seed {key} {label} artifact is unreachable: {path}")
+            observed = _sha256_file(path)
+            if observed != expected_artifacts[label]:
+                raise _fail(f"seed {key} {label} bytes differ from the report auth pin")
+            recorded = (
+                coherent.get("sha256") if label == "coherent_checkpoint_sha256"
+                else (record.get("scale_checkpoint") or {}).get("sha256")
+                if label == "scale_envelope_sha256"
+                else (record.get("next_stage") or {}).get("development_scores_sha256")
+            )
+            if recorded != observed:
+                raise _fail(f"seed {key} {label} bytes differ from the digest in the seed record")
+        artifact_digests[key] = dict(expected_artifacts)
+        seed_dir = run_root / f"seed-{key}"
+        _check_json_file_matches(seed_dir / "seed_record.json", record, f"seed-{key}/seed_record.json")
+        _check_json_file_matches(
+            seed_dir / "next_stage.json", record["next_stage"], f"seed-{key}/next_stage.json",
+        )
+    return {"artifact_digests": artifact_digests, "record_count": len(expected_keys)}
+
+
+def _join_legacy_development_rows(*, rows: list, roster: dict[str, dict], order: list[str],
+                                  anchor: list[dict], branch: str, seed: str) -> list[dict]:
+    """Attach the authenticated identity to pre-fix Development rows.
+
+    The legacy rows are the frozen metric payload in the order the frozen code
+    evaluated the certified roster. Identity is never taken from that order
+    alone: the accepted B0 reference rows (which have always carried identity)
+    fix the order, the support-derived counts must agree at every position, the
+    S_pop branch must be bitwise equal to B0 at every position, and the
+    provenance is then taken from the authenticated roster — not from the row.
+    """
+    if len(rows) != len(order) or len(anchor) != len(order):
+        raise _fail(f"legacy {branch} rows do not cover the frozen Development roster (seed {seed})")
+    if [row.get("history_id") for row in anchor] != order:
+        raise _fail(f"accepted B0 {branch} identity order differs from the frozen roster (seed {seed})")
+    expected_metrics = set(DEVELOPMENT_ROW_METRICS)
+    for row in rows:
+        if set(row) != expected_metrics:
+            raise _fail(f"legacy {branch} row schema differs from the frozen metric payload (seed {seed})")
+    joined: list[dict] = []
+    for index, (row, identity_row) in enumerate(zip(rows, anchor)):
+        for name in ("n_p", "n_w", "robot_days"):
+            if row[name] != identity_row[name]:
+                raise _fail(
+                    f"legacy {branch} row {index} support count {name} differs from the "
+                    f"accepted B0 identity row (seed {seed})"
+                )
+        if branch == "S_pop":
+            for name in DEVELOPMENT_ROW_METRICS:
+                if row[name] != identity_row[name]:
+                    raise _fail(
+                        f"legacy S_pop row {index} is not bitwise equal to B0 at {name} (seed {seed})"
+                    )
+        identity = roster[identity_row["history_id"]]
+        joined.append(
+            {
+                **row,
+                **{field: identity[field] for field in DEVELOPMENT_IDENTITY_FIELDS},
+            }
+        )
+    if [row["history_id"] for row in joined] != order:
+        raise _fail(f"joined {branch} rows do not reproduce the frozen roster (seed {seed})")
+    return joined
+
+
+def _enrich_report_development(*, records: dict, b0_records: dict, auth: dict, binding) -> dict:
+    """Return the consumed records with authenticated arm per-history rows."""
+    expected_keys = [str(seed) for seed in MODEL_SEEDS]
+    order = list(auth["development_history_ids"])
+    roster = {}
+    for history_id in order:
+        bound = binding.history(history_id)
+        roster[history_id] = {
+            "history_id": history_id,
+            "role_manifest_sha256": bound.manifest_sha256,
+            "schema_history_id": bound.schema_history_id,
+            "support_sha256": auth["development_support_sha256"][history_id],
+        }
+    enriched: dict[str, dict] = {}
+    for key in expected_keys:
+        record = records[key]
+        support = record["development"]["support"]
+        if list(support["evaluation_histories"]) != order:
+            raise _fail(f"seed {key} Development roster differs from the authenticated roster")
+        if support["per_history_support_sha256"] != auth["development_support_sha256"]:
+            raise _fail(f"seed {key} Development support map differs from the report auth pin")
+        b0_record = b0_records[key]
+        b0_support = b0_record["development"]["support"]
+        if list(b0_support["evaluation_histories"]) != order:
+            raise _fail(f"accepted B0 seed {key} Development roster differs from the authenticated roster")
+        b0_rows_by_branch = {
+            branch: {
+                row["history_id"]: row
+                for row in b0_record["development"]["branches"][branch]["per_history"]
+            }
+            for branch in ("S_pred", "S_pop")
+        }
+        for branch in ("S_pred", "S_pop"):
+            anchor = record["development"]["b0_reference"][branch]["per_history"]
+            if [row.get("history_id") for row in anchor] != order:
+                raise _fail(f"seed {key} recorded B0 reference {branch} order differs from the roster")
+            accepted = b0_rows_by_branch[branch]
+            if set(accepted) != set(order):
+                raise _fail(f"accepted B0 {branch} rows do not cover the frozen roster")
+            for row in anchor:
+                history_id = row["history_id"]
+                identity = roster[history_id]
+                for field in ("role_manifest_sha256", "schema_history_id", "support_sha256"):
+                    if row.get(field) != identity[field]:
+                        raise _fail(f"seed {key} recorded B0 reference {branch} {history_id} provenance differs")
+                for name in DEVELOPMENT_ROW_METRICS:
+                    if row.get(name) != accepted[history_id].get(name):
+                        raise _fail(
+                            f"seed {key} recorded B0 reference {branch} {history_id}.{name} "
+                            "differs from the accepted B0 ledger"
+                        )
+        copy = json.loads(json.dumps(record))
+        for branch in ("S_pred", "S_pop"):
+            rows = record["development"]["branches"][branch]["per_history"]
+            identity_marked = [set(DEVELOPMENT_IDENTITY_FIELDS) & set(row) for row in rows]
+            if all(identity_marked):
+                copy["development"]["branches"][branch]["per_history"] = json.loads(json.dumps(rows))
+                continue
+            if any(identity_marked):
+                raise _fail(f"seed {key} {branch} mixes identified and legacy per-history rows")
+            copy["development"]["branches"][branch]["per_history"] = _join_legacy_development_rows(
+                rows=rows, roster=roster, order=order,
+                anchor=record["development"]["b0_reference"][branch]["per_history"],
+                branch=branch, seed=key,
+            )
+        enriched[key] = copy
+    return enriched
+
+
+def _check_progress_log(path: Path, expected_sha256: str, preflight: dict) -> dict:
+    if not path.is_file():
+        raise _fail(f"report progress log is missing: {path}")
+    if _sha256_file(path) != expected_sha256:
+        raise _fail("report progress log bytes differ from the pinned digest")
+    events: list[dict] = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        events.append(json.loads(line))
+    completed: dict[str, dict] = {}
+    order: list[str] = []
+    for event in events:
+        if event.get("event") == "seed_complete":
+            key = str(event.get("model_seed"))
+            if key in completed:
+                raise _fail(f"progress log repeats seed_complete for {key}")
+            if event.get("status") != "ok":
+                raise _fail(f"progress log records a non-ok seed completion for {key}")
+            completed[key] = event
+            order.append(key)
+    if sorted(completed) != [str(seed) for seed in MODEL_SEEDS]:
+        raise _fail("progress log does not record a completed run for every frozen seed")
+    if order != [str(seed) for seed in MODEL_SEEDS]:
+        raise _fail("progress log seed completion order differs from the frozen order")
+    for key, event in completed.items():
+        block = (preflight.get("seeds") or {}).get(key) or {}
+        if event.get("cap_gate_pass") is not None and block:
+            if bool(event["cap_gate_pass"]) is not True:
+                raise _fail(f"progress log records a failed cap gate for {key}")
+    return {"events": len(events), "seed_completion_order": order}
+
+
+def run_report(args, bdoc: dict) -> dict:
+    """Emit a derived paired Development report from an immutable executed run.
+
+    No fitting, optimizer step, model scoring or scientific-byte write occurs
+    here: the immutable seed records and their bound artifacts are digest-
+    authenticated, the missing per-history identity is joined from the
+    certified roster and validated support, and the report is written to a
+    fresh separate directory with a manifest separating the original source
+    artifacts from the report outputs.
+    """
+    worktree = Path(args.worktree)
+    seed_records_path = Path(args.seed_records)
+    out_dir = Path(args.out_dir)
+    run_root = seed_records_path.parent.resolve()
+    resolved_out = out_dir.resolve()
+    if resolved_out == run_root or run_root in resolved_out.parents:
+        raise _fail("report output must be a fresh separate directory outside the consumed run root")
+    if out_dir.exists() and any(out_dir.iterdir()):
+        raise _fail("report output directory is not empty; refusing to overwrite")
+    checks = self_check(args, bdoc)
+    _check_contract_files(worktree)
+    tree = subprocess.run(
+        ["git", "-C", str(worktree), "rev-parse", "HEAD^{tree}"],
+        check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    lock = capacity.load_task14_lock(worktree)
+    lock_binding = capacity.validate_task14_lock(
+        lock, worktree=worktree,
+        observed_runner_sha256=_sha256_file(_EXPERIMENTS_DIR / "sprint18_task13b_n4_capacity.py"),
+    )
+    binding = load_task6_binding(args.handoff)
+    if binding.executable_binding_sha256 != capacity.EXPECTED_CONTRACT["executable_binding_sha256"]:
+        raise _fail("executable certified-DATA binding digest changed")
+    original_binding_path = Path(args.original_binding)
+    if not original_binding_path.is_file():
+        raise _fail(f"original execution binding is missing: {original_binding_path}")
+    original_binding = json.loads(original_binding_path.read_text(encoding="utf-8"))
+    if not isinstance(original_binding, dict):
+        raise _fail("original execution binding is not a mapping")
+    auth = _load_report_auth(args.report_auth, args.report_auth_sha256)
+    authenticated = _check_report_auth(
+        auth=auth, checks=checks, tree=tree, binding=binding, lock=lock,
+        lock_binding=lock_binding, bdoc=bdoc, original_binding=original_binding,
+        original_binding_path=original_binding_path, handoff_path=Path(args.handoff),
+    )
+    run_auth = auth["run"]
+    if _sha256_file(seed_records_path) != run_auth["seed_records_sha256"]:
+        raise _fail("consumed seed-record bytes differ from the report auth pin")
+    records = json.loads(seed_records_path.read_text(encoding="utf-8"))
+    if not isinstance(records, dict):
+        raise _fail("consumed seed-record ledger is not a mapping")
+    b0_records = json.loads(Path(authenticated["b0_seed_records_path"]).read_text(encoding="utf-8"))
+    if not isinstance(b0_records, dict):
+        raise _fail("accepted B0 seed-record ledger is not a mapping")
+    preflight = _load_pinned_json(run_root / "preflight.json", run_auth["preflight_sha256"], "preflight")
+    environment = _load_pinned_json(run_root / "environment.json", run_auth["environment_sha256"], "environment")
+    progress = _check_progress_log(run_root / "progress.jsonl", run_auth["progress_sha256"], preflight)
+    if environment.get("mode") != "full":
+        raise _fail("consumed run environment is not a full-mode campaign")
+    preflight_checks = _check_recorded_preflight(
+        preflight=preflight, auth=auth, binding=binding,
+        lock_binding=lock_binding, original_execution=authenticated["original_execution"],
+    )
+    record_checks = _check_report_seed_records(
+        records=records, b0_records=b0_records, auth=auth, binding=binding,
+        preflight=preflight, seed_records_path=seed_records_path,
+        original_execution=authenticated["original_execution"],
+    )
+    enriched = _enrich_report_development(
+        records=records, b0_records=b0_records, auth=auth, binding=binding,
+    )
+    paired = _paired_development(
+        arm_records=enriched, b0_records=b0_records,
+        b0_records_sha256=authenticated["b0_seed_records_sha256"],
+    )
+    out_dir.mkdir(parents=True, exist_ok=True)
+    paired_path = out_dir / "paired_development.json"
+    _write_json(paired_path, paired)
+    paired_sha = _sha256_file(paired_path)
+    report_record = {
+        "schema": REPORT_SCHEMA,
+        "task_id": TASK_ID,
+        "mode": "report",
+        "status": "complete",
+        "original_execution": {
+            **authenticated["original_execution"],
+            "source_commit": auth["source_commit"],
+            "source_tree": auth["source_tree"],
+            "runner_sha256": auth["runner_sha256"],
+            "binding_sha256": auth["binding_sha256"],
+            "task14_lock": dict(auth["lock"]),
+            "role": "immutable scientific execution consumed by this report",
+        },
+        "report_execution": {
+            **authenticated["report_execution"],
+            **checks,
+            "source_tree": tree,
+            "task14_lock": {
+                "path": capacity.TASK14_LOCK_PATH,
+                "schema": lock["schema"],
+                "version": lock["lock_version"],
+                "file_sha256": lock_binding["file_sha256"],
+                "core_sha256": lock["coefficient_lock_sha256"],
+            },
+            "training_calls": 0,
+            "optimizer_steps": 0,
+            "model_scoring_calls": 0,
+            "role": "derived report/audit-only execution; no scientific byte written",
+        },
+        "consumed": {
+            "seed_records_path": str(seed_records_path),
+            "seed_records_sha256": run_auth["seed_records_sha256"],
+            "preflight_sha256": run_auth["preflight_sha256"],
+            "environment_sha256": run_auth["environment_sha256"],
+            "progress_sha256": run_auth["progress_sha256"],
+            "b0_seed_records_path": str(authenticated["b0_seed_records_path"]),
+            "b0_seed_records_sha256": authenticated["b0_seed_records_sha256"],
+            "certified_data_evidence": auth["certified_data"],
+        },
+        "authentication": {
+            "source_commit_and_runner": True,
+            "contract_files": True,
+            "task14_lock": True,
+            "certified_data_binding": True,
+            "certified_fold_custody": preflight_checks,
+            "recorded_preflight": preflight_checks,
+            "progress_log": progress,
+            "seed_records": record_checks,
+            "paired_roster": {
+                "development_history_ids": authenticated["development_roster"],
+                "per_history_support_sha256": authenticated["development_support_sha256"],
+                "join": (
+                    "identity-bearing rows are accepted as-is; legacy rows are joined using the "
+                    "accepted B0 identity rows for order, the support-derived counts and the "
+                    "authenticated roster/support for provenance"
+                ),
+            },
+        },
+        "paired_development_sha256": paired_sha,
+        "paired_development_schema": paired["schema"],
+    }
+    _write_json(out_dir / "report_record.json", report_record)
+    report_sha = _sha256_file(out_dir / "report_record.json")
+    # The report must not have mutated any consumed byte.
+    if _sha256_file(seed_records_path) != run_auth["seed_records_sha256"]:
+        raise _fail("consumed seed-record bytes changed during the report")
+    if _sha256_file(Path(authenticated["b0_seed_records_path"])) != authenticated["b0_seed_records_sha256"]:
+        raise _fail("accepted B0 ledger bytes changed during the report")
+    manifest = {
+        "schema": REPORT_MANIFEST_SCHEMA,
+        "task_id": TASK_ID,
+        "original_source": {
+            "seed_records": {
+                "path": str(seed_records_path), "sha256": run_auth["seed_records_sha256"],
+            },
+            "preflight": {
+                "path": str(run_root / "preflight.json"), "sha256": run_auth["preflight_sha256"],
+            },
+            "environment": {
+                "path": str(run_root / "environment.json"), "sha256": run_auth["environment_sha256"],
+            },
+            "progress": {
+                "path": str(run_root / "progress.jsonl"), "sha256": run_auth["progress_sha256"],
+            },
+            "b0_seed_records": {
+                "path": str(authenticated["b0_seed_records_path"]),
+                "sha256": authenticated["b0_seed_records_sha256"],
+            },
+            "artifacts": {
+                seed: {
+                    "coherent_checkpoint_sha256": authenticated["artifacts"][seed][
+                        "coherent_checkpoint_sha256"
+                    ],
+                    "scale_envelope_sha256": authenticated["artifacts"][seed]["scale_envelope_sha256"],
+                    "development_scores_sha256": authenticated["artifacts"][seed][
+                        "development_scores_sha256"
+                    ],
+                }
+                for seed in record_checks["artifact_digests"]
+            },
+        },
+        "report_source": {
+            "source_commit": checks["head"],
+            "source_tree": tree,
+            "runner_sha256": checks["runner_sha256"],
+            "binding_sha256": checks["binding_sha256"],
+            "report_auth_sha256": args.report_auth_sha256,
+            "paired_development": {"path": str(paired_path), "sha256": paired_sha},
+            "report_record": {
+                "path": str(out_dir / "report_record.json"), "sha256": report_sha,
+            },
+        },
+        "derived_outputs": ["paired_development.json", "report_record.json"],
+        "note": (
+            "written last; it does not hash itself. Original scientific artifacts are immutable "
+            "inputs and were re-hashed unchanged after the report was written."
+        ),
+    }
+    _write_json(out_dir / "manifest.json", manifest)
+    return {
+        "REPORT_OK": True,
+        "schema": REPORT_SCHEMA,
+        "model_seeds": list(MODEL_SEEDS),
+        "paired_development_sha256": paired_sha,
+        "report_record_sha256": report_sha,
+        "record_states": paired["record_states"],
+    }
+
+
+
     environment = {
         "task_id": TASK_ID, "attempt_id": ATTEMPT, "agent_id": AGENT,
         "mode": args.mode, "device": args.device,
@@ -2790,8 +3661,14 @@ def main() -> int:
     parser.add_argument("--out-dir", required=True)
     parser.add_argument("--source-commit", required=True)
     parser.add_argument("--driver-sha256", required=True)
-    parser.add_argument("--mode", choices=("preflight", "smoke", "full"), required=True)
+    parser.add_argument("--mode", choices=("preflight", "smoke", "full", "report"), required=True)
     parser.add_argument("--device", required=True)
+    # Report/audit-only inputs. Required only for ``--mode report``; every value
+    # is re-verified from the actual bytes before it is used.
+    parser.add_argument("--seed-records", default=None)
+    parser.add_argument("--report-auth", default=None)
+    parser.add_argument("--report-auth-sha256", default=None)
+    parser.add_argument("--original-binding", default=None)
     args = parser.parse_args()
     bdoc = capacity.load_binding_doc(Path(args.binding))
     _execution_binding(bdoc, args)
@@ -2819,6 +3696,16 @@ def main() -> int:
         outcome = run_smoke(args, bdoc)
         print(json.dumps(outcome, sort_keys=True))
         print(json.dumps({"RUNNER_EXIT": "smoke_ok"}))
+        return 0
+    if args.mode == "report":
+        if not args.seed_records or not args.report_auth or not args.report_auth_sha256 or not args.original_binding:
+            raise _fail(
+                "--mode report requires --seed-records, --report-auth, --report-auth-sha256 "
+                "and --original-binding"
+            )
+        outcome = run_report(args, bdoc)
+        print(json.dumps(outcome, sort_keys=True))
+        print(json.dumps({"RUNNER_EXIT": "report_ok"}))
         return 0
     outcome = run_full(args, bdoc)
     print(json.dumps(

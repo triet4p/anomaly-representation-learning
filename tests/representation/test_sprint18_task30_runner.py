@@ -10,6 +10,7 @@ these tests use tiny synthetic record/metric shapes, never certified evidence.
 
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 import math
@@ -85,45 +86,94 @@ def test_final_bounds_reject_non_fit_pool_geometry() -> None:
         runner._final_bounds({"H-X": []}, ["H-X"])
 
 
-def _branch(macro_values: dict[str, float], history_values: dict[str, float], threshold: float) -> dict:
-    per_history = []
-    for ordinal in range(1, 5):
-        history_id = f"S18I-ITER-0005-DEVELOPMENT-{ordinal:02d}"
-        per_history.append({"history_id": history_id, **history_values})
-    return {"threshold": threshold, "macro": dict(macro_values), "per_history": per_history}
+DEVELOPMENT_HISTORIES = (
+    "S18I-ITER-0005-DEVELOPMENT-01",
+    "S18I-ITER-0005-DEVELOPMENT-02",
+    "S18I-ITER-0005-DEVELOPMENT-03",
+    "S18I-ITER-0005-DEVELOPMENT-04",
+)
+#: The accepted per-history identity provenance (real A14/B0 values).
+DEVELOPMENT_PROVENANCE = {
+    "S18I-ITER-0005-DEVELOPMENT-01": (
+        "ce7c004b3ba7c6bca4187065df3299691c4d6247500eda480747e37b48fe1e08", "H-S18-DEV-01",
+    ),
+    "S18I-ITER-0005-DEVELOPMENT-02": (
+        "cee368b966874289e8b1b81980ebdf2db566501fe8e2864326651d73f6179310", "H-S18-DEV-02",
+    ),
+    "S18I-ITER-0005-DEVELOPMENT-03": (
+        "b1da957137936e01fda27b2af4194ea8f4be2cf611ce96315dba677145ae8f9e", "H-S18-DEV-03",
+    ),
+    "S18I-ITER-0005-DEVELOPMENT-04": (
+        "3af0811329031fc6f1ffc56ffa837d46a3b9b9095287128d08c46706b187f9af", "H-S18-DEV-04",
+    ),
+}
+
+
+def _identity(history_id: str, support: str) -> dict:
+    manifest, schema = DEVELOPMENT_PROVENANCE[history_id]
+    return {
+        "history_id": history_id,
+        "role_manifest_sha256": manifest,
+        "schema_history_id": schema,
+        "support_sha256": support,
+    }
+
+
+def _row_metrics(value: float) -> dict:
+    metrics = {name: value for name in runner.PAIRED_HISTORY_METRICS}
+    metrics.update({"robot_days": 1692.0, "false_episodes": 0, "n_p": 80, "n_w": 47})
+    return metrics
+
+
+def _branch(*, macro: dict, value: float, threshold: float, support: str) -> dict:
+    return {
+        "threshold": threshold,
+        "macro": dict(macro),
+        "per_history": [
+            {**_row_metrics(value), **_identity(history_id, support)}
+            for history_id in DEVELOPMENT_HISTORIES
+        ],
+    }
 
 
 def _seed_record(seed: int, *, arm: bool, support: str, bank_sha: str, macro_shift: float) -> dict:
-    histories = [f"S18I-ITER-0005-DEVELOPMENT-{ordinal:02d}" for ordinal in range(1, 5)]
+    histories = list(DEVELOPMENT_HISTORIES)
     macro = {name: 0.5 + (macro_shift if arm else 0.0) for name in runner.PAIRED_MACRO_METRICS}
-    history_values = {
-        name: 0.5 + (macro_shift if arm else 0.0) for name in runner.PAIRED_HISTORY_METRICS
-    }
     branches = {
-        "S_pred": _branch(macro, history_values, threshold=0.1 + (0.01 if arm else 0.0)),
+        "S_pred": _branch(
+            macro=macro,
+            value=0.5 + (macro_shift if arm else 0.0),
+            threshold=0.1 + (0.01 if arm else 0.0),
+            support=support,
+        ),
         # The N4 S_pop branch is the unchanged B0 path: identical values.
         "S_pop": _branch(
-            {name: 0.5 for name in runner.PAIRED_MACRO_METRICS},
-            {name: 0.5 for name in runner.PAIRED_HISTORY_METRICS},
+            macro={name: 0.5 for name in runner.PAIRED_MACRO_METRICS},
+            value=0.5,
             threshold=0.2,
+            support=support,
         ),
     }
     record = {
         "model_seed": seed,
         "arm_id": "N4-CRN" if arm else "B0-FULL",
         "status": "ok",
+        "normative": True,
+        "failure_reasons": [],
         "bank": {"source_rows": 5446, "bank_sha256": bank_sha},
-        "calibration": {
-            "source_support_sha256": support,
-        },
+        "calibration": {"source_support_sha256": support},
         "development": {
             "support": {
                 "evaluation_histories": histories,
-                "per_history": {history_id: {"support_sha256": support} for history_id in histories}
+                "per_history": {
+                    history_id: _identity(history_id, support) for history_id in histories
+                }
                 if not arm
                 else {},
             },
             "branches": branches,
+            "saturation": {"cap_gate_pass": True},
+            "s_pop_parity": {"S_pop_bitwise_equal_to_B0": True},
         },
     }
     if arm:
@@ -133,6 +183,20 @@ def _seed_record(seed: int, *, arm: bool, support: str, bank_sha: str, macro_shi
             "per_history_support_sha256": {history_id: support for history_id in histories},
         }
     return record
+
+
+def _paired_case(macro_shift: float = 0.25) -> tuple[dict, dict]:
+    support = "ab" * 32
+    bank_sha = "cd" * 32
+    arm_records = {
+        str(seed): _seed_record(seed, arm=True, support=support, bank_sha=bank_sha, macro_shift=macro_shift)
+        for seed in (181801, 181802, 181803)
+    }
+    b0_records = {
+        str(seed): _seed_record(seed, arm=False, support=support, bank_sha=bank_sha, macro_shift=0.0)
+        for seed in (181801, 181802, 181803)
+    }
+    return arm_records, b0_records
 
 
 def test_paired_development_aggregates_deltas_and_zero_s_pop() -> None:
@@ -197,6 +261,614 @@ def test_paired_development_rejects_support_or_bank_mismatch() -> None:
         runner._paired_development(
             arm_records=arm_records, b0_records=drifted_support, b0_records_sha256="ef" * 32,
         )
+
+
+def test_paired_development_accepts_any_per_history_row_order() -> None:
+    """The paired report matches rows by authenticated identity, not positional order."""
+    arm_records, b0_records = _paired_case()
+    for records in (arm_records, b0_records):
+        for record in records.values():
+            for branch in ("S_pred", "S_pop"):
+                record["development"]["branches"][branch]["per_history"].reverse()
+    paired = runner._paired_development(
+        arm_records=arm_records, b0_records=b0_records, b0_records_sha256="ef" * 32,
+    )
+    for branch in ("S_pred", "S_pop"):
+        rows = paired["branches"][branch]["per_seed"][0]["per_history"]
+        assert [row["history_id"] for row in rows] == list(DEVELOPMENT_HISTORIES)
+        assert set(paired["branches"][branch]["aggregate"]["per_history"]) == set(
+            DEVELOPMENT_HISTORIES
+        )
+    assert set(paired["support"]["per_history_identity"]) == set(DEVELOPMENT_HISTORIES)
+    assert set(paired["record_states"]) == {"181801", "181802", "181803"}
+    assert paired["aggregation"]["confidence_intervals"].startswith("none")
+
+
+def test_paired_development_refuses_missing_duplicate_provenance_and_legacy_rows() -> None:
+    arm_records, b0_records = _paired_case()
+    extra = {"b0_records_sha256": "ef" * 32}
+
+    missing = copy.deepcopy(arm_records)
+    rows = missing["181801"]["development"]["branches"]["S_pred"]["per_history"]
+    missing["181801"]["development"]["branches"]["S_pred"]["per_history"] = rows[:-1]
+    with pytest.raises(SystemExit, match="omit a frozen history"):
+        runner._paired_development(arm_records=missing, b0_records=b0_records, **extra)
+
+    duplicated = copy.deepcopy(arm_records)
+    rows = duplicated["181802"]["development"]["branches"]["S_pop"]["per_history"]
+    duplicated["181802"]["development"]["branches"]["S_pop"]["per_history"] = [
+        rows[0], rows[0], rows[1], rows[2],
+    ]
+    with pytest.raises(SystemExit, match="duplicate"):
+        runner._paired_development(arm_records=duplicated, b0_records=b0_records, **extra)
+
+    drifted = copy.deepcopy(arm_records)
+    drifted["181803"]["development"]["branches"]["S_pred"]["per_history"][0][
+        "role_manifest_sha256"
+    ] = "00" * 32
+    with pytest.raises(SystemExit, match="provenance differs"):
+        runner._paired_development(arm_records=drifted, b0_records=b0_records, **extra)
+
+    # The pre-fix row shape (no identity) is refused rather than joined by position.
+    legacy = copy.deepcopy(b0_records)
+    for row in legacy["181801"]["development"]["branches"]["S_pred"]["per_history"]:
+        for field in runner.DEVELOPMENT_IDENTITY_FIELDS:
+            row.pop(field)
+    with pytest.raises(SystemExit, match="frozen row schema"):
+        runner._paired_development(arm_records=arm_records, b0_records=legacy, **extra)
+
+    unsupported = copy.deepcopy(arm_records)
+    for row in unsupported["181801"]["development"]["branches"]["S_pred"]["per_history"]:
+        row["support_sha256"] = "11" * 32
+    with pytest.raises(SystemExit, match="provenance differs"):
+        runner._paired_development(arm_records=unsupported, b0_records=b0_records, **extra)
+
+
+DAY = 86400.0
+
+
+def _synthetic_development_history(robot: str) -> tuple[list[dict], list[dict], dict[str, float]]:
+    """One history with a P and a W failure, matching the frozen metric contract shape."""
+    rows = [
+        {
+            "file_id": f"{robot}-d{day:02d}",
+            "robot_id": robot,
+            "program_id": "program-01",
+            "start_time": (day - 0.01) * DAY,
+            "end_time": day * DAY,
+            "member_views": ["test-temporal"],
+            "is_censored": False,
+            "is_quarantined": False,
+            "file_label": "normal",
+        }
+        for day in range(1, 41)
+    ]
+    ledger = [
+        {
+            "failure_id": f"{robot}-p", "robot_id": robot, "failure_time": 30 * DAY,
+            "cohort": "P", "subtype": "P1", "degradation_onset": 20 * DAY,
+            "duration_d": 10.0, "severity": 2.0,
+        },
+        {
+            "failure_id": f"{robot}-w", "robot_id": robot, "failure_time": 10 * DAY,
+            "cohort": "W", "subtype": "W1", "degradation_onset": 0.0,
+            "duration_d": 10.0, "severity": 2.0,
+        },
+    ]
+    horizons = [(23 * DAY, 30 * DAY), (3 * DAY, 10 * DAY)]
+    scores = {
+        row["file_id"]: (1.0 if any(start <= row["end_time"] <= stop for start, stop in horizons) else 0.0)
+        for row in rows
+    }
+    return rows, ledger, scores
+
+
+def _score_metrics_case() -> tuple[dict, list[list[dict]], list[list[dict]], list[dict], list[dict]]:
+    rows_by_history, ledgers, windows, roster = [], [], [], []
+    scores: dict[str, float] = {}
+    for index, history_id in enumerate(DEVELOPMENT_HISTORIES, start=1):
+        rows, ledger, history_scores = _synthetic_development_history(f"robot-{index:02d}")
+        rows_by_history.append(rows)
+        ledgers.append(ledger)
+        windows.append({})
+        scores.update(history_scores)
+        roster.append(
+            {
+                **_identity(history_id, f"{index:02d}" * 32),
+                "file_ids_sha256": runner._canonical_sha256([row["file_id"] for row in rows]),
+            }
+        )
+    return scores, rows_by_history, ledgers, windows, roster
+
+
+def test_score_metrics_attaches_authenticated_per_history_identity() -> None:
+    from synth import probe15 as P
+
+    scores, rows_by_history, ledgers, windows, roster = _score_metrics_case()
+    result = runner._score_metrics(
+        file_scores=scores, rows_by_history=rows_by_history, ledgers=ledgers,
+        windows=windows, threshold=0.5, roster=roster,
+    )
+    canonical = P.evaluate_histories(scores, rows_by_history, ledgers, windows, 0.5)
+    assert [row["history_id"] for row in result["per_history"]] == list(DEVELOPMENT_HISTORIES)
+    expected_keys = set(runner.DEVELOPMENT_IDENTITY_FIELDS) | set(runner.DEVELOPMENT_ROW_METRICS)
+    for row, identity, expected in zip(result["per_history"], roster, canonical["per_history"]):
+        assert set(row) == expected_keys
+        for field in runner.DEVELOPMENT_IDENTITY_FIELDS:
+            assert row[field] == identity[field]
+        assert row["P_AUROC"] == pytest.approx(expected["auc_p"])
+        assert row["PW_AUROC"] == pytest.approx(expected["auc_pw"])
+        assert row["n_p"] == expected["n_p"]
+        assert row["robot_days"] == pytest.approx(expected["robot_days"])
+    assert result["macro"]["PW_macro"] == pytest.approx(canonical["macro_auc_pw"])
+    # The exact A14 defect: the previous row shape could not satisfy the paired key.
+    assert all("history_id" in row for row in result["per_history"])
+
+
+def test_score_metrics_refuses_roster_that_does_not_match_evaluated_rows() -> None:
+    _, rows_by_history, ledgers, windows, roster = _score_metrics_case()
+    empty_windows = [{} for _ in rows_by_history]
+    with pytest.raises(SystemExit, match="does not match its evaluated rows"):
+        runner._score_metrics(
+            file_scores={}, rows_by_history=rows_by_history, ledgers=ledgers,
+            windows=empty_windows, threshold=0.5, roster=list(reversed(roster)),
+        )
+    duplicate = [roster[0], roster[0], roster[2], roster[3]]
+    with pytest.raises(SystemExit, match="repeats history"):
+        runner._score_metrics(
+            file_scores={}, rows_by_history=rows_by_history, ledgers=ledgers,
+            windows=empty_windows, threshold=0.5, roster=duplicate,
+        )
+
+
+def _tiny_real_checkpoint(directory: Path, seed: int) -> Path:
+    """Fit and save a real (tiny) N4 scale envelope through the public path."""
+    pools = _tiny_n4_pools()
+    records = [record for history_id in HISTORIES for record in pools[history_id]]
+    bounds = runner._final_bounds(pools, list(HISTORIES))
+    scale = runner.init_n4_scale_model(128, seed)
+    result = runner.fit_n4_scale_scope(
+        records=records, training_history_ids=list(HISTORIES), scope="final",
+        arm=runner._n4_arm(seed, "ab" * 32), binding=_fit_binding_stub(),
+        scale_model=scale, v_floor=bounds["v_floor"], v_cap=bounds["v_cap"],
+    )
+    block = runner._save_and_restore_scale(
+        scale=scale, out_dir=directory, seed=seed, fit_history_ids=list(HISTORIES),
+        bounds=bounds, fit_result={**result, "probe_records": records},
+    )
+    return Path(block["path"])
+
+
+TINY_SUPPORT = {
+    history_id: f"{index:02d}" * 32
+    for index, history_id in enumerate(DEVELOPMENT_HISTORIES, start=1)
+}
+TINY_BANK = "cd" * 32
+TINY_CALIBRATION_SUPPORT = "ef" * 32
+TINY_RECORD_TOTAL = 3
+#: The superseded prospective lock the A14 scientific execution ran under. The
+#: report execution runs on the live v10 lock, so this also proves the two
+#: identities are independent.
+ORIGINAL_LOCK_PATH = "experiments/sprint18-task14-config-lock-v9.json"
+ORIGINAL_LOCK_SCHEMA = "s18-task14-config-lock-v9"
+ORIGINAL_LOCK_VERSION = 9
+ORIGINAL_LOCK_FILE = "a9990bd189706a0fdadfeaee422ef307599e3f4d9c5a72102dfa1f015d5cd57a"
+ORIGINAL_LOCK_CORE = "b171e50014a9bfad0edc865fc42a52a49d073b8b0a2e47788d5020b741266bbf"
+
+
+def _tiny_metric_rows(value: float) -> list[dict]:
+    return [_row_metrics(value) for _ in DEVELOPMENT_HISTORIES]
+
+
+def _tiny_identified_rows(value: float) -> list[dict]:
+    return [
+        {**_row_metrics(value), **_identity(history_id, TINY_SUPPORT[history_id])}
+        for history_id in DEVELOPMENT_HISTORIES
+    ]
+
+
+def _tiny_arm_record(seed: int, coherent: Path, envelope: Path, scores: Path) -> dict:
+    return {
+        "schema": runner.SEED_SCHEMA,
+        "task_id": "S18-T30",
+        "attempt_id": "S18-T30-A02",
+        "agent_id": "S18T30A02",
+        "arm_id": "N4-CRN",
+        "baseline_arm_id": "B0-FULL",
+        "model_seed": seed,
+        "status": "ok",
+        "normative": True,
+        "failure_reasons": [],
+        "bank": {"source_rows": 5446, "bank_sha256": TINY_BANK, "matches_accepted_B0_bank": True},
+        "calibration": {"support": {"support_sha256": TINY_CALIBRATION_SUPPORT}},
+        "scale_fit": {
+            "record_total": TINY_RECORD_TOTAL,
+            "optimizer_steps": 1,
+            "record_counts": {history_id: 1 for history_id in HISTORIES},
+        },
+        "coherent_checkpoint": {
+            "schema": runner.COHERENT_CHECKPOINT_SCHEMA,
+            "strict_restore_b0_model_ema_scale_equal": True,
+            "representation_step": 0,
+            "path": str(coherent),
+            "sha256": hashlib.sha256(coherent.read_bytes()).hexdigest(),
+        },
+        "scale_checkpoint": {
+            "path": str(envelope),
+            "sha256": hashlib.sha256(envelope.read_bytes()).hexdigest(),
+        },
+        "next_stage": {
+            "development_scores_path": str(scores),
+            "development_scores_sha256": hashlib.sha256(scores.read_bytes()).hexdigest(),
+        },
+        "development": {
+            "support": {
+                "evaluation_histories": list(DEVELOPMENT_HISTORIES),
+                "per_history_support_sha256": dict(TINY_SUPPORT),
+            },
+            # The A14 shape: metric rows with no identity fields.
+            "branches": {
+                "S_pred": {
+                    "threshold": 0.1,
+                    "macro": {name: 0.6 for name in runner.PAIRED_MACRO_METRICS},
+                    "per_history": _tiny_metric_rows(0.6),
+                },
+                "S_pop": {
+                    "threshold": 0.2,
+                    "macro": {name: 0.5 for name in runner.PAIRED_MACRO_METRICS},
+                    "per_history": _tiny_metric_rows(0.5),
+                },
+            },
+            # The accepted B0 reference rows, which have always carried identity.
+            "b0_reference": {
+                branch: {
+                    "threshold": 0.2,
+                    "macro": {name: 0.5 for name in runner.PAIRED_MACRO_METRICS},
+                    "per_history": _tiny_identified_rows(0.5),
+                }
+                for branch in ("S_pred", "S_pop")
+            },
+            "saturation": {"cap_gate_pass": True},
+            "s_pop_parity": {"S_pop_bitwise_equal_to_B0": True},
+        },
+    }
+
+
+def _tiny_b0_record(seed: int) -> dict:
+    return {
+        "schema": runner.SEED_SCHEMA,
+        "task_id": "S18-T30",
+        "arm_id": "B0-FULL",
+        "model_seed": seed,
+        "status": "ok",
+        "normative": True,
+        "failure_reasons": [],
+        "bank": {"source_rows": 5446, "bank_sha256": TINY_BANK},
+        "calibration": {"source_support_sha256": TINY_CALIBRATION_SUPPORT},
+        "development": {
+            "support": {
+                "evaluation_histories": list(DEVELOPMENT_HISTORIES),
+                "per_history": {
+                    history_id: _identity(history_id, TINY_SUPPORT[history_id])
+                    for history_id in DEVELOPMENT_HISTORIES
+                },
+            },
+            "branches": {
+                branch: {
+                    "threshold": 0.2,
+                    "macro": {name: 0.5 for name in runner.PAIRED_MACRO_METRICS},
+                    "per_history": _tiny_identified_rows(0.5),
+                }
+                for branch in ("S_pred", "S_pop")
+            },
+        },
+    }
+
+
+def _write_json(path: Path, payload: object) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+
+
+def _tiny_report_fixture(tmp_path: Path) -> dict:
+    """Build a tiny but real executed-run tree plus the report auth document."""
+    import subprocess
+
+    run_root = tmp_path / "run"
+    run_root.mkdir()
+    head = subprocess.run(
+        ["git", "-C", str(REPO_ROOT), "rev-parse", "HEAD"],
+        check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    tree = subprocess.run(
+        ["git", "-C", str(REPO_ROOT), "rev-parse", "HEAD^{tree}"],
+        check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    handoff = REPO_ROOT / "experiments" / "sprint18-task71-certified-data-handoff-S18-ITER-0005-v1.json"
+    handoff_sha = hashlib.sha256(handoff.read_bytes()).hexdigest()
+    original_runner = "3af994ba002b5eb79599858ba90ceff18e099accdd79b28c0f1d63a31caaff80"
+    live_runner = hashlib.sha256(
+        (REPO_ROOT / "experiments" / "sprint18_task30_n4_runner.py").read_bytes()
+    ).hexdigest()
+
+    b0_path = run_root / "b0_seed_records.json"
+    b0_records = {str(seed): _tiny_b0_record(seed) for seed in runner.MODEL_SEEDS}
+    _write_json(b0_path, b0_records)
+
+    records: dict[str, dict] = {}
+    artifacts: dict[str, dict] = {}
+    for seed in runner.MODEL_SEEDS:
+        key = str(seed)
+        seed_dir = run_root / f"seed-{key}"
+        seed_dir.mkdir(parents=True)
+        coherent = _tiny_real_checkpoint(seed_dir / "coherent", seed)
+        envelope = _tiny_real_checkpoint(seed_dir / "scale", seed)
+        scores = seed_dir / "development_scores.json"
+        _write_json(scores, {"S_pred_normalized": {f"dev-{key}": 0.25}, "S_pred_b0_raw": {}, "S_pop_b0_unchanged": {}})
+        record = _tiny_arm_record(seed, coherent, envelope, scores)
+        records[key] = record
+        _write_json(seed_dir / "seed_record.json", record)
+        _write_json(seed_dir / "next_stage.json", record["next_stage"])
+        artifacts[key] = {
+            "coherent_checkpoint_sha256": record["coherent_checkpoint"]["sha256"],
+            "scale_envelope_sha256": record["scale_checkpoint"]["sha256"],
+            "development_scores_sha256": record["next_stage"]["development_scores_sha256"],
+        }
+    seed_records = run_root / "seed_records.json"
+    _write_json(seed_records, records)
+
+    lock = capacity.load_task14_lock(REPO_ROOT)
+    lock_record = capacity.validate_task14_lock(
+        lock, worktree=REPO_ROOT,
+        observed_runner_sha256=hashlib.sha256(
+            (REPO_ROOT / "experiments" / "sprint18_task13b_n4_capacity.py").read_bytes()
+        ).hexdigest(),
+    )
+    custody = [
+        {"model_seed": int(seed), "container_sha256": digest}
+        for seed, digests in lock_record["capacity_certification"]["fold_checkpoint_sha256"].items()
+        for digest in digests
+    ]
+    original_binding_sha = None
+    original_binding = run_root / "original-binding.json"
+    _write_json(
+        original_binding,
+        {
+            "source_commit": head,
+            "source_tree": tree,
+            "runner_sha256": original_runner,
+            "handoff_sha256": handoff_sha,
+            "b0_seed_records_sha256": hashlib.sha256(b0_path.read_bytes()).hexdigest(),
+        },
+    )
+    original_binding_sha = hashlib.sha256(original_binding.read_bytes()).hexdigest()
+    preflight = {
+        "schema": runner.PREFLIGHT_SCHEMA,
+        "PREFLIGHT_OK": True,
+        "source_commit": head,
+        "runner_sha256": original_runner,
+        "binding_sha256": original_binding_sha,
+        "handoff_sha256": handoff_sha,
+        "b0_seed_records_sha256": hashlib.sha256(b0_path.read_bytes()).hexdigest(),
+        "task14_lock_binding": {
+            "coefficient_lock_sha256": ORIGINAL_LOCK_CORE,
+            "file_sha256": ORIGINAL_LOCK_FILE,
+            "schema": ORIGINAL_LOCK_SCHEMA,
+            "lock_version": ORIGINAL_LOCK_VERSION,
+            "path": ORIGINAL_LOCK_PATH,
+        },
+        "capacity_custody_authentication": {
+            "authenticated": True,
+            "folds_authenticated": 9,
+            "files": custody,
+        },
+        "development_support": [
+            {
+                "history_id": history_id,
+                "manifest_sha256_bound": DEVELOPMENT_PROVENANCE[history_id][0],
+            }
+            for history_id in DEVELOPMENT_HISTORIES
+        ],
+        "seeds": {
+            str(seed): {
+                "record_total": TINY_RECORD_TOTAL,
+                "final_scale_steps": 1,
+                "record_counts": {history_id: 1 for history_id in HISTORIES},
+            }
+            for seed in runner.MODEL_SEEDS
+        },
+    }
+    _write_json(run_root / "preflight.json", preflight)
+    _write_json(run_root / "environment.json", {"mode": "full", "device": "cuda:0"})
+    progress_lines = []
+    for seed in runner.MODEL_SEEDS:
+        progress_lines.append(json.dumps({"event": "restore_b0", "model_seed": seed}, sort_keys=True))
+        progress_lines.append(
+            json.dumps({"event": "seed_complete", "model_seed": seed, "status": "ok"}, sort_keys=True)
+        )
+    (run_root / "progress.jsonl").write_text("\n".join(progress_lines) + "\n", encoding="utf-8")
+
+    report_binding = run_root / "report-binding.json"
+    _write_json(report_binding, {"source_commit": head, "runner_sha256": live_runner})
+    auth = {
+        "schema": runner.REPORT_AUTH_SCHEMA,
+        "task_id": "S18-T30",
+        "original_execution": {"task_id": "S18-T30", "attempt_id": "S18-T30-A02", "agent_id": "S18T30A02"},
+        "report_execution": {"task_id": "S18-T30", "attempt_id": "S18-T30-A15", "agent_id": "S18T30A15"},
+        "source_commit": head,
+        "source_tree": tree,
+        "runner_sha256": original_runner,
+        "binding_sha256": original_binding_sha,
+        "handoff_sha256": handoff_sha,
+        "lock": {
+            "path": ORIGINAL_LOCK_PATH,
+            "schema": ORIGINAL_LOCK_SCHEMA,
+            "version": ORIGINAL_LOCK_VERSION,
+            "file_sha256": ORIGINAL_LOCK_FILE,
+            "core_sha256": ORIGINAL_LOCK_CORE,
+        },
+        "b0_seed_records": {
+            "path": str(b0_path),
+            "sha256": hashlib.sha256(b0_path.read_bytes()).hexdigest(),
+        },
+        "run": {
+            "seed_records_sha256": hashlib.sha256(seed_records.read_bytes()).hexdigest(),
+            "preflight_sha256": hashlib.sha256((run_root / "preflight.json").read_bytes()).hexdigest(),
+            "environment_sha256": hashlib.sha256((run_root / "environment.json").read_bytes()).hexdigest(),
+            "progress_sha256": hashlib.sha256((run_root / "progress.jsonl").read_bytes()).hexdigest(),
+        },
+        "development_history_ids": list(DEVELOPMENT_HISTORIES),
+        "development_support_sha256": dict(TINY_SUPPORT),
+        "artifacts": artifacts,
+        "certified_data": {
+            "authenticated": True,
+            "folds_authenticated": 9,
+            "evidence": "pinned_preflight_task14_envelope_custody",
+        },
+    }
+    auth_path = run_root / "report-auth.json"
+    _write_json(auth_path, auth)
+    return {
+        "run_root": run_root,
+        "seed_records": seed_records,
+        "auth": auth_path,
+        "auth_sha256": hashlib.sha256(auth_path.read_bytes()).hexdigest(),
+        "report_binding": report_binding,
+        "original_binding": original_binding,
+        "handoff": handoff,
+        "head": head,
+        "live_runner": live_runner,
+    }
+
+
+def test_report_entrypoint_emits_paired_development_from_legacy_rows(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The real `--mode report` entrypoint emits the report the A14 run could not.
+
+    The consumed seed records use exactly the A14 row shape (no identity), so the
+    report must join the authenticated roster/support and then pass through the
+    previous ``KeyError`` line in ``_paired_development``. The immutable inputs
+    are re-hashed unchanged, and no training/optimizer/scoring path is entered.
+    """
+    fixture = _tiny_report_fixture(tmp_path)
+    seed_before = hashlib.sha256(fixture["seed_records"].read_bytes()).hexdigest()
+    record_files_before = {
+        path: hashlib.sha256(path.read_bytes()).hexdigest()
+        for path in sorted(fixture["run_root"].glob("seed-*/seed_record.json"))
+    }
+
+    def _training_path_entered(*args, **kwargs):
+        raise AssertionError("report mode entered a fitting/optimizer/profiling path")
+
+    # The report consumer must not call any scientific execution path.
+    monkeypatch.setattr(runner, "fit_n4_scale_scope", _training_path_entered)
+    monkeypatch.setattr(runner, "RepresentationTrainer", _training_path_entered)
+    monkeypatch.setattr(runner, "profile_inference_flops", _training_path_entered)
+    monkeypatch.setattr(runner, "n4_score_files", _training_path_entered)
+
+    out_dir = tmp_path / "report-out"
+    monkeypatch.setattr(
+        sys, "argv",
+        [
+            "sprint18_task30_n4_runner.py",
+            "--worktree", str(REPO_ROOT),
+            "--handoff", str(fixture["handoff"]),
+            "--binding", str(fixture["report_binding"]),
+            "--out-dir", str(out_dir),
+            "--source-commit", fixture["head"],
+            "--driver-sha256", fixture["live_runner"],
+            "--mode", "report",
+            "--device", "cpu",
+            "--seed-records", str(fixture["seed_records"]),
+            "--report-auth", str(fixture["auth"]),
+            "--report-auth-sha256", fixture["auth_sha256"],
+            "--original-binding", str(fixture["original_binding"]),
+        ],
+    )
+    assert runner.main() == 0
+
+    paired_path = out_dir / "paired_development.json"
+    report_path = out_dir / "report_record.json"
+    manifest_path = out_dir / "manifest.json"
+    assert paired_path.is_file() and report_path.is_file() and manifest_path.is_file()
+    paired = json.loads(paired_path.read_text(encoding="utf-8"))
+    assert paired["schema"] == runner.PAIRED_SCHEMA
+    for branch in ("S_pred", "S_pop"):
+        for seed_row in paired["branches"][branch]["per_seed"]:
+            assert [row["history_id"] for row in seed_row["per_history"]] == list(
+                DEVELOPMENT_HISTORIES
+            )
+    pred = paired["branches"]["S_pred"]["aggregate"]["macro"]["PW_macro"]
+    assert pred["mean_delta"] == pytest.approx(0.1)
+    assert pred["positive_seeds"] == 3
+    pop = paired["branches"]["S_pop"]["aggregate"]["macro"]["PW_macro"]
+    assert pop["mean_delta"] == 0.0
+    assert paired["record_states"]["181801"]["status"] == "ok"
+    assert paired["aggregation"]["confidence_intervals"].startswith("none")
+    # Every per-history aggregate row is keyed by the authenticated roster.
+    assert set(paired["branches"]["S_pred"]["aggregate"]["per_history"]) == set(
+        DEVELOPMENT_HISTORIES
+    )
+
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    assert report["schema"] == runner.REPORT_SCHEMA
+    assert report["status"] == "complete"
+    assert report["original_execution"]["attempt_id"] == "S18-T30-A02"
+    assert report["report_execution"]["attempt_id"] == "S18-T30-A15"
+    assert report["report_execution"]["training_calls"] == 0
+    assert report["report_execution"]["optimizer_steps"] == 0
+    assert report["report_execution"]["model_scoring_calls"] == 0
+    assert report["paired_development_sha256"] == hashlib.sha256(
+        paired_path.read_bytes()
+    ).hexdigest()
+    assert report["authentication"]["recorded_preflight"]["folds_authenticated"] == 9
+
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert manifest["schema"] == runner.REPORT_MANIFEST_SCHEMA
+    assert manifest["original_source"]["seed_records"]["sha256"] == seed_before
+    assert manifest["report_source"]["paired_development"]["sha256"] == report[
+        "paired_development_sha256"
+    ]
+    assert manifest["report_source"]["runner_sha256"] == fixture["live_runner"]
+
+    # Immutable inputs were not rewritten by the report.
+    assert hashlib.sha256(fixture["seed_records"].read_bytes()).hexdigest() == seed_before
+    for path, digest in record_files_before.items():
+        assert hashlib.sha256(path.read_bytes()).hexdigest() == digest
+
+
+def test_report_entrypoint_refuses_a_binding_or_provenance_mismatch(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A tampered report auth pin is refused before any report is written."""
+    fixture = _tiny_report_fixture(tmp_path)
+    auth = json.loads(fixture["auth"].read_text(encoding="utf-8"))
+    auth["development_support_sha256"]["S18I-ITER-0005-DEVELOPMENT-02"] = "77" * 32
+    tampered = tmp_path / "tampered-auth.json"
+    _write_json(tampered, auth)
+    out_dir = tmp_path / "report-refused"
+    monkeypatch.setattr(
+        sys, "argv",
+        [
+            "sprint18_task30_n4_runner.py",
+            "--worktree", str(REPO_ROOT),
+            "--handoff", str(fixture["handoff"]),
+            "--binding", str(fixture["report_binding"]),
+            "--out-dir", str(out_dir),
+            "--source-commit", fixture["head"],
+            "--driver-sha256", fixture["live_runner"],
+            "--mode", "report",
+            "--device", "cpu",
+            "--seed-records", str(fixture["seed_records"]),
+            "--report-auth", str(tampered),
+            "--report-auth-sha256", hashlib.sha256(tampered.read_bytes()).hexdigest(),
+            "--original-binding", str(fixture["original_binding"]),
+        ],
+    )
+    with pytest.raises(SystemExit, match="Development support map differs"):
+        runner.main()
+    assert not (out_dir / "paired_development.json").exists()
 
 
 def test_n4_score_row_declares_consumer_triple_and_patch_diagnostics() -> None:
