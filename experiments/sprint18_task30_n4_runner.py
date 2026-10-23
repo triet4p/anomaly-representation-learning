@@ -553,6 +553,23 @@ def _support_record(history, manifest, manifest_path: Path, rows) -> dict:
     }
 
 
+def _canonical_fit_rows(fit_rows: list) -> list:
+    """Return Fit rows in the accepted B0 reference-bank row order.
+
+    ``fit_fit_reference_bank`` hashes the embedding matrix in row order, and the
+    accepted B0 bank (Task23 A04) was built from `fit_rows_ordered`, i.e. the
+    globally ``file_id``-sorted Fit support. Certified Fit file IDs are unique
+    across the three Fit histories, so that sort is a total order and is the
+    canonical bank order. Any other input order (for example the per-history
+    concatenation the certified loader returns) keeps the same rows but yields
+    a different matrix order and therefore a different ``bank_sha256``.
+    """
+    by_id = {row.file_id: row for row in fit_rows}
+    if len(by_id) != len(fit_rows):
+        raise _fail("certified Fit support contains duplicate file IDs")
+    return [by_id[file_id] for file_id in sorted(by_id)]
+
+
 def _load_supports(binding, worktree: Path, *, development: bool) -> dict:
     fit_history_ids = [item.actual_history_id for item in binding.role_histories("FIT")]
     calibration_history_ids = [item.actual_history_id for item in binding.role_histories("CALIBRATION")]
@@ -569,7 +586,11 @@ def _load_supports(binding, worktree: Path, *, development: bool) -> dict:
             raise _fail(f"Fit support failed identity/eligibility for {history_id}")
         fit_records.append(record)
         fit_rows.extend(rows)
-    fit_ids = sorted(row.file_id for row in fit_rows)
+    # Canonicalize once, here, so every downstream consumer of Fit rows (the
+    # accepted-B0 reference bank, the compute probes and the probe row) sees the
+    # identical ordering the accepted B0 bank digest binds.
+    fit_rows = _canonical_fit_rows(fit_rows)
+    fit_ids = [row.file_id for row in fit_rows]
     if len(fit_ids) != binding.fit_healthy_rows or len(set(fit_ids)) != binding.fit_healthy_rows:
         raise _fail("certified Fit support differs from the bound healthy rows")
     if sum(int(row.manifest_row["n_valid_patches"]) for row in fit_rows) != FIT_VALID_PATCHES:
@@ -790,6 +811,171 @@ def _save_and_restore_scale(*, scale, out_dir: Path, seed: int, fit_history_ids,
     }
 
 
+#: The certified fold identity compared field by field against the
+#: authenticated historical payload: frozen config/recipe, bounds, guards,
+#: initialization, seed/fold/qualified support, sampler and budget. Comparison
+#: is exact; there is no tolerance, no loose equivalence and no missing-field
+#: fallback.
+_CERTIFIED_FOLD_IDENTITY_FIELDS = (
+    "model_seed",
+    "fold_index",
+    "scope",
+    "heldout_history_id",
+    "training_history_ids",
+    "checkpoint_schema",
+    "checkpoint_parameterization",
+    "scale_parameterization",
+    "guard_contract",
+    "scale_parameters",
+    "record_count",
+    "heldout_count",
+    "optimizer_steps",
+    "per_epoch_steps",
+    "bounds",
+    "quantiles",
+    "init_anchor",
+    "init_interiority",
+    "first_step_gradients",
+    "epoch_order_seeds",
+    "order_seed_rule",
+    "cap_gate_pass_train",
+)
+
+
+def _authenticate_certified_fold(*, certified, seed: int, heldout: str) -> dict:
+    """Authenticate the retained historical Task13B envelope file and payload.
+
+    Custody and scientific identity are separate: the certified container
+    digest authenticates the historical FILE bytes (the artifact the accepted
+    evidence points at), while the strict envelope loader plus the certified
+    payload digest authenticate the scale state inside it. Both are required
+    before the recertified fold may be compared, so an unreachable or
+    substituted envelope fails closed instead of degrading to a container
+    equality test.
+    """
+    envelope_path = Path(str(certified["envelope_path"]))
+    if not envelope_path.is_file():
+        raise _fail(
+            f"seed {seed}: fold {heldout} certified historical envelope is unreachable at "
+            f"{envelope_path}; the retained Task13B A02 checkpoint custody root recorded in "
+            "the certified capacity evidence is a stated prerequisite for the certified-"
+            "capacity identity comparison"
+        )
+    container_sha = _sha256_file(envelope_path)
+    if container_sha != certified["checkpoint_sha256"]:
+        raise _fail(
+            f"seed {seed}: fold {heldout} historical envelope bytes {container_sha} do not "
+            f"authenticate against the certified container digest "
+            f"{certified['checkpoint_sha256']}"
+        )
+    probe = init_n4_scale_model(128, seed + 999999)
+    meta = load_n4_scale_checkpoint(envelope_path, probe)
+    payload_sha = state_sha256(probe.state_dict())
+    if meta["state_dict_sha256"] != payload_sha:
+        raise _fail(
+            f"seed {seed}: fold {heldout} authenticated historical envelope payload digest is "
+            "inconsistent with its own canonical state digest"
+        )
+    if payload_sha != certified["scale_state_sha256"]:
+        raise _fail(
+            f"seed {seed}: fold {heldout} authenticated historical payload {payload_sha} differs "
+            f"from the certified payload digest {certified['scale_state_sha256']}"
+        )
+    historical_identity = {
+        "model_seed": int(certified["model_seed"]),
+        "fold_index": int(certified["fold_index"]),
+        "scope": str(meta["fit_scope"]),
+        "heldout_history_id": str(certified["heldout_history_id"]),
+        "training_history_ids": list(meta["training_history_ids"]),
+        "checkpoint_schema": str(meta["schema"]),
+        "checkpoint_parameterization": str(meta["parameterization"]),
+        "scale_parameterization": str(certified["scale_parameterization"]),
+        "guard_contract": str(meta["guard_contract"]),
+        "scale_parameters": int(certified["scale_parameters"]),
+        "record_count": int(certified["record_count"]),
+        "heldout_count": int(certified["heldout_count"]),
+        "optimizer_steps": int(certified["optimizer_steps"]),
+        "per_epoch_steps": int(certified["per_epoch_steps"]),
+        "bounds": {
+            "v_floor": float(meta["v_floor"]),
+            "v_cap": float(meta["v_cap"]),
+        },
+        "quantiles": {
+            "q05": float(certified["quantiles"]["q05"]),
+            "q95": float(certified["quantiles"]["q95"]),
+        },
+        "init_anchor": dict(meta["initialization"]["init_anchor"]),
+        "init_interiority": dict(meta["initialization"]["init_interiority"]),
+        "first_step_gradients": dict(meta["initialization"]["first_step_gradients"]),
+        "epoch_order_seeds": list(certified["epoch_order_seeds"]),
+        "order_seed_rule": str(certified["order_seed_rule"]),
+        "cap_gate_pass_train": bool(certified["cap_gate_pass_train"]),
+    }
+    recorded_identity = {
+        "model_seed": int(certified["model_seed"]),
+        "fold_index": int(certified["fold_index"]),
+        "scope": str(certified["scope"]),
+        "heldout_history_id": str(certified["heldout_history_id"]),
+        "training_history_ids": list(certified["training_history_ids"]),
+        "checkpoint_schema": str(certified["checkpoint_schema"]),
+        "checkpoint_parameterization": str(certified["checkpoint_parameterization"]),
+        "scale_parameterization": str(certified["scale_parameterization"]),
+        "guard_contract": str(certified["guard_contract"]),
+        "scale_parameters": int(certified["scale_parameters"]),
+        "record_count": int(certified["record_count"]),
+        "heldout_count": int(certified["heldout_count"]),
+        "optimizer_steps": int(certified["optimizer_steps"]),
+        "per_epoch_steps": int(certified["per_epoch_steps"]),
+        "bounds": {name: float(certified["bounds"][name]) for name in ("v_floor", "v_cap")},
+        "quantiles": {name: float(certified["quantiles"][name]) for name in ("q05", "q95")},
+        "init_anchor": dict(certified["init_anchor"]),
+        "init_interiority": dict(certified["init_interiority"]),
+        "first_step_gradients": dict(certified["first_step_gradients"]),
+        "epoch_order_seeds": list(certified["epoch_order_seeds"]),
+        "order_seed_rule": str(certified["order_seed_rule"]),
+        "cap_gate_pass_train": bool(certified["cap_gate_pass_train"]),
+    }
+    for field in _CERTIFIED_FOLD_IDENTITY_FIELDS:
+        if historical_identity[field] != recorded_identity[field]:
+            raise _fail(
+                f"seed {seed}: fold {heldout} authenticated historical envelope {field} differs "
+                "from the certified fold record"
+            )
+    return {
+        "container_sha256": container_sha,
+        "payload_sha256": payload_sha,
+        "identity": historical_identity,
+    }
+
+
+def _require_identical_certified_fold(
+    *, seed: int, heldout: str, live_identity, historical_identity,
+    live_payload_sha: str, historical_payload_sha: str,
+) -> None:
+    """Refuse any recertified fold that is not the authenticated historical fold.
+
+    Compares the canonical scale-state digest and every declared identity field
+    exactly. A changed weight, bound, support, guard/initialization, sampler,
+    budget or provenance value is a scientific difference, not a serialization
+    difference, and is refused.
+    """
+    if live_payload_sha != historical_payload_sha:
+        raise _fail(
+            f"seed {seed}: fold {heldout} recertified scale state {live_payload_sha} differs "
+            f"from the authenticated certified payload {historical_payload_sha}; capacity "
+            "evidence does not transfer"
+        )
+    for field in _CERTIFIED_FOLD_IDENTITY_FIELDS:
+        observed = live_identity[field]
+        expected = historical_identity[field]
+        if observed != expected:
+            raise _fail(
+                f"seed {seed}: fold {heldout} recertified {field} differs from the authenticated "
+                f"certified payload ({observed!r} != {expected!r}); capacity evidence does not "
+                "transfer"
+            )
+
+
 def _run_capacity_folds(*, pools, fit_history_ids, arm, binding, seed, device, out_dir, certified_folds, normative: bool) -> dict:
     """Re-execute the three N4 Fit-history folds on the changed source.
 
@@ -797,9 +983,15 @@ def _run_capacity_folds(*, pools, fit_history_ids, arm, binding, seed, device, o
     all-Fit scale fit: the certified Task13B evidence was executed at its own
     snapshot and is never transferred to changed source. Each fold is fitted
     under the unchanged frozen recipe, gated by the cap-only 20% structural
-    rule, saved as a v3 scale envelope and strict-restored. On a normative run
-    the saved envelope bytes must also equal the certified Task13B fold digest,
-    which is the executable equivalence check for the changed source.
+    rule, saved as a v3 scale envelope and strict-restored.
+
+    On a normative run the recertified fold must equal the historical certified
+    fold in *scientific identity*, not in container bytes: the retained
+    historical envelope is authenticated by its raw container digest and by its
+    canonical scale-state digest, and the recertified canonical scale state plus
+    the exact config/bounds/guards/initialization/seed/fold/support/sampler/
+    budget fields are then compared without tolerance. The recertified
+    ``torch.save`` container digest is recorded as a custody observation only.
     """
     folds: list[dict] = []
     for index, heldout in enumerate(fit_history_ids):
@@ -865,11 +1057,59 @@ def _run_capacity_folds(*, pools, fit_history_ids, arm, binding, seed, device, o
                 raise _fail(f"seed {seed}: fold {heldout} strict restore forward parity failed")
             if live_nll != restored_nll:
                 raise _fail(f"seed {seed}: fold {heldout} strict restore NLL parity failed")
-        matches_certified = envelope_sha == certified_folds[index]
-        if normative and not matches_certified:
-            raise _fail(
-                f"seed {seed}: fold {heldout} recertification envelope {envelope_sha} differs from "
-                f"the certified Task13B digest {certified_folds[index]}; capacity evidence does not transfer"
+        certified = next(
+            (
+                record
+                for record in certified_folds
+                if int(record["model_seed"]) == int(seed)
+                and str(record["heldout_history_id"]) == heldout
+            ),
+            None,
+        )
+        live_identity = {
+            "model_seed": int(seed),
+            "fold_index": int(index),
+            "scope": str(scope),
+            "heldout_history_id": str(heldout),
+            "training_history_ids": list(training_ids),
+            "checkpoint_schema": str(meta["schema"]),
+            "checkpoint_parameterization": str(meta["parameterization"]),
+            "scale_parameterization": str(result["scale_parameterization"]),
+            "guard_contract": str(result["guard_contract"]),
+            "scale_parameters": int(sum(parameter.numel() for parameter in scale.parameters())),
+            "record_count": int(result["record_count"]),
+            "heldout_count": int(result["heldout_count"]),
+            "optimizer_steps": int(result["optimizer_steps"]),
+            "per_epoch_steps": int(result["per_epoch_steps"]),
+            "bounds": {
+                "v_floor": float(bounds["v_floor"]),
+                "v_cap": float(bounds["v_cap"]),
+            },
+            "quantiles": {"q05": q05, "q95": q95},
+            "init_anchor": dict(result["init_anchor"]),
+            "init_interiority": dict(result["init_interiority"]),
+            "first_step_gradients": dict(result["first_step_gradients"]),
+            "epoch_order_seeds": list(result["epoch_order_seeds"]),
+            "order_seed_rule": str(result["order_seed_rule"]),
+            "cap_gate_pass_train": bool(result["cap_gate_pass_train"]),
+        }
+        authenticated = None
+        if normative:
+            if certified is None:
+                raise _fail(
+                    f"seed {seed}: fold {heldout} has no certified historical fold record; "
+                    "capacity evidence does not transfer"
+                )
+            authenticated = _authenticate_certified_fold(
+                certified=certified, seed=seed, heldout=heldout
+            )
+            _require_identical_certified_fold(
+                seed=seed,
+                heldout=heldout,
+                live_identity=live_identity,
+                historical_identity=authenticated["identity"],
+                live_payload_sha=live_sha,
+                historical_payload_sha=authenticated["payload_sha256"],
             )
         folds.append(
             {
@@ -888,20 +1128,49 @@ def _run_capacity_folds(*, pools, fit_history_ids, arm, binding, seed, device, o
                 "heldout_nll": float(result["heldout_nll"]),
                 "heldout_spearman": float(result["heldout_spearman"]),
                 "cap_gate_pass_train": True,
-                "matches_certified_task13b_fold_digest": bool(matches_certified),
+                "certified_container_sha256": (
+                    str(certified["checkpoint_sha256"]) if certified is not None else None
+                ),
+                "certified_container_matches": (
+                    envelope_sha == certified["checkpoint_sha256"]
+                    if certified is not None
+                    else None
+                ),
+                "certified_payload_sha256": (
+                    str(certified["scale_state_sha256"]) if certified is not None else None
+                ),
+                "certified_payload_matches": (
+                    live_sha == certified["scale_state_sha256"]
+                    if certified is not None and normative
+                    else None
+                ),
+                "certified_custody_authenticated": bool(authenticated is not None),
+                "certified_identity_fields": list(_CERTIFIED_FOLD_IDENTITY_FIELDS),
+                "certified_comparison": (
+                    capacity.CAPACITY_IDENTITY_CONTRACT
+                    if normative
+                    else "not_compared_nonnormative"
+                ),
             }
         )
     return {
-        "schema": "s18-t30-n4-capacity-recertification-v1",
+        "schema": "s18-t30-n4-capacity-recertification-v2",
         "task_id": TASK_ID, "attempt_id": ATTEMPT, "agent_id": AGENT,
         "model_seed": seed,
         "normative_scope": bool(normative),
         "folds": folds,
         "folds_evaluated": len(folds),
         "all_fold_cap_gates_pass": all(fold["cap_gate_pass_train"] for fold in folds),
-        "all_fold_digests_match_certified_task13b": all(
-            fold["matches_certified_task13b_fold_digest"] for fold in folds
+        "all_fold_payloads_match_certified_task13b": (
+            all(fold["certified_payload_matches"] for fold in folds) if normative else None
         ),
+        "all_fold_custody_authenticated": (
+            all(fold["certified_custody_authenticated"] for fold in folds) if normative else None
+        ),
+        "recertified_containers_equal_certified": (
+            all(fold["certified_container_matches"] for fold in folds) if normative else None
+        ),
+        "container_equality_is_observation_only": True,
         "executed_source_note": (
             "capacity is recertified on the executed changed source; the Task13B A02 PASS is "
             "executed-snapshot evidence and is not transferred without this re-execution"
@@ -1159,6 +1428,14 @@ def _cache_binding(*, fixture, seed: int, binding, bounds, scale_state_sha256: s
 
 
 def _fit_bank(*, binding, arm_b0, model, fit_rows, patchifier, restored, seed: int, identity: dict) -> dict:
+    previous_file_id = None
+    for row in fit_rows:
+        if previous_file_id is not None and row.file_id <= previous_file_id:
+            raise _fail(
+                f"seed {seed}: Fit bank rows are not in the accepted canonical "
+                "file_id order (global ascending, unique)"
+            )
+        previous_file_id = row.file_id
     bank = fit_fit_reference_bank(
         binding, arm_b0, model, fit_rows, patchifier, checkpoint=restored, scope="experiment",
     )
@@ -1839,6 +2116,18 @@ def run_preflight(args, bdoc: dict) -> dict:
     b0_records = _load_b0_records(Path(bdoc.get("b0_seed_records", B0_RECORDS_PATH)))
     support = _load_supports(binding, worktree, development=False)
     fit_history_ids = support["fit_history_ids"]
+    certified_folds = lock_binding["capacity_certification"]["folds"]
+    for seed in MODEL_SEEDS:
+        seed_folds = sorted(
+            (fold for fold in certified_folds if int(fold["model_seed"]) == int(seed)),
+            key=lambda fold: int(fold["fold_index"]),
+        )
+        if [int(fold["fold_index"]) for fold in seed_folds] != list(range(len(fit_history_ids))):
+            raise _fail(f"seed {seed}: certified historical fold roster is incomplete")
+        if [fold["heldout_history_id"] for fold in seed_folds] != list(fit_history_ids):
+            raise _fail(
+                f"seed {seed}: certified historical fold held-out histories differ from the Fit roster"
+            )
     lock_digest = lock["coefficient_lock_sha256"]
     seed_blocks: dict[str, dict] = {}
     for seed in MODEL_SEEDS:
@@ -1967,7 +2256,18 @@ def _run_seed(*, seed: int, fixture: dict, b0_record: dict, binding, legacy_b0: 
     if smoke and bounds["record_count"] != SMOKE_RECORDS_PER_HISTORY * len(fit_history_ids):
         raise _fail(f"seed {seed}: bounded smoke pool differs from {SMOKE_RECORDS_PER_HISTORY}/history")
     records = [record for history_id in fit_history_ids for record in pools[history_id]]
-    certified_folds = [str(value) for value in capacity_certification["fold_checkpoint_sha256"][str(seed)]]
+    envelope_root = str(capacity_certification["envelope_root"]).rstrip("/")
+    certified_folds = [
+        {
+            **fold,
+            "envelope_path": f"{envelope_root}/{fold['checkpoint_path']}",
+        }
+        for fold in capacity_certification["folds"]
+        if int(fold["model_seed"]) == int(seed)
+    ]
+    certified_folds.sort(key=lambda fold: int(fold["fold_index"]))
+    if [fold["heldout_history_id"] for fold in certified_folds] != list(fit_history_ids):
+        raise _fail(f"seed {seed}: certified historical fold roster differs from the Fit roster")
     fold_normative = not smoke
     _log_progress(
         progress,
@@ -2136,7 +2436,7 @@ def _run_seed(*, seed: int, fixture: dict, b0_record: dict, binding, legacy_b0: 
     if not (model_unchanged and ema_unchanged and bank_unchanged):
         raise _fail(f"seed {seed}: N4 fitting/scoring perturbed the frozen representation or bank")
     _log_progress(progress, {"run": f"{RUN_ID_PREFIX}-seed{seed}", "event": "compute", "model_seed": seed})
-    probe_row = sorted(support["fit_rows"], key=lambda row: row.file_id)[0]
+    probe_row = support["fit_rows"][0]
     compute = _compute_block(
         config=config, model=model, scale=scale, arm_n4=arm_n4, arm_b0=restored_b0["arm_b0"],
         binding=binding, fit_rows=support["fit_rows"], fit_history_ids=fit_history_ids,
