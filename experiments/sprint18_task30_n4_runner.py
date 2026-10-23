@@ -948,6 +948,79 @@ def _authenticate_certified_fold(*, certified, seed: int, heldout: str) -> dict:
     }
 
 
+def _certified_fold_records(
+    capacity_certification: dict, *, seed: int | None = None
+) -> list[dict]:
+    """Attach the certified historical envelope path to each projected fold.
+
+    ``capacity_certification["envelope_root"]`` is the exact historical output
+    directory projected by the lock consumer from the SHA-pinned certification
+    evidence (the run's ``--out-dir``, not its grandparent), and the relative
+    ``checkpoints/...`` path is certified. Joining the two is the only path
+    derivation allowed here; no scan or fallback exists.
+    """
+    envelope_root = str(capacity_certification["envelope_root"]).rstrip("/")
+    return [
+        {**fold, "envelope_path": f"{envelope_root}/{fold['checkpoint_path']}"}
+        for fold in capacity_certification["folds"]
+        if seed is None or int(fold["model_seed"]) == int(seed)
+    ]
+
+
+def _authenticate_certified_folds(
+    *, capacity_certification: dict, fit_history_ids
+) -> dict:
+    """Authenticate all nine retained historical envelopes before any fit.
+
+    The preflight must fail on a missing, substituted or wrongly rooted
+    certificate envelope before the long Fit campaign starts, so the complete
+    seed x fold roster is authenticated here: exact certified path, raw
+    container digest and canonical payload digest against the closed identity
+    record. No fitting occurs in this function.
+    """
+    records = _certified_fold_records(capacity_certification)
+    expected = [
+        (int(seed), int(index), str(heldout))
+        for seed in MODEL_SEEDS
+        for index, heldout in enumerate(fit_history_ids)
+    ]
+    observed = sorted(
+        (
+            int(fold["model_seed"]),
+            int(fold["fold_index"]),
+            str(fold["heldout_history_id"]),
+        )
+        for fold in records
+    )
+    if observed != sorted(expected):
+        raise _fail(
+            "certified historical fold roster differs from the nine certified seed x fold records"
+        )
+    files = []
+    for fold in sorted(
+        records, key=lambda item: (int(item["model_seed"]), int(item["fold_index"]))
+    ):
+        authenticated = _authenticate_certified_fold(
+            certified=fold,
+            seed=int(fold["model_seed"]),
+            heldout=str(fold["heldout_history_id"]),
+        )
+        files.append(
+            {
+                "model_seed": int(fold["model_seed"]),
+                "fold_index": int(fold["fold_index"]),
+                "envelope_path": str(fold["envelope_path"]),
+                "container_sha256": authenticated["container_sha256"],
+                "payload_sha256": authenticated["payload_sha256"],
+            }
+        )
+    return {
+        "authenticated": True,
+        "folds_authenticated": len(files),
+        "files": files,
+    }
+
+
 def _require_identical_certified_fold(
     *, seed: int, heldout: str, live_identity, historical_identity,
     live_payload_sha: str, historical_payload_sha: str,
@@ -2116,18 +2189,10 @@ def run_preflight(args, bdoc: dict) -> dict:
     b0_records = _load_b0_records(Path(bdoc.get("b0_seed_records", B0_RECORDS_PATH)))
     support = _load_supports(binding, worktree, development=False)
     fit_history_ids = support["fit_history_ids"]
-    certified_folds = lock_binding["capacity_certification"]["folds"]
-    for seed in MODEL_SEEDS:
-        seed_folds = sorted(
-            (fold for fold in certified_folds if int(fold["model_seed"]) == int(seed)),
-            key=lambda fold: int(fold["fold_index"]),
-        )
-        if [int(fold["fold_index"]) for fold in seed_folds] != list(range(len(fit_history_ids))):
-            raise _fail(f"seed {seed}: certified historical fold roster is incomplete")
-        if [fold["heldout_history_id"] for fold in seed_folds] != list(fit_history_ids):
-            raise _fail(
-                f"seed {seed}: certified historical fold held-out histories differ from the Fit roster"
-            )
+    certified_custody = _authenticate_certified_folds(
+        capacity_certification=lock_binding["capacity_certification"],
+        fit_history_ids=list(fit_history_ids),
+    )
     lock_digest = lock["coefficient_lock_sha256"]
     seed_blocks: dict[str, dict] = {}
     for seed in MODEL_SEEDS:
@@ -2202,6 +2267,7 @@ def run_preflight(args, bdoc: dict) -> dict:
         "task14_lock_binding": dict(lock_binding),
         "n4_scale_scope": dict(lock_binding["n4_scale_scope"]),
         "capacity_recertification": dict(lock_binding["capacity_certification"]),
+        "capacity_custody_authentication": dict(certified_custody),
         "capacity_recertification_required_before_final_fit": True,
         "b0_legacy_lock_binding": dict(legacy_b0),
         "fit_role_sha256": _fit_role_sha256(binding),
@@ -2256,15 +2322,7 @@ def _run_seed(*, seed: int, fixture: dict, b0_record: dict, binding, legacy_b0: 
     if smoke and bounds["record_count"] != SMOKE_RECORDS_PER_HISTORY * len(fit_history_ids):
         raise _fail(f"seed {seed}: bounded smoke pool differs from {SMOKE_RECORDS_PER_HISTORY}/history")
     records = [record for history_id in fit_history_ids for record in pools[history_id]]
-    envelope_root = str(capacity_certification["envelope_root"]).rstrip("/")
-    certified_folds = [
-        {
-            **fold,
-            "envelope_path": f"{envelope_root}/{fold['checkpoint_path']}",
-        }
-        for fold in capacity_certification["folds"]
-        if int(fold["model_seed"]) == int(seed)
-    ]
+    certified_folds = _certified_fold_records(capacity_certification, seed=seed)
     certified_folds.sort(key=lambda fold: int(fold["fold_index"]))
     if [fold["heldout_history_id"] for fold in certified_folds] != list(fit_history_ids):
         raise _fail(f"seed {seed}: certified historical fold roster differs from the Fit roster")

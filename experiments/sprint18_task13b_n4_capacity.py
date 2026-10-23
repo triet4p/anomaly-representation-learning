@@ -164,32 +164,42 @@ MECHANISM_SPEC_PATH = "experiments/sprint18-context-residual-normalization-spec-
 EXECUTION_BINDING_FIELDS = ("source_commit", "runner_sha256")
 
 #: Versioned prospective Task14 lock activating N4-CRN v3. The historical v1
-#: lock and the superseded v2-v6 prospective locks stay byte-identical and
+#: lock and the superseded v2-v7 prospective locks stay byte-identical and
 #: are referenced (never edited) by this version; every arm other than N4-CRN
 #: remains bound by the historical v1 lock.
-TASK14_LOCK_PATH = "experiments/sprint18-task14-config-lock-v7.json"
-TASK14_SUPERSEDED_LOCK_PATH = "experiments/sprint18-task14-config-lock-v6.json"
+TASK14_LOCK_PATH = "experiments/sprint18-task14-config-lock-v8.json"
+TASK14_SUPERSEDED_LOCK_PATH = "experiments/sprint18-task14-config-lock-v7.json"
+TASK14_V6_LOCK_PATH = "experiments/sprint18-task14-config-lock-v6.json"
 TASK14_V5_LOCK_PATH = "experiments/sprint18-task14-config-lock-v5.json"
 TASK14_V4_LOCK_PATH = "experiments/sprint18-task14-config-lock-v4.json"
 TASK14_V3_LOCK_PATH = "experiments/sprint18-task14-config-lock-v3.json"
 TASK14_V2_LOCK_PATH = "experiments/sprint18-task14-config-lock-v2.json"
 TASK14_LEGACY_LOCK_PATH = "experiments/sprint18-task14-config-lock.json"
-TASK14_LOCK_SCHEMA = "s18-task14-config-lock-v7"
-TASK14_LOCK_VERSION = 7
+TASK14_LOCK_SCHEMA = "s18-task14-config-lock-v8"
+TASK14_LOCK_VERSION = 8
 #: Frozen lock-digest rule: SHA-256 over canonical JSON of the core (every
 #: field except these derived containers).
 TASK14_LOCK_CORE_EXCLUDE = frozenset(
     {"coefficient_lock_sha256", "locked_configs", "config_sha256", "file_sha256"}
 )
-#: Superseded prospective v6 lock identities (immutable). The v7 lock must
+#: Superseded prospective v7 lock identities (immutable). The v8 lock must
 #: supersede these exact bytes and never rewrite them.
 SUPERSEDED_TASK14_LOCK_SHA256 = (
-    "b4d1f4352d88d35a024db3f195e48420448d7cd690ee98b26ebf123a0a55b81f"
+    "69ac1218fda6adf1364193371cf3ef8fcd8afbd9cbc5b9e8c4433dbefc61e8e7"
 )
 SUPERSEDED_TASK14_LOCK_COEFFICIENT_SHA256 = (
+    "c4d331577008d2e28762e85fd424cea2f7ae5052a0bd6a34cb6e08b76b71a7ff"
+)
+SUPERSEDED_TASK14_LOCK_SCHEMA = "s18-task14-config-lock-v7"
+#: Superseded prospective v6 lock identities (immutable). The v7 lock in the
+#: preserved chain must supersede these exact bytes and never rewrite them.
+V6_TASK14_LOCK_SHA256 = (
+    "b4d1f4352d88d35a024db3f195e48420448d7cd690ee98b26ebf123a0a55b81f"
+)
+V6_TASK14_LOCK_COEFFICIENT_SHA256 = (
     "5f65f907aadc99c37dbdb10c82070b145348031faaa3d47309dc8a29e788421f"
 )
-SUPERSEDED_TASK14_LOCK_SCHEMA = "s18-task14-config-lock-v6"
+V6_TASK14_LOCK_SCHEMA = "s18-task14-config-lock-v6"
 #: Superseded prospective v5 lock identities (immutable). The v6 lock in the
 #: preserved chain must supersede these exact bytes and never rewrite them.
 V5_TASK14_LOCK_SHA256 = (
@@ -388,6 +398,62 @@ def load_task14_lock(worktree: Path) -> dict:
     return payload
 
 
+def certified_envelope_root(certified: dict) -> str:
+    """Resolve the exact historical Task13B scale-envelope directory.
+
+    The nine retained envelopes were written by the certified A02 launch to
+    the run's ``--out-dir`` (``$RUN/full`` in the retained ``run-pilot.sh``).
+    The SHA-pinned certification record captures that absolute output
+    directory as ``evidence.remote_full`` and the launch root as
+    ``evidence.remote_run_root``, and its retention list is expressed relative
+    to the launch root (``full/checkpoints/*.pt``).
+
+    The root is derived only from those pinned fields: the output directory
+    must be a strict child of the recorded run root and every retained
+    server-side path must live under that child. There is no directory scan,
+    no fallback to the run root, no repointing by a CLI flag, and no rewrite of
+    the record; an inconsistent or missing field fails closed.
+    """
+    evidence = certified.get("evidence")
+    if not isinstance(evidence, dict):
+        raise _fail("Task14 v3 certified capacity evidence has no evidence block")
+    run_root = evidence.get("remote_run_root")
+    output_root = evidence.get("remote_full")
+    retained = evidence.get("remote_retained_server_side")
+    for label, value in (("run root", run_root), ("output directory", output_root)):
+        if (
+            not isinstance(value, str)
+            or not value.endswith("/")
+            or ".." in value
+            or not (value.startswith("/") or Path(value).is_absolute())
+        ):
+            raise _fail(
+                f"Task14 v3 certified capacity evidence {label} is not an absolute directory"
+            )
+    if not output_root.startswith(run_root) or output_root == run_root:
+        raise _fail(
+            "Task14 v3 certified capacity evidence output directory is not a child of the "
+            "recorded run root"
+        )
+    relative_output = output_root[len(run_root):]
+    if not relative_output or relative_output in {".", "./"}:
+        raise _fail(
+            "Task14 v3 certified capacity evidence output directory is not a child of the "
+            "recorded run root"
+        )
+    if not isinstance(retained, list) or not retained:
+        raise _fail(
+            "Task14 v3 certified capacity evidence has no retained server-side envelope paths"
+        )
+    for entry in retained:
+        if not isinstance(entry, str) or not entry.startswith(relative_output):
+            raise _fail(
+                "Task14 v3 certified capacity retained server-side path is not under the "
+                "recorded output directory"
+            )
+    return output_root
+
+
 def validate_task14_lock(
     lock: dict, *, worktree: Path, observed_runner_sha256: str
 ) -> dict:
@@ -451,15 +517,34 @@ def validate_task14_lock(
         raise _fail("Task14 lock supersedes the wrong prospective lock bytes")
     superseded_path = Path(worktree) / TASK14_SUPERSEDED_LOCK_PATH
     if not superseded_path.is_file() or _sha_file(superseded_path) != SUPERSEDED_TASK14_LOCK_SHA256:
-        raise _fail("superseded prospective v6 Task14 lock bytes changed")
+        raise _fail("superseded prospective v7 Task14 lock bytes changed")
     superseded = json.loads(superseded_path.read_text(encoding="utf-8"))
     if (
         superseded.get("schema") != SUPERSEDED_TASK14_LOCK_SCHEMA
-        or superseded.get("lock_version") != 6
+        or superseded.get("lock_version") != 7
         or task14_lock_core_digest(superseded) != SUPERSEDED_TASK14_LOCK_COEFFICIENT_SHA256
     ):
+        raise _fail("superseded prospective v7 Task14 lock identity is inconsistent")
+    v7_supersedes = superseded.get("supersedes")
+    if not isinstance(v7_supersedes, dict) or v7_supersedes.get("path") != TASK14_V6_LOCK_PATH:
+        raise _fail("superseded v7 lock does not supersede the prospective v6 lock path")
+    if v7_supersedes.get("schema") != V6_TASK14_LOCK_SCHEMA:
+        raise _fail("superseded v7 lock supersedes the wrong lock schema")
+    if v7_supersedes.get("coefficient_lock_sha256") != V6_TASK14_LOCK_COEFFICIENT_SHA256:
+        raise _fail("superseded v7 lock supersedes the wrong v6 coefficient digest")
+    if v7_supersedes.get("file_sha256") != V6_TASK14_LOCK_SHA256:
+        raise _fail("superseded v7 lock supersedes the wrong v6 lock bytes")
+    v6_path = Path(worktree) / TASK14_V6_LOCK_PATH
+    if not v6_path.is_file() or _sha_file(v6_path) != V6_TASK14_LOCK_SHA256:
+        raise _fail("superseded prospective v6 Task14 lock bytes changed")
+    v6_lock = json.loads(v6_path.read_text(encoding="utf-8"))
+    if (
+        v6_lock.get("schema") != V6_TASK14_LOCK_SCHEMA
+        or v6_lock.get("lock_version") != 6
+        or task14_lock_core_digest(v6_lock) != V6_TASK14_LOCK_COEFFICIENT_SHA256
+    ):
         raise _fail("superseded prospective v6 Task14 lock identity is inconsistent")
-    v6_supersedes = superseded.get("supersedes")
+    v6_supersedes = v6_lock.get("supersedes")
     if not isinstance(v6_supersedes, dict) or v6_supersedes.get("path") != TASK14_V5_LOCK_PATH:
         raise _fail("superseded v6 lock does not supersede the prospective v5 lock path")
     if v6_supersedes.get("schema") != V5_TASK14_LOCK_SCHEMA:
@@ -752,14 +837,7 @@ def validate_task14_lock(
         raise _fail("Task14 v3 certified capacity evidence binds a different guard contract")
     if certified.get("scale_checkpoint_schema") != N4_SCALE_CHECKPOINT_SCHEMA:
         raise _fail("Task14 v3 certified capacity evidence binds a different scale-checkpoint schema")
-    envelope_root = (certified.get("evidence") or {}).get("remote_run_root")
-    if (
-        not isinstance(envelope_root, str)
-        or not envelope_root.startswith("/")
-        or not envelope_root.endswith("/")
-        or ".." in envelope_root
-    ):
-        raise _fail("Task14 v3 certified capacity evidence has no valid retained historical envelope root")
+    envelope_root = certified_envelope_root(certified)
     scale_checkpoints: dict[tuple[str, int], dict] = {}
     for entry in certified.get("scale_checkpoints") or []:
         if not isinstance(entry, dict):
@@ -906,6 +984,12 @@ def validate_task14_lock(
             "file_sha256": supersedes["file_sha256"],
             "coefficient_lock_sha256": supersedes["coefficient_lock_sha256"],
             "scope": supersedes.get("scope"),
+        },
+        "historical_v6_lock": {
+            "path": TASK14_V6_LOCK_PATH,
+            "schema": v6_lock["schema"],
+            "file_sha256": V6_TASK14_LOCK_SHA256,
+            "coefficient_lock_sha256": V6_TASK14_LOCK_COEFFICIENT_SHA256,
         },
         "historical_v5_lock": {
             "path": TASK14_V5_LOCK_PATH,

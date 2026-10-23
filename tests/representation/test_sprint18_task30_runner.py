@@ -28,7 +28,8 @@ sys.path.insert(0, str(REPO_ROOT / "experiments"))
 
 from representation.crn import N4ScaleRecord  # noqa: E402
 
-import sprint18_task30_n4_runner as runner  # noqa: E402
+import sprint18_task30_n4_runner as runner
+import sprint18_task13b_n4_capacity as capacity  # noqa: E402
 
 HISTORIES = ("S18I-ITER-0005-FIT-01", "S18I-ITER-0005-FIT-02", "S18I-ITER-0005-FIT-03")
 
@@ -671,6 +672,156 @@ def test_capacity_fold_certification_refuses_scientific_tamper(tmp_path: Path) -
     Path(certified[0]["envelope_path"]).unlink()
     with pytest.raises(SystemExit, match="certified historical envelope is unreachable"):
         _run_certified_tiny_folds(tmp_path / "missing-out", certified)
+
+
+def _posix_absolute(path: Path) -> str:
+    """Render a temp path as the native absolute path used by the test host.
+
+    The certified record holds POSIX server paths. The contract validates an
+    absolute directory in the host's native form, so a Windows temp path is
+    exercised here while the pinned runtime record remains POSIX.
+    """
+    return path.resolve().as_posix()
+
+
+def _nine_certified_envelopes_in_output_dir(tmp_path: Path) -> dict:
+    """Lay out nine real tiny envelopes in the certified ``$RUN/full`` layout.
+
+    The recorded run root contains the launch output directory ``full``; the
+    nine envelopes live in ``full/checkpoints`` exactly like the A02 server
+    custody root. Records are projected the way the lock consumer projects
+    them (relative ``checkpoints/...`` paths plus the derived envelope root).
+    """
+    run_root = tmp_path / "runs" / "cert"
+    output_dir = run_root / "full"
+    checkpoints = output_dir / "checkpoints"
+    checkpoints.mkdir(parents=True)
+    base = _tiny_certified_folds(tmp_path / "base")
+    records: list[dict] = []
+    size = 0
+    for seed in runner.MODEL_SEEDS:
+        for record in base:
+            source = Path(record["envelope_path"])
+            target = checkpoints / f"seed{seed}-{source.name}"
+            target.write_bytes(source.read_bytes())
+            size = len(target.read_bytes())
+            records.append(
+                {
+                    **record,
+                    "model_seed": seed,
+                    "checkpoint_path": f"checkpoints/{target.name}",
+                    "envelope_path": _posix_absolute(target),
+                    "checkpoint_sha256": _sha256_file(target),
+                }
+            )
+    certification = {
+        "evidence": {
+            "remote_run_root": f"{_posix_absolute(run_root)}/",
+            "remote_full": f"{_posix_absolute(output_dir)}/",
+            "remote_retained_server_side": [f"full/checkpoints/*.pt (9 x {size} B)"],
+        }
+    }
+    return {
+        "certified": certification,
+        "capacity_certification": {
+            "envelope_root": capacity.certified_envelope_root(certification),
+            "folds": records,
+        },
+        "run_root": run_root,
+        "output_dir": output_dir,
+    }
+
+
+def test_certified_envelope_root_uses_the_recorded_output_directory(
+    tmp_path: Path,
+) -> None:
+    """The real nested ``full/checkpoints`` layout resolves; the run root does not.
+
+    Deriving the envelope directory from ``remote_run_root`` looked one level
+    too high, so every certified envelope was reported unreachable even though
+    the nine files were present under ``full/checkpoints``. The root must come
+    from the recorded launch output directory ``remote_full``.
+    """
+    layout = _nine_certified_envelopes_in_output_dir(tmp_path)
+    derived = layout["capacity_certification"]["envelope_root"]
+    assert derived == f"{_posix_absolute(layout['output_dir'])}/"
+    assert derived != f"{_posix_absolute(layout['run_root'])}/"
+    nested = Path(derived) / "checkpoints"
+    assert len(list(nested.glob("*.pt"))) == 9
+    # The pre-fix root points at a directory that does not contain the files.
+    assert not (layout["run_root"] / "checkpoints").exists()
+    with pytest.raises(SystemExit, match="is unreachable at"):
+        runner._authenticate_certified_folds(
+            capacity_certification={
+                "envelope_root": f"{_posix_absolute(layout['run_root'])}/",
+                "folds": layout["capacity_certification"]["folds"],
+            },
+            fit_history_ids=list(HISTORIES),
+        )
+
+
+def test_preflight_authenticates_all_nine_certified_envelopes(tmp_path: Path) -> None:
+    """All nine real envelopes are authenticated before any fitting.
+
+    A missing, substituted or wrongly rooted envelope in any seed must fail
+    here, ahead of the long Fit campaign, and no fallback path is tried.
+    """
+    layout = _nine_certified_envelopes_in_output_dir(tmp_path / "accept")
+    capacity_certification = layout["capacity_certification"]
+    custody = runner._authenticate_certified_folds(
+        capacity_certification=capacity_certification,
+        fit_history_ids=list(HISTORIES),
+    )
+    assert custody["authenticated"] is True
+    assert custody["folds_authenticated"] == 9
+    assert [row["fold_index"] for row in custody["files"]] == [0, 1, 2] * 3
+    by_fold = {
+        (row["model_seed"], row["fold_index"]): row
+        for row in capacity_certification["folds"]
+    }
+    for row in custody["files"]:
+        record = by_fold[(row["model_seed"], row["fold_index"])]
+        assert row["envelope_path"] == record["envelope_path"]
+        assert row["container_sha256"] == record["checkpoint_sha256"]
+        assert row["payload_sha256"] == record["scale_state_sha256"]
+
+    # A substituted file at the exact certified path is refused by raw digest.
+    layout = _nine_certified_envelopes_in_output_dir(tmp_path / "substituted")
+    substituted = layout["capacity_certification"]
+    Path(substituted["folds"][0]["envelope_path"]).write_bytes(
+        b"not the certified envelope"
+    )
+    with pytest.raises(
+        SystemExit, match="do not authenticate against the certified container digest"
+    ):
+        runner._authenticate_certified_folds(
+            capacity_certification=substituted,
+            fit_history_ids=list(HISTORIES),
+        )
+
+    # A content swap that keeps a coherent hash but not the certified payload
+    # digest is refused, not accepted as custody.
+    layout = _nine_certified_envelopes_in_output_dir(tmp_path / "swapped")
+    swapped = layout["capacity_certification"]
+    other = Path(swapped["folds"][1]["envelope_path"])
+    destination = Path(swapped["folds"][0]["envelope_path"])
+    destination.write_bytes(other.read_bytes())
+    swapped["folds"][0]["checkpoint_sha256"] = _sha256_file(destination)
+    with pytest.raises(SystemExit, match="differs from the certified payload digest"):
+        runner._authenticate_certified_folds(
+            capacity_certification=swapped,
+            fit_history_ids=list(HISTORIES),
+        )
+
+    # A missing envelope under any seed fails the whole nine-file preflight.
+    layout = _nine_certified_envelopes_in_output_dir(tmp_path / "missing")
+    missing = layout["capacity_certification"]
+    Path(missing["folds"][-1]["envelope_path"]).unlink()
+    with pytest.raises(SystemExit, match="is unreachable at"):
+        runner._authenticate_certified_folds(
+            capacity_certification=missing,
+            fit_history_ids=list(HISTORIES),
+        )
 
 
 def test_saved_scale_envelope_restores_and_scores_through_public_consumer(
