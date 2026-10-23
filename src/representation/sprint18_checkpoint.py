@@ -26,7 +26,6 @@ from representation.sprint18_harness import (
     TASK9_COEFFICIENT_PILOT_EPOCHS,
     Sprint18ArmConfig,
     FIT_HEALTHY_ROWS,
-    FIT_VALID_PATCHES,
     Task6Binding,
     _canonical_sha256,
     _is_hash,
@@ -326,9 +325,11 @@ def _validate_sampler_state(
         if history_ids != expected_histories:
             raise ValueError("experiment sampler must contain all three canonical Fit histories")
         if arm.arm_id == "N4-CRN":
-            if workload != "n4_scale" or eligible_rows != FIT_VALID_PATCHES or len(source_ids) != eligible_rows:
-                raise ValueError("N4 sampler must bind every eligible Fit patch record")
-            if batch_size != 512 or batches_per_epoch != math.ceil(FIT_VALID_PATCHES / 512):
+            from representation.crn import N4_SCALE_BATCH_SIZE, N4_SCALE_FIT_RECORDS
+
+            if workload != "n4_scale" or eligible_rows != N4_SCALE_FIT_RECORDS or len(source_ids) != eligible_rows:
+                raise ValueError("N4 sampler must bind every eligible masked Fit patch record")
+            if batch_size != N4_SCALE_BATCH_SIZE or batches_per_epoch != math.ceil(N4_SCALE_FIT_RECORDS / N4_SCALE_BATCH_SIZE):
                 raise ValueError("N4 sampler differs from the frozen 512-record scale schedule")
             maximum_epochs = 50
         else:
@@ -458,7 +459,10 @@ def _validate_n4_arm_state(
         )
     from representation.crn import (
         N4_GUARD_CONTRACT,
+        N4_SCALE_FIT_RECORDS,
+        N4_SCALE_HISTORY_RECORDS,
         N4_SCALE_PARAMETERIZATION,
+        n4_scale_scope_steps,
         _n4_validate_initialization,
     )
 
@@ -496,18 +500,21 @@ def _validate_n4_arm_state(
         record_count = fold["record_count"]
         if not isinstance(record_count, int) or isinstance(record_count, bool) or record_count <= 0:
             raise ValueError("N4 fold Fit-record count is invalid")
-        expected_steps = 50 * math.ceil(record_count / 512)
+        expected_fold_records = N4_SCALE_FIT_RECORDS - N4_SCALE_HISTORY_RECORDS[heldout]
+        if record_count != expected_fold_records:
+            raise ValueError("N4 fold record count differs from the certified Fit scope")
+        expected_steps = n4_scale_scope_steps(record_count)
         fold_steps = fold["optimizer_steps"]
         if not isinstance(fold_steps, int) or isinstance(fold_steps, bool) or fold_steps != expected_steps or not _is_hash(fold["scale_state_sha256"]):
             raise ValueError("N4 fold optimizer-step or scale-state provenance is invalid")
         fold_record_counts.append(record_count)
-    if sum(fold_record_counts) != 2 * FIT_VALID_PATCHES:
+    if sum(fold_record_counts) != 2 * N4_SCALE_FIT_RECORDS:
         raise ValueError("N4 two-history fold record counts do not cover each Fit record exactly twice")
     final_records = state["final_fit_record_count"]
     final_steps = state["final_scale_steps"]
-    expected_final_steps = 50 * math.ceil(FIT_VALID_PATCHES / 512)
-    if not isinstance(final_records, int) or isinstance(final_records, bool) or final_records != FIT_VALID_PATCHES:
-        raise ValueError("N4 final scale fit must bind every eligible Fit patch record")
+    expected_final_steps = n4_scale_scope_steps(N4_SCALE_FIT_RECORDS)
+    if not isinstance(final_records, int) or isinstance(final_records, bool) or final_records != N4_SCALE_FIT_RECORDS:
+        raise ValueError("N4 final scale fit must bind every eligible masked Fit patch record")
     if not isinstance(final_steps, int) or isinstance(final_steps, bool) or final_steps != expected_final_steps or global_step != expected_final_steps:
         raise ValueError("N4 final scale optimizer steps do not match the frozen Fit scope")
     bounds = state["scale_bounds"]
@@ -644,6 +651,9 @@ def validate_sprint18_checkpoint(
         payload["sampler_state"], global_step=step, scope=allowed_scope,
         completed_epoch=completed_epoch, arm=arm, binding=binding,
     )
+    if arm.arm_id == "N4-CRN":
+        if cast(Mapping[str, object], arm_state)["final_fit_record_count"] != sampler["eligible_rows"]:
+            raise ValueError("N4 arm-state final record count differs from the sampler's certified support")
     active_epoch = cast(int, sampler["current_epoch"])
     scheduler_id = "sprint18-n4-scale-epoch-v2" if arm.arm_id == "N4-CRN" else SCHEDULER_ID
     active_lr = 1e-3 if arm.arm_id == "N4-CRN" else learning_rate_for_epoch(active_epoch)
@@ -673,7 +683,9 @@ def validate_sprint18_checkpoint(
     if not _is_hash(initialization_sha):
         raise ValueError("checkpoint must bind the actual pre-update initialization digest")
     if arm.arm_id == "N4-CRN":
-        if completed_epoch == 50 and step != 50 * math.ceil(FIT_VALID_PATCHES / 512):
+        from representation.crn import N4_SCALE_FIT_RECORDS, n4_scale_scope_steps
+
+        if completed_epoch == 50 and step != n4_scale_scope_steps(N4_SCALE_FIT_RECORDS):
             raise ValueError("N4 primary scale checkpoint step differs from the frozen final Fit scope")
     elif arm.representation_epochs == 100 and completed_epoch == 100:
         if step != 100 * math.ceil(binding.fit_healthy_rows / 128):

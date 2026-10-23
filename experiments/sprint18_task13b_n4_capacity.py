@@ -17,11 +17,15 @@ The operative N4 mechanism specification is the prospective v3 amendment
 (``experiments/sprint18-context-residual-normalization-spec-v3.md``); the
 v1/v2 files remain immutable historical records. A normative v3 run requires
 the versioned prospective Task14 lock
-(``experiments/sprint18-task14-config-lock-v2.json``), which binds the v3
-amendment digest, the reviewed model-implementation commit, the required
+(``experiments/sprint18-task14-config-lock-v3.json``), which binds the v3
+amendment digest, the reviewed model-implementation snapshot, the required
 runner digest, the final-B0/cache identities and the three N4-CRN seed
-configs. The historical v1 lock is preserved byte-identically and continues
-to bind every other arm; this runner never edits or reinterprets it. In
+configs. The historical v1 lock and the superseded v2 prospective lock are
+preserved byte-identically; the v2 lock supersedes v1 for N4-CRN only, and
+the v3 lock supersedes v2 for the reviewed implementation snapshot and the
+N4 in-scope record contract while carrying the same scientific recipe. Every
+other arm stays bound by the historical v1 lock; this runner never edits or
+reinterprets them. In
 particular the three B0-FULL strict restores bind the v1 coefficient-lock
 digest (their checkpoints' producing lock) and are verified against the v1
 locked arm configurations; only the N4-CRN arms bind the prospective v3
@@ -151,23 +155,50 @@ MECHANISM_SPEC_PATH = "experiments/sprint18-context-residual-normalization-spec-
 EXECUTION_BINDING_FIELDS = ("source_commit", "runner_sha256")
 
 #: Versioned prospective Task14 lock activating N4-CRN v3. The historical v1
-#: lock stays byte-identical and is referenced (never edited) by this version;
-#: every arm other than N4-CRN remains bound by that v1 lock.
-TASK14_LOCK_PATH = "experiments/sprint18-task14-config-lock-v2.json"
+#: lock and the superseded v2 prospective lock stay byte-identical and are
+#: referenced (never edited) by this version; every arm other than N4-CRN
+#: remains bound by the historical v1 lock.
+TASK14_LOCK_PATH = "experiments/sprint18-task14-config-lock-v3.json"
+TASK14_SUPERSEDED_LOCK_PATH = "experiments/sprint18-task14-config-lock-v2.json"
 TASK14_LEGACY_LOCK_PATH = "experiments/sprint18-task14-config-lock.json"
-TASK14_LOCK_SCHEMA = "s18-task14-config-lock-v2"
-TASK14_LOCK_VERSION = 2
+TASK14_LOCK_SCHEMA = "s18-task14-config-lock-v3"
+TASK14_LOCK_VERSION = 3
 #: Frozen lock-digest rule: SHA-256 over canonical JSON of the core (every
 #: field except these derived containers).
 TASK14_LOCK_CORE_EXCLUDE = frozenset(
     {"coefficient_lock_sha256", "locked_configs", "config_sha256", "file_sha256"}
 )
+#: Superseded prospective v2 lock identities (immutable). The v3 lock must
+#: supersede these exact bytes and never rewrite them.
+SUPERSEDED_TASK14_LOCK_SHA256 = (
+    "6dd815c5c58fd2abe6305f730f712b7f295695f284e90b9d646b2e5482a4d087"
+)
+SUPERSEDED_TASK14_LOCK_COEFFICIENT_SHA256 = (
+    "4b399874a260bcf42904911c7635be3b844d859313b491a1d2cef7f75ea1d8db"
+)
+SUPERSEDED_TASK14_LOCK_SCHEMA = "s18-task14-config-lock-v2"
 #: Historical v1 lock identities. The v3 lock must supersede these exact bytes
-#: and never rewrite them.
+#: (through the preserved v2 chain) and never rewrite them.
 LEGACY_TASK14_LOCK_SHA256 = "c4c1a8bde14310cf4436c10762e3e98475f7c84eb74fcb8a74b3e267885edec3"
 LEGACY_TASK14_COEFFICIENT_LOCK_SHA256 = (
     "6eb108b2073181d427f1aedfc81fb3bae4c29595108d15de486082800bdd9d6e"
 )
+#: Reviewed implementation scope pinned by the v3 lock. Every path here must
+#: be present and byte-identical; dropping or adding a pin is refused.
+TASK14_REVIEWED_IMPLEMENTATION_PATHS = frozenset(
+    {
+        "experiments/sprint18-context-residual-normalization-spec-v3.md",
+        "experiments/sprint18_task30_n4_runner.py",
+        "src/representation/__init__.py",
+        "src/representation/crn.py",
+        "src/representation/sprint18_checkpoint.py",
+        "tests/representation/test_sprint18_crn.py",
+    }
+)
+#: Certified Task13B A02 capacity evidence. Its fold checkpoint digests are
+#: executed-snapshot evidence at ``capacity_source_commit`` only; the Task30
+#: runtime must re-execute the folds on the changed source and reproduce them.
+CAPACITY_CERTIFICATION_PATH = "experiments/sprint18-task13-n4-capacity-v3-a02.json"
 #: N4-CRN declares no representation-loss coefficients.
 TASK14_LOCK_COEFFICIENTS = {
     "lambda_info_max": None,
@@ -290,7 +321,7 @@ def task14_lock_core_digest(lock: dict) -> str:
 
 
 def load_task14_v3_lock(worktree: Path) -> dict:
-    """Load the prospective versioned Task14 lock; never fall back to v1."""
+    """Load the prospective versioned Task14 v3 lock; never fall back to v2/v1."""
     path = Path(worktree) / TASK14_LOCK_PATH
     if not path.is_file():
         raise _fail(f"prospective Task14 v3 lock is missing: {TASK14_LOCK_PATH}")
@@ -353,16 +384,39 @@ def validate_task14_v3_lock(
         raise _fail("Task14 v3 lock core digest is inconsistent")
 
     supersedes = lock.get("supersedes")
-    if not isinstance(supersedes, dict) or supersedes.get("path") != TASK14_LEGACY_LOCK_PATH:
-        raise _fail("Task14 v3 lock does not supersede the historical lock path")
-    if supersedes.get("coefficient_lock_sha256") != LEGACY_TASK14_COEFFICIENT_LOCK_SHA256:
-        raise _fail("Task14 v3 lock supersedes the wrong historical coefficient digest")
-    if supersedes.get("file_sha256") != LEGACY_TASK14_LOCK_SHA256:
-        raise _fail("Task14 v3 lock supersedes the wrong historical lock bytes")
+    if not isinstance(supersedes, dict) or supersedes.get("path") != TASK14_SUPERSEDED_LOCK_PATH:
+        raise _fail("Task14 v3 lock does not supersede the prospective v2 lock path")
+    if supersedes.get("schema") != SUPERSEDED_TASK14_LOCK_SCHEMA:
+        raise _fail("Task14 v3 lock supersedes the wrong lock schema")
+    if supersedes.get("coefficient_lock_sha256") != SUPERSEDED_TASK14_LOCK_COEFFICIENT_SHA256:
+        raise _fail("Task14 v3 lock supersedes the wrong prospective coefficient digest")
+    if supersedes.get("file_sha256") != SUPERSEDED_TASK14_LOCK_SHA256:
+        raise _fail("Task14 v3 lock supersedes the wrong prospective lock bytes")
+    superseded_path = Path(worktree) / TASK14_SUPERSEDED_LOCK_PATH
+    if not superseded_path.is_file() or _sha_file(superseded_path) != SUPERSEDED_TASK14_LOCK_SHA256:
+        raise _fail("superseded prospective v2 Task14 lock bytes changed")
+    superseded = json.loads(superseded_path.read_text(encoding="utf-8"))
+    if (
+        superseded.get("schema") != SUPERSEDED_TASK14_LOCK_SCHEMA
+        or superseded.get("lock_version") != 2
+        or task14_lock_core_digest(superseded) != SUPERSEDED_TASK14_LOCK_COEFFICIENT_SHA256
+    ):
+        raise _fail("superseded prospective v2 Task14 lock identity is inconsistent")
+    v2_supersedes = superseded.get("supersedes")
+    if not isinstance(v2_supersedes, dict) or v2_supersedes.get("path") != TASK14_LEGACY_LOCK_PATH:
+        raise _fail("superseded v2 lock does not preserve the historical v1 lock path")
+    if v2_supersedes.get("schema") != "s18-task14-config-lock-v1":
+        raise _fail("superseded v2 lock preserves the wrong historical schema")
+    if v2_supersedes.get("coefficient_lock_sha256") != LEGACY_TASK14_COEFFICIENT_LOCK_SHA256:
+        raise _fail("superseded v2 lock preserves the wrong historical coefficient digest")
+    if v2_supersedes.get("file_sha256") != LEGACY_TASK14_LOCK_SHA256:
+        raise _fail("superseded v2 lock preserves the wrong historical lock bytes")
     legacy_path = Path(worktree) / TASK14_LEGACY_LOCK_PATH
     if not legacy_path.is_file() or _sha_file(legacy_path) != LEGACY_TASK14_LOCK_SHA256:
         raise _fail("historical Task14 lock bytes changed")
     legacy = json.loads(legacy_path.read_text(encoding="utf-8"))
+    if task14_lock_core_digest(legacy) != LEGACY_TASK14_COEFFICIENT_LOCK_SHA256:
+        raise _fail("historical Task14 v1 lock core digest is inconsistent")
 
     v3 = lock.get("n4_v3_activation")
     if not isinstance(v3, dict):
@@ -383,6 +437,8 @@ def validate_task14_v3_lock(
     paths = impl.get("paths")
     if not isinstance(paths, dict) or not paths:
         raise _fail("Task14 v3 lock reviewed implementation paths are missing")
+    if set(paths) != TASK14_REVIEWED_IMPLEMENTATION_PATHS:
+        raise _fail("Task14 v3 lock reviewed implementation scope differs from the required pin set")
     for relative, expected in paths.items():
         path = Path(worktree) / relative
         if not path.is_file():
@@ -480,6 +536,81 @@ def validate_task14_v3_lock(
     if carried_recipe != legacy.get("n4_recipe"):
         raise _fail("Task14 v3 lock N4 recipe differs from the pinned historical recipe")
 
+    from representation.crn import (
+        N4_SCALE_FIT_RECORDS,
+        N4_SCALE_HISTORY_RECORD_ROSTER,
+        n4_scale_scope_steps,
+    )
+
+    scope_block = lock.get("n4_scale_scope")
+    expected_scope_keys = {
+        "definition", "eligible_masked_fit_patch_records", "per_history_records",
+        "fold_record_counts", "fold_optimizer_steps", "epochs", "batch_size",
+        "final_optimizer_steps", "optimizer_step_rule",
+        "valid_fit_patches_out_of_scope", "provenance",
+    }
+    if not isinstance(scope_block, dict) or set(scope_block) != expected_scope_keys:
+        raise _fail("Task14 v3 lock N4 in-scope record block is missing or incomplete")
+    expected_history_records = dict(N4_SCALE_HISTORY_RECORD_ROSTER)
+    expected_fold_counts = [
+        N4_SCALE_FIT_RECORDS - count for _history_id, count in N4_SCALE_HISTORY_RECORD_ROSTER
+    ]
+    if scope_block["eligible_masked_fit_patch_records"] != N4_SCALE_FIT_RECORDS:
+        raise _fail("Task14 v3 lock N4 in-scope record total differs from the certified scope")
+    if scope_block["per_history_records"] != expected_history_records:
+        raise _fail("Task14 v3 lock N4 per-history record counts differ from the certified scope")
+    if scope_block["fold_record_counts"] != expected_fold_counts:
+        raise _fail("Task14 v3 lock N4 fold record counts differ from the certified scope")
+    if scope_block["fold_optimizer_steps"] != [
+        n4_scale_scope_steps(count) for count in expected_fold_counts
+    ]:
+        raise _fail("Task14 v3 lock N4 fold optimizer steps differ from the frozen formula")
+    if scope_block["final_optimizer_steps"] != n4_scale_scope_steps(N4_SCALE_FIT_RECORDS):
+        raise _fail("Task14 v3 lock N4 final optimizer steps differ from the frozen formula")
+    if scope_block["epochs"] != N4_SCALE_EPOCHS or scope_block["batch_size"] != N4_SCALE_BATCH_SIZE:
+        raise _fail("Task14 v3 lock N4 scope contradicts the frozen epoch/batch recipe")
+    if scope_block["valid_fit_patches_out_of_scope"] != legacy["support"]["fit_valid_patches"]:
+        raise _fail("Task14 v3 lock N4 scope misstates the historical valid-patch support")
+
+    certification = v3.get("capacity_certification")
+    if not isinstance(certification, dict):
+        raise _fail("Task14 v3 capacity-certification binding is missing")
+    if certification.get("status") != "historical_certification_at_original_snapshot":
+        raise _fail("Task14 v3 capacity certification is not labeled historical snapshot evidence")
+    if certification.get("runtime_revalidation") != "pending_source_gate_then_in_run_fold_recertification":
+        raise _fail("Task14 v3 capacity certification misstates the pending runtime revalidation")
+    certification_path = Path(worktree) / CAPACITY_CERTIFICATION_PATH
+    if (
+        not certification_path.is_file()
+        or _sha_file(certification_path) != certification.get("file_sha256")
+    ):
+        raise _fail("Task14 v3 certified capacity evidence bytes changed")
+    certified = json.loads(certification_path.read_text(encoding="utf-8"))
+    gate = certified.get("capacity_gate") or {}
+    if (
+        gate.get("verdict") != "PASS"
+        or gate.get("folds_evaluated") != 9
+        or gate.get("folds_expected") != 9
+        or gate.get("total_optimizer_updates") != 39_450
+    ):
+        raise _fail("Task14 v3 certified capacity evidence is not the accepted nine-fold PASS")
+    if certified.get("fit_valid_patches") != scope_block["valid_fit_patches_out_of_scope"]:
+        raise _fail("Task14 v3 certified capacity evidence binds a different valid-patch support")
+    certified_folds: dict[str, list[str]] = {}
+    for fold in certified.get("folds") or []:
+        certified_folds.setdefault(str(fold.get("model_seed")), []).append(
+            fold.get("checkpoint_sha256")
+        )
+    if certified_folds != certification.get("fold_checkpoint_sha256"):
+        raise _fail("Task14 v3 declared fold checkpoint digests differ from the certified evidence")
+    if (
+        certification.get("verdict") != "PASS"
+        or certification.get("folds_evaluated") != 9
+        or certification.get("total_optimizer_updates") != 39_450
+        or certification.get("fold_record_counts") != expected_fold_counts
+    ):
+        raise _fail("Task14 v3 declared capacity-certification summary differs from the evidence")
+
     spec = v3.get("spec")
     if not isinstance(spec, dict) or spec.get("path") != MECHANISM_SPEC_PATH:
         raise _fail("Task14 v3 activation does not bind the prospective spec path")
@@ -548,9 +679,37 @@ def validate_task14_v3_lock(
         "locked_config_keys": sorted(locked),
         "supersedes": {
             "path": supersedes["path"],
+            "schema": supersedes["schema"],
             "file_sha256": supersedes["file_sha256"],
             "coefficient_lock_sha256": supersedes["coefficient_lock_sha256"],
             "scope": supersedes.get("scope"),
+        },
+        "historical_v1_lock": {
+            "path": TASK14_LEGACY_LOCK_PATH,
+            "schema": legacy["schema"],
+            "file_sha256": LEGACY_TASK14_LOCK_SHA256,
+            "coefficient_lock_sha256": LEGACY_TASK14_COEFFICIENT_LOCK_SHA256,
+        },
+        "n4_scale_scope": {
+            "eligible_masked_fit_patch_records": scope_block["eligible_masked_fit_patch_records"],
+            "per_history_records": dict(scope_block["per_history_records"]),
+            "fold_record_counts": list(scope_block["fold_record_counts"]),
+            "fold_optimizer_steps": list(scope_block["fold_optimizer_steps"]),
+            "final_optimizer_steps": scope_block["final_optimizer_steps"],
+        },
+        "capacity_certification": {
+            "path": CAPACITY_CERTIFICATION_PATH,
+            "file_sha256": certification["file_sha256"],
+            "status": certification["status"],
+            "verdict": certification["verdict"],
+            "historical_snapshot_source_commit": certification["source_commit"],
+            "runtime_revalidation": certification["runtime_revalidation"],
+            "folds_evaluated": certification["folds_evaluated"],
+            "total_optimizer_updates": certification["total_optimizer_updates"],
+            "fold_checkpoint_sha256": {
+                seed: list(shas)
+                for seed, shas in certification["fold_checkpoint_sha256"].items()
+            },
         },
         "activation_status": v3.get("status"),
         "legacy_a03_disposition": dict(LEGACY_A03_DISPOSITION),

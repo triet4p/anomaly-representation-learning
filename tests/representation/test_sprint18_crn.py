@@ -29,6 +29,8 @@ from representation import (
     N4_SCALE_BATCH_SIZE,
     N4_SCALE_CHECKPOINT_SCHEMA,
     N4_SCALE_EPOCHS,
+    N4_SCALE_FIT_RECORDS,
+    N4_SCALE_HISTORY_RECORDS,
     N4_SCALE_PARAMETERIZATION,
     N4ScaleGuardError,
     N4ScaleRecord,
@@ -47,6 +49,7 @@ from representation import (
     n4_residual_bounds,
     n4_saturation,
     n4_scale_nll,
+    n4_scale_scope_steps,
     n4_spearman,
     save_n4_scale_checkpoint,
     validate_n4_capacity,
@@ -256,6 +259,60 @@ def test_n4_fold_scope_fit_proves_finite_nll_bounds_saturation_and_step_counts()
     assert validate_n4_capacity([bad, result, result], record_counts=[40, 40, 40], per_seed_updates=150)["verdict"] == "FAILED"
 
 
+def test_n4_certified_scope_constants_and_step_math() -> None:
+    """The N4 in-scope record contract is the certified masked Fit support."""
+    assert dict(N4_SCALE_HISTORY_RECORDS) == {
+        "S18I-ITER-0005-FIT-01": 22328,
+        "S18I-ITER-0005-FIT-02": 23098,
+        "S18I-ITER-0005-FIT-03": 21563,
+    }
+    assert N4_SCALE_FIT_RECORDS == 66989
+    fold_counts = [
+        N4_SCALE_FIT_RECORDS - count for count in N4_SCALE_HISTORY_RECORDS.values()
+    ]
+    assert fold_counts == [44661, 43891, 45426]
+    assert [n4_scale_scope_steps(count) for count in fold_counts] == [4400, 4300, 4450]
+    assert n4_scale_scope_steps(N4_SCALE_FIT_RECORDS) == 6550
+    assert sum(fold_counts) == 2 * N4_SCALE_FIT_RECORDS
+    assert N4_SCALE_FIT_RECORDS != 167419  # every valid Fit patch is a different scope
+
+
+def test_n4_fit_rejects_foreign_or_retuned_optimizer() -> None:
+    binding = load_task6_binding(HANDOFF)
+    arm = make_sprint18_arm_config(
+        "N4-CRN", MODEL_SEEDS[0],
+        {"lambda_info_max": None, "lambda_hcc_max": None, "alpha": None, "beta": None},
+        selection_state="locked", coefficient_lock_sha256="ab" * 32,
+    )
+    scale = init_n4_scale_model(128, MODEL_SEEDS[0])
+    splits = n4_canonical_fold_splits(binding)
+    training_ids, heldout_id = splits[0]
+    raw = _tiny_records(40)
+    train = [
+        N4ScaleRecord(
+            history_id=training_ids[i % 2], file_id=record.file_id,
+            patch_index=record.patch_index, context=record.context, residual=record.residual,
+        )
+        for i, record in enumerate(raw)
+    ]
+    bounds = n4_residual_bounds(np.array([record.residual for record in train]))
+    foreign = torch.optim.AdamW(torch.nn.Linear(2, 2).parameters(), lr=1e-3, weight_decay=1e-4)
+    with pytest.raises(ValueError, match="bound to exactly the scale-model parameters"):
+        fit_n4_scale_scope(
+            records=train, training_history_ids=list(training_ids),
+            scope=f"fold:{heldout_id}", arm=arm, binding=binding, scale_model=scale,
+            v_floor=bounds["v_floor"], v_cap=bounds["v_cap"], optimizer=foreign,
+        )
+    retuned_scale = init_n4_scale_model(128, MODEL_SEEDS[0])
+    retuned = torch.optim.AdamW(retuned_scale.parameters(), lr=2e-3, weight_decay=1e-4)
+    with pytest.raises(ValueError, match="frozen lr/weight decay"):
+        fit_n4_scale_scope(
+            records=train, training_history_ids=list(training_ids),
+            scope=f"fold:{heldout_id}", arm=arm, binding=binding, scale_model=retuned_scale,
+            v_floor=bounds["v_floor"], v_cap=bounds["v_cap"], optimizer=retuned,
+        )
+
+
 def test_n4_fold_rejects_heldout_contamination_and_wrong_counts() -> None:
     binding = load_task6_binding(HANDOFF)
     arm = make_sprint18_arm_config(
@@ -300,12 +357,12 @@ def test_n4_scale_checkpoint_save_restore_keeps_rep_frozen(tmp_path) -> None:
     probe_gradients = n4_guard_first_step_gradients(scale)
     optimizer.step()
     for param_state in optimizer.state_dict()["state"].values():
-        param_state["step"] = torch.tensor(16350)
+        param_state["step"] = torch.tensor(n4_scale_scope_steps(N4_SCALE_FIT_RECORDS))
     initialization_sha256 = state_sha256(model.state_dict())
     model_before = {k: (v.detach().cpu().clone() if isinstance(v, torch.Tensor) else v) for k, v in model.state_dict().items()}
     ema_before = {k: (v.detach().cpu().clone() if isinstance(v, torch.Tensor) else v) for k, v in model.target_encoder.state_dict().items()}
-    from representation.sprint18_harness import FIT_VALID_PATCHES, deterministic_sampler_order
-    per_patch = FIT_VALID_PATCHES
+    from representation.sprint18_harness import deterministic_sampler_order
+    per_patch = N4_SCALE_FIT_RECORDS
     fit_ids = tuple(f"n4-patch-{i:07d}" for i in range(per_patch))
     fit_history_ids = tuple(item.actual_history_id for item in binding.role_histories("FIT"))
     sampler_seed, epoch_order = deterministic_sampler_order(
@@ -339,7 +396,9 @@ def test_n4_scale_checkpoint_save_restore_keeps_rep_frozen(tmp_path) -> None:
         "epoch": 50, "global_step": 50 * batches_per_epoch, "selection_state": "locked",
         "lambda_info": None, "lambda_hcc": None, "alpha": None, "beta": None,
     }
-    fold_counts = [per_patch - 55797, per_patch - 57716, per_patch - 53906]
+    fold_counts = [
+        per_patch - N4_SCALE_HISTORY_RECORDS[history_id] for history_id in fit_history_ids
+    ]
     log_floor = math.log(0.02)
     log_cap = math.log(1.4)
     log_v_min = -3.2

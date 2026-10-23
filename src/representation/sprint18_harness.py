@@ -3682,7 +3682,12 @@ def validate_sprint18_result(result: Mapping[str, object]) -> Mapping[str, objec
             _nullable_hash(seed_row[name], f"seed_runs[{index}].{name}")
         _validate_compute_record(seed_row["compute"], f"seed_runs[{index}].compute")
         if status == "VALID":
-            expected_steps = 50 * math.ceil(FIT_VALID_PATCHES / 512) if arm.arm_id == "N4-CRN" else 100 * math.ceil(FIT_HEALTHY_ROWS / 128)
+            if arm.arm_id == "N4-CRN":
+                from representation.crn import N4_SCALE_FIT_RECORDS, n4_scale_scope_steps
+
+                expected_steps = n4_scale_scope_steps(N4_SCALE_FIT_RECORDS)
+            else:
+                expected_steps = 100 * math.ceil(FIT_HEALTHY_ROWS / 128)
             if (
                 seed_row["representation_epochs_completed"] != expected_rep
                 or seed_row["scale_epochs_completed"] != expected_scale

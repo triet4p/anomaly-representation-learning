@@ -74,6 +74,31 @@ N4_SCALE_PARAMETER_ROSTER: tuple[tuple[str, int], ...] = (
 #: Exact deployed scale-head parameter count at the frozen latent width (4,417).
 N4_SCALE_PARAM_COUNT = sum(numel for _name, numel in N4_SCALE_PARAMETER_ROSTER)
 
+#: Certified per-history N4 in-scope record counts (Task13B A02,
+#: ``experiments/sprint18-task13-n4-capacity-v3-a02.json``). An N4 training
+#: record is one eligible *masked* valid Fit patch record, so this roster is
+#: NOT ``sprint18_harness.FIT_VALID_PATCHES`` (every valid Fit patch). The
+#: mask budget is count-deterministic, so the identical counts apply to all
+#: three model seeds; normative runners re-derive them from the bound final-B0
+#: prediction caches before any fit and abort on any difference.
+N4_SCALE_HISTORY_RECORD_ROSTER: tuple[tuple[str, int], ...] = (
+    ("S18I-ITER-0005-FIT-01", 22_328),
+    ("S18I-ITER-0005-FIT-02", 23_098),
+    ("S18I-ITER-0005-FIT-03", 21_563),
+)
+#: Exact certified N4 in-scope record total (66,989).
+N4_SCALE_FIT_RECORDS = sum(count for _history_id, count in N4_SCALE_HISTORY_RECORD_ROSTER)
+#: Exact certified per-history map for fold-scope expectations.
+N4_SCALE_HISTORY_RECORDS: Mapping[str, int] = {
+    history_id: count for history_id, count in N4_SCALE_HISTORY_RECORD_ROSTER
+}
+#: Frozen per-scope optimizer-step rule: ``50 * ceil(N_scope / 512)``.
+def n4_scale_scope_steps(record_count: int) -> int:
+    """Return the frozen 50-epoch optimizer-step count for one N4 scope."""
+    if isinstance(record_count, bool) or not isinstance(record_count, int) or record_count < 1:
+        raise ValueError("N4 scope record count must be a positive integer")
+    return N4_SCALE_EPOCHS * math.ceil(record_count / N4_SCALE_BATCH_SIZE)
+
 
 class ContextResidualScaleModel(nn.Module):
     """Fixed-capacity context-only residual scale predictor.
@@ -685,6 +710,7 @@ def fit_n4_scale_scope(
     v_cap: float,
     heldout_records: Sequence[N4ScaleRecord] = (),
     device: torch.device | str = "cpu",
+    optimizer: torch.optim.AdamW | None = None,
 ) -> dict[str, object]:
     """Fit one N4 scope for exactly 50 epochs under the frozen scale contract.
 
@@ -770,9 +796,34 @@ def fit_n4_scale_scope(
         scale_model, contexts, v_floor=float(v_floor), v_cap=float(v_cap)
     )
     id_to_index = {key: index for index, key in enumerate(canonical_ids)}
-    optimizer = torch.optim.AdamW(
-        scale_model.parameters(), lr=N4_SCALE_LR, weight_decay=N4_SCALE_WEIGHT_DECAY
-    )
+    if optimizer is None:
+        optimizer = torch.optim.AdamW(
+            scale_model.parameters(), lr=N4_SCALE_LR, weight_decay=N4_SCALE_WEIGHT_DECAY
+        )
+    else:
+        # Optional caller-owned optimizer: the coherent N4 checkpoint must
+        # serialize the optimizer state that actually produced the scale head.
+        # Accept only the frozen optimizer class bound to exactly these
+        # parameters under the frozen lr/weight-decay contract; never coerce.
+        if not isinstance(optimizer, torch.optim.AdamW):
+            raise ValueError("N4 external optimizer must be the frozen AdamW")
+        bound_parameters = [
+            parameter for group in optimizer.param_groups for parameter in group["params"]
+        ]
+        expected_parameters = list(scale_model.parameters())
+        if len(bound_parameters) != len(expected_parameters) or any(
+            bound is not expected
+            for bound, expected in zip(bound_parameters, expected_parameters)
+        ):
+            raise ValueError(
+                "N4 external optimizer must be bound to exactly the scale-model parameters"
+            )
+        for group in optimizer.param_groups:
+            if (
+                group.get("lr") != N4_SCALE_LR
+                or group.get("weight_decay") != N4_SCALE_WEIGHT_DECAY
+            ):
+                raise ValueError("N4 external optimizer must use the frozen lr/weight decay")
     record_count = len(ordered)
     per_epoch_steps = math.ceil(record_count / N4_SCALE_BATCH_SIZE)
     per_epoch_nll: list[float] = []
