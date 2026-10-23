@@ -61,6 +61,7 @@ import hashlib
 import json
 import math
 import random
+import re
 import subprocess
 import sys
 import time
@@ -158,6 +159,28 @@ B0_COEFFICIENTS = {"lambda_info_max": 0.05, "lambda_hcc_max": None, "alpha": Non
 #: calibration/Development identities re-verified by Task13B).
 B0_RECORDS_PATH = "/home/trietlm/s18-t23-a04-runs/full/seed_records.json"
 B0_RECORDS_SHA256 = "3540ef09fae5c9bf4b768ba93b4dece4a48ef8003a69524a93fbcb156fba5443"
+#: The accepted Task23 A04 prediction caches carry two distinct identities per
+#: seed: the raw SHA-256 of the cache-file bytes and the digest recorded inside
+#: the cache head (also carried by the accepted B0 seed record). The external
+#: execution binding must therefore carry both explicitly; a single key cannot
+#: satisfy the two fail-closed checks (A03 runtime defect).
+PREDICTION_CACHE_FILE_SHA256_KEY = "prediction_cache_file_sha256"
+PREDICTION_CACHE_INNER_SHA256_KEY = "prediction_cache_inner_sha256"
+#: Exact externally bound fixture schema. Unknown or legacy keys are refused so
+#: a stale binding cannot silently satisfy only one of the two identities.
+FIXTURE_KEYS = frozenset(
+    {
+        "checkpoints",
+        "ema_state_sha256",
+        "live_model_state_sha256",
+        PREDICTION_CACHE_FILE_SHA256_KEY,
+        PREDICTION_CACHE_INNER_SHA256_KEY,
+        "prediction_cache_paths",
+    }
+)
+#: Superseded ambiguous binding key. Refused by name, never interpreted.
+AMBIGUOUS_PREDICTION_CACHE_KEY = "prediction_cache_sha256"
+_HEX64 = re.compile(r"[0-9a-f]{64}")
 #: Certified per-history eligible *masked* Fit patch record counts (Task13B A02;
 #: identical for all three model seeds because the mask budget is count-deterministic).
 #: Sourced from the frozen implementation constant so the runner, the coherent
@@ -322,8 +345,120 @@ def _load_b0_records(path: Path) -> dict:
     return payload
 
 
-def _b0_seed_identity(seed: int, fixture: dict, b0_record: dict) -> dict:
-    """Cross-check one accepted B0 seed record against the externally bound fixture."""
+def _validate_fixture(fixture: object) -> dict:
+    """Accept only the exact externally bound B0 fixture schema, fail-closed."""
+    if not isinstance(fixture, dict):
+        raise _fail("execution binding fixture is not a mapping")
+    key_set = set(fixture)
+    if AMBIGUOUS_PREDICTION_CACHE_KEY in key_set:
+        raise _fail(
+            "execution binding fixture carries the ambiguous legacy key "
+            f"{AMBIGUOUS_PREDICTION_CACHE_KEY}; bind {PREDICTION_CACHE_FILE_SHA256_KEY} "
+            f"(raw cache-file bytes) and {PREDICTION_CACHE_INNER_SHA256_KEY} (cache-head digest) "
+            "as distinct per-seed identities"
+        )
+    if key_set != FIXTURE_KEYS:
+        raise _fail(
+            "execution binding fixture keys differ from the frozen schema: "
+            f"{sorted(key_set)}"
+        )
+    expected_seeds = {str(seed) for seed in MODEL_SEEDS}
+    for name in (
+        "live_model_state_sha256",
+        "ema_state_sha256",
+        PREDICTION_CACHE_FILE_SHA256_KEY,
+        PREDICTION_CACHE_INNER_SHA256_KEY,
+    ):
+        block = fixture[name]
+        if not isinstance(block, dict) or set(block) != expected_seeds:
+            raise _fail(
+                f"execution binding fixture {name} does not cover exactly the frozen model seeds"
+            )
+        for seed_key, value in block.items():
+            if not isinstance(value, str) or not _HEX64.fullmatch(value):
+                raise _fail(
+                    f"execution binding fixture {name}[{seed_key}] is not a SHA-256 hex digest"
+                )
+    paths = fixture["prediction_cache_paths"]
+    if not isinstance(paths, dict) or set(paths) != expected_seeds:
+        raise _fail(
+            "execution binding fixture prediction_cache_paths does not cover exactly "
+            "the frozen model seeds"
+        )
+    for seed_key, value in paths.items():
+        if not isinstance(value, str) or not value:
+            raise _fail(
+                f"execution binding fixture prediction_cache_paths[{seed_key}] is empty"
+            )
+    checkpoints = fixture["checkpoints"]
+    if not isinstance(checkpoints, dict) or set(checkpoints) != expected_seeds:
+        raise _fail(
+            "execution binding fixture checkpoints does not cover exactly the frozen model seeds"
+        )
+    for seed_key, value in checkpoints.items():
+        if not isinstance(value, dict) or set(value) != {"path", "sha256"}:
+            raise _fail(
+                f"execution binding fixture checkpoints[{seed_key}] must be exactly path+sha256"
+            )
+        if not isinstance(value["path"], str) or not value["path"]:
+            raise _fail(f"execution binding fixture checkpoints[{seed_key}].path is empty")
+        if not isinstance(value["sha256"], str) or not _HEX64.fullmatch(value["sha256"]):
+            raise _fail(
+                f"execution binding fixture checkpoints[{seed_key}].sha256 is not a SHA-256 digest"
+            )
+    return fixture
+
+
+def _b0_cache_identity(
+    *, fixture: dict, seed: int, b0_record: dict, cache_head: dict, cache_records: list
+) -> dict:
+    """Verify BOTH bound cache identities against the actual bytes and the accepted record.
+
+    The raw file digest and the cache-head digest are distinct identities of the
+    same accepted Task23 A04 cache. Each is compared against its own explicit
+    binding key; neither can substitute for the other.
+    """
+    key = str(seed)
+    cache = b0_record["prediction_cache"]
+    cache_path = Path(fixture["prediction_cache_paths"][key])
+    if cache["path"] != str(cache_path):
+        raise _fail(f"B0 seed {seed} prediction cache path differs from the bound fixture")
+    file_sha256 = _sha256_file(cache_path)
+    bound_file_sha256 = fixture[PREDICTION_CACHE_FILE_SHA256_KEY][key]
+    if file_sha256 != bound_file_sha256:
+        raise _fail(
+            f"B0 seed {seed} prediction cache bytes differ from the bound file digest"
+        )
+    inner_sha256 = cache_head.get("cache_sha256")
+    if not isinstance(inner_sha256, str) or not _HEX64.fullmatch(inner_sha256):
+        raise _fail(f"B0 seed {seed} prediction cache head carries no valid inner digest")
+    bound_inner_sha256 = fixture[PREDICTION_CACHE_INNER_SHA256_KEY][key]
+    if inner_sha256 != bound_inner_sha256:
+        raise _fail(
+            f"B0 seed {seed} prediction cache head digest differs from the bound inner digest"
+        )
+    if cache["cache_sha256"] != inner_sha256:
+        raise _fail(
+            f"B0 seed {seed} prediction cache inner digest differs from the accepted B0 record"
+        )
+    if cache["records"] != len(cache_records):
+        raise _fail(f"B0 seed {seed} prediction cache record count differs from the accepted B0 record")
+    return {
+        "cache_path": str(cache_path),
+        "cache_file_sha256": file_sha256,
+        "cache_inner_sha256": inner_sha256,
+        "cache_records": len(cache_records),
+    }
+
+
+def _b0_seed_identity(
+    seed: int, fixture: dict, b0_record: dict, cache_identity: dict
+) -> dict:
+    """Cross-check one accepted B0 seed record against the externally bound fixture.
+
+    ``cache_identity`` is the already-verified byte/head identity of the same
+    cache, so neither digest is re-derived or re-interpreted here.
+    """
     key = str(seed)
     checkpoint = fixture["checkpoints"][key]
     if b0_record.get("arm_id") != BASELINE_ARM_ID or b0_record.get("status") != "ok":
@@ -337,22 +472,14 @@ def _b0_seed_identity(seed: int, fixture: dict, b0_record: dict) -> dict:
         raise _fail(f"B0 seed {seed} live model digest differs from the bound fixture")
     if primary["live_ema_state_sha256"] != fixture["ema_state_sha256"][key]:
         raise _fail(f"B0 seed {seed} live EMA digest differs from the bound fixture")
-    cache = b0_record["prediction_cache"]
-    if cache["path"] != fixture["prediction_cache_paths"][key]:
-        raise _fail(f"B0 seed {seed} prediction cache path differs from the bound fixture")
-    if cache["cache_sha256"] != fixture["prediction_cache_sha256"][key]:
-        raise _fail(f"B0 seed {seed} prediction cache digest differs from the bound fixture")
     if b0_record["bank"]["source_rows"] != FIT_HEALTHY_ROWS:
         raise _fail(f"B0 seed {seed} Fit bank rows differ from the frozen Fit support")
     if b0_record["calibration"]["source_rows"] != CALIBRATION_HEALTHY_ROWS:
         raise _fail(f"B0 seed {seed} Calibration rows differ from the frozen healthy support")
     return {
+        **cache_identity,
         "checkpoint_path": checkpoint["path"],
         "checkpoint_sha256": checkpoint["sha256"],
-        "cache_path": cache["path"],
-        "cache_file_sha256": fixture["prediction_cache_sha256"][key],
-        "cache_inner_sha256": cache["cache_sha256"],
-        "cache_records": cache["records"],
         "live_model_state_sha256": primary["live_model_state_sha256"],
         "live_ema_state_sha256": primary["live_ema_state_sha256"],
         "bank_sha256": b0_record["bank"]["bank_sha256"],
@@ -360,6 +487,40 @@ def _b0_seed_identity(seed: int, fixture: dict, b0_record: dict) -> dict:
         "calibration_source_support_sha256": b0_record["calibration"]["source_support_sha256"],
         "calibration_S_pred_threshold": b0_record["calibration"]["S_pred_threshold"],
         "calibration_S_pop_threshold": b0_record["calibration"]["S_pop_threshold"],
+    }
+
+
+def _b0_restore_identity(*, fixture: dict, seed: int, b0_record: dict) -> dict:
+    """Prove the exact bytes the B0 restore will consume, before any long work.
+
+    This is the preflight restore-level identity proof: it validates both cache
+    identities (raw file bytes and head digest), the accepted-record agreement,
+    the cache record count and the checkpoint bytes that the strict restore
+    will load. It is the single identity gate shared by preflight and
+    ``_restore_b0``.
+    """
+    key = str(seed)
+    cache_path = Path(fixture["prediction_cache_paths"][key])
+    if not cache_path.is_file():
+        raise _fail(f"B0 seed {seed} prediction cache is missing: {cache_path}")
+    cache_head, cache_records = capacity._load_cache_records(cache_path)
+    cache_identity = _b0_cache_identity(
+        fixture=fixture, seed=seed, b0_record=b0_record,
+        cache_head=cache_head, cache_records=cache_records,
+    )
+    checkpoint = fixture["checkpoints"][key]
+    checkpoint_path = Path(checkpoint["path"])
+    if not checkpoint_path.is_file():
+        raise _fail(f"B0 seed {seed} final B0 checkpoint is missing: {checkpoint_path}")
+    if _sha256_file(checkpoint_path) != checkpoint["sha256"]:
+        raise _fail(f"B0 seed {seed} B0 checkpoint bytes differ from the bound digest")
+    identity = _b0_seed_identity(seed, fixture, b0_record, cache_identity)
+    return {
+        "identity": identity,
+        "cache_head": cache_head,
+        "cache_records": cache_records,
+        "checkpoint_path": str(checkpoint_path),
+        "checkpoint_sha256": checkpoint["sha256"],
     }
 
 
@@ -899,29 +1060,24 @@ def _save_and_restore_coherent(*, model, config, scale, optimizer, arm, binding,
     }
 
 
-def _restore_b0(*, fixture, seed: int, binding, legacy_b0: dict, device: torch.device, patchifier):
+def _restore_b0(*, fixture, seed: int, b0_record: dict, binding, legacy_b0: dict,
+                device: torch.device, patchifier):
     key = str(seed)
-    cache_path = Path(fixture["prediction_cache_paths"][key])
-    if not cache_path.is_file():
-        raise _fail(f"seed {seed}: prediction cache is missing: {cache_path}")
-    if _sha256_file(cache_path) != fixture["prediction_cache_sha256"][key]:
-        raise _fail(f"seed {seed}: prediction cache bytes differ from the bound digest")
-    cache_head, cache_records = capacity._load_cache_records(cache_path)
+    restore_identity = _b0_restore_identity(fixture=fixture, seed=seed, b0_record=b0_record)
+    identity = restore_identity["identity"]
+    cache_head = restore_identity["cache_head"]
+    cache_records = restore_identity["cache_records"]
+    checkpoint_path = Path(restore_identity["checkpoint_path"])
     config = _config_from_cache(cache_head)
     model = V1RepresentationModel(config, patchifier=patchifier)
     arm_b0 = _b0_arm(seed, legacy_b0["coefficient_lock_sha256"])
     if arm_config_sha256(arm_b0) != legacy_b0["config_sha256"][key]:
         raise _fail(f"seed {seed}: B0 arm config differs from the historical v1 lock")
-    checkpoint_path = Path(fixture["checkpoints"][key]["path"])
-    if not checkpoint_path.is_file():
-        raise _fail(f"seed {seed}: final B0 checkpoint is missing: {checkpoint_path}")
-    if _sha256_file(checkpoint_path) != fixture["checkpoints"][key]["sha256"]:
-        raise _fail(f"seed {seed}: B0 checkpoint bytes differ from the bound digest")
     optimizer = torch.optim.AdamW(model.parameters(), lr=1e-5, weight_decay=0.0)
     restored = restore_sprint18_checkpoint(
         checkpoint_path, model, optimizer, arm=arm_b0, binding=binding, allowed_scope="experiment",
     )
-    if restored.checkpoint_sha256 != fixture["checkpoints"][key]["sha256"]:
+    if restored.checkpoint_sha256 != identity["checkpoint_sha256"]:
         raise _fail(f"seed {seed}: strict B0 restore digest mismatch")
     if state_sha256(model.state_dict()) != fixture["live_model_state_sha256"][key]:
         raise _fail(f"seed {seed}: restored online bytes differ from the Task23 live digest")
@@ -936,6 +1092,7 @@ def _restore_b0(*, fixture, seed: int, binding, legacy_b0: dict, device: torch.d
         "config": config,
         "cache_head": cache_head,
         "cache_records": cache_records,
+        "identity": identity,
         "checkpoint_sha256": restored.checkpoint_sha256,
     }
 
@@ -1650,16 +1807,16 @@ def run_preflight(args, bdoc: dict) -> dict:
     worktree = Path(args.worktree)
     checks = self_check(args, bdoc)
     _check_contract_files(worktree)
-    lock = capacity.load_task14_v3_lock(worktree)
+    lock = capacity.load_task14_lock(worktree)
     legacy_b0 = capacity.load_legacy_b0_lock(worktree)
-    lock_binding = capacity.validate_task14_v3_lock(
+    lock_binding = capacity.validate_task14_lock(
         lock, worktree=worktree,
         observed_runner_sha256=_sha256_file(_EXPERIMENTS_DIR / "sprint18_task13b_n4_capacity.py"),
     )
     binding = load_task6_binding(args.handoff)
     if binding.executable_binding_sha256 != capacity.EXPECTED_CONTRACT["executable_binding_sha256"]:
         raise _fail("executable certified-DATA binding digest changed")
-    fixture = bdoc["fixture"]
+    fixture = _validate_fixture(bdoc["fixture"])
     b0_records = _load_b0_records(Path(bdoc.get("b0_seed_records", B0_RECORDS_PATH)))
     support = _load_supports(binding, worktree, development=False)
     fit_history_ids = support["fit_history_ids"]
@@ -1667,17 +1824,16 @@ def run_preflight(args, bdoc: dict) -> dict:
     seed_blocks: dict[str, dict] = {}
     for seed in MODEL_SEEDS:
         key = str(seed)
-        identity = _b0_seed_identity(seed, fixture, b0_records[key])
+        restore_identity = _b0_restore_identity(
+            fixture=fixture, seed=seed, b0_record=b0_records[key],
+        )
+        identity = restore_identity["identity"]
+        cache_records = restore_identity["cache_records"]
         arm = _n4_arm(seed, lock_digest)
         observed_config = arm_config_sha256(arm)
         expected_config = lock["config_sha256"].get(f"{ARM_ID}/seed-{seed}")
         if observed_config != expected_config:
-            raise _fail(f"seed {seed}: N4 arm config differs from the prospective v3 lock")
-        cache_head, cache_records = capacity._load_cache_records(Path(identity["cache_path"]))
-        if cache_head.get("cache_sha256") is not None and str(cache_head.get("cache_sha256")) != identity["cache_inner_sha256"]:
-            raise _fail(f"seed {seed}: prediction cache inner digest differs from the accepted B0 record")
-        if len(cache_records) != identity["cache_records"]:
-            raise _fail(f"seed {seed}: prediction cache record count differs from the accepted B0 record")
+            raise _fail(f"seed {seed}: N4 arm config differs from the prospective Task14 lock")
         pools = _cache_pools(cache_records, fit_history_ids)
         bounds = _final_bounds(pools, fit_history_ids)
         canonical_ids = sorted(
@@ -1772,19 +1928,19 @@ def _run_seed(*, seed: int, fixture: dict, b0_record: dict, binding, legacy_b0: 
         torch.cuda.manual_seed_all(seed)
     patchifier = _patchifier()
     fit_history_ids = support["fit_history_ids"]
-    identity = _b0_seed_identity(seed, fixture, b0_record)
     _log_progress(progress, {"run": f"{RUN_ID_PREFIX}-seed{seed}", "event": "restore_b0", "model_seed": seed})
     restored_b0 = _restore_b0(
-        fixture=fixture, seed=seed, binding=binding, legacy_b0=legacy_b0,
+        fixture=fixture, seed=seed, b0_record=b0_record, binding=binding, legacy_b0=legacy_b0,
         device=device, patchifier=patchifier,
     )
+    identity = restored_b0["identity"]
     model = restored_b0["model"]
     config = restored_b0["config"]
     snapshot = _model_state_snapshot(model)
     ema_snapshot = state_sha256(model.target_encoder.state_dict())
     arm_n4 = _n4_arm(seed, lock["coefficient_lock_sha256"])
     if arm_config_sha256(arm_n4) != lock["config_sha256"].get(f"{ARM_ID}/seed-{seed}"):
-        raise _fail(f"seed {seed}: N4 arm config differs from the prospective v3 lock")
+        raise _fail(f"seed {seed}: N4 arm config differs from the prospective Task14 lock")
     pools = _cache_pools(restored_b0["cache_records"], fit_history_ids)
     if smoke:
         pools = {history_id: list(pool)[:SMOKE_RECORDS_PER_HISTORY] for history_id, pool in pools.items()}
@@ -2167,7 +2323,7 @@ def run_full(args, bdoc: dict) -> dict:
     preflight = run_preflight(args, bdoc)
     _write_json(out_dir / "preflight.json", preflight)
     binding = load_task6_binding(args.handoff)
-    lock = capacity.load_task14_v3_lock(worktree)
+    lock = capacity.load_task14_lock(worktree)
     legacy_b0 = capacity.load_legacy_b0_lock(worktree)
     b0_records = _load_b0_records(Path(bdoc.get("b0_seed_records", B0_RECORDS_PATH)))
     support = _load_supports(binding, worktree, development=True)
@@ -2206,7 +2362,7 @@ def run_smoke(args, bdoc: dict) -> dict:
     preflight = run_preflight(args, bdoc)
     _write_json(out_dir / "preflight.json", preflight)
     binding = load_task6_binding(args.handoff)
-    lock = capacity.load_task14_v3_lock(worktree)
+    lock = capacity.load_task14_lock(worktree)
     legacy_b0 = capacity.load_legacy_b0_lock(worktree)
     b0_records = _load_b0_records(Path(bdoc.get("b0_seed_records", B0_RECORDS_PATH)))
     support = _load_supports(binding, worktree, development=True)
