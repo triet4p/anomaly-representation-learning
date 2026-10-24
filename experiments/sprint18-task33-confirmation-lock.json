@@ -1,0 +1,2647 @@
+{
+  "agent_id": "S18T33A01",
+  "arms": {
+    "B0-FULL": {
+      "arm_id": "B0-FULL",
+      "component_set": [],
+      "executable": true,
+      "historical_source": {
+        "binding_sha256": "256f201e910188b69f790bda31ce914b692c162e948d7f0997a09fb8a642815e",
+        "coefficient_lock_sha256": "6eb108b2073181d427f1aedfc81fb3bae4c29595108d15de486082800bdd9d6e",
+        "data_binding_sha256": "383c62114ee6120d5fd19f866dfd585083d1d5899c9ffe91804761bd8a10a2d5",
+        "runner_sha256": "5065b4b4a38089c6a717dac1782d63a373f52a9647db696cd3b75300c316dac1",
+        "source_commit": "1ec9eafb92dc96d536eb3c3507698508d71a67a7",
+        "source_tree": "4ce480cedf4f87107514fcf5985afdf90eb9a5b8"
+      },
+      "mechanism_spec_sha256": null,
+      "principal_change": "unchanged B0 under the common Sprint18 training/evaluation contract",
+      "reference_state_mode": {
+        "S_pop": "reconstructed_digest_verified",
+        "S_pred": "restored_from_custody"
+      },
+      "representation_epochs": 100,
+      "scale_epochs": 0,
+      "scientific_authority": {
+        "arm_config_sha256_by_seed": {
+          "181801": "db83fed9ff129e0dc96a0c342aa400251f58d1febb2ced0ad10c849cee281973",
+          "181802": "d129c953181083709059ccead2d2e26a896ae88c0dd773d8c3c1f428bd69a4e5",
+          "181803": "67ae961a1db6ef3ba5187c2b1eecb3bd2f739b9362335e39718150addb5b197e"
+        },
+        "task14_lock_sha256": "c4c1a8bde14310cf4436c10762e3e98475f7c84eb74fcb8a74b3e267885edec3"
+      },
+      "seeds": {
+        "181801": {
+          "accepted_record": {
+            "path": "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/artifacts/sprint-18/s18-t32-source-c05/accepted-records/B0-FULL/remote-seed-181801-record.json",
+            "sha256": "216a21c96d39025360571a1bcfdd859c7f2123fdff13c589526294534bae57d3"
+          },
+          "arm_config_sha256": "db83fed9ff129e0dc96a0c342aa400251f58d1febb2ced0ad10c849cee281973",
+          "calibration": {
+            "S_pop_threshold": 5.98599042892456,
+            "S_pred_threshold": 0.13165724277496332,
+            "operator": "frozen accepted value; Calibration re-score verifies within 1e-12 and never reselects",
+            "quantile": 0.95,
+            "role_manifest_sha256": "9b83fe7be68c0f1975883c915c5e90db14a854395c3f8d8709fab78d7aa84b56",
+            "source_history": "S18I-ITER-0005-CALIBRATION-01",
+            "source_rows": 1877,
+            "source_support_sha256": "ad5310425f2d5737576a5fe34efc7389e2c07714d68cc188d96199ca4e4f5568"
+          },
+          "checkpoint": {
+            "active_epoch": 100,
+            "ema_state_sha256": "3b1121c3796d688d3d8ccc69fabf73331ae71304269e8108ebc61bd8218f4fd9",
+            "global_step": 4300,
+            "kind": "representation_checkpoint",
+            "model_ema_coherence": "coherent checkpoint: online model and EMA target restored together",
+            "model_state_sha256": "81e07ee1b9161ba353480811678d72bdcf78a3ac67e41fcc0034e11d23a04ef7",
+            "path": "/home/trietlm/s18-t23-a04-runs/full/seed-181801/checkpoints/b0-seed181801-epoch100.pt",
+            "primary_epoch": 100,
+            "sha256": "9292d7c59037cba7b7fd337dbb896ed492777abff4713307c98f86a3b5226a8f"
+          },
+          "coherent_artifact": null,
+          "fit_bank": {
+            "artifact_path": "/home/trietlm/s18-t32-a02-runs/scores/B0-FULL-181801.json.fit-bank/bank.pt",
+            "artifact_sha256": "546e515d407f9bca3a0b9a15b78f281f9000231c27795585bee010f538d9387a",
+            "bank_order_id": "global-file-id-ascending-v1",
+            "bank_recipe_id": "sprint18-fit-bank-restore-v1",
+            "checkpoint_sha256": "9292d7c59037cba7b7fd337dbb896ed492777abff4713307c98f86a3b5226a8f",
+            "custody_basis": "exact accepted-digest restoration from the frozen checkpoint/EMA/normalization and qualified Fit support",
+            "digest_sha256": "2d6e0a117feb7e332792d22e0ecd2d4ab64ef273290e9d9139f9e1efa2416750",
+            "provenance_path": "/home/trietlm/s18-t32-a02-runs/scores/B0-FULL-181801.json.fit-bank/provenance.json",
+            "provenance_sha256": "5e41df5e59bf3b85ddda9b307cd27ffdc280b9d0bbb5f74f6882376f75db1601",
+            "source_rows": 5446,
+            "source_rows_sha256": "447b219e0c77f6d76ed54a4de7a0bee7c2b3a9a8142f61cbb434694ed73acb94"
+          },
+          "input_manifest": {
+            "path": "/home/trietlm/s18-t32-a02-runs/manifests/B0-FULL-181801.json",
+            "sha256": "2196b6233444b664e7bfd6fb82af86b7d0f3f9a7bd964cf358ec5d06a2423828"
+          },
+          "normalization": {
+            "fit_histories": [
+              "S18I-ITER-0005-FIT-01",
+              "S18I-ITER-0005-FIT-02",
+              "S18I-ITER-0005-FIT-03"
+            ],
+            "fit_support_rows": 5446,
+            "fit_support_sha256": "447b219e0c77f6d76ed54a4de7a0bee7c2b3a9a8142f61cbb434694ed73acb94",
+            "kind": "conditional_norm_in_restored_model_checkpoint",
+            "model_state_sha256": "81e07ee1b9161ba353480811678d72bdcf78a3ac67e41fcc0034e11d23a04ef7",
+            "note": "the eligible Fit normalization/standardizer state is restored from the bound checkpoint/reference artifact; no normalization is refitted or replaced for Confirmation",
+            "reference_artifact_sha256": null
+          },
+          "reference_artifact": null
+        },
+        "181802": {
+          "accepted_record": {
+            "path": "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/artifacts/sprint-18/s18-t32-source-c05/accepted-records/B0-FULL/remote-seed-181802-record.json",
+            "sha256": "dc1f908d979ffb0aaade43be1285ee5578f5bca76fa9ce45aff7538c8bcafedc"
+          },
+          "arm_config_sha256": "d129c953181083709059ccead2d2e26a896ae88c0dd773d8c3c1f428bd69a4e5",
+          "calibration": {
+            "S_pop_threshold": 6.825963401794433,
+            "S_pred_threshold": 0.12028366327285757,
+            "operator": "frozen accepted value; Calibration re-score verifies within 1e-12 and never reselects",
+            "quantile": 0.95,
+            "role_manifest_sha256": "9b83fe7be68c0f1975883c915c5e90db14a854395c3f8d8709fab78d7aa84b56",
+            "source_history": "S18I-ITER-0005-CALIBRATION-01",
+            "source_rows": 1877,
+            "source_support_sha256": "ad5310425f2d5737576a5fe34efc7389e2c07714d68cc188d96199ca4e4f5568"
+          },
+          "checkpoint": {
+            "active_epoch": 100,
+            "ema_state_sha256": "e5e0761fd98ac7ab943106667011720e2400323e89f1cff3af902ddf3951ca76",
+            "global_step": 4300,
+            "kind": "representation_checkpoint",
+            "model_ema_coherence": "coherent checkpoint: online model and EMA target restored together",
+            "model_state_sha256": "03e8779e25c0dd7a0730727d41146e5c4cb3b64cfc060d140f221f5905938062",
+            "path": "/home/trietlm/s18-t23-a04-runs/full/seed-181802/checkpoints/b0-seed181802-epoch100.pt",
+            "primary_epoch": 100,
+            "sha256": "8ae58da90818883ffa8b7dd7b0c73fadfcd5a24a0d3f2fc713c9a1d055b6621f"
+          },
+          "coherent_artifact": null,
+          "fit_bank": {
+            "artifact_path": "/home/trietlm/s18-t32-a02-runs/scores/B0-FULL-181802.json.fit-bank/bank.pt",
+            "artifact_sha256": "59b95f3c4897ce7ad35d75ce279c29e22d6338e10562627589b285be57a6b1bd",
+            "bank_order_id": "global-file-id-ascending-v1",
+            "bank_recipe_id": "sprint18-fit-bank-restore-v1",
+            "checkpoint_sha256": "8ae58da90818883ffa8b7dd7b0c73fadfcd5a24a0d3f2fc713c9a1d055b6621f",
+            "custody_basis": "exact accepted-digest restoration from the frozen checkpoint/EMA/normalization and qualified Fit support",
+            "digest_sha256": "d13f03945a80817c508dbe5654d785069eb8018a26a2b7dbd3f7671b9f08d40c",
+            "provenance_path": "/home/trietlm/s18-t32-a02-runs/scores/B0-FULL-181802.json.fit-bank/provenance.json",
+            "provenance_sha256": "c3ed0a8fc18fc5c9aeee7a8142317d4565d0dc056c3a3e49a2554e87d7c1372f",
+            "source_rows": 5446,
+            "source_rows_sha256": "447b219e0c77f6d76ed54a4de7a0bee7c2b3a9a8142f61cbb434694ed73acb94"
+          },
+          "input_manifest": {
+            "path": "/home/trietlm/s18-t32-a02-runs/manifests/B0-FULL-181802.json",
+            "sha256": "2898d9f71bc6acfbbc3f6a69682099d208242a19193f77f2548849f3f1103f47"
+          },
+          "normalization": {
+            "fit_histories": [
+              "S18I-ITER-0005-FIT-01",
+              "S18I-ITER-0005-FIT-02",
+              "S18I-ITER-0005-FIT-03"
+            ],
+            "fit_support_rows": 5446,
+            "fit_support_sha256": "447b219e0c77f6d76ed54a4de7a0bee7c2b3a9a8142f61cbb434694ed73acb94",
+            "kind": "conditional_norm_in_restored_model_checkpoint",
+            "model_state_sha256": "03e8779e25c0dd7a0730727d41146e5c4cb3b64cfc060d140f221f5905938062",
+            "note": "the eligible Fit normalization/standardizer state is restored from the bound checkpoint/reference artifact; no normalization is refitted or replaced for Confirmation",
+            "reference_artifact_sha256": null
+          },
+          "reference_artifact": null
+        },
+        "181803": {
+          "accepted_record": {
+            "path": "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/artifacts/sprint-18/s18-t32-source-c05/accepted-records/B0-FULL/remote-seed-181803-record.json",
+            "sha256": "042cc915a78a33d8e9bb649037bc1e95b058b9138fd323f0d4aa49c2188ab66b"
+          },
+          "arm_config_sha256": "67ae961a1db6ef3ba5187c2b1eecb3bd2f739b9362335e39718150addb5b197e",
+          "calibration": {
+            "S_pop_threshold": 6.811013221740723,
+            "S_pred_threshold": 0.10772727578878397,
+            "operator": "frozen accepted value; Calibration re-score verifies within 1e-12 and never reselects",
+            "quantile": 0.95,
+            "role_manifest_sha256": "9b83fe7be68c0f1975883c915c5e90db14a854395c3f8d8709fab78d7aa84b56",
+            "source_history": "S18I-ITER-0005-CALIBRATION-01",
+            "source_rows": 1877,
+            "source_support_sha256": "ad5310425f2d5737576a5fe34efc7389e2c07714d68cc188d96199ca4e4f5568"
+          },
+          "checkpoint": {
+            "active_epoch": 100,
+            "ema_state_sha256": "8c5f9e1b4dd8fb694060af1d610f96327100bd9c08556b8b5b0d4be6d4f9953d",
+            "global_step": 4300,
+            "kind": "representation_checkpoint",
+            "model_ema_coherence": "coherent checkpoint: online model and EMA target restored together",
+            "model_state_sha256": "4b5936e84deb6b753afdaf28ca079883a889c3947544fd0b15f22bb9fdbfdf8e",
+            "path": "/home/trietlm/s18-t23-a04-runs/full/seed-181803/checkpoints/b0-seed181803-epoch100.pt",
+            "primary_epoch": 100,
+            "sha256": "79edbdf37e4180368814e02b7201c7dd3f8a7b4c7bc47408bd9bbde5d059d408"
+          },
+          "coherent_artifact": null,
+          "fit_bank": {
+            "artifact_path": "/home/trietlm/s18-t32-a02-runs/scores/B0-FULL-181803.json.fit-bank/bank.pt",
+            "artifact_sha256": "c234c0b637c46898f4edfad7802b3cf269ad0f7fc5487a28412c0772790fb235",
+            "bank_order_id": "global-file-id-ascending-v1",
+            "bank_recipe_id": "sprint18-fit-bank-restore-v1",
+            "checkpoint_sha256": "79edbdf37e4180368814e02b7201c7dd3f8a7b4c7bc47408bd9bbde5d059d408",
+            "custody_basis": "exact accepted-digest restoration from the frozen checkpoint/EMA/normalization and qualified Fit support",
+            "digest_sha256": "2a136229e19c98c9346c9217ebad71e54ef5e5b9e099a62d342270ac970fee01",
+            "provenance_path": "/home/trietlm/s18-t32-a02-runs/scores/B0-FULL-181803.json.fit-bank/provenance.json",
+            "provenance_sha256": "cae51624ab9d6c45952707148d8aff14bf505a7cfd1b702f2c8e54c17c5c1fcd",
+            "source_rows": 5446,
+            "source_rows_sha256": "447b219e0c77f6d76ed54a4de7a0bee7c2b3a9a8142f61cbb434694ed73acb94"
+          },
+          "input_manifest": {
+            "path": "/home/trietlm/s18-t32-a02-runs/manifests/B0-FULL-181803.json",
+            "sha256": "2a160b60494abe69164d7ac6b03c4cff12348f95292f523724fc96a9c94eb97e"
+          },
+          "normalization": {
+            "fit_histories": [
+              "S18I-ITER-0005-FIT-01",
+              "S18I-ITER-0005-FIT-02",
+              "S18I-ITER-0005-FIT-03"
+            ],
+            "fit_support_rows": 5446,
+            "fit_support_sha256": "447b219e0c77f6d76ed54a4de7a0bee7c2b3a9a8142f61cbb434694ed73acb94",
+            "kind": "conditional_norm_in_restored_model_checkpoint",
+            "model_state_sha256": "4b5936e84deb6b753afdaf28ca079883a889c3947544fd0b15f22bb9fdbfdf8e",
+            "note": "the eligible Fit normalization/standardizer state is restored from the bound checkpoint/reference artifact; no normalization is refitted or replaced for Confirmation",
+            "reference_artifact_sha256": null
+          },
+          "reference_artifact": null
+        }
+      },
+      "snapshot_rule": "epoch-100 representation checkpoint is the sole primary; diagnostic checkpoints are never eligible",
+      "status": "VALID"
+    },
+    "K3-FULL": {
+      "arm_id": "K3-FULL",
+      "component_set": [
+        "C5-A",
+        "C6-A"
+      ],
+      "executable": true,
+      "historical_source": {
+        "binding_sha256": "adfc060cf93af45b5a7dc7789efbbf9f73af232dc5e9523ddebbd3cdacc6112c",
+        "coefficient_lock_sha256": "6eb108b2073181d427f1aedfc81fb3bae4c29595108d15de486082800bdd9d6e",
+        "data_binding_sha256": "383c62114ee6120d5fd19f866dfd585083d1d5899c9ffe91804761bd8a10a2d5",
+        "runner_sha256": "aa87bb13d409590744ca8e1625c11ca6abd3952752e80b496dff32f299579abd",
+        "source_commit": "4fdf021f8e90e02d94eb01b7a1b7aadcc963c56e",
+        "source_tree": "400c0e435b5afa3a70899ddbe1bbe5a745e77123"
+      },
+      "mechanism_spec_sha256": null,
+      "principal_change": "exact Sprint17 K3 membership C5-A + C6-A; no member substitution",
+      "reference_state_mode": {
+        "S_pop": "reconstructed_digest_verified",
+        "S_pred": "restored_from_custody"
+      },
+      "representation_epochs": 100,
+      "scale_epochs": 0,
+      "scientific_authority": {
+        "arm_config_sha256_by_seed": {
+          "181801": "4a63c27cf9e78666b46d2c7fd28e29b0ed9cf32ec47fa46de470149bb31a4888",
+          "181802": "cf5ce3cc584e6845ade5e4bec1bf7d0114358d2f96b41bb3b9f81d033f54f2de",
+          "181803": "0fbfa39a5dbf20bf4649de4d30d3996a22378dba1262f5452f39a59a837ab93f"
+        },
+        "task14_lock_sha256": "c4c1a8bde14310cf4436c10762e3e98475f7c84eb74fcb8a74b3e267885edec3"
+      },
+      "seeds": {
+        "181801": {
+          "accepted_record": {
+            "path": "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/artifacts/sprint-18/s18-t32-source-c05/accepted-records/K3-FULL/seed-181801-record.json",
+            "sha256": "cb10c59fd5287a499df7482023aac887cc03412ae6fd338d45e21328d6699bcd"
+          },
+          "arm_config_sha256": "4a63c27cf9e78666b46d2c7fd28e29b0ed9cf32ec47fa46de470149bb31a4888",
+          "calibration": {
+            "S_pop_threshold": 11.066334915161132,
+            "S_pred_threshold": 0.17945405840873704,
+            "operator": "frozen accepted value; Calibration re-score verifies within 1e-12 and never reselects",
+            "quantile": 0.95,
+            "role_manifest_sha256": "9b83fe7be68c0f1975883c915c5e90db14a854395c3f8d8709fab78d7aa84b56",
+            "source_history": "S18I-ITER-0005-CALIBRATION-01",
+            "source_rows": 1877,
+            "source_support_sha256": "ad5310425f2d5737576a5fe34efc7389e2c07714d68cc188d96199ca4e4f5568"
+          },
+          "checkpoint": {
+            "active_epoch": 100,
+            "ema_state_sha256": "15f8a8913a8ee935836529fffe6147abc2563d76ca210657705f86ec86a7360c",
+            "global_step": 4300,
+            "kind": "representation_checkpoint",
+            "model_ema_coherence": "coherent checkpoint: online model and EMA target restored together",
+            "model_state_sha256": "cac481cde51307de820a6779a2701dc5f11ee763f3b415f1b5adb36949cd5609",
+            "path": "/home/trietlm/s18-t24-a02-runs/full/seed-181801/checkpoints/k3-seed181801-epoch100.pt",
+            "primary_epoch": 100,
+            "sha256": "445e470e2d2bdec962fa7ce8d4c0da80ccc2ae45a88b87433588c441e9d33ddd"
+          },
+          "coherent_artifact": null,
+          "fit_bank": {
+            "artifact_path": "/home/trietlm/s18-t32-a02-runs/scores/K3-FULL-181801.json.fit-bank/bank.pt",
+            "artifact_sha256": "6039b487f267b369dfe73faeab4ebb7a929c977439f77557a1c1c68dfc093b98",
+            "bank_order_id": "global-file-id-ascending-v1",
+            "bank_recipe_id": "sprint18-fit-bank-restore-v1",
+            "checkpoint_sha256": "445e470e2d2bdec962fa7ce8d4c0da80ccc2ae45a88b87433588c441e9d33ddd",
+            "custody_basis": "exact accepted-digest restoration from the frozen checkpoint/EMA/normalization and qualified Fit support",
+            "digest_sha256": "4c1f462a8d95259f6f2aa11f236b3fc3e8c0dc114514d71ffc9b356a969fe691",
+            "provenance_path": "/home/trietlm/s18-t32-a02-runs/scores/K3-FULL-181801.json.fit-bank/provenance.json",
+            "provenance_sha256": "c0eb0934b181ffb8a003224e9deba2a8ac7886888341eec27c09acce3fae25be",
+            "source_rows": 5446,
+            "source_rows_sha256": "447b219e0c77f6d76ed54a4de7a0bee7c2b3a9a8142f61cbb434694ed73acb94"
+          },
+          "input_manifest": {
+            "path": "/home/trietlm/s18-t32-a02-runs/manifests/K3-FULL-181801.json",
+            "sha256": "c3bcb860394045bfcce52ae9262670c66c82fb0ed8abd270f8a58a3ea39f7813"
+          },
+          "normalization": {
+            "fit_histories": [
+              "S18I-ITER-0005-FIT-01",
+              "S18I-ITER-0005-FIT-02",
+              "S18I-ITER-0005-FIT-03"
+            ],
+            "fit_support_rows": 5446,
+            "fit_support_sha256": "447b219e0c77f6d76ed54a4de7a0bee7c2b3a9a8142f61cbb434694ed73acb94",
+            "kind": "conditional_norm_in_restored_model_checkpoint",
+            "model_state_sha256": "cac481cde51307de820a6779a2701dc5f11ee763f3b415f1b5adb36949cd5609",
+            "note": "the eligible Fit normalization/standardizer state is restored from the bound checkpoint/reference artifact; no normalization is refitted or replaced for Confirmation",
+            "reference_artifact_sha256": null
+          },
+          "reference_artifact": null
+        },
+        "181802": {
+          "accepted_record": {
+            "path": "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/artifacts/sprint-18/s18-t32-source-c05/accepted-records/K3-FULL/seed-181802-record.json",
+            "sha256": "39874b5096a86f7039c650b31777df52c748111a9fb3e385272d43b0bc3c6eac"
+          },
+          "arm_config_sha256": "cf5ce3cc584e6845ade5e4bec1bf7d0114358d2f96b41bb3b9f81d033f54f2de",
+          "calibration": {
+            "S_pop_threshold": 12.397246932983398,
+            "S_pred_threshold": 0.17247628867626186,
+            "operator": "frozen accepted value; Calibration re-score verifies within 1e-12 and never reselects",
+            "quantile": 0.95,
+            "role_manifest_sha256": "9b83fe7be68c0f1975883c915c5e90db14a854395c3f8d8709fab78d7aa84b56",
+            "source_history": "S18I-ITER-0005-CALIBRATION-01",
+            "source_rows": 1877,
+            "source_support_sha256": "ad5310425f2d5737576a5fe34efc7389e2c07714d68cc188d96199ca4e4f5568"
+          },
+          "checkpoint": {
+            "active_epoch": 100,
+            "ema_state_sha256": "d460057c97b2a197d4e3008f42f6b97bb71236a8043e64e873250f26407f4ece",
+            "global_step": 4300,
+            "kind": "representation_checkpoint",
+            "model_ema_coherence": "coherent checkpoint: online model and EMA target restored together",
+            "model_state_sha256": "f336692f5ffad71e35cc092f81c923409123673d82c82d708de8321865788440",
+            "path": "/home/trietlm/s18-t24-a02-runs/full/seed-181802/checkpoints/k3-seed181802-epoch100.pt",
+            "primary_epoch": 100,
+            "sha256": "9fb301139a1538d5c64f774810ca496791e526de4035dc1cccfc053efa8726d8"
+          },
+          "coherent_artifact": null,
+          "fit_bank": {
+            "artifact_path": "/home/trietlm/s18-t32-a02-runs/scores/K3-FULL-181802.json.fit-bank/bank.pt",
+            "artifact_sha256": "cdd708a015dbc576efb6c8bb476f9448501236730ff4ecc51e8f565701c9badf",
+            "bank_order_id": "global-file-id-ascending-v1",
+            "bank_recipe_id": "sprint18-fit-bank-restore-v1",
+            "checkpoint_sha256": "9fb301139a1538d5c64f774810ca496791e526de4035dc1cccfc053efa8726d8",
+            "custody_basis": "exact accepted-digest restoration from the frozen checkpoint/EMA/normalization and qualified Fit support",
+            "digest_sha256": "0f8f50b1e9a3b842ec5600afbb8d539732b7119d4bbb33752e4c40093284390d",
+            "provenance_path": "/home/trietlm/s18-t32-a02-runs/scores/K3-FULL-181802.json.fit-bank/provenance.json",
+            "provenance_sha256": "d92c712dd254a6fa58d7883e2aac913883c7158a9f9db0c97a0e8afc7e5a1eac",
+            "source_rows": 5446,
+            "source_rows_sha256": "447b219e0c77f6d76ed54a4de7a0bee7c2b3a9a8142f61cbb434694ed73acb94"
+          },
+          "input_manifest": {
+            "path": "/home/trietlm/s18-t32-a02-runs/manifests/K3-FULL-181802.json",
+            "sha256": "d19ffd11460900155009919b024dfaffcc35ef2d5c4503a3b4554e0345b50e27"
+          },
+          "normalization": {
+            "fit_histories": [
+              "S18I-ITER-0005-FIT-01",
+              "S18I-ITER-0005-FIT-02",
+              "S18I-ITER-0005-FIT-03"
+            ],
+            "fit_support_rows": 5446,
+            "fit_support_sha256": "447b219e0c77f6d76ed54a4de7a0bee7c2b3a9a8142f61cbb434694ed73acb94",
+            "kind": "conditional_norm_in_restored_model_checkpoint",
+            "model_state_sha256": "f336692f5ffad71e35cc092f81c923409123673d82c82d708de8321865788440",
+            "note": "the eligible Fit normalization/standardizer state is restored from the bound checkpoint/reference artifact; no normalization is refitted or replaced for Confirmation",
+            "reference_artifact_sha256": null
+          },
+          "reference_artifact": null
+        },
+        "181803": {
+          "accepted_record": {
+            "path": "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/artifacts/sprint-18/s18-t32-source-c05/accepted-records/K3-FULL/seed-181803-record.json",
+            "sha256": "9bb0df2854c0ea0b8de2a2613f74d40214a1ff5a5c2fab73cfc7986a6e4e325e"
+          },
+          "arm_config_sha256": "0fbfa39a5dbf20bf4649de4d30d3996a22378dba1262f5452f39a59a837ab93f",
+          "calibration": {
+            "S_pop_threshold": 12.286967277526855,
+            "S_pred_threshold": 0.18376679420471187,
+            "operator": "frozen accepted value; Calibration re-score verifies within 1e-12 and never reselects",
+            "quantile": 0.95,
+            "role_manifest_sha256": "9b83fe7be68c0f1975883c915c5e90db14a854395c3f8d8709fab78d7aa84b56",
+            "source_history": "S18I-ITER-0005-CALIBRATION-01",
+            "source_rows": 1877,
+            "source_support_sha256": "ad5310425f2d5737576a5fe34efc7389e2c07714d68cc188d96199ca4e4f5568"
+          },
+          "checkpoint": {
+            "active_epoch": 100,
+            "ema_state_sha256": "92ac5d4ca70e6d2bdfca63d12b1487664619ca9cd589e716a75df43758414d8a",
+            "global_step": 4300,
+            "kind": "representation_checkpoint",
+            "model_ema_coherence": "coherent checkpoint: online model and EMA target restored together",
+            "model_state_sha256": "df6c585b2e00c0455e1c0bd809a76eef2e022de62e8babb198d545c821aac62c",
+            "path": "/home/trietlm/s18-t24-a02-runs/full/seed-181803/checkpoints/k3-seed181803-epoch100.pt",
+            "primary_epoch": 100,
+            "sha256": "679ea9a9a1822eee1d0e88ab61a025bbb44b06788834aa6178c16af876745801"
+          },
+          "coherent_artifact": null,
+          "fit_bank": {
+            "artifact_path": "/home/trietlm/s18-t32-a02-runs/scores/K3-FULL-181803.json.fit-bank/bank.pt",
+            "artifact_sha256": "5844b377591bf256a842693cceb10047807da9a912f9a7aa8b3dadc2cc475b8c",
+            "bank_order_id": "global-file-id-ascending-v1",
+            "bank_recipe_id": "sprint18-fit-bank-restore-v1",
+            "checkpoint_sha256": "679ea9a9a1822eee1d0e88ab61a025bbb44b06788834aa6178c16af876745801",
+            "custody_basis": "exact accepted-digest restoration from the frozen checkpoint/EMA/normalization and qualified Fit support",
+            "digest_sha256": "b3e1a73c7ccde85db861c6b6f84699c0024ed6252f305c8bbf47821efb68d4a4",
+            "provenance_path": "/home/trietlm/s18-t32-a02-runs/scores/K3-FULL-181803.json.fit-bank/provenance.json",
+            "provenance_sha256": "ffae7416ab6460654b96615dc2b4be98c33949bc0ce104a3abe09089b13f58c6",
+            "source_rows": 5446,
+            "source_rows_sha256": "447b219e0c77f6d76ed54a4de7a0bee7c2b3a9a8142f61cbb434694ed73acb94"
+          },
+          "input_manifest": {
+            "path": "/home/trietlm/s18-t32-a02-runs/manifests/K3-FULL-181803.json",
+            "sha256": "bb69338de70fc659f315f56695c6dc894445654bc56fb61c4164fcfda91cb339"
+          },
+          "normalization": {
+            "fit_histories": [
+              "S18I-ITER-0005-FIT-01",
+              "S18I-ITER-0005-FIT-02",
+              "S18I-ITER-0005-FIT-03"
+            ],
+            "fit_support_rows": 5446,
+            "fit_support_sha256": "447b219e0c77f6d76ed54a4de7a0bee7c2b3a9a8142f61cbb434694ed73acb94",
+            "kind": "conditional_norm_in_restored_model_checkpoint",
+            "model_state_sha256": "df6c585b2e00c0455e1c0bd809a76eef2e022de62e8babb198d545c821aac62c",
+            "note": "the eligible Fit normalization/standardizer state is restored from the bound checkpoint/reference artifact; no normalization is refitted or replaced for Confirmation",
+            "reference_artifact_sha256": null
+          },
+          "reference_artifact": null
+        }
+      },
+      "snapshot_rule": "epoch-100 representation checkpoint is the sole primary; diagnostic checkpoints are never eligible",
+      "status": "VALID"
+    },
+    "K7-FULL": {
+      "arm_id": "K7-FULL",
+      "component_set": [
+        "C2-A",
+        "C3-A",
+        "C5-A",
+        "C6-A"
+      ],
+      "executable": true,
+      "historical_source": {
+        "binding_sha256": "19e2cc424b2e6d843170dd4fac45c3e0806aa84f510e62f82c4bf229660b0015",
+        "coefficient_lock_sha256": "6eb108b2073181d427f1aedfc81fb3bae4c29595108d15de486082800bdd9d6e",
+        "data_binding_sha256": "383c62114ee6120d5fd19f866dfd585083d1d5899c9ffe91804761bd8a10a2d5",
+        "runner_sha256": "0781214b0c641e12953ff6a76a89ba9234b1e693f745ff6a320bfde19e586548",
+        "source_commit": "646f3481565337cf8c2d07809b8027a2dc7cf821",
+        "source_tree": "d5c7a941894a3a12ca7d3d073b85edb7af5f797a"
+      },
+      "mechanism_spec_sha256": null,
+      "principal_change": "exact Sprint17 K7 membership C2-A + C3-A + C5-A + C6-A; no member substitution",
+      "reference_state_mode": {
+        "S_pop": "reconstructed_digest_verified",
+        "S_pred": "restored_from_custody"
+      },
+      "representation_epochs": 100,
+      "scale_epochs": 0,
+      "scientific_authority": {
+        "arm_config_sha256_by_seed": {
+          "181801": "812b89c994decaebf391584aa52a61cf0eea48cd09773b8f5428e3ee0e68dcf6",
+          "181802": "4c93c8239eedf2f3cd3b4ec39afbb6dcf6a74227e03cf8aed9e5d0c17e7c6413",
+          "181803": "67b314f51036133478b435cf10d10a8d6d254f60099d39329cf2caa9180a31d1"
+        },
+        "task14_lock_sha256": "c4c1a8bde14310cf4436c10762e3e98475f7c84eb74fcb8a74b3e267885edec3"
+      },
+      "seeds": {
+        "181801": {
+          "accepted_record": {
+            "path": "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/artifacts/sprint-18/s18-t32-source-c05/accepted-records/K7-FULL/seed-181801-record.json",
+            "sha256": "92e62cdb8acc5f9bc9eb8146f5a022309694778839e5301fe77e0936da6fe110"
+          },
+          "arm_config_sha256": "812b89c994decaebf391584aa52a61cf0eea48cd09773b8f5428e3ee0e68dcf6",
+          "calibration": {
+            "S_pop_threshold": 11.916709518432617,
+            "S_pred_threshold": 0.17466666400432576,
+            "operator": "frozen accepted value; Calibration re-score verifies within 1e-12 and never reselects",
+            "quantile": 0.95,
+            "role_manifest_sha256": "9b83fe7be68c0f1975883c915c5e90db14a854395c3f8d8709fab78d7aa84b56",
+            "source_history": "S18I-ITER-0005-CALIBRATION-01",
+            "source_rows": 1877,
+            "source_support_sha256": "ad5310425f2d5737576a5fe34efc7389e2c07714d68cc188d96199ca4e4f5568"
+          },
+          "checkpoint": {
+            "active_epoch": 100,
+            "ema_state_sha256": "5f7e669a795da24efc499360bffaab116dd5d7ee9277a5909cf7b608dde0cc5e",
+            "global_step": 4300,
+            "kind": "representation_checkpoint",
+            "model_ema_coherence": "coherent checkpoint: online model and EMA target restored together",
+            "model_state_sha256": "60541f5cebd6ff8f048575cf9e5995012a23016e4fe3a4decd1dec4f41de40f3",
+            "path": "/home/trietlm/s18-t25-a02-runs/full/seed-181801/checkpoints/k7-seed181801-epoch100.pt",
+            "primary_epoch": 100,
+            "sha256": "bf20994e11d130a757158059526ea57344cb056ff885840d182db8e2fc26d3da"
+          },
+          "coherent_artifact": null,
+          "fit_bank": {
+            "artifact_path": "/home/trietlm/s18-t32-a02-runs/scores/K7-FULL-181801.json.fit-bank/bank.pt",
+            "artifact_sha256": "6fb3b408c3835a60f9662c5a44ecdb17445593f2f4fa7a4068c4060a7693d850",
+            "bank_order_id": "global-file-id-ascending-v1",
+            "bank_recipe_id": "sprint18-fit-bank-restore-v1",
+            "checkpoint_sha256": "bf20994e11d130a757158059526ea57344cb056ff885840d182db8e2fc26d3da",
+            "custody_basis": "exact accepted-digest restoration from the frozen checkpoint/EMA/normalization and qualified Fit support",
+            "digest_sha256": "12ef30bb1a9201d357e2a37d8383128565adb31b365ca24f45896fc24ff04782",
+            "provenance_path": "/home/trietlm/s18-t32-a02-runs/scores/K7-FULL-181801.json.fit-bank/provenance.json",
+            "provenance_sha256": "50cd5cd54d636c94ef5b7ef52fa4e425170c09584308060edd5bcf8265e71dc2",
+            "source_rows": 5446,
+            "source_rows_sha256": "447b219e0c77f6d76ed54a4de7a0bee7c2b3a9a8142f61cbb434694ed73acb94"
+          },
+          "input_manifest": {
+            "path": "/home/trietlm/s18-t32-a02-runs/manifests/K7-FULL-181801.json",
+            "sha256": "5e52d8ccfea2e0fc931e4dee562ee8b6ad98369a95f23299e513d098bf30e66c"
+          },
+          "normalization": {
+            "fit_histories": [
+              "S18I-ITER-0005-FIT-01",
+              "S18I-ITER-0005-FIT-02",
+              "S18I-ITER-0005-FIT-03"
+            ],
+            "fit_support_rows": 5446,
+            "fit_support_sha256": "447b219e0c77f6d76ed54a4de7a0bee7c2b3a9a8142f61cbb434694ed73acb94",
+            "kind": "conditional_norm_in_restored_model_checkpoint",
+            "model_state_sha256": "60541f5cebd6ff8f048575cf9e5995012a23016e4fe3a4decd1dec4f41de40f3",
+            "note": "the eligible Fit normalization/standardizer state is restored from the bound checkpoint/reference artifact; no normalization is refitted or replaced for Confirmation",
+            "reference_artifact_sha256": null
+          },
+          "reference_artifact": null
+        },
+        "181802": {
+          "accepted_record": {
+            "path": "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/artifacts/sprint-18/s18-t32-source-c05/accepted-records/K7-FULL/seed-181802-record.json",
+            "sha256": "fcc796632326044041a9581c683b8516598539b1f27e125e1b8617aec09a4907"
+          },
+          "arm_config_sha256": "4c93c8239eedf2f3cd3b4ec39afbb6dcf6a74227e03cf8aed9e5d0c17e7c6413",
+          "calibration": {
+            "S_pop_threshold": 12.217650794982909,
+            "S_pred_threshold": 0.18783607780933373,
+            "operator": "frozen accepted value; Calibration re-score verifies within 1e-12 and never reselects",
+            "quantile": 0.95,
+            "role_manifest_sha256": "9b83fe7be68c0f1975883c915c5e90db14a854395c3f8d8709fab78d7aa84b56",
+            "source_history": "S18I-ITER-0005-CALIBRATION-01",
+            "source_rows": 1877,
+            "source_support_sha256": "ad5310425f2d5737576a5fe34efc7389e2c07714d68cc188d96199ca4e4f5568"
+          },
+          "checkpoint": {
+            "active_epoch": 100,
+            "ema_state_sha256": "3e8ac5e00b4c4b27ba15bd79fd068e43dad506d48394259c1bdd30e2759fe09e",
+            "global_step": 4300,
+            "kind": "representation_checkpoint",
+            "model_ema_coherence": "coherent checkpoint: online model and EMA target restored together",
+            "model_state_sha256": "f2d9bc45580a98532bad3991949309894d19f195d55a11e02f37b2812b9cdb22",
+            "path": "/home/trietlm/s18-t25-a02-runs/full/seed-181802/checkpoints/k7-seed181802-epoch100.pt",
+            "primary_epoch": 100,
+            "sha256": "e24c187c0dd7323d54f0a708c818cc1e6bac690fd7e86a5b0c35c4114bedb287"
+          },
+          "coherent_artifact": null,
+          "fit_bank": {
+            "artifact_path": "/home/trietlm/s18-t32-a02-runs/scores/K7-FULL-181802.json.fit-bank/bank.pt",
+            "artifact_sha256": "57f45b18307f88228d3a679b93a9c5c20f0f43d7b9411873d0a9cfa141fa19c1",
+            "bank_order_id": "global-file-id-ascending-v1",
+            "bank_recipe_id": "sprint18-fit-bank-restore-v1",
+            "checkpoint_sha256": "e24c187c0dd7323d54f0a708c818cc1e6bac690fd7e86a5b0c35c4114bedb287",
+            "custody_basis": "exact accepted-digest restoration from the frozen checkpoint/EMA/normalization and qualified Fit support",
+            "digest_sha256": "17d7bf124b8fec66c917b6a5da0bc2afcec60ea47370398435c1710af4f10942",
+            "provenance_path": "/home/trietlm/s18-t32-a02-runs/scores/K7-FULL-181802.json.fit-bank/provenance.json",
+            "provenance_sha256": "451f75553408d02b543fcd57a51a40b1454ffc936eb19ee8eed69a5b1d505fda",
+            "source_rows": 5446,
+            "source_rows_sha256": "447b219e0c77f6d76ed54a4de7a0bee7c2b3a9a8142f61cbb434694ed73acb94"
+          },
+          "input_manifest": {
+            "path": "/home/trietlm/s18-t32-a02-runs/manifests/K7-FULL-181802.json",
+            "sha256": "a5f52f40846721957cdb84bed7886e8c9258dae580346221a8c232ffcf82b6b2"
+          },
+          "normalization": {
+            "fit_histories": [
+              "S18I-ITER-0005-FIT-01",
+              "S18I-ITER-0005-FIT-02",
+              "S18I-ITER-0005-FIT-03"
+            ],
+            "fit_support_rows": 5446,
+            "fit_support_sha256": "447b219e0c77f6d76ed54a4de7a0bee7c2b3a9a8142f61cbb434694ed73acb94",
+            "kind": "conditional_norm_in_restored_model_checkpoint",
+            "model_state_sha256": "f2d9bc45580a98532bad3991949309894d19f195d55a11e02f37b2812b9cdb22",
+            "note": "the eligible Fit normalization/standardizer state is restored from the bound checkpoint/reference artifact; no normalization is refitted or replaced for Confirmation",
+            "reference_artifact_sha256": null
+          },
+          "reference_artifact": null
+        },
+        "181803": {
+          "accepted_record": {
+            "path": "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/artifacts/sprint-18/s18-t32-source-c05/accepted-records/K7-FULL/seed-181803-record.json",
+            "sha256": "eb479260f24bd536e321bf88920a8465d1fefbbec695ec910466736b4730c92e"
+          },
+          "arm_config_sha256": "67b314f51036133478b435cf10d10a8d6d254f60099d39329cf2caa9180a31d1",
+          "calibration": {
+            "S_pop_threshold": 11.937375640869138,
+            "S_pred_threshold": 0.2104632824659347,
+            "operator": "frozen accepted value; Calibration re-score verifies within 1e-12 and never reselects",
+            "quantile": 0.95,
+            "role_manifest_sha256": "9b83fe7be68c0f1975883c915c5e90db14a854395c3f8d8709fab78d7aa84b56",
+            "source_history": "S18I-ITER-0005-CALIBRATION-01",
+            "source_rows": 1877,
+            "source_support_sha256": "ad5310425f2d5737576a5fe34efc7389e2c07714d68cc188d96199ca4e4f5568"
+          },
+          "checkpoint": {
+            "active_epoch": 100,
+            "ema_state_sha256": "6f1fc22a9423eb20a53b709652f750890f1ce75cdcc2301ef2d35b60235076a3",
+            "global_step": 4300,
+            "kind": "representation_checkpoint",
+            "model_ema_coherence": "coherent checkpoint: online model and EMA target restored together",
+            "model_state_sha256": "628b06f242e8068232af1591610f3436efb906c4d31a791ad9ac0c314e977551",
+            "path": "/home/trietlm/s18-t25-a02-runs/full/seed-181803/checkpoints/k7-seed181803-epoch100.pt",
+            "primary_epoch": 100,
+            "sha256": "7190e49f90f326c469878979043c8ec5478bfa4e16e1a5fe5b093a8415393ffb"
+          },
+          "coherent_artifact": null,
+          "fit_bank": {
+            "artifact_path": "/home/trietlm/s18-t32-a02-runs/scores/K7-FULL-181803.json.fit-bank/bank.pt",
+            "artifact_sha256": "6f67211fd5b95a8c68b18d0b6bce5df07b19b26f6d4178081ad172a5a45e3035",
+            "bank_order_id": "global-file-id-ascending-v1",
+            "bank_recipe_id": "sprint18-fit-bank-restore-v1",
+            "checkpoint_sha256": "7190e49f90f326c469878979043c8ec5478bfa4e16e1a5fe5b093a8415393ffb",
+            "custody_basis": "exact accepted-digest restoration from the frozen checkpoint/EMA/normalization and qualified Fit support",
+            "digest_sha256": "26756889c43d3fe9fe3a0a735375448ccd95c09797b816e12c15b993f6da2d00",
+            "provenance_path": "/home/trietlm/s18-t32-a02-runs/scores/K7-FULL-181803.json.fit-bank/provenance.json",
+            "provenance_sha256": "d7feef6ac48c2ba0578ab9fca607e0d02592a05d36d20473938964cf1c72309c",
+            "source_rows": 5446,
+            "source_rows_sha256": "447b219e0c77f6d76ed54a4de7a0bee7c2b3a9a8142f61cbb434694ed73acb94"
+          },
+          "input_manifest": {
+            "path": "/home/trietlm/s18-t32-a02-runs/manifests/K7-FULL-181803.json",
+            "sha256": "9ca0e5f4b1c8c857305f5915759d153e07851ee95cc122da87637614c1231f62"
+          },
+          "normalization": {
+            "fit_histories": [
+              "S18I-ITER-0005-FIT-01",
+              "S18I-ITER-0005-FIT-02",
+              "S18I-ITER-0005-FIT-03"
+            ],
+            "fit_support_rows": 5446,
+            "fit_support_sha256": "447b219e0c77f6d76ed54a4de7a0bee7c2b3a9a8142f61cbb434694ed73acb94",
+            "kind": "conditional_norm_in_restored_model_checkpoint",
+            "model_state_sha256": "628b06f242e8068232af1591610f3436efb906c4d31a791ad9ac0c314e977551",
+            "note": "the eligible Fit normalization/standardizer state is restored from the bound checkpoint/reference artifact; no normalization is refitted or replaced for Confirmation",
+            "reference_artifact_sha256": null
+          },
+          "reference_artifact": null
+        }
+      },
+      "snapshot_rule": "epoch-100 representation checkpoint is the sole primary; diagnostic checkpoints are never eligible",
+      "status": "VALID"
+    },
+    "K9-FULL": {
+      "arm_id": "K9-FULL",
+      "component_set": [
+        "C2-A",
+        "C3-A",
+        "C5-A",
+        "C6-A",
+        "C7-A",
+        "C8-A",
+        "C9-B"
+      ],
+      "executable": true,
+      "historical_source": {
+        "binding_sha256": "0f7cfe51c5d66e9d21fa9d2fe1f8bd48f640b0db425dcb538981de981f61d1a2",
+        "coefficient_lock_sha256": "6eb108b2073181d427f1aedfc81fb3bae4c29595108d15de486082800bdd9d6e",
+        "data_binding_sha256": "383c62114ee6120d5fd19f866dfd585083d1d5899c9ffe91804761bd8a10a2d5",
+        "runner_sha256": "ee326752c8c8ae70423a9a62cc806fd64b569d15162fdba835ac2773123356ba",
+        "source_commit": "b31c91bbe993be6dc4637db5cfc5917ee67469d1",
+        "source_tree": "b307085e3ee1f0cddedd81488e99a5d03121c9f2"
+      },
+      "mechanism_spec_sha256": null,
+      "principal_change": "exact Sprint17 K9 membership C2-A + C3-A + C5-A + C6-A + C7-A + C8-A + C9-B; no member substitution",
+      "reference_state_mode": {
+        "S_pop": "restored_from_custody",
+        "S_pred": "restored_from_custody"
+      },
+      "representation_epochs": 100,
+      "scale_epochs": 0,
+      "scientific_authority": {
+        "arm_config_sha256_by_seed": {
+          "181801": "ccfdbc79eadfc2b63c8a2061434b169f2040659611f816c29aeefb8e1b91903b",
+          "181802": "39a5a273fea9124adaad8b0ae3fe8988d7ca8625db50f63b7d9c0bbddd326785",
+          "181803": "1a013fa53a71669c3538132fd0e657d8e7f494b4087423ef2e5d073fdf152f8f"
+        },
+        "task14_lock_sha256": "c4c1a8bde14310cf4436c10762e3e98475f7c84eb74fcb8a74b3e267885edec3"
+      },
+      "seeds": {
+        "181801": {
+          "accepted_record": {
+            "path": "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/artifacts/sprint-18/s18-t32-source-c05/accepted-records/K9-FULL/seed-181801-record.json",
+            "sha256": "2a695d4445cd431e1621b6e0c3d570cc3002075c3132be5b7e22e9ac39682ddf"
+          },
+          "arm_config_sha256": "ccfdbc79eadfc2b63c8a2061434b169f2040659611f816c29aeefb8e1b91903b",
+          "calibration": {
+            "S_pop_threshold": 52.58662361070591,
+            "S_pred_threshold": 1.839642274888708,
+            "operator": "frozen accepted value; Calibration re-score verifies within 1e-12 and never reselects",
+            "quantile": 0.95,
+            "role_manifest_sha256": "9b83fe7be68c0f1975883c915c5e90db14a854395c3f8d8709fab78d7aa84b56",
+            "source_history": "S18I-ITER-0005-CALIBRATION-01",
+            "source_rows": 1877,
+            "source_support_sha256": "ad5310425f2d5737576a5fe34efc7389e2c07714d68cc188d96199ca4e4f5568"
+          },
+          "checkpoint": {
+            "active_epoch": 100,
+            "ema_state_sha256": "5f7e669a795da24efc499360bffaab116dd5d7ee9277a5909cf7b608dde0cc5e",
+            "global_step": 4300,
+            "kind": "representation_checkpoint",
+            "model_ema_coherence": "coherent checkpoint: online model and EMA target restored together",
+            "model_state_sha256": "5230f028f4dc7586df478af86a6b1ca25842a27a34c8442c72dbe72d1c08e592",
+            "path": "/home/trietlm/s18-t26-a02-runs/full/seed-181801/checkpoints/k9-seed181801-epoch100.pt",
+            "primary_epoch": 100,
+            "sha256": "c80368d6c6e7034d900ff9f3f6c0cadde29fbb2d2e2b893df67c18c7391e0332"
+          },
+          "coherent_artifact": null,
+          "fit_bank": {
+            "artifact_path": "/home/trietlm/s18-t26-a02-runs/full/seed-181801/k9_downstream.pt",
+            "artifact_sha256": "1613dc3671ad48e551fac2dc3847c67b1aa485a07efdb84a5800838276d71aff",
+            "bank_order_id": "persisted-downstream-order-v1",
+            "bank_recipe_id": "s18-k9-downstream-state-v1",
+            "checkpoint_sha256": "c80368d6c6e7034d900ff9f3f6c0cadde29fbb2d2e2b893df67c18c7391e0332",
+            "custody_basis": "persisted accepted downstream state restored as-is",
+            "digest_sha256": "edf93350155e398ba84f7c69130cf8513ee75983c8a6682a4822d7a9aa243b3d",
+            "provenance_path": null,
+            "provenance_sha256": null,
+            "source_rows": 5446,
+            "source_rows_sha256": "447b219e0c77f6d76ed54a4de7a0bee7c2b3a9a8142f61cbb434694ed73acb94"
+          },
+          "input_manifest": {
+            "path": "/home/trietlm/s18-t32-a02-runs/manifests/K9-FULL-181801.json",
+            "sha256": "3185dcd66499428cf52febcb7079897936207314af3087ed22a1e78b1863718b"
+          },
+          "normalization": {
+            "fit_histories": [
+              "S18I-ITER-0005-FIT-01",
+              "S18I-ITER-0005-FIT-02",
+              "S18I-ITER-0005-FIT-03"
+            ],
+            "fit_support_rows": 5446,
+            "fit_support_sha256": "447b219e0c77f6d76ed54a4de7a0bee7c2b3a9a8142f61cbb434694ed73acb94",
+            "kind": "c8a_standardizer_in_persisted_k9_downstream_state",
+            "model_state_sha256": "5230f028f4dc7586df478af86a6b1ca25842a27a34c8442c72dbe72d1c08e592",
+            "note": "the eligible Fit normalization/standardizer state is restored from the bound checkpoint/reference artifact; no normalization is refitted or replaced for Confirmation",
+            "reference_artifact_sha256": "1613dc3671ad48e551fac2dc3847c67b1aa485a07efdb84a5800838276d71aff"
+          },
+          "reference_artifact": {
+            "bounds": null,
+            "fit_scope": null,
+            "kind": "k9_downstream",
+            "path": "/home/trietlm/s18-t26-a02-runs/full/seed-181801/k9_downstream.pt",
+            "sha256": "1613dc3671ad48e551fac2dc3847c67b1aa485a07efdb84a5800838276d71aff"
+          }
+        },
+        "181802": {
+          "accepted_record": {
+            "path": "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/artifacts/sprint-18/s18-t32-source-c05/accepted-records/K9-FULL/seed-181802-record.json",
+            "sha256": "52260b6fd0c619f242f488414dd1772cb37ab9efc8d9ce3b3f02e8907a195477"
+          },
+          "arm_config_sha256": "39a5a273fea9124adaad8b0ae3fe8988d7ca8625db50f63b7d9c0bbddd326785",
+          "calibration": {
+            "S_pop_threshold": 53.08359020759584,
+            "S_pred_threshold": 1.791253641274377,
+            "operator": "frozen accepted value; Calibration re-score verifies within 1e-12 and never reselects",
+            "quantile": 0.95,
+            "role_manifest_sha256": "9b83fe7be68c0f1975883c915c5e90db14a854395c3f8d8709fab78d7aa84b56",
+            "source_history": "S18I-ITER-0005-CALIBRATION-01",
+            "source_rows": 1877,
+            "source_support_sha256": "ad5310425f2d5737576a5fe34efc7389e2c07714d68cc188d96199ca4e4f5568"
+          },
+          "checkpoint": {
+            "active_epoch": 100,
+            "ema_state_sha256": "3e8ac5e00b4c4b27ba15bd79fd068e43dad506d48394259c1bdd30e2759fe09e",
+            "global_step": 4300,
+            "kind": "representation_checkpoint",
+            "model_ema_coherence": "coherent checkpoint: online model and EMA target restored together",
+            "model_state_sha256": "d5ba65be24e0a411ab2f1b3ecc5d80d87a05c49117f4c2c54456daef750fb5ec",
+            "path": "/home/trietlm/s18-t26-a02-runs/full/seed-181802/checkpoints/k9-seed181802-epoch100.pt",
+            "primary_epoch": 100,
+            "sha256": "e6d1b407657b6ad300cdc3072fa7acbeb401f4957a85d49b2821ddc07d4fd7cf"
+          },
+          "coherent_artifact": null,
+          "fit_bank": {
+            "artifact_path": "/home/trietlm/s18-t26-a02-runs/full/seed-181802/k9_downstream.pt",
+            "artifact_sha256": "2f946c9073c174e605461aee2ec57e4a04864adf640c3c625a65665aac4d5baf",
+            "bank_order_id": "persisted-downstream-order-v1",
+            "bank_recipe_id": "s18-k9-downstream-state-v1",
+            "checkpoint_sha256": "e6d1b407657b6ad300cdc3072fa7acbeb401f4957a85d49b2821ddc07d4fd7cf",
+            "custody_basis": "persisted accepted downstream state restored as-is",
+            "digest_sha256": "84d45eadc0acbc7bb209e303ff60b908df3e518f76671b46c926847ffe021d9f",
+            "provenance_path": null,
+            "provenance_sha256": null,
+            "source_rows": 5446,
+            "source_rows_sha256": "447b219e0c77f6d76ed54a4de7a0bee7c2b3a9a8142f61cbb434694ed73acb94"
+          },
+          "input_manifest": {
+            "path": "/home/trietlm/s18-t32-a02-runs/manifests/K9-FULL-181802.json",
+            "sha256": "97c1d95277c75092b32919f5f5b5978f0741188a3deb5f8903b7d1f4a013a05a"
+          },
+          "normalization": {
+            "fit_histories": [
+              "S18I-ITER-0005-FIT-01",
+              "S18I-ITER-0005-FIT-02",
+              "S18I-ITER-0005-FIT-03"
+            ],
+            "fit_support_rows": 5446,
+            "fit_support_sha256": "447b219e0c77f6d76ed54a4de7a0bee7c2b3a9a8142f61cbb434694ed73acb94",
+            "kind": "c8a_standardizer_in_persisted_k9_downstream_state",
+            "model_state_sha256": "d5ba65be24e0a411ab2f1b3ecc5d80d87a05c49117f4c2c54456daef750fb5ec",
+            "note": "the eligible Fit normalization/standardizer state is restored from the bound checkpoint/reference artifact; no normalization is refitted or replaced for Confirmation",
+            "reference_artifact_sha256": "2f946c9073c174e605461aee2ec57e4a04864adf640c3c625a65665aac4d5baf"
+          },
+          "reference_artifact": {
+            "bounds": null,
+            "fit_scope": null,
+            "kind": "k9_downstream",
+            "path": "/home/trietlm/s18-t26-a02-runs/full/seed-181802/k9_downstream.pt",
+            "sha256": "2f946c9073c174e605461aee2ec57e4a04864adf640c3c625a65665aac4d5baf"
+          }
+        },
+        "181803": {
+          "accepted_record": {
+            "path": "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/artifacts/sprint-18/s18-t32-source-c05/accepted-records/K9-FULL/seed-181803-record.json",
+            "sha256": "f6eed8c5c0336db0f42b42a147ee1396c73617bc38119fbe3ca1c2cec22ab74f"
+          },
+          "arm_config_sha256": "1a013fa53a71669c3538132fd0e657d8e7f494b4087423ef2e5d073fdf152f8f",
+          "calibration": {
+            "S_pop_threshold": 60.442666060342326,
+            "S_pred_threshold": 1.7853872271693034,
+            "operator": "frozen accepted value; Calibration re-score verifies within 1e-12 and never reselects",
+            "quantile": 0.95,
+            "role_manifest_sha256": "9b83fe7be68c0f1975883c915c5e90db14a854395c3f8d8709fab78d7aa84b56",
+            "source_history": "S18I-ITER-0005-CALIBRATION-01",
+            "source_rows": 1877,
+            "source_support_sha256": "ad5310425f2d5737576a5fe34efc7389e2c07714d68cc188d96199ca4e4f5568"
+          },
+          "checkpoint": {
+            "active_epoch": 100,
+            "ema_state_sha256": "6f1fc22a9423eb20a53b709652f750890f1ce75cdcc2301ef2d35b60235076a3",
+            "global_step": 4300,
+            "kind": "representation_checkpoint",
+            "model_ema_coherence": "coherent checkpoint: online model and EMA target restored together",
+            "model_state_sha256": "ad0572ce8efec4e05f7d881b73a15924bc7ec9a9bfbdfdb235bed401fc5cebe5",
+            "path": "/home/trietlm/s18-t26-a02-runs/full/seed-181803/checkpoints/k9-seed181803-epoch100.pt",
+            "primary_epoch": 100,
+            "sha256": "0a453b338b7f4be49fd19304456ab389d8526e8f69ec2abc3382f9c19501460c"
+          },
+          "coherent_artifact": null,
+          "fit_bank": {
+            "artifact_path": "/home/trietlm/s18-t26-a02-runs/full/seed-181803/k9_downstream.pt",
+            "artifact_sha256": "d1a82ab4a0b8b6a4865d9de7e8195d1127d0cd6425c969381e39474951d1ce0a",
+            "bank_order_id": "persisted-downstream-order-v1",
+            "bank_recipe_id": "s18-k9-downstream-state-v1",
+            "checkpoint_sha256": "0a453b338b7f4be49fd19304456ab389d8526e8f69ec2abc3382f9c19501460c",
+            "custody_basis": "persisted accepted downstream state restored as-is",
+            "digest_sha256": "8c9a508a68ec6fec23e27ebb34bf2be5025c26595f7cf252a429d1a99899eab2",
+            "provenance_path": null,
+            "provenance_sha256": null,
+            "source_rows": 5446,
+            "source_rows_sha256": "447b219e0c77f6d76ed54a4de7a0bee7c2b3a9a8142f61cbb434694ed73acb94"
+          },
+          "input_manifest": {
+            "path": "/home/trietlm/s18-t32-a02-runs/manifests/K9-FULL-181803.json",
+            "sha256": "9cb979a7e8cbe5860a216b30cac9ebd4e989baf22f50f9cf3ed5fa78abdaa52d"
+          },
+          "normalization": {
+            "fit_histories": [
+              "S18I-ITER-0005-FIT-01",
+              "S18I-ITER-0005-FIT-02",
+              "S18I-ITER-0005-FIT-03"
+            ],
+            "fit_support_rows": 5446,
+            "fit_support_sha256": "447b219e0c77f6d76ed54a4de7a0bee7c2b3a9a8142f61cbb434694ed73acb94",
+            "kind": "c8a_standardizer_in_persisted_k9_downstream_state",
+            "model_state_sha256": "ad0572ce8efec4e05f7d881b73a15924bc7ec9a9bfbdfdb235bed401fc5cebe5",
+            "note": "the eligible Fit normalization/standardizer state is restored from the bound checkpoint/reference artifact; no normalization is refitted or replaced for Confirmation",
+            "reference_artifact_sha256": "d1a82ab4a0b8b6a4865d9de7e8195d1127d0cd6425c969381e39474951d1ce0a"
+          },
+          "reference_artifact": {
+            "bounds": null,
+            "fit_scope": null,
+            "kind": "k9_downstream",
+            "path": "/home/trietlm/s18-t26-a02-runs/full/seed-181803/k9_downstream.pt",
+            "sha256": "d1a82ab4a0b8b6a4865d9de7e8195d1127d0cd6425c969381e39474951d1ce0a"
+          }
+        }
+      },
+      "snapshot_rule": "epoch-100 representation checkpoint is the sole primary; diagnostic checkpoints are never eligible",
+      "status": "VALID"
+    },
+    "N1-HCC": {
+      "accepted_lock_state": "stopped_null_no_executable_config",
+      "arm_id": "N1-HCC",
+      "assertion": "explicit STOPPED/non-executable arm; no invented config or checkpoint and no silent omission",
+      "calibration": null,
+      "checkpoints": [],
+      "executable": false,
+      "fit_bank": null,
+      "reason": "Task 10 mechanical selection returned no_valid_candidate on the frozen grid [0.025, 0.05, 0.10]; Task 14 freezes executable=false and lambda_hcc_max=null. No same-robot/different-program Fit support, coefficient, checkpoint or metric row exists.",
+      "reference_artifact": null,
+      "seed_runs": {},
+      "selected_coefficient": null,
+      "selection_carrier": {
+        "path": "experiments/sprint18-task10-n1-hcc-selection-v1.json",
+        "sha256": "5184419956ccfa5a2b4667a2eb95f3429e6bb72be1dedd582ddb2c8ca381a967"
+      },
+      "selection_state": "no_valid_candidate",
+      "source_records": [
+        "experiments/sprint18-task14-config-lock.json",
+        "experiments/sprint18-task10-n1-hcc-selection-v1.json",
+        "artifacts/sprint-18/task-27-a02.md",
+        "artifacts/sprint-18/s18-t27-a02/n1-hcc-stopped-row.json"
+      ],
+      "status": "STOPPED",
+      "stopped_row": {
+        "failure_reasons": [
+          "N1-HCC has no executable configuration in the accepted Task 14 lock (executable=false, status=stopped_null_no_executable_config, lambda_hcc_max=null, zero locked configs); the accepted Task 10 frozen-grid selection returned no_valid_candidate, so no N1 training, checkpoint, gradient-balance, geometry, or paired Development metric exists."
+        ],
+        "note": "the FAILED non-execution row preserves the missing-config cause; its schema-required configuration block is not an executable config",
+        "path": "artifacts/sprint-18/s18-t27-a02/n1-hcc-stopped-row.json",
+        "sha256": "1756d7b85fdde915c17e9a9253dc4b5bf3207b8f11d2f835f0c2fc2da670009a",
+        "status": "FAILED"
+      },
+      "task14": {
+        "config_sha256": null,
+        "executable": false,
+        "lambda_hcc_max": null,
+        "status": "stopped_null_no_executable_config"
+      },
+      "training_authorized": false
+    },
+    "N2-MSP": {
+      "arm_id": "N2-MSP",
+      "component_set": [
+        "N2-MSP"
+      ],
+      "executable": true,
+      "historical_source": {
+        "binding_sha256": "afcb3b1b584e79b15d554aa192c37c4fad665fcf5a3cb3f5beaec1c7452432b1",
+        "coefficient_lock_sha256": "6eb108b2073181d427f1aedfc81fb3bae4c29595108d15de486082800bdd9d6e",
+        "data_binding_sha256": "383c62114ee6120d5fd19f866dfd585083d1d5899c9ffe91804761bd8a10a2d5",
+        "runner_sha256": "2f910889a464f05d1238f8d5354a4e8de32a1b4aa77d2d027a38fdb72762f35d",
+        "source_commit": "2111b696b273d08cc9730a4672f0f01fc65e13b5",
+        "source_tree": "a72dda2fc4d1751af9fcc27038b25bdfbacda864"
+      },
+      "mechanism_spec_sha256": "a2deeb5479957ef8777ec4cfd66898e3ecd5e0aef80e2043f11882529ae3a9f2",
+      "principal_change": "add only fine/4-patch/8-patch latent prediction; retain the common InfoNCE objective and fine-only primary S_pred",
+      "reference_state_mode": {
+        "S_pop": "reconstructed_digest_verified",
+        "S_pred": "restored_from_custody"
+      },
+      "representation_epochs": 100,
+      "scale_epochs": 0,
+      "scientific_authority": {
+        "arm_config_sha256_by_seed": {
+          "181801": "5dc059bd77f78b8a4d906646487d21f5d5d55b5f87fede378c95485595b52667",
+          "181802": "ddc76f8fb31094d72edd2b32a8050a4d0fec34627a501a0b028670c1969acae9",
+          "181803": "c6a669540bbe6ccbeba715d7434d30d211b9fb6b38f999b62957b2cd3ea32bc8"
+        },
+        "task14_lock_sha256": "c4c1a8bde14310cf4436c10762e3e98475f7c84eb74fcb8a74b3e267885edec3"
+      },
+      "seeds": {
+        "181801": {
+          "accepted_record": {
+            "path": "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/artifacts/sprint-18/s18-t32-source-c05/accepted-records/N2-MSP/seed-181801-seed_record.extract.json",
+            "sha256": "3e3f115820106a9e502ec6de4aee019fd90177459e6eec948a51ab5d68295cb2"
+          },
+          "arm_config_sha256": "5dc059bd77f78b8a4d906646487d21f5d5d55b5f87fede378c95485595b52667",
+          "calibration": {
+            "S_pop_threshold": 6.986924552917479,
+            "S_pred_threshold": 0.10779834836721416,
+            "operator": "frozen accepted value; Calibration re-score verifies within 1e-12 and never reselects",
+            "quantile": 0.95,
+            "role_manifest_sha256": "9b83fe7be68c0f1975883c915c5e90db14a854395c3f8d8709fab78d7aa84b56",
+            "source_history": "S18I-ITER-0005-CALIBRATION-01",
+            "source_rows": 1877,
+            "source_support_sha256": "ad5310425f2d5737576a5fe34efc7389e2c07714d68cc188d96199ca4e4f5568"
+          },
+          "checkpoint": {
+            "active_epoch": 100,
+            "ema_state_sha256": "5a67d641595c4aa1c36a07664de4cbb066b3d9a987de42586271fb9367043ca7",
+            "global_step": 4300,
+            "kind": "representation_checkpoint",
+            "model_ema_coherence": "coherent checkpoint: online model and EMA target restored together",
+            "model_state_sha256": "11add97ddb5aac875dce5208a8c763e465ce9e8b27e048acd33f219dd70f6c3f",
+            "path": "/home/trietlm/s18-t28-a04-runs/full/seed-181801/checkpoints/n2-seed181801-epoch100.pt",
+            "primary_epoch": 100,
+            "sha256": "141c1a71c30678ad5afc700646e927d74f1144032673b091d1f221161fbcd7fc"
+          },
+          "coherent_artifact": null,
+          "fit_bank": {
+            "artifact_path": "/home/trietlm/s18-t32-a02-runs/scores/N2-MSP-181801.json.fit-bank/bank.pt",
+            "artifact_sha256": "27ab48b72272bd75a5e06ab99955cf358a37def7720eba2c225a21acc6a6ed2b",
+            "bank_order_id": "global-file-id-ascending-v1",
+            "bank_recipe_id": "sprint18-fit-bank-restore-v1",
+            "checkpoint_sha256": "141c1a71c30678ad5afc700646e927d74f1144032673b091d1f221161fbcd7fc",
+            "custody_basis": "exact accepted-digest restoration from the frozen checkpoint/EMA/normalization and qualified Fit support",
+            "digest_sha256": "9de7fdfb936dd47bf7508ef8d7206cbe4f26b224436977b00b12edc1ea52fb63",
+            "provenance_path": "/home/trietlm/s18-t32-a02-runs/scores/N2-MSP-181801.json.fit-bank/provenance.json",
+            "provenance_sha256": "8dcbfc077812048e92e02e6484e3dc8d7b26540b74cbc08504aab0dee9e76d9a",
+            "source_rows": 5446,
+            "source_rows_sha256": "447b219e0c77f6d76ed54a4de7a0bee7c2b3a9a8142f61cbb434694ed73acb94"
+          },
+          "input_manifest": {
+            "path": "/home/trietlm/s18-t32-a02-runs/manifests/N2-MSP-181801.json",
+            "sha256": "847883ceb00de06c46a83b68fcfb5092a56b4a8468885406defc049bea1d6e30"
+          },
+          "normalization": {
+            "fit_histories": [
+              "S18I-ITER-0005-FIT-01",
+              "S18I-ITER-0005-FIT-02",
+              "S18I-ITER-0005-FIT-03"
+            ],
+            "fit_support_rows": 5446,
+            "fit_support_sha256": "447b219e0c77f6d76ed54a4de7a0bee7c2b3a9a8142f61cbb434694ed73acb94",
+            "kind": "conditional_norm_in_restored_model_checkpoint",
+            "model_state_sha256": "11add97ddb5aac875dce5208a8c763e465ce9e8b27e048acd33f219dd70f6c3f",
+            "note": "the eligible Fit normalization/standardizer state is restored from the bound checkpoint/reference artifact; no normalization is refitted or replaced for Confirmation",
+            "reference_artifact_sha256": null
+          },
+          "reference_artifact": null
+        },
+        "181802": {
+          "accepted_record": {
+            "path": "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/artifacts/sprint-18/s18-t32-source-c05/accepted-records/N2-MSP/seed-181802-seed_record.extract.json",
+            "sha256": "ddefeb968e25fad0b8442914b2002488732e3d7635e03bc323f09f940052cf13"
+          },
+          "arm_config_sha256": "ddc76f8fb31094d72edd2b32a8050a4d0fec34627a501a0b028670c1969acae9",
+          "calibration": {
+            "S_pop_threshold": 7.0664381027221665,
+            "S_pred_threshold": 0.10598868131637568,
+            "operator": "frozen accepted value; Calibration re-score verifies within 1e-12 and never reselects",
+            "quantile": 0.95,
+            "role_manifest_sha256": "9b83fe7be68c0f1975883c915c5e90db14a854395c3f8d8709fab78d7aa84b56",
+            "source_history": "S18I-ITER-0005-CALIBRATION-01",
+            "source_rows": 1877,
+            "source_support_sha256": "ad5310425f2d5737576a5fe34efc7389e2c07714d68cc188d96199ca4e4f5568"
+          },
+          "checkpoint": {
+            "active_epoch": 100,
+            "ema_state_sha256": "e3a7a72f173f1f02f742fe072b305e384601229b3e740ef14b0cd289d077f663",
+            "global_step": 4300,
+            "kind": "representation_checkpoint",
+            "model_ema_coherence": "coherent checkpoint: online model and EMA target restored together",
+            "model_state_sha256": "68ae1254495a6a89645aa0f5e14f7fe09f8342162cacb1ea676d99229c4c7526",
+            "path": "/home/trietlm/s18-t28-a04-runs/full/seed-181802/checkpoints/n2-seed181802-epoch100.pt",
+            "primary_epoch": 100,
+            "sha256": "ed390ff3fd33bac70ab4ac4f533983d3fc7251ad784ebf5fc7e4d21dcfe70b56"
+          },
+          "coherent_artifact": null,
+          "fit_bank": {
+            "artifact_path": "/home/trietlm/s18-t32-a02-runs/scores/N2-MSP-181802.json.fit-bank/bank.pt",
+            "artifact_sha256": "0f7b1e339426c5854dfd1281d7b4b283186c4b1a328f3c5c0b2bdb96399054ee",
+            "bank_order_id": "global-file-id-ascending-v1",
+            "bank_recipe_id": "sprint18-fit-bank-restore-v1",
+            "checkpoint_sha256": "ed390ff3fd33bac70ab4ac4f533983d3fc7251ad784ebf5fc7e4d21dcfe70b56",
+            "custody_basis": "exact accepted-digest restoration from the frozen checkpoint/EMA/normalization and qualified Fit support",
+            "digest_sha256": "3686c53110b8d16bac32046bca2b78fc1127d8119d78ad590ec56ef1f2f1d197",
+            "provenance_path": "/home/trietlm/s18-t32-a02-runs/scores/N2-MSP-181802.json.fit-bank/provenance.json",
+            "provenance_sha256": "c527847c9cdca504f54a0d3a4914292b9bbb0a014de2e476e0763e2d2dba9c9d",
+            "source_rows": 5446,
+            "source_rows_sha256": "447b219e0c77f6d76ed54a4de7a0bee7c2b3a9a8142f61cbb434694ed73acb94"
+          },
+          "input_manifest": {
+            "path": "/home/trietlm/s18-t32-a02-runs/manifests/N2-MSP-181802.json",
+            "sha256": "70846428ac9cbabcce4c622f6ef1d8c8f6092fd5cc03f0b513cbfdb5ecb4f3e8"
+          },
+          "normalization": {
+            "fit_histories": [
+              "S18I-ITER-0005-FIT-01",
+              "S18I-ITER-0005-FIT-02",
+              "S18I-ITER-0005-FIT-03"
+            ],
+            "fit_support_rows": 5446,
+            "fit_support_sha256": "447b219e0c77f6d76ed54a4de7a0bee7c2b3a9a8142f61cbb434694ed73acb94",
+            "kind": "conditional_norm_in_restored_model_checkpoint",
+            "model_state_sha256": "68ae1254495a6a89645aa0f5e14f7fe09f8342162cacb1ea676d99229c4c7526",
+            "note": "the eligible Fit normalization/standardizer state is restored from the bound checkpoint/reference artifact; no normalization is refitted or replaced for Confirmation",
+            "reference_artifact_sha256": null
+          },
+          "reference_artifact": null
+        },
+        "181803": {
+          "accepted_record": {
+            "path": "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/artifacts/sprint-18/s18-t32-source-c05/accepted-records/N2-MSP/seed-181803-seed_record.extract.json",
+            "sha256": "d432a6f4e966289ea81f318358b03ac797a6c0894cbe217ccc94ed1ab304a8c7"
+          },
+          "arm_config_sha256": "c6a669540bbe6ccbeba715d7434d30d211b9fb6b38f999b62957b2cd3ea32bc8",
+          "calibration": {
+            "S_pop_threshold": 7.051553344726562,
+            "S_pred_threshold": 0.10781440436840053,
+            "operator": "frozen accepted value; Calibration re-score verifies within 1e-12 and never reselects",
+            "quantile": 0.95,
+            "role_manifest_sha256": "9b83fe7be68c0f1975883c915c5e90db14a854395c3f8d8709fab78d7aa84b56",
+            "source_history": "S18I-ITER-0005-CALIBRATION-01",
+            "source_rows": 1877,
+            "source_support_sha256": "ad5310425f2d5737576a5fe34efc7389e2c07714d68cc188d96199ca4e4f5568"
+          },
+          "checkpoint": {
+            "active_epoch": 100,
+            "ema_state_sha256": "821620fa5d84f9655f20a69cef2037eeda018cb72effe93485c5d04b4909a68d",
+            "global_step": 4300,
+            "kind": "representation_checkpoint",
+            "model_ema_coherence": "coherent checkpoint: online model and EMA target restored together",
+            "model_state_sha256": "c619a2a3a418e04d54cbe1e62bc28f3dd503f23b328e3e831770d3ed08d3e9fa",
+            "path": "/home/trietlm/s18-t28-a04-runs/full/seed-181803/checkpoints/n2-seed181803-epoch100.pt",
+            "primary_epoch": 100,
+            "sha256": "c146bc6bec5b056f73303bbaec15c73c5b81e776483b12dff23b1661d5a3a4b6"
+          },
+          "coherent_artifact": null,
+          "fit_bank": {
+            "artifact_path": "/home/trietlm/s18-t32-a02-runs/scores/N2-MSP-181803.json.fit-bank/bank.pt",
+            "artifact_sha256": "7aa8a14e3402481b9bcebe0b7fc3b2c84ed3d5f0f99e96faf0cc485c9449e419",
+            "bank_order_id": "global-file-id-ascending-v1",
+            "bank_recipe_id": "sprint18-fit-bank-restore-v1",
+            "checkpoint_sha256": "c146bc6bec5b056f73303bbaec15c73c5b81e776483b12dff23b1661d5a3a4b6",
+            "custody_basis": "exact accepted-digest restoration from the frozen checkpoint/EMA/normalization and qualified Fit support",
+            "digest_sha256": "54e6f74bf84c4b760303e7770e472e72c021a6c41e1af2230044c430e09eff57",
+            "provenance_path": "/home/trietlm/s18-t32-a02-runs/scores/N2-MSP-181803.json.fit-bank/provenance.json",
+            "provenance_sha256": "8d0b237df708d4de117042afc81e66120655fff10c2e7783f28d77a7210ea0f8",
+            "source_rows": 5446,
+            "source_rows_sha256": "447b219e0c77f6d76ed54a4de7a0bee7c2b3a9a8142f61cbb434694ed73acb94"
+          },
+          "input_manifest": {
+            "path": "/home/trietlm/s18-t32-a02-runs/manifests/N2-MSP-181803.json",
+            "sha256": "680c7af5c1a83eeb68c297eadcd568b5e78f84ad1b461540841bb720577861a3"
+          },
+          "normalization": {
+            "fit_histories": [
+              "S18I-ITER-0005-FIT-01",
+              "S18I-ITER-0005-FIT-02",
+              "S18I-ITER-0005-FIT-03"
+            ],
+            "fit_support_rows": 5446,
+            "fit_support_sha256": "447b219e0c77f6d76ed54a4de7a0bee7c2b3a9a8142f61cbb434694ed73acb94",
+            "kind": "conditional_norm_in_restored_model_checkpoint",
+            "model_state_sha256": "c619a2a3a418e04d54cbe1e62bc28f3dd503f23b328e3e831770d3ed08d3e9fa",
+            "note": "the eligible Fit normalization/standardizer state is restored from the bound checkpoint/reference artifact; no normalization is refitted or replaced for Confirmation",
+            "reference_artifact_sha256": null
+          },
+          "reference_artifact": null
+        }
+      },
+      "snapshot_rule": "epoch-100 representation checkpoint is the sole primary; diagnostic checkpoints are never eligible",
+      "status": "VALID"
+    },
+    "N3-CCRP": {
+      "arm_id": "N3-CCRP",
+      "component_set": [
+        "N3-CCRP"
+      ],
+      "executable": true,
+      "historical_source": {
+        "binding_sha256": "90cf464177557d9a00c8da88be6e8bc3f42682064a55588caf84fd009229ece5",
+        "coefficient_lock_sha256": "6eb108b2073181d427f1aedfc81fb3bae4c29595108d15de486082800bdd9d6e",
+        "data_binding_sha256": "383c62114ee6120d5fd19f866dfd585083d1d5899c9ffe91804761bd8a10a2d5",
+        "runner_sha256": "4839b2cb06934bb30c0136ab9cfff8838847d005a639924762e6258800e5f2d3",
+        "source_commit": "83710aa65d201cf3f37d7f9961368589932f6ec9",
+        "source_tree": "52c44963f0ea1247a85b2e49edf92b0e4574d579"
+      },
+      "mechanism_spec_sha256": "eee44cebd29de2b5cbfdf0263fcca21d82fee92e0773922c0bc3209dee50443c",
+      "principal_change": "add only held-out-channel relational latent prediction; retain common InfoNCE and uncorrupted primary inference",
+      "reference_state_mode": {
+        "S_pop": "reconstructed_digest_verified",
+        "S_pred": "restored_from_custody"
+      },
+      "representation_epochs": 100,
+      "scale_epochs": 0,
+      "scientific_authority": {
+        "arm_config_sha256_by_seed": {
+          "181801": "87f2b0a92e15d7066d1c4222b01c852b87a1b07a4986770987bdbc54f9564c58",
+          "181802": "d1dac1c9590464735208ae8a9b21b789feca50b65060b836c1ba173062b71351",
+          "181803": "70d3eb8143f03a3f6157f540662f7b9cfdff87fda7eeb2befa08733d8317b15f"
+        },
+        "task14_lock_sha256": "c4c1a8bde14310cf4436c10762e3e98475f7c84eb74fcb8a74b3e267885edec3"
+      },
+      "seeds": {
+        "181801": {
+          "accepted_record": {
+            "path": "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/artifacts/sprint-18/s18-t32-source-c05/accepted-records/N3-CCRP/seed-181801.json",
+            "sha256": "90184a72701dd1f8317145fc691c0893d189b9bea6c01e736861e42390f729a2"
+          },
+          "arm_config_sha256": "87f2b0a92e15d7066d1c4222b01c852b87a1b07a4986770987bdbc54f9564c58",
+          "calibration": {
+            "S_pop_threshold": 5.4255060195922855,
+            "S_pred_threshold": 0.13746893405914304,
+            "operator": "frozen accepted value; Calibration re-score verifies within 1e-12 and never reselects",
+            "quantile": 0.95,
+            "role_manifest_sha256": "9b83fe7be68c0f1975883c915c5e90db14a854395c3f8d8709fab78d7aa84b56",
+            "source_history": "S18I-ITER-0005-CALIBRATION-01",
+            "source_rows": 1877,
+            "source_support_sha256": "ad5310425f2d5737576a5fe34efc7389e2c07714d68cc188d96199ca4e4f5568"
+          },
+          "checkpoint": {
+            "active_epoch": 100,
+            "ema_state_sha256": "8ed7b7544877c1f59656d2e76ca459157e507edb10511f84d931ae385b637a73",
+            "global_step": 4300,
+            "kind": "representation_checkpoint",
+            "model_ema_coherence": "coherent checkpoint: online model and EMA target restored together",
+            "model_state_sha256": "45f64b354f37939fb8cdbcc964748a4e6622bfe6e46b715346acfaf42bdf675a",
+            "path": "/home/trietlm/s18-t29-a06-runs/full/seed-181801/checkpoints/n3-seed181801-epoch100.pt",
+            "primary_epoch": 100,
+            "sha256": "8e8677f492374b8399ce1dd316505431e4089057e9c197d42d3b7383e136d0ec"
+          },
+          "coherent_artifact": null,
+          "fit_bank": {
+            "artifact_path": "/home/trietlm/s18-t32-a02-runs/scores/N3-CCRP-181801.json.fit-bank/bank.pt",
+            "artifact_sha256": "a8c0c987f36413af320dbce492d88575b325e47b254711e0b98ae32976dff0b6",
+            "bank_order_id": "global-file-id-ascending-v1",
+            "bank_recipe_id": "sprint18-fit-bank-restore-v1",
+            "checkpoint_sha256": "8e8677f492374b8399ce1dd316505431e4089057e9c197d42d3b7383e136d0ec",
+            "custody_basis": "exact accepted-digest restoration from the frozen checkpoint/EMA/normalization and qualified Fit support",
+            "digest_sha256": "49a61a22ae4c0ce296e7234777ec55f419fc813c74335eeb9c046fedc68aaf49",
+            "provenance_path": "/home/trietlm/s18-t32-a02-runs/scores/N3-CCRP-181801.json.fit-bank/provenance.json",
+            "provenance_sha256": "f9e374796622d001dada79c84a4daddc4353b8051cc7e78017b3eefb243567c6",
+            "source_rows": 5446,
+            "source_rows_sha256": "447b219e0c77f6d76ed54a4de7a0bee7c2b3a9a8142f61cbb434694ed73acb94"
+          },
+          "input_manifest": {
+            "path": "/home/trietlm/s18-t32-a02-runs/manifests/N3-CCRP-181801.json",
+            "sha256": "e3cdb4250a6e853c715726e42497b07e29e89a56b4648300ea172f4f4bc9501c"
+          },
+          "normalization": {
+            "fit_histories": [
+              "S18I-ITER-0005-FIT-01",
+              "S18I-ITER-0005-FIT-02",
+              "S18I-ITER-0005-FIT-03"
+            ],
+            "fit_support_rows": 5446,
+            "fit_support_sha256": "447b219e0c77f6d76ed54a4de7a0bee7c2b3a9a8142f61cbb434694ed73acb94",
+            "kind": "conditional_norm_in_restored_model_checkpoint",
+            "model_state_sha256": "45f64b354f37939fb8cdbcc964748a4e6622bfe6e46b715346acfaf42bdf675a",
+            "note": "the eligible Fit normalization/standardizer state is restored from the bound checkpoint/reference artifact; no normalization is refitted or replaced for Confirmation",
+            "reference_artifact_sha256": null
+          },
+          "reference_artifact": null
+        },
+        "181802": {
+          "accepted_record": {
+            "path": "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/artifacts/sprint-18/s18-t32-source-c05/accepted-records/N3-CCRP/seed-181802.json",
+            "sha256": "7e40e5157b5455c74fa77354e1362f5c13b8845b41e4a785a1052790f5b049b7"
+          },
+          "arm_config_sha256": "d1dac1c9590464735208ae8a9b21b789feca50b65060b836c1ba173062b71351",
+          "calibration": {
+            "S_pop_threshold": 6.116045570373534,
+            "S_pred_threshold": 0.12818788588047014,
+            "operator": "frozen accepted value; Calibration re-score verifies within 1e-12 and never reselects",
+            "quantile": 0.95,
+            "role_manifest_sha256": "9b83fe7be68c0f1975883c915c5e90db14a854395c3f8d8709fab78d7aa84b56",
+            "source_history": "S18I-ITER-0005-CALIBRATION-01",
+            "source_rows": 1877,
+            "source_support_sha256": "ad5310425f2d5737576a5fe34efc7389e2c07714d68cc188d96199ca4e4f5568"
+          },
+          "checkpoint": {
+            "active_epoch": 100,
+            "ema_state_sha256": "1c27709a77a3c225043a9c78b0126669c10a8f30d33f198e0d9f0ab7d9788321",
+            "global_step": 4300,
+            "kind": "representation_checkpoint",
+            "model_ema_coherence": "coherent checkpoint: online model and EMA target restored together",
+            "model_state_sha256": "dfa1af2f4f9f8a47496095591c05e648d9eeb3d47212d385f4839534e60ddade",
+            "path": "/home/trietlm/s18-t29-a06-runs/full/seed-181802/checkpoints/n3-seed181802-epoch100.pt",
+            "primary_epoch": 100,
+            "sha256": "3311e7aca388d6127eb4cd315cdc54fc152691b9819a232e8130c75c3353265a"
+          },
+          "coherent_artifact": null,
+          "fit_bank": {
+            "artifact_path": "/home/trietlm/s18-t32-a02-runs/scores/N3-CCRP-181802.json.fit-bank/bank.pt",
+            "artifact_sha256": "c0203a492819d24a5dd564e33a288d611a81a82f97f1b0a5c7069d624da24b5b",
+            "bank_order_id": "global-file-id-ascending-v1",
+            "bank_recipe_id": "sprint18-fit-bank-restore-v1",
+            "checkpoint_sha256": "3311e7aca388d6127eb4cd315cdc54fc152691b9819a232e8130c75c3353265a",
+            "custody_basis": "exact accepted-digest restoration from the frozen checkpoint/EMA/normalization and qualified Fit support",
+            "digest_sha256": "bfcc240e5c179f7ea9661dbac58881158db55f5d82b164180a06e89d72043204",
+            "provenance_path": "/home/trietlm/s18-t32-a02-runs/scores/N3-CCRP-181802.json.fit-bank/provenance.json",
+            "provenance_sha256": "ba20024e97ff340e8336151d510999eadcfc949687f418b900673ae02eee8809",
+            "source_rows": 5446,
+            "source_rows_sha256": "447b219e0c77f6d76ed54a4de7a0bee7c2b3a9a8142f61cbb434694ed73acb94"
+          },
+          "input_manifest": {
+            "path": "/home/trietlm/s18-t32-a02-runs/manifests/N3-CCRP-181802.json",
+            "sha256": "3de4357847b764a095c2a45f5038fe744090d471d11c59f943c70fb68f5b23fb"
+          },
+          "normalization": {
+            "fit_histories": [
+              "S18I-ITER-0005-FIT-01",
+              "S18I-ITER-0005-FIT-02",
+              "S18I-ITER-0005-FIT-03"
+            ],
+            "fit_support_rows": 5446,
+            "fit_support_sha256": "447b219e0c77f6d76ed54a4de7a0bee7c2b3a9a8142f61cbb434694ed73acb94",
+            "kind": "conditional_norm_in_restored_model_checkpoint",
+            "model_state_sha256": "dfa1af2f4f9f8a47496095591c05e648d9eeb3d47212d385f4839534e60ddade",
+            "note": "the eligible Fit normalization/standardizer state is restored from the bound checkpoint/reference artifact; no normalization is refitted or replaced for Confirmation",
+            "reference_artifact_sha256": null
+          },
+          "reference_artifact": null
+        },
+        "181803": {
+          "accepted_record": {
+            "path": "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/artifacts/sprint-18/s18-t32-source-c05/accepted-records/N3-CCRP/seed-181803.json",
+            "sha256": "7dda6b088b9cf5a10fa59adea3bd77c1e8b19ee724007763ecbe423d4fc5756f"
+          },
+          "arm_config_sha256": "70d3eb8143f03a3f6157f540662f7b9cfdff87fda7eeb2befa08733d8317b15f",
+          "calibration": {
+            "S_pop_threshold": 6.116586685180664,
+            "S_pred_threshold": 0.11649132519960391,
+            "operator": "frozen accepted value; Calibration re-score verifies within 1e-12 and never reselects",
+            "quantile": 0.95,
+            "role_manifest_sha256": "9b83fe7be68c0f1975883c915c5e90db14a854395c3f8d8709fab78d7aa84b56",
+            "source_history": "S18I-ITER-0005-CALIBRATION-01",
+            "source_rows": 1877,
+            "source_support_sha256": "ad5310425f2d5737576a5fe34efc7389e2c07714d68cc188d96199ca4e4f5568"
+          },
+          "checkpoint": {
+            "active_epoch": 100,
+            "ema_state_sha256": "21dad3344e6ab90cb9bd279e7378451698523bc70b2efe1cd6decea9dbb10527",
+            "global_step": 4300,
+            "kind": "representation_checkpoint",
+            "model_ema_coherence": "coherent checkpoint: online model and EMA target restored together",
+            "model_state_sha256": "761f48e3e25db557b1c6c8fbb8f4cf3999d5b3d463c3e64bcfc14bbe4a490bd7",
+            "path": "/home/trietlm/s18-t29-a06-runs/full/seed-181803/checkpoints/n3-seed181803-epoch100.pt",
+            "primary_epoch": 100,
+            "sha256": "b73dde936affdf3d4d04d4d246ffebab309c2fafd19a9fac21ae980bcafe53ba"
+          },
+          "coherent_artifact": null,
+          "fit_bank": {
+            "artifact_path": "/home/trietlm/s18-t32-a02-runs/scores/N3-CCRP-181803.json.fit-bank/bank.pt",
+            "artifact_sha256": "97f70c8f67cccb3fe9a890b6157deac529017214d95734a86801c500bf780131",
+            "bank_order_id": "global-file-id-ascending-v1",
+            "bank_recipe_id": "sprint18-fit-bank-restore-v1",
+            "checkpoint_sha256": "b73dde936affdf3d4d04d4d246ffebab309c2fafd19a9fac21ae980bcafe53ba",
+            "custody_basis": "exact accepted-digest restoration from the frozen checkpoint/EMA/normalization and qualified Fit support",
+            "digest_sha256": "23778d81779fcae8220601519d87c84dc0caacc3a7db2f6d4b3511068b97d140",
+            "provenance_path": "/home/trietlm/s18-t32-a02-runs/scores/N3-CCRP-181803.json.fit-bank/provenance.json",
+            "provenance_sha256": "f1b70680eb3538eda2e9c2908d305b6b5e405394e1b1c0e83f35302c1d16b9c6",
+            "source_rows": 5446,
+            "source_rows_sha256": "447b219e0c77f6d76ed54a4de7a0bee7c2b3a9a8142f61cbb434694ed73acb94"
+          },
+          "input_manifest": {
+            "path": "/home/trietlm/s18-t32-a02-runs/manifests/N3-CCRP-181803.json",
+            "sha256": "6e9ee4e1ccca287216222d463897b7de539eff40042e41763efb1dc62f7a630f"
+          },
+          "normalization": {
+            "fit_histories": [
+              "S18I-ITER-0005-FIT-01",
+              "S18I-ITER-0005-FIT-02",
+              "S18I-ITER-0005-FIT-03"
+            ],
+            "fit_support_rows": 5446,
+            "fit_support_sha256": "447b219e0c77f6d76ed54a4de7a0bee7c2b3a9a8142f61cbb434694ed73acb94",
+            "kind": "conditional_norm_in_restored_model_checkpoint",
+            "model_state_sha256": "761f48e3e25db557b1c6c8fbb8f4cf3999d5b3d463c3e64bcfc14bbe4a490bd7",
+            "note": "the eligible Fit normalization/standardizer state is restored from the bound checkpoint/reference artifact; no normalization is refitted or replaced for Confirmation",
+            "reference_artifact_sha256": null
+          },
+          "reference_artifact": null
+        }
+      },
+      "snapshot_rule": "epoch-100 representation checkpoint is the sole primary; diagnostic checkpoints are never eligible",
+      "status": "VALID"
+    },
+    "N4-CRN": {
+      "arm_id": "N4-CRN",
+      "component_set": [
+        "N4-CRN"
+      ],
+      "executable": true,
+      "historical_source": {
+        "binding_sha256": "6ad4da1f3bc8158f35339b48215d455c47169d8915213d958b8f8a99564b7065",
+        "coefficient_lock_sha256": "a9990bd189706a0fdadfeaee422ef307599e3f4d9c5a72102dfa1f015d5cd57a",
+        "data_binding_sha256": "383c62114ee6120d5fd19f866dfd585083d1d5899c9ffe91804761bd8a10a2d5",
+        "runner_sha256": "3af994ba002b5eb79599858ba90ceff18e099accdd79b28c0f1d63a31caaff80",
+        "source_commit": "6ffcfc9f4ab339604ff201abb75f9d18fb12466d",
+        "source_tree": "3a089edafe26cfcb15ccd9f79cf83a8ca265467a"
+      },
+      "mechanism_spec_sha256": "4d1c8097c9cc27d3fbeb2e2a6e70a29a7bc63d7899646a9c712a315b39d9ffe3",
+      "principal_change": "normalize only S_pred with the Fit-only context-dependent scale model over frozen B0; zero representation updates and unchanged S_pop",
+      "reference_state_mode": {
+        "S_pop": "reconstructed_digest_verified",
+        "S_pred": "restored_from_custody"
+      },
+      "representation_epochs": 0,
+      "scale_epochs": 50,
+      "scientific_authority": {
+        "arm_config_sha256_by_seed": {
+          "181801": "50992ec24273f9b001ca3eed2c59500e699467e59fd0ab1d10479f82dc0fa169",
+          "181802": "0b786d70ceec7e9ac80d04d869fddd901d07a0afc39ec155e4c90c94f55c0b9d",
+          "181803": "7739964e2e6da5c297c92df395a7482ca20ef3a2833b0f7878bb0d723ba8f45e"
+        },
+        "task14_lock_sha256": "a9990bd189706a0fdadfeaee422ef307599e3f4d9c5a72102dfa1f015d5cd57a"
+      },
+      "seeds": {
+        "181801": {
+          "accepted_record": {
+            "path": "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/artifacts/sprint-18/s18-t32-source-c05/accepted-records/N4-CRN/n4-seed-181801-record.json",
+            "sha256": "920a62469ea7b1c5f2f7bc35f90581ca05c2f1a9e51f6e2d04c2ac24bf95b3d3"
+          },
+          "arm_config_sha256": "50992ec24273f9b001ca3eed2c59500e699467e59fd0ab1d10479f82dc0fa169",
+          "calibration": {
+            "S_pop_threshold": 5.98599042892456,
+            "S_pred_threshold": 1.7992383480072018,
+            "operator": "frozen accepted value; Calibration re-score verifies within 1e-12 and never reselects",
+            "quantile": 0.95,
+            "role_manifest_sha256": "9b83fe7be68c0f1975883c915c5e90db14a854395c3f8d8709fab78d7aa84b56",
+            "source_history": "S18I-ITER-0005-CALIBRATION-01",
+            "source_rows": 1877,
+            "source_support_sha256": "ad5310425f2d5737576a5fe34efc7389e2c07714d68cc188d96199ca4e4f5568"
+          },
+          "checkpoint": {
+            "active_epoch": 100,
+            "ema_state_sha256": "3b1121c3796d688d3d8ccc69fabf73331ae71304269e8108ebc61bd8218f4fd9",
+            "global_step": 4300,
+            "kind": "paired_b0_representation_checkpoint",
+            "model_ema_coherence": "coherent checkpoint: online model and EMA target restored together",
+            "model_state_sha256": "81e07ee1b9161ba353480811678d72bdcf78a3ac67e41fcc0034e11d23a04ef7",
+            "path": "/home/trietlm/s18-t23-a04-runs/full/seed-181801/checkpoints/b0-seed181801-epoch100.pt",
+            "primary_epoch": 100,
+            "sha256": "9292d7c59037cba7b7fd337dbb896ed492777abff4713307c98f86a3b5226a8f"
+          },
+          "coherent_artifact": {
+            "paired_b0_representation_step": 4300,
+            "path": "/home/trietlm/s18-t30-a14-runs/full/seed-181801/checkpoints/n4-seed181801-coherent.pt",
+            "representation_step": 0,
+            "restored_checkpoint_sha256": "bbe57aeb9a24b677be89593ecaeb3a82c0180ff9fb45cd2c9761dde04bdfe4ec",
+            "scale_epochs_completed": 50,
+            "scale_global_step": 6550,
+            "scale_model_state_sha256": "286fc044726d050e9bc5fd91f003fb1096f93177c9e069be06532e69254d8628",
+            "sha256": "bbe57aeb9a24b677be89593ecaeb3a82c0180ff9fb45cd2c9761dde04bdfe4ec",
+            "state_dict_sha256": "286fc044726d050e9bc5fd91f003fb1096f93177c9e069be06532e69254d8628",
+            "strict_restore_b0_model_ema_scale_equal": true
+          },
+          "fit_bank": {
+            "artifact_path": "/home/trietlm/s18-t32-a02-runs/scores/N4-CRN-181801.json.fit-bank/bank.pt",
+            "artifact_sha256": "aba72d5030ea5eb25aa3e2f1015e0998f0b58b585254df8fe221e565fe51a43f",
+            "bank_order_id": "global-file-id-ascending-v1",
+            "bank_recipe_id": "sprint18-fit-bank-restore-v1",
+            "checkpoint_sha256": "9292d7c59037cba7b7fd337dbb896ed492777abff4713307c98f86a3b5226a8f",
+            "custody_basis": "exact accepted-digest restoration from the frozen checkpoint/EMA/normalization and qualified Fit support",
+            "digest_sha256": "2d6e0a117feb7e332792d22e0ecd2d4ab64ef273290e9d9139f9e1efa2416750",
+            "provenance_path": "/home/trietlm/s18-t32-a02-runs/scores/N4-CRN-181801.json.fit-bank/provenance.json",
+            "provenance_sha256": "0a77e553f4e6aa0652d3657f187fb66b258a7ae2bc6a121002fd2792661fa78d",
+            "source_rows": 5446,
+            "source_rows_sha256": "447b219e0c77f6d76ed54a4de7a0bee7c2b3a9a8142f61cbb434694ed73acb94"
+          },
+          "input_manifest": {
+            "path": "/home/trietlm/s18-t32-a02-runs/manifests/N4-CRN-181801.json",
+            "sha256": "d5af0a93b82acea515c1d3dcc56672bc114c0f34893ac4d537030261c04a8d32"
+          },
+          "normalization": {
+            "fit_histories": [
+              "S18I-ITER-0005-FIT-01",
+              "S18I-ITER-0005-FIT-02",
+              "S18I-ITER-0005-FIT-03"
+            ],
+            "fit_support_rows": 5446,
+            "fit_support_sha256": "447b219e0c77f6d76ed54a4de7a0bee7c2b3a9a8142f61cbb434694ed73acb94",
+            "kind": "b0_conditional_norm_plus_n4_scale_model",
+            "model_state_sha256": "81e07ee1b9161ba353480811678d72bdcf78a3ac67e41fcc0034e11d23a04ef7",
+            "note": "the eligible Fit normalization/standardizer state is restored from the bound checkpoint/reference artifact; no normalization is refitted or replaced for Confirmation",
+            "reference_artifact_sha256": "93a5524c312fd984132a7037bc9b7e54f145a0a012172ad79c278c88a5b8cd5a"
+          },
+          "reference_artifact": {
+            "bounds": {
+              "v_cap": 0.2914860099554062,
+              "v_floor": 0.02914860099554062
+            },
+            "fit_scope": "final",
+            "guard_contract": "n4-v3-guards-v1",
+            "kind": "n4_scale",
+            "parameterization": "fit-mean-anchored-bias-v1",
+            "path": "/home/trietlm/s18-t30-a14-runs/full/seed-181801/checkpoints/n4-seed181801-final.pt",
+            "schema": "s18-n4-scale-checkpoint-v2",
+            "sha256": "93a5524c312fd984132a7037bc9b7e54f145a0a012172ad79c278c88a5b8cd5a",
+            "state_dict_sha256": "286fc044726d050e9bc5fd91f003fb1096f93177c9e069be06532e69254d8628"
+          }
+        },
+        "181802": {
+          "accepted_record": {
+            "path": "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/artifacts/sprint-18/s18-t32-source-c05/accepted-records/N4-CRN/n4-seed-181802-record.json",
+            "sha256": "331e4a198f297b26f2f9bb0f710a7e0f87488044210ac391b6bc51e707f7955d"
+          },
+          "arm_config_sha256": "0b786d70ceec7e9ac80d04d869fddd901d07a0afc39ec155e4c90c94f55c0b9d",
+          "calibration": {
+            "S_pop_threshold": 6.825963401794433,
+            "S_pred_threshold": 1.7842277526855457,
+            "operator": "frozen accepted value; Calibration re-score verifies within 1e-12 and never reselects",
+            "quantile": 0.95,
+            "role_manifest_sha256": "9b83fe7be68c0f1975883c915c5e90db14a854395c3f8d8709fab78d7aa84b56",
+            "source_history": "S18I-ITER-0005-CALIBRATION-01",
+            "source_rows": 1877,
+            "source_support_sha256": "ad5310425f2d5737576a5fe34efc7389e2c07714d68cc188d96199ca4e4f5568"
+          },
+          "checkpoint": {
+            "active_epoch": 100,
+            "ema_state_sha256": "e5e0761fd98ac7ab943106667011720e2400323e89f1cff3af902ddf3951ca76",
+            "global_step": 4300,
+            "kind": "paired_b0_representation_checkpoint",
+            "model_ema_coherence": "coherent checkpoint: online model and EMA target restored together",
+            "model_state_sha256": "03e8779e25c0dd7a0730727d41146e5c4cb3b64cfc060d140f221f5905938062",
+            "path": "/home/trietlm/s18-t23-a04-runs/full/seed-181802/checkpoints/b0-seed181802-epoch100.pt",
+            "primary_epoch": 100,
+            "sha256": "8ae58da90818883ffa8b7dd7b0c73fadfcd5a24a0d3f2fc713c9a1d055b6621f"
+          },
+          "coherent_artifact": {
+            "paired_b0_representation_step": 4300,
+            "path": "/home/trietlm/s18-t30-a14-runs/full/seed-181802/checkpoints/n4-seed181802-coherent.pt",
+            "representation_step": 0,
+            "restored_checkpoint_sha256": "3fe7cbb562124be94eea6fc3d2a39535c53e5e126e6589eed988330f4aa58994",
+            "scale_epochs_completed": 50,
+            "scale_global_step": 6550,
+            "scale_model_state_sha256": "02b39a004e0aeab41e930511d1595635cd0347f121622875ea994af11c770f04",
+            "sha256": "3fe7cbb562124be94eea6fc3d2a39535c53e5e126e6589eed988330f4aa58994",
+            "state_dict_sha256": "02b39a004e0aeab41e930511d1595635cd0347f121622875ea994af11c770f04",
+            "strict_restore_b0_model_ema_scale_equal": true
+          },
+          "fit_bank": {
+            "artifact_path": "/home/trietlm/s18-t32-a02-runs/scores/N4-CRN-181802.json.fit-bank/bank.pt",
+            "artifact_sha256": "901198f8ca8f6c758367f39d83a5a8fa91a7a491c1f445abddeedb84cf54b8fc",
+            "bank_order_id": "global-file-id-ascending-v1",
+            "bank_recipe_id": "sprint18-fit-bank-restore-v1",
+            "checkpoint_sha256": "8ae58da90818883ffa8b7dd7b0c73fadfcd5a24a0d3f2fc713c9a1d055b6621f",
+            "custody_basis": "exact accepted-digest restoration from the frozen checkpoint/EMA/normalization and qualified Fit support",
+            "digest_sha256": "d13f03945a80817c508dbe5654d785069eb8018a26a2b7dbd3f7671b9f08d40c",
+            "provenance_path": "/home/trietlm/s18-t32-a02-runs/scores/N4-CRN-181802.json.fit-bank/provenance.json",
+            "provenance_sha256": "fd7d8f029237461635c583d3a24c465a294e07a78cdc735964be09300df62a81",
+            "source_rows": 5446,
+            "source_rows_sha256": "447b219e0c77f6d76ed54a4de7a0bee7c2b3a9a8142f61cbb434694ed73acb94"
+          },
+          "input_manifest": {
+            "path": "/home/trietlm/s18-t32-a02-runs/manifests/N4-CRN-181802.json",
+            "sha256": "c0b2b20c2a9921b5325c703f070432cc02e6008d059309cb2a4460cbe04a7177"
+          },
+          "normalization": {
+            "fit_histories": [
+              "S18I-ITER-0005-FIT-01",
+              "S18I-ITER-0005-FIT-02",
+              "S18I-ITER-0005-FIT-03"
+            ],
+            "fit_support_rows": 5446,
+            "fit_support_sha256": "447b219e0c77f6d76ed54a4de7a0bee7c2b3a9a8142f61cbb434694ed73acb94",
+            "kind": "b0_conditional_norm_plus_n4_scale_model",
+            "model_state_sha256": "03e8779e25c0dd7a0730727d41146e5c4cb3b64cfc060d140f221f5905938062",
+            "note": "the eligible Fit normalization/standardizer state is restored from the bound checkpoint/reference artifact; no normalization is refitted or replaced for Confirmation",
+            "reference_artifact_sha256": "09d8120ace481237a976cc3b1141acf45fe8f412de94559148205aabe09dcf8a"
+          },
+          "reference_artifact": {
+            "bounds": {
+              "v_cap": 0.25291817635297775,
+              "v_floor": 0.025291817635297774
+            },
+            "fit_scope": "final",
+            "guard_contract": "n4-v3-guards-v1",
+            "kind": "n4_scale",
+            "parameterization": "fit-mean-anchored-bias-v1",
+            "path": "/home/trietlm/s18-t30-a14-runs/full/seed-181802/checkpoints/n4-seed181802-final.pt",
+            "schema": "s18-n4-scale-checkpoint-v2",
+            "sha256": "09d8120ace481237a976cc3b1141acf45fe8f412de94559148205aabe09dcf8a",
+            "state_dict_sha256": "02b39a004e0aeab41e930511d1595635cd0347f121622875ea994af11c770f04"
+          }
+        },
+        "181803": {
+          "accepted_record": {
+            "path": "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/artifacts/sprint-18/s18-t32-source-c05/accepted-records/N4-CRN/n4-seed-181803-record.json",
+            "sha256": "1803471a8c83fd02afe64144b8aa97e56fe72fe2a631da07421859f3fa818089"
+          },
+          "arm_config_sha256": "7739964e2e6da5c297c92df395a7482ca20ef3a2833b0f7878bb0d723ba8f45e",
+          "calibration": {
+            "S_pop_threshold": 6.811013221740723,
+            "S_pred_threshold": 1.6899769783020016,
+            "operator": "frozen accepted value; Calibration re-score verifies within 1e-12 and never reselects",
+            "quantile": 0.95,
+            "role_manifest_sha256": "9b83fe7be68c0f1975883c915c5e90db14a854395c3f8d8709fab78d7aa84b56",
+            "source_history": "S18I-ITER-0005-CALIBRATION-01",
+            "source_rows": 1877,
+            "source_support_sha256": "ad5310425f2d5737576a5fe34efc7389e2c07714d68cc188d96199ca4e4f5568"
+          },
+          "checkpoint": {
+            "active_epoch": 100,
+            "ema_state_sha256": "8c5f9e1b4dd8fb694060af1d610f96327100bd9c08556b8b5b0d4be6d4f9953d",
+            "global_step": 4300,
+            "kind": "paired_b0_representation_checkpoint",
+            "model_ema_coherence": "coherent checkpoint: online model and EMA target restored together",
+            "model_state_sha256": "4b5936e84deb6b753afdaf28ca079883a889c3947544fd0b15f22bb9fdbfdf8e",
+            "path": "/home/trietlm/s18-t23-a04-runs/full/seed-181803/checkpoints/b0-seed181803-epoch100.pt",
+            "primary_epoch": 100,
+            "sha256": "79edbdf37e4180368814e02b7201c7dd3f8a7b4c7bc47408bd9bbde5d059d408"
+          },
+          "coherent_artifact": {
+            "paired_b0_representation_step": 4300,
+            "path": "/home/trietlm/s18-t30-a14-runs/full/seed-181803/checkpoints/n4-seed181803-coherent.pt",
+            "representation_step": 0,
+            "restored_checkpoint_sha256": "299552301a409f51ea460aa197388f2b5d05b3e85358b738202612d56e75434b",
+            "scale_epochs_completed": 50,
+            "scale_global_step": 6550,
+            "scale_model_state_sha256": "0247e586f1d6094390ed34b491280d3a467efcdc159e04fc6c9520abb65cf204",
+            "sha256": "299552301a409f51ea460aa197388f2b5d05b3e85358b738202612d56e75434b",
+            "state_dict_sha256": "0247e586f1d6094390ed34b491280d3a467efcdc159e04fc6c9520abb65cf204",
+            "strict_restore_b0_model_ema_scale_equal": true
+          },
+          "fit_bank": {
+            "artifact_path": "/home/trietlm/s18-t32-a02-runs/scores/N4-CRN-181803.json.fit-bank/bank.pt",
+            "artifact_sha256": "cfada6214fe1ec17a968748b1d54fefa6bb901c625fd29c44ae656ee5a9b0d0d",
+            "bank_order_id": "global-file-id-ascending-v1",
+            "bank_recipe_id": "sprint18-fit-bank-restore-v1",
+            "checkpoint_sha256": "79edbdf37e4180368814e02b7201c7dd3f8a7b4c7bc47408bd9bbde5d059d408",
+            "custody_basis": "exact accepted-digest restoration from the frozen checkpoint/EMA/normalization and qualified Fit support",
+            "digest_sha256": "2a136229e19c98c9346c9217ebad71e54ef5e5b9e099a62d342270ac970fee01",
+            "provenance_path": "/home/trietlm/s18-t32-a02-runs/scores/N4-CRN-181803.json.fit-bank/provenance.json",
+            "provenance_sha256": "76c615dc8395c089ce723db97f8741984422a5acc5afc82b49e7eb230c167ecc",
+            "source_rows": 5446,
+            "source_rows_sha256": "447b219e0c77f6d76ed54a4de7a0bee7c2b3a9a8142f61cbb434694ed73acb94"
+          },
+          "input_manifest": {
+            "path": "/home/trietlm/s18-t32-a02-runs/manifests/N4-CRN-181803.json",
+            "sha256": "8417442f5ad0fa8ec8e68de04135d6157cb6993e9be24ced64e6c4f9779ba87b"
+          },
+          "normalization": {
+            "fit_histories": [
+              "S18I-ITER-0005-FIT-01",
+              "S18I-ITER-0005-FIT-02",
+              "S18I-ITER-0005-FIT-03"
+            ],
+            "fit_support_rows": 5446,
+            "fit_support_sha256": "447b219e0c77f6d76ed54a4de7a0bee7c2b3a9a8142f61cbb434694ed73acb94",
+            "kind": "b0_conditional_norm_plus_n4_scale_model",
+            "model_state_sha256": "4b5936e84deb6b753afdaf28ca079883a889c3947544fd0b15f22bb9fdbfdf8e",
+            "note": "the eligible Fit normalization/standardizer state is restored from the bound checkpoint/reference artifact; no normalization is refitted or replaced for Confirmation",
+            "reference_artifact_sha256": "9626867ed8a454c6643cc96fe714d60b3a9e07da193f5eb2fb4544d706011c15"
+          },
+          "reference_artifact": {
+            "bounds": {
+              "v_cap": 0.25253039225935936,
+              "v_floor": 0.025253039225935935
+            },
+            "fit_scope": "final",
+            "guard_contract": "n4-v3-guards-v1",
+            "kind": "n4_scale",
+            "parameterization": "fit-mean-anchored-bias-v1",
+            "path": "/home/trietlm/s18-t30-a14-runs/full/seed-181803/checkpoints/n4-seed181803-final.pt",
+            "schema": "s18-n4-scale-checkpoint-v2",
+            "sha256": "9626867ed8a454c6643cc96fe714d60b3a9e07da193f5eb2fb4544d706011c15",
+            "state_dict_sha256": "0247e586f1d6094390ed34b491280d3a467efcdc159e04fc6c9520abb65cf204"
+          }
+        }
+      },
+      "snapshot_rule": "epoch-100 representation checkpoint is the sole primary; diagnostic checkpoints are never eligible",
+      "status": "VALID"
+    }
+  },
+  "artifact_custody": {
+    "custody_rule": "every local and remote byte used by the lock is bound by SHA-256; the isolated worktree commit/tree and every contract/code byte are re-verified before Confirmation opens",
+    "local_artifacts": {
+      "artifacts/sprint-18/s18-t27-a02/n1-hcc-stopped-row.json": "1756d7b85fdde915c17e9a9253dc4b5bf3207b8f11d2f835f0c2fc2da670009a",
+      "artifacts/sprint-18/s18-t31-a01/development-matrix.json": "849f2a1dfc8f35e6a6b88b7edf2ab7e7711a314b4860b26865d7a9d0442fd627",
+      "artifacts/sprint-18/s18-t32-runtime-a02/auditsha/bank-artifact-sha256.txt": "c7198834d713d4b77b44b36168403491e1a5d8e2b1ec128e17a4721403de7b54",
+      "artifacts/sprint-18/s18-t32-runtime-a02/auditsha/manifest-sha256.txt": "cbbc61de0201b0ae7a03d532213a0c0df98705fc92e4f52d3b7f99ff7534e9ec",
+      "artifacts/sprint-18/s18-t32-runtime-a02/auditsha/metric-document-sha256.txt": "ead7ec940c2d55ff4d2190a561e02fa407b9561d6818e8842c3e4adc777af39b",
+      "artifacts/sprint-18/s18-t32-runtime-a02/auditsha/score-document-sha256.txt": "cd3cea7837d3aa6e4882577d7622ef613affe7ad27db1886a30ecfe3894e2b13",
+      "artifacts/sprint-18/s18-t32-runtime-a02/manifestcatalog/B0-FULL-181801.json": "2196b6233444b664e7bfd6fb82af86b7d0f3f9a7bd964cf358ec5d06a2423828",
+      "artifacts/sprint-18/s18-t32-runtime-a02/manifestcatalog/B0-FULL-181802.json": "2898d9f71bc6acfbbc3f6a69682099d208242a19193f77f2548849f3f1103f47",
+      "artifacts/sprint-18/s18-t32-runtime-a02/manifestcatalog/B0-FULL-181803.json": "2a160b60494abe69164d7ac6b03c4cff12348f95292f523724fc96a9c94eb97e",
+      "artifacts/sprint-18/s18-t32-runtime-a02/manifestcatalog/K3-FULL-181801.json": "c3bcb860394045bfcce52ae9262670c66c82fb0ed8abd270f8a58a3ea39f7813",
+      "artifacts/sprint-18/s18-t32-runtime-a02/manifestcatalog/K3-FULL-181802.json": "d19ffd11460900155009919b024dfaffcc35ef2d5c4503a3b4554e0345b50e27",
+      "artifacts/sprint-18/s18-t32-runtime-a02/manifestcatalog/K3-FULL-181803.json": "bb69338de70fc659f315f56695c6dc894445654bc56fb61c4164fcfda91cb339",
+      "artifacts/sprint-18/s18-t32-runtime-a02/manifestcatalog/K7-FULL-181801.json": "5e52d8ccfea2e0fc931e4dee562ee8b6ad98369a95f23299e513d098bf30e66c",
+      "artifacts/sprint-18/s18-t32-runtime-a02/manifestcatalog/K7-FULL-181802.json": "a5f52f40846721957cdb84bed7886e8c9258dae580346221a8c232ffcf82b6b2",
+      "artifacts/sprint-18/s18-t32-runtime-a02/manifestcatalog/K7-FULL-181803.json": "9ca0e5f4b1c8c857305f5915759d153e07851ee95cc122da87637614c1231f62",
+      "artifacts/sprint-18/s18-t32-runtime-a02/manifestcatalog/K9-FULL-181801.json": "3185dcd66499428cf52febcb7079897936207314af3087ed22a1e78b1863718b",
+      "artifacts/sprint-18/s18-t32-runtime-a02/manifestcatalog/K9-FULL-181802.json": "97c1d95277c75092b32919f5f5b5978f0741188a3deb5f8903b7d1f4a013a05a",
+      "artifacts/sprint-18/s18-t32-runtime-a02/manifestcatalog/K9-FULL-181803.json": "9cb979a7e8cbe5860a216b30cac9ebd4e989baf22f50f9cf3ed5fa78abdaa52d",
+      "artifacts/sprint-18/s18-t32-runtime-a02/manifestcatalog/N2-MSP-181801.json": "847883ceb00de06c46a83b68fcfb5092a56b4a8468885406defc049bea1d6e30",
+      "artifacts/sprint-18/s18-t32-runtime-a02/manifestcatalog/N2-MSP-181802.json": "70846428ac9cbabcce4c622f6ef1d8c8f6092fd5cc03f0b513cbfdb5ecb4f3e8",
+      "artifacts/sprint-18/s18-t32-runtime-a02/manifestcatalog/N2-MSP-181803.json": "680c7af5c1a83eeb68c297eadcd568b5e78f84ad1b461540841bb720577861a3",
+      "artifacts/sprint-18/s18-t32-runtime-a02/manifestcatalog/N3-CCRP-181801.json": "e3cdb4250a6e853c715726e42497b07e29e89a56b4648300ea172f4f4bc9501c",
+      "artifacts/sprint-18/s18-t32-runtime-a02/manifestcatalog/N3-CCRP-181802.json": "3de4357847b764a095c2a45f5038fe744090d471d11c59f943c70fb68f5b23fb",
+      "artifacts/sprint-18/s18-t32-runtime-a02/manifestcatalog/N3-CCRP-181803.json": "6e9ee4e1ccca287216222d463897b7de539eff40042e41763efb1dc62f7a630f",
+      "artifacts/sprint-18/s18-t32-runtime-a02/manifestcatalog/N4-CRN-181801.json": "d5af0a93b82acea515c1d3dcc56672bc114c0f34893ac4d537030261c04a8d32",
+      "artifacts/sprint-18/s18-t32-runtime-a02/manifestcatalog/N4-CRN-181802.json": "c0b2b20c2a9921b5325c703f070432cc02e6008d059309cb2a4460cbe04a7177",
+      "artifacts/sprint-18/s18-t32-runtime-a02/manifestcatalog/N4-CRN-181803.json": "8417442f5ad0fa8ec8e68de04135d6157cb6993e9be24ced64e6c4f9779ba87b",
+      "artifacts/sprint-18/task-27-a02.md": "1a0ded932ee7e03a57993b24a97f3e1fc2fe645611ee7a3d57d45b4617f96c18",
+      "experiments/sprint18-context-residual-normalization-spec-v2.md": "4d1c8097c9cc27d3fbeb2e2a6e70a29a7bc63d7899646a9c712a315b39d9ffe3",
+      "experiments/sprint18-cross-channel-relational-prediction-spec-v2.md": "eee44cebd29de2b5cbfdf0263fcca21d82fee92e0773922c0bc3209dee50443c",
+      "experiments/sprint18-full-training-protocol-v1.md": "9ae3d43f94a6194bae602d68067958bdf7d11cf47e801dd328e87b22e7907cf6",
+      "experiments/sprint18-full-training-protocol-v2.md": "e1dcd17914e920520ad0d8f50e185874b95414e6a4fe907903619daf145622d2",
+      "experiments/sprint18-hierarchical-conditional-contrastive-spec-v2.md": "0f5ede73d65441014caf22a22058c17d8ed34be735790d20ca7f36873a34d144",
+      "experiments/sprint18-multiscale-latent-prediction-spec-v2.md": "a2deeb5479957ef8777ec4cfd66898e3ecd5e0aef80e2043f11882529ae3a9f2",
+      "experiments/sprint18-supplementary-development-metrics-v1.md": "44916f4bd1bd5e56b0b04873936de5fa1e6e1541812200f8d2dc6739bda41067",
+      "experiments/sprint18-task10-n1-hcc-selection-v1.json": "5184419956ccfa5a2b4667a2eb95f3429e6bb72be1dedd582ddb2c8ca381a967",
+      "experiments/sprint18-task14-config-lock-v9.json": "a9990bd189706a0fdadfeaee422ef307599e3f4d9c5a72102dfa1f015d5cd57a",
+      "experiments/sprint18-task14-config-lock.json": "c4c1a8bde14310cf4436c10762e3e98475f7c84eb74fcb8a74b3e267885edec3",
+      "experiments/sprint18-task71-certified-data-handoff-S18-ITER-0005-v1.json": "5c28434b6f5b3342a3203a73cd672782e08857299c05b709adbd8bce75d45155",
+      "experiments/sprint18_task32_supplementary_runner.py": "6e2a9fc58ca5bdc45b86481af391368710abf45d05d85864bbb19eae86aba242",
+      "src/representation/crn.py": "7902dd9b7209b2ad9f7ef0f0e6f7316eb13c7db20237bc04974336b863bb9251",
+      "src/representation/sprint18_checkpoint.py": "fce263df093bc622ba0a69bfac0824941fd6a0d1c4c9ab02bcbcff62432aaef2",
+      "src/representation/sprint18_confirmation_lock.py": "97f299d6aa800aab691732513bc14006fb3fecf70776b6b5a4db0ccff4d6b3c5",
+      "src/representation/sprint18_harness.py": "261d1479159f51de11cd2e1b81a6b07358f0d36045b495de2003379b2b77f515",
+      "src/representation/sprint18_k9_downstream.py": "54997d0d6174c97841dfc549502f4da64dcc45b69a1f3fd9d97b4b8f3cf3cceb",
+      "src/representation/sprint18_supplementary.py": "dd7f9ac6b934a1036bfba94f85cfd8e3778fd95549f965ee88da55ce5737b4b6"
+    },
+    "remote_artifacts": {
+      "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/artifacts/sprint-18/s18-t32-source-c05/accepted-records/B0-FULL/remote-seed-181801-record.json": "216a21c96d39025360571a1bcfdd859c7f2123fdff13c589526294534bae57d3",
+      "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/artifacts/sprint-18/s18-t32-source-c05/accepted-records/B0-FULL/remote-seed-181802-record.json": "dc1f908d979ffb0aaade43be1285ee5578f5bca76fa9ce45aff7538c8bcafedc",
+      "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/artifacts/sprint-18/s18-t32-source-c05/accepted-records/B0-FULL/remote-seed-181803-record.json": "042cc915a78a33d8e9bb649037bc1e95b058b9138fd323f0d4aa49c2188ab66b",
+      "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/artifacts/sprint-18/s18-t32-source-c05/accepted-records/K3-FULL/seed-181801-record.json": "cb10c59fd5287a499df7482023aac887cc03412ae6fd338d45e21328d6699bcd",
+      "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/artifacts/sprint-18/s18-t32-source-c05/accepted-records/K3-FULL/seed-181802-record.json": "39874b5096a86f7039c650b31777df52c748111a9fb3e385272d43b0bc3c6eac",
+      "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/artifacts/sprint-18/s18-t32-source-c05/accepted-records/K3-FULL/seed-181803-record.json": "9bb0df2854c0ea0b8de2a2613f74d40214a1ff5a5c2fab73cfc7986a6e4e325e",
+      "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/artifacts/sprint-18/s18-t32-source-c05/accepted-records/K7-FULL/seed-181801-record.json": "92e62cdb8acc5f9bc9eb8146f5a022309694778839e5301fe77e0936da6fe110",
+      "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/artifacts/sprint-18/s18-t32-source-c05/accepted-records/K7-FULL/seed-181802-record.json": "fcc796632326044041a9581c683b8516598539b1f27e125e1b8617aec09a4907",
+      "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/artifacts/sprint-18/s18-t32-source-c05/accepted-records/K7-FULL/seed-181803-record.json": "eb479260f24bd536e321bf88920a8465d1fefbbec695ec910466736b4730c92e",
+      "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/artifacts/sprint-18/s18-t32-source-c05/accepted-records/K9-FULL/seed-181801-record.json": "2a695d4445cd431e1621b6e0c3d570cc3002075c3132be5b7e22e9ac39682ddf",
+      "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/artifacts/sprint-18/s18-t32-source-c05/accepted-records/K9-FULL/seed-181802-record.json": "52260b6fd0c619f242f488414dd1772cb37ab9efc8d9ce3b3f02e8907a195477",
+      "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/artifacts/sprint-18/s18-t32-source-c05/accepted-records/K9-FULL/seed-181803-record.json": "f6eed8c5c0336db0f42b42a147ee1396c73617bc38119fbe3ca1c2cec22ab74f",
+      "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/artifacts/sprint-18/s18-t32-source-c05/accepted-records/N2-MSP/seed-181801-seed_record.extract.json": "3e3f115820106a9e502ec6de4aee019fd90177459e6eec948a51ab5d68295cb2",
+      "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/artifacts/sprint-18/s18-t32-source-c05/accepted-records/N2-MSP/seed-181802-seed_record.extract.json": "ddefeb968e25fad0b8442914b2002488732e3d7635e03bc323f09f940052cf13",
+      "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/artifacts/sprint-18/s18-t32-source-c05/accepted-records/N2-MSP/seed-181803-seed_record.extract.json": "d432a6f4e966289ea81f318358b03ac797a6c0894cbe217ccc94ed1ab304a8c7",
+      "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/artifacts/sprint-18/s18-t32-source-c05/accepted-records/N3-CCRP/seed-181801.json": "90184a72701dd1f8317145fc691c0893d189b9bea6c01e736861e42390f729a2",
+      "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/artifacts/sprint-18/s18-t32-source-c05/accepted-records/N3-CCRP/seed-181802.json": "7e40e5157b5455c74fa77354e1362f5c13b8845b41e4a785a1052790f5b049b7",
+      "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/artifacts/sprint-18/s18-t32-source-c05/accepted-records/N3-CCRP/seed-181803.json": "7dda6b088b9cf5a10fa59adea3bd77c1e8b19ee724007763ecbe423d4fc5756f",
+      "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/artifacts/sprint-18/s18-t32-source-c05/accepted-records/N4-CRN/n4-seed-181801-record.json": "920a62469ea7b1c5f2f7bc35f90581ca05c2f1a9e51f6e2d04c2ac24bf95b3d3",
+      "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/artifacts/sprint-18/s18-t32-source-c05/accepted-records/N4-CRN/n4-seed-181802-record.json": "331e4a198f297b26f2f9bb0f710a7e0f87488044210ac391b6bc51e707f7955d",
+      "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/artifacts/sprint-18/s18-t32-source-c05/accepted-records/N4-CRN/n4-seed-181803-record.json": "1803471a8c83fd02afe64144b8aa97e56fe72fe2a631da07421859f3fa818089",
+      "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/experiments/sprint18-context-residual-normalization-spec-v2.md": "4d1c8097c9cc27d3fbeb2e2a6e70a29a7bc63d7899646a9c712a315b39d9ffe3",
+      "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/experiments/sprint18-cross-channel-relational-prediction-spec-v2.md": "eee44cebd29de2b5cbfdf0263fcca21d82fee92e0773922c0bc3209dee50443c",
+      "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/experiments/sprint18-full-training-protocol-v2.md": "e1dcd17914e920520ad0d8f50e185874b95414e6a4fe907903619daf145622d2",
+      "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/experiments/sprint18-hierarchical-conditional-contrastive-spec-v2.md": "0f5ede73d65441014caf22a22058c17d8ed34be735790d20ca7f36873a34d144",
+      "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/experiments/sprint18-multiscale-latent-prediction-spec-v2.md": "a2deeb5479957ef8777ec4cfd66898e3ecd5e0aef80e2043f11882529ae3a9f2",
+      "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/experiments/sprint18-supplementary-development-metrics-v1.md": "44916f4bd1bd5e56b0b04873936de5fa1e6e1541812200f8d2dc6739bda41067",
+      "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/experiments/sprint18-task71-certified-data-handoff-S18-ITER-0005-v1.json": "5c28434b6f5b3342a3203a73cd672782e08857299c05b709adbd8bce75d45155",
+      "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/experiments/sprint18_task32_supplementary_runner.py": "6e2a9fc58ca5bdc45b86481af391368710abf45d05d85864bbb19eae86aba242",
+      "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/src/representation/crn.py": "7902dd9b7209b2ad9f7ef0f0e6f7316eb13c7db20237bc04974336b863bb9251",
+      "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/src/representation/sprint18_checkpoint.py": "fce263df093bc622ba0a69bfac0824941fd6a0d1c4c9ab02bcbcff62432aaef2",
+      "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/src/representation/sprint18_harness.py": "261d1479159f51de11cd2e1b81a6b07358f0d36045b495de2003379b2b77f515",
+      "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/src/representation/sprint18_k9_downstream.py": "54997d0d6174c97841dfc549502f4da64dcc45b69a1f3fd9d97b4b8f3cf3cceb",
+      "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/src/representation/sprint18_supplementary.py": "dd7f9ac6b934a1036bfba94f85cfd8e3778fd95549f965ee88da55ce5737b4b6",
+      "/home/trietlm/s18-t23-a04-runs/full/seed-181801/checkpoints/b0-seed181801-epoch100.pt": "9292d7c59037cba7b7fd337dbb896ed492777abff4713307c98f86a3b5226a8f",
+      "/home/trietlm/s18-t23-a04-runs/full/seed-181802/checkpoints/b0-seed181802-epoch100.pt": "8ae58da90818883ffa8b7dd7b0c73fadfcd5a24a0d3f2fc713c9a1d055b6621f",
+      "/home/trietlm/s18-t23-a04-runs/full/seed-181803/checkpoints/b0-seed181803-epoch100.pt": "79edbdf37e4180368814e02b7201c7dd3f8a7b4c7bc47408bd9bbde5d059d408",
+      "/home/trietlm/s18-t24-a02-runs/full/seed-181801/checkpoints/k3-seed181801-epoch100.pt": "445e470e2d2bdec962fa7ce8d4c0da80ccc2ae45a88b87433588c441e9d33ddd",
+      "/home/trietlm/s18-t24-a02-runs/full/seed-181802/checkpoints/k3-seed181802-epoch100.pt": "9fb301139a1538d5c64f774810ca496791e526de4035dc1cccfc053efa8726d8",
+      "/home/trietlm/s18-t24-a02-runs/full/seed-181803/checkpoints/k3-seed181803-epoch100.pt": "679ea9a9a1822eee1d0e88ab61a025bbb44b06788834aa6178c16af876745801",
+      "/home/trietlm/s18-t25-a02-runs/full/seed-181801/checkpoints/k7-seed181801-epoch100.pt": "bf20994e11d130a757158059526ea57344cb056ff885840d182db8e2fc26d3da",
+      "/home/trietlm/s18-t25-a02-runs/full/seed-181802/checkpoints/k7-seed181802-epoch100.pt": "e24c187c0dd7323d54f0a708c818cc1e6bac690fd7e86a5b0c35c4114bedb287",
+      "/home/trietlm/s18-t25-a02-runs/full/seed-181803/checkpoints/k7-seed181803-epoch100.pt": "7190e49f90f326c469878979043c8ec5478bfa4e16e1a5fe5b093a8415393ffb",
+      "/home/trietlm/s18-t26-a02-runs/full/seed-181801/checkpoints/k9-seed181801-epoch100.pt": "c80368d6c6e7034d900ff9f3f6c0cadde29fbb2d2e2b893df67c18c7391e0332",
+      "/home/trietlm/s18-t26-a02-runs/full/seed-181801/k9_downstream.pt": "1613dc3671ad48e551fac2dc3847c67b1aa485a07efdb84a5800838276d71aff",
+      "/home/trietlm/s18-t26-a02-runs/full/seed-181802/checkpoints/k9-seed181802-epoch100.pt": "e6d1b407657b6ad300cdc3072fa7acbeb401f4957a85d49b2821ddc07d4fd7cf",
+      "/home/trietlm/s18-t26-a02-runs/full/seed-181802/k9_downstream.pt": "2f946c9073c174e605461aee2ec57e4a04864adf640c3c625a65665aac4d5baf",
+      "/home/trietlm/s18-t26-a02-runs/full/seed-181803/checkpoints/k9-seed181803-epoch100.pt": "0a453b338b7f4be49fd19304456ab389d8526e8f69ec2abc3382f9c19501460c",
+      "/home/trietlm/s18-t26-a02-runs/full/seed-181803/k9_downstream.pt": "d1a82ab4a0b8b6a4865d9de7e8195d1127d0cd6425c969381e39474951d1ce0a",
+      "/home/trietlm/s18-t28-a04-runs/full/seed-181801/checkpoints/n2-seed181801-epoch100.pt": "141c1a71c30678ad5afc700646e927d74f1144032673b091d1f221161fbcd7fc",
+      "/home/trietlm/s18-t28-a04-runs/full/seed-181802/checkpoints/n2-seed181802-epoch100.pt": "ed390ff3fd33bac70ab4ac4f533983d3fc7251ad784ebf5fc7e4d21dcfe70b56",
+      "/home/trietlm/s18-t28-a04-runs/full/seed-181803/checkpoints/n2-seed181803-epoch100.pt": "c146bc6bec5b056f73303bbaec15c73c5b81e776483b12dff23b1661d5a3a4b6",
+      "/home/trietlm/s18-t29-a06-runs/full/seed-181801/checkpoints/n3-seed181801-epoch100.pt": "8e8677f492374b8399ce1dd316505431e4089057e9c197d42d3b7383e136d0ec",
+      "/home/trietlm/s18-t29-a06-runs/full/seed-181802/checkpoints/n3-seed181802-epoch100.pt": "3311e7aca388d6127eb4cd315cdc54fc152691b9819a232e8130c75c3353265a",
+      "/home/trietlm/s18-t29-a06-runs/full/seed-181803/checkpoints/n3-seed181803-epoch100.pt": "b73dde936affdf3d4d04d4d246ffebab309c2fafd19a9fac21ae980bcafe53ba",
+      "/home/trietlm/s18-t30-a14-runs/full/seed-181801/checkpoints/n4-seed181801-coherent.pt": "bbe57aeb9a24b677be89593ecaeb3a82c0180ff9fb45cd2c9761dde04bdfe4ec",
+      "/home/trietlm/s18-t30-a14-runs/full/seed-181801/checkpoints/n4-seed181801-final.pt": "93a5524c312fd984132a7037bc9b7e54f145a0a012172ad79c278c88a5b8cd5a",
+      "/home/trietlm/s18-t30-a14-runs/full/seed-181802/checkpoints/n4-seed181802-coherent.pt": "3fe7cbb562124be94eea6fc3d2a39535c53e5e126e6589eed988330f4aa58994",
+      "/home/trietlm/s18-t30-a14-runs/full/seed-181802/checkpoints/n4-seed181802-final.pt": "09d8120ace481237a976cc3b1141acf45fe8f412de94559148205aabe09dcf8a",
+      "/home/trietlm/s18-t30-a14-runs/full/seed-181803/checkpoints/n4-seed181803-coherent.pt": "299552301a409f51ea460aa197388f2b5d05b3e85358b738202612d56e75434b",
+      "/home/trietlm/s18-t30-a14-runs/full/seed-181803/checkpoints/n4-seed181803-final.pt": "9626867ed8a454c6643cc96fe714d60b3a9e07da193f5eb2fb4544d706011c15",
+      "/home/trietlm/s18-t32-a02-runs/manifests/B0-FULL-181801.json": "2196b6233444b664e7bfd6fb82af86b7d0f3f9a7bd964cf358ec5d06a2423828",
+      "/home/trietlm/s18-t32-a02-runs/manifests/B0-FULL-181802.json": "2898d9f71bc6acfbbc3f6a69682099d208242a19193f77f2548849f3f1103f47",
+      "/home/trietlm/s18-t32-a02-runs/manifests/B0-FULL-181803.json": "2a160b60494abe69164d7ac6b03c4cff12348f95292f523724fc96a9c94eb97e",
+      "/home/trietlm/s18-t32-a02-runs/manifests/K3-FULL-181801.json": "c3bcb860394045bfcce52ae9262670c66c82fb0ed8abd270f8a58a3ea39f7813",
+      "/home/trietlm/s18-t32-a02-runs/manifests/K3-FULL-181802.json": "d19ffd11460900155009919b024dfaffcc35ef2d5c4503a3b4554e0345b50e27",
+      "/home/trietlm/s18-t32-a02-runs/manifests/K3-FULL-181803.json": "bb69338de70fc659f315f56695c6dc894445654bc56fb61c4164fcfda91cb339",
+      "/home/trietlm/s18-t32-a02-runs/manifests/K7-FULL-181801.json": "5e52d8ccfea2e0fc931e4dee562ee8b6ad98369a95f23299e513d098bf30e66c",
+      "/home/trietlm/s18-t32-a02-runs/manifests/K7-FULL-181802.json": "a5f52f40846721957cdb84bed7886e8c9258dae580346221a8c232ffcf82b6b2",
+      "/home/trietlm/s18-t32-a02-runs/manifests/K7-FULL-181803.json": "9ca0e5f4b1c8c857305f5915759d153e07851ee95cc122da87637614c1231f62",
+      "/home/trietlm/s18-t32-a02-runs/manifests/K9-FULL-181801.json": "3185dcd66499428cf52febcb7079897936207314af3087ed22a1e78b1863718b",
+      "/home/trietlm/s18-t32-a02-runs/manifests/K9-FULL-181802.json": "97c1d95277c75092b32919f5f5b5978f0741188a3deb5f8903b7d1f4a013a05a",
+      "/home/trietlm/s18-t32-a02-runs/manifests/K9-FULL-181803.json": "9cb979a7e8cbe5860a216b30cac9ebd4e989baf22f50f9cf3ed5fa78abdaa52d",
+      "/home/trietlm/s18-t32-a02-runs/manifests/N2-MSP-181801.json": "847883ceb00de06c46a83b68fcfb5092a56b4a8468885406defc049bea1d6e30",
+      "/home/trietlm/s18-t32-a02-runs/manifests/N2-MSP-181802.json": "70846428ac9cbabcce4c622f6ef1d8c8f6092fd5cc03f0b513cbfdb5ecb4f3e8",
+      "/home/trietlm/s18-t32-a02-runs/manifests/N2-MSP-181803.json": "680c7af5c1a83eeb68c297eadcd568b5e78f84ad1b461540841bb720577861a3",
+      "/home/trietlm/s18-t32-a02-runs/manifests/N3-CCRP-181801.json": "e3cdb4250a6e853c715726e42497b07e29e89a56b4648300ea172f4f4bc9501c",
+      "/home/trietlm/s18-t32-a02-runs/manifests/N3-CCRP-181802.json": "3de4357847b764a095c2a45f5038fe744090d471d11c59f943c70fb68f5b23fb",
+      "/home/trietlm/s18-t32-a02-runs/manifests/N3-CCRP-181803.json": "6e9ee4e1ccca287216222d463897b7de539eff40042e41763efb1dc62f7a630f",
+      "/home/trietlm/s18-t32-a02-runs/manifests/N4-CRN-181801.json": "d5af0a93b82acea515c1d3dcc56672bc114c0f34893ac4d537030261c04a8d32",
+      "/home/trietlm/s18-t32-a02-runs/manifests/N4-CRN-181802.json": "c0b2b20c2a9921b5325c703f070432cc02e6008d059309cb2a4460cbe04a7177",
+      "/home/trietlm/s18-t32-a02-runs/manifests/N4-CRN-181803.json": "8417442f5ad0fa8ec8e68de04135d6157cb6993e9be24ced64e6c4f9779ba87b",
+      "/home/trietlm/s18-t32-a02-runs/scores/B0-FULL-181801.json.fit-bank/bank.pt": "546e515d407f9bca3a0b9a15b78f281f9000231c27795585bee010f538d9387a",
+      "/home/trietlm/s18-t32-a02-runs/scores/B0-FULL-181801.json.fit-bank/provenance.json": "5e41df5e59bf3b85ddda9b307cd27ffdc280b9d0bbb5f74f6882376f75db1601",
+      "/home/trietlm/s18-t32-a02-runs/scores/B0-FULL-181802.json.fit-bank/bank.pt": "59b95f3c4897ce7ad35d75ce279c29e22d6338e10562627589b285be57a6b1bd",
+      "/home/trietlm/s18-t32-a02-runs/scores/B0-FULL-181802.json.fit-bank/provenance.json": "c3ed0a8fc18fc5c9aeee7a8142317d4565d0dc056c3a3e49a2554e87d7c1372f",
+      "/home/trietlm/s18-t32-a02-runs/scores/B0-FULL-181803.json.fit-bank/bank.pt": "c234c0b637c46898f4edfad7802b3cf269ad0f7fc5487a28412c0772790fb235",
+      "/home/trietlm/s18-t32-a02-runs/scores/B0-FULL-181803.json.fit-bank/provenance.json": "cae51624ab9d6c45952707148d8aff14bf505a7cfd1b702f2c8e54c17c5c1fcd",
+      "/home/trietlm/s18-t32-a02-runs/scores/K3-FULL-181801.json.fit-bank/bank.pt": "6039b487f267b369dfe73faeab4ebb7a929c977439f77557a1c1c68dfc093b98",
+      "/home/trietlm/s18-t32-a02-runs/scores/K3-FULL-181801.json.fit-bank/provenance.json": "c0eb0934b181ffb8a003224e9deba2a8ac7886888341eec27c09acce3fae25be",
+      "/home/trietlm/s18-t32-a02-runs/scores/K3-FULL-181802.json.fit-bank/bank.pt": "cdd708a015dbc576efb6c8bb476f9448501236730ff4ecc51e8f565701c9badf",
+      "/home/trietlm/s18-t32-a02-runs/scores/K3-FULL-181802.json.fit-bank/provenance.json": "d92c712dd254a6fa58d7883e2aac913883c7158a9f9db0c97a0e8afc7e5a1eac",
+      "/home/trietlm/s18-t32-a02-runs/scores/K3-FULL-181803.json.fit-bank/bank.pt": "5844b377591bf256a842693cceb10047807da9a912f9a7aa8b3dadc2cc475b8c",
+      "/home/trietlm/s18-t32-a02-runs/scores/K3-FULL-181803.json.fit-bank/provenance.json": "ffae7416ab6460654b96615dc2b4be98c33949bc0ce104a3abe09089b13f58c6",
+      "/home/trietlm/s18-t32-a02-runs/scores/K7-FULL-181801.json.fit-bank/bank.pt": "6fb3b408c3835a60f9662c5a44ecdb17445593f2f4fa7a4068c4060a7693d850",
+      "/home/trietlm/s18-t32-a02-runs/scores/K7-FULL-181801.json.fit-bank/provenance.json": "50cd5cd54d636c94ef5b7ef52fa4e425170c09584308060edd5bcf8265e71dc2",
+      "/home/trietlm/s18-t32-a02-runs/scores/K7-FULL-181802.json.fit-bank/bank.pt": "57f45b18307f88228d3a679b93a9c5c20f0f43d7b9411873d0a9cfa141fa19c1",
+      "/home/trietlm/s18-t32-a02-runs/scores/K7-FULL-181802.json.fit-bank/provenance.json": "451f75553408d02b543fcd57a51a40b1454ffc936eb19ee8eed69a5b1d505fda",
+      "/home/trietlm/s18-t32-a02-runs/scores/K7-FULL-181803.json.fit-bank/bank.pt": "6f67211fd5b95a8c68b18d0b6bce5df07b19b26f6d4178081ad172a5a45e3035",
+      "/home/trietlm/s18-t32-a02-runs/scores/K7-FULL-181803.json.fit-bank/provenance.json": "d7feef6ac48c2ba0578ab9fca607e0d02592a05d36d20473938964cf1c72309c",
+      "/home/trietlm/s18-t32-a02-runs/scores/N2-MSP-181801.json.fit-bank/bank.pt": "27ab48b72272bd75a5e06ab99955cf358a37def7720eba2c225a21acc6a6ed2b",
+      "/home/trietlm/s18-t32-a02-runs/scores/N2-MSP-181801.json.fit-bank/provenance.json": "8dcbfc077812048e92e02e6484e3dc8d7b26540b74cbc08504aab0dee9e76d9a",
+      "/home/trietlm/s18-t32-a02-runs/scores/N2-MSP-181802.json.fit-bank/bank.pt": "0f7b1e339426c5854dfd1281d7b4b283186c4b1a328f3c5c0b2bdb96399054ee",
+      "/home/trietlm/s18-t32-a02-runs/scores/N2-MSP-181802.json.fit-bank/provenance.json": "c527847c9cdca504f54a0d3a4914292b9bbb0a014de2e476e0763e2d2dba9c9d",
+      "/home/trietlm/s18-t32-a02-runs/scores/N2-MSP-181803.json.fit-bank/bank.pt": "7aa8a14e3402481b9bcebe0b7fc3b2c84ed3d5f0f99e96faf0cc485c9449e419",
+      "/home/trietlm/s18-t32-a02-runs/scores/N2-MSP-181803.json.fit-bank/provenance.json": "8d0b237df708d4de117042afc81e66120655fff10c2e7783f28d77a7210ea0f8",
+      "/home/trietlm/s18-t32-a02-runs/scores/N3-CCRP-181801.json.fit-bank/bank.pt": "a8c0c987f36413af320dbce492d88575b325e47b254711e0b98ae32976dff0b6",
+      "/home/trietlm/s18-t32-a02-runs/scores/N3-CCRP-181801.json.fit-bank/provenance.json": "f9e374796622d001dada79c84a4daddc4353b8051cc7e78017b3eefb243567c6",
+      "/home/trietlm/s18-t32-a02-runs/scores/N3-CCRP-181802.json.fit-bank/bank.pt": "c0203a492819d24a5dd564e33a288d611a81a82f97f1b0a5c7069d624da24b5b",
+      "/home/trietlm/s18-t32-a02-runs/scores/N3-CCRP-181802.json.fit-bank/provenance.json": "ba20024e97ff340e8336151d510999eadcfc949687f418b900673ae02eee8809",
+      "/home/trietlm/s18-t32-a02-runs/scores/N3-CCRP-181803.json.fit-bank/bank.pt": "97f70c8f67cccb3fe9a890b6157deac529017214d95734a86801c500bf780131",
+      "/home/trietlm/s18-t32-a02-runs/scores/N3-CCRP-181803.json.fit-bank/provenance.json": "f1b70680eb3538eda2e9c2908d305b6b5e405394e1b1c0e83f35302c1d16b9c6",
+      "/home/trietlm/s18-t32-a02-runs/scores/N4-CRN-181801.json.fit-bank/bank.pt": "aba72d5030ea5eb25aa3e2f1015e0998f0b58b585254df8fe221e565fe51a43f",
+      "/home/trietlm/s18-t32-a02-runs/scores/N4-CRN-181801.json.fit-bank/provenance.json": "0a77e553f4e6aa0652d3657f187fb66b258a7ae2bc6a121002fd2792661fa78d",
+      "/home/trietlm/s18-t32-a02-runs/scores/N4-CRN-181802.json.fit-bank/bank.pt": "901198f8ca8f6c758367f39d83a5a8fa91a7a491c1f445abddeedb84cf54b8fc",
+      "/home/trietlm/s18-t32-a02-runs/scores/N4-CRN-181802.json.fit-bank/provenance.json": "fd7d8f029237461635c583d3a24c465a294e07a78cdc735964be09300df62a81",
+      "/home/trietlm/s18-t32-a02-runs/scores/N4-CRN-181803.json.fit-bank/bank.pt": "cfada6214fe1ec17a968748b1d54fefa6bb901c625fd29c44ae656ee5a9b0d0d",
+      "/home/trietlm/s18-t32-a02-runs/scores/N4-CRN-181803.json.fit-bank/provenance.json": "76c615dc8395c089ce723db97f8741984422a5acc5afc82b49e7eb230c167ecc"
+    },
+    "remote_worktree": {
+      "branch": "sprint18-task68-a02-runtime",
+      "commit": "c1996ea17e639b4d9df7a1f08c2407919bd2bfc6",
+      "path": "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree",
+      "tree": "5960b5204f1dd8c7477b2aa631319a2a7201d050"
+    }
+  },
+  "attempt_id": "S18T33A01",
+  "common_contract": {
+    "checkpoint_cadence": {
+      "coherence": "online model + EMA target + optimizer + LR state + global step + epoch + coefficient schedule state + sampler position + RNG states + config digests, atomically",
+      "diagnostic_checkpoints": [
+        "global_step_300_or_NOT_REACHED",
+        "epoch_10",
+        "epoch_30",
+        "epoch_60"
+      ],
+      "primary_checkpoint": "epoch_100 (N4-CRN: final scale epoch_50)"
+    },
+    "inference_rule": "restore the exact locked model/EMA/reference state; no optimizer step (encoder_updates = 0)",
+    "model_geometry": {
+      "n_channels": 6,
+      "n_programs": 8,
+      "n_robots": 9,
+      "patch_size": 32,
+      "stride": 16
+    },
+    "model_seeds": [
+      181801,
+      181802,
+      181803
+    ],
+    "primary_checkpoint_rule": "epoch-100 is the sole primary representation checkpoint; N4-CRN uses the final scale epoch-50 within the accepted coherent state",
+    "representation": {
+      "base_learning_rate": 0.0015,
+      "batch_size": 128,
+      "batch_size_unit": "files",
+      "batches_per_epoch": 43,
+      "contrastive_schedule": "epochs 1-10 zero; epochs 11-30 linear ramp; epochs 31-100 full plateau (constant within epoch)",
+      "ema_decay": 0.996,
+      "epoch_sampler": "lexical Fit IDs + epoch_seed SHA256(\"sprint18-fit-order-v1|<seed>|<epoch>|<fit_role_sha256>\")[:8] -> CPU torch.randperm; drop_last=false",
+      "epochs": 100,
+      "global_gradient_clip_norm": 1.0,
+      "initialization": "fresh per (arm, seed); shared-module key sprint18-init-v1|<seed>|shared|<module>; arm-specific key sprint18-init-v1|<seed>|<arm>|<module>",
+      "lr_schedule": "epochs 1-5 linear warmup 0.1x->1.0x; epochs 6-100 cosine to 1e-5 (constant within epoch)",
+      "minimum_learning_rate": 1e-05,
+      "optimizer": "AdamW",
+      "optimizer_steps_per_arm_seed": 4300,
+      "precision": "float32",
+      "total_mask_ratio": 0.4,
+      "weight_decay": 0.0
+    }
+  },
+  "confirmation_open": false,
+  "historical_sources": {
+    "B0-FULL": {
+      "binding_sha256": "256f201e910188b69f790bda31ce914b692c162e948d7f0997a09fb8a642815e",
+      "coefficient_lock_sha256": "6eb108b2073181d427f1aedfc81fb3bae4c29595108d15de486082800bdd9d6e",
+      "data_binding_sha256": "383c62114ee6120d5fd19f866dfd585083d1d5899c9ffe91804761bd8a10a2d5",
+      "runner_sha256": "5065b4b4a38089c6a717dac1782d63a373f52a9647db696cd3b75300c316dac1",
+      "source_commit": "1ec9eafb92dc96d536eb3c3507698508d71a67a7",
+      "source_tree": "4ce480cedf4f87107514fcf5985afdf90eb9a5b8"
+    },
+    "K3-FULL": {
+      "binding_sha256": "adfc060cf93af45b5a7dc7789efbbf9f73af232dc5e9523ddebbd3cdacc6112c",
+      "coefficient_lock_sha256": "6eb108b2073181d427f1aedfc81fb3bae4c29595108d15de486082800bdd9d6e",
+      "data_binding_sha256": "383c62114ee6120d5fd19f866dfd585083d1d5899c9ffe91804761bd8a10a2d5",
+      "runner_sha256": "aa87bb13d409590744ca8e1625c11ca6abd3952752e80b496dff32f299579abd",
+      "source_commit": "4fdf021f8e90e02d94eb01b7a1b7aadcc963c56e",
+      "source_tree": "400c0e435b5afa3a70899ddbe1bbe5a745e77123"
+    },
+    "K7-FULL": {
+      "binding_sha256": "19e2cc424b2e6d843170dd4fac45c3e0806aa84f510e62f82c4bf229660b0015",
+      "coefficient_lock_sha256": "6eb108b2073181d427f1aedfc81fb3bae4c29595108d15de486082800bdd9d6e",
+      "data_binding_sha256": "383c62114ee6120d5fd19f866dfd585083d1d5899c9ffe91804761bd8a10a2d5",
+      "runner_sha256": "0781214b0c641e12953ff6a76a89ba9234b1e693f745ff6a320bfde19e586548",
+      "source_commit": "646f3481565337cf8c2d07809b8027a2dc7cf821",
+      "source_tree": "d5c7a941894a3a12ca7d3d073b85edb7af5f797a"
+    },
+    "K9-FULL": {
+      "binding_sha256": "0f7cfe51c5d66e9d21fa9d2fe1f8bd48f640b0db425dcb538981de981f61d1a2",
+      "coefficient_lock_sha256": "6eb108b2073181d427f1aedfc81fb3bae4c29595108d15de486082800bdd9d6e",
+      "data_binding_sha256": "383c62114ee6120d5fd19f866dfd585083d1d5899c9ffe91804761bd8a10a2d5",
+      "runner_sha256": "ee326752c8c8ae70423a9a62cc806fd64b569d15162fdba835ac2773123356ba",
+      "source_commit": "b31c91bbe993be6dc4637db5cfc5917ee67469d1",
+      "source_tree": "b307085e3ee1f0cddedd81488e99a5d03121c9f2"
+    },
+    "N1-HCC": {
+      "source_records": [
+        "experiments/sprint18-task14-config-lock.json",
+        "experiments/sprint18-task10-n1-hcc-selection-v1.json",
+        "artifacts/sprint-18/task-27-a02.md",
+        "artifacts/sprint-18/s18-t27-a02/n1-hcc-stopped-row.json"
+      ],
+      "status": "STOPPED"
+    },
+    "N2-MSP": {
+      "binding_sha256": "afcb3b1b584e79b15d554aa192c37c4fad665fcf5a3cb3f5beaec1c7452432b1",
+      "coefficient_lock_sha256": "6eb108b2073181d427f1aedfc81fb3bae4c29595108d15de486082800bdd9d6e",
+      "data_binding_sha256": "383c62114ee6120d5fd19f866dfd585083d1d5899c9ffe91804761bd8a10a2d5",
+      "runner_sha256": "2f910889a464f05d1238f8d5354a4e8de32a1b4aa77d2d027a38fdb72762f35d",
+      "source_commit": "2111b696b273d08cc9730a4672f0f01fc65e13b5",
+      "source_tree": "a72dda2fc4d1751af9fcc27038b25bdfbacda864"
+    },
+    "N3-CCRP": {
+      "binding_sha256": "90cf464177557d9a00c8da88be6e8bc3f42682064a55588caf84fd009229ece5",
+      "coefficient_lock_sha256": "6eb108b2073181d427f1aedfc81fb3bae4c29595108d15de486082800bdd9d6e",
+      "data_binding_sha256": "383c62114ee6120d5fd19f866dfd585083d1d5899c9ffe91804761bd8a10a2d5",
+      "runner_sha256": "4839b2cb06934bb30c0136ab9cfff8838847d005a639924762e6258800e5f2d3",
+      "source_commit": "83710aa65d201cf3f37d7f9961368589932f6ec9",
+      "source_tree": "52c44963f0ea1247a85b2e49edf92b0e4574d579"
+    },
+    "N4-CRN": {
+      "binding_sha256": "6ad4da1f3bc8158f35339b48215d455c47169d8915213d958b8f8a99564b7065",
+      "coefficient_lock_sha256": "a9990bd189706a0fdadfeaee422ef307599e3f4d9c5a72102dfa1f015d5cd57a",
+      "data_binding_sha256": "383c62114ee6120d5fd19f866dfd585083d1d5899c9ffe91804761bd8a10a2d5",
+      "runner_sha256": "3af994ba002b5eb79599858ba90ceff18e099accdd79b28c0f1d63a31caaff80",
+      "source_commit": "6ffcfc9f4ab339604ff201abb75f9d18fb12466d",
+      "source_tree": "3a089edafe26cfcb15ccd9f79cf83a8ca265467a"
+    }
+  },
+  "lock_sha256": "d8aeae288ae25fb1fc2aa177530bda48b6b895f184d141b6c6f465a5dc869c3e",
+  "lock_state": "FROZEN_PENDING_INDEPENDENT_REVIEW",
+  "n4_authority": {
+    "excluded_authority": {
+      "reason": "report-only N4 v11 lock is not an accepted scientific N4 authority",
+      "v11_report_only_lock_sha256": "ba93edda451fcf66607a49b00a88c5f9ad54e9af0f581e8ae568cf482b9bfed7",
+      "v1_n4_arm_config_sha256_by_seed": {
+        "181801": "abe380fd940ad5fb6b0c053af81f890b1da80d3cb33d35b255017441ac2a2314",
+        "181802": "95ee1d02dfa16649222769bccf0d0f47307d38fa983b5ae28ae9ce2811283b3e",
+        "181803": "d9487a417700c6b920840a46cc2a1819c50b73671f5d29cfc3df88ad98a2b1d0"
+      },
+      "v1_n4_exclusion_reason": "v1 N4 config entries do not match the accepted N4 records; only the v9 scientific lock is authoritative for N4-CRN"
+    },
+    "paired_b0_lock": {
+      "path": "experiments/sprint18-task14-config-lock.json",
+      "scope": "paired B0-FULL config and exact S_pop/q95 authority",
+      "sha256": "c4c1a8bde14310cf4436c10762e3e98475f7c84eb74fcb8a74b3e267885edec3"
+    },
+    "parity_rule": "N4-CRN S_pop scores and q95 must equal the same-seed paired B0 exactly; N4-CRN S_pred remains its accepted independent branch",
+    "per_seed": {
+      "181801": {
+        "S_pop_threshold": 5.98599042892456,
+        "S_pred_threshold": 1.7992383480072018,
+        "b0_path_parity": {
+          "per_file_maps_equal_to_accepted_B0": true,
+          "thresholds_equal_to_accepted_B0": true
+        },
+        "paired_b0_accepted_record": {
+          "path": "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/artifacts/sprint-18/s18-t32-source-c05/accepted-records/B0-FULL/remote-seed-181801-record.json",
+          "sha256": "216a21c96d39025360571a1bcfdd859c7f2123fdff13c589526294534bae57d3"
+        },
+        "paired_b0_arm_config_sha256": "db83fed9ff129e0dc96a0c342aa400251f58d1febb2ced0ad10c849cee281973",
+        "paired_b0_checkpoint_sha256": "9292d7c59037cba7b7fd337dbb896ed492777abff4713307c98f86a3b5226a8f",
+        "paired_b0_representation_step": 4300,
+        "paired_b0_task14_lock": {
+          "path": "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/experiments/sprint18-task14-config-lock.json",
+          "sha256": "c4c1a8bde14310cf4436c10762e3e98475f7c84eb74fcb8a74b3e267885edec3"
+        }
+      },
+      "181802": {
+        "S_pop_threshold": 6.825963401794433,
+        "S_pred_threshold": 1.7842277526855457,
+        "b0_path_parity": {
+          "per_file_maps_equal_to_accepted_B0": true,
+          "thresholds_equal_to_accepted_B0": true
+        },
+        "paired_b0_accepted_record": {
+          "path": "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/artifacts/sprint-18/s18-t32-source-c05/accepted-records/B0-FULL/remote-seed-181802-record.json",
+          "sha256": "dc1f908d979ffb0aaade43be1285ee5578f5bca76fa9ce45aff7538c8bcafedc"
+        },
+        "paired_b0_arm_config_sha256": "d129c953181083709059ccead2d2e26a896ae88c0dd773d8c3c1f428bd69a4e5",
+        "paired_b0_checkpoint_sha256": "8ae58da90818883ffa8b7dd7b0c73fadfcd5a24a0d3f2fc713c9a1d055b6621f",
+        "paired_b0_representation_step": 4300,
+        "paired_b0_task14_lock": {
+          "path": "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/experiments/sprint18-task14-config-lock.json",
+          "sha256": "c4c1a8bde14310cf4436c10762e3e98475f7c84eb74fcb8a74b3e267885edec3"
+        }
+      },
+      "181803": {
+        "S_pop_threshold": 6.811013221740723,
+        "S_pred_threshold": 1.6899769783020016,
+        "b0_path_parity": {
+          "per_file_maps_equal_to_accepted_B0": true,
+          "thresholds_equal_to_accepted_B0": true
+        },
+        "paired_b0_accepted_record": {
+          "path": "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/artifacts/sprint-18/s18-t32-source-c05/accepted-records/B0-FULL/remote-seed-181803-record.json",
+          "sha256": "042cc915a78a33d8e9bb649037bc1e95b058b9138fd323f0d4aa49c2188ab66b"
+        },
+        "paired_b0_arm_config_sha256": "67ae961a1db6ef3ba5187c2b1eecb3bd2f739b9362335e39718150addb5b197e",
+        "paired_b0_checkpoint_sha256": "79edbdf37e4180368814e02b7201c7dd3f8a7b4c7bc47408bd9bbde5d059d408",
+        "paired_b0_representation_step": 4300,
+        "paired_b0_task14_lock": {
+          "path": "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/experiments/sprint18-task14-config-lock.json",
+          "sha256": "c4c1a8bde14310cf4436c10762e3e98475f7c84eb74fcb8a74b3e267885edec3"
+        }
+      }
+    },
+    "report_only_source_commit": "1cc11165852fa90a6c4284725dadd9e234e7381f",
+    "scientific_lock": {
+      "path": "experiments/sprint18-task14-config-lock-v9.json",
+      "scope": "N4-CRN scientific config only",
+      "sha256": "a9990bd189706a0fdadfeaee422ef307599e3f4d9c5a72102dfa1f015d5cd57a"
+    },
+    "scientific_source_commit": "6ffcfc9f4ab339604ff201abb75f9d18fb12466d",
+    "v9_lock_source_commit": "1d9a646e9f57051fdc582e950919905f1dd70326"
+  },
+  "phase": "pre_confirmation",
+  "protocol": {
+    "data_handoff": {
+      "path": "experiments/sprint18-task71-certified-data-handoff-S18-ITER-0005-v1.json",
+      "sha256": "5c28434b6f5b3342a3203a73cd672782e08857299c05b709adbd8bce75d45155"
+    },
+    "mechanism_specs": {
+      "N1-HCC": {
+        "path": "experiments/sprint18-hierarchical-conditional-contrastive-spec-v2.md",
+        "sha256": "0f5ede73d65441014caf22a22058c17d8ed34be735790d20ca7f36873a34d144"
+      },
+      "N2-MSP": {
+        "path": "experiments/sprint18-multiscale-latent-prediction-spec-v2.md",
+        "sha256": "a2deeb5479957ef8777ec4cfd66898e3ecd5e0aef80e2043f11882529ae3a9f2"
+      },
+      "N3-CCRP": {
+        "path": "experiments/sprint18-cross-channel-relational-prediction-spec-v2.md",
+        "sha256": "eee44cebd29de2b5cbfdf0263fcca21d82fee92e0773922c0bc3209dee50443c"
+      },
+      "N4-CRN": {
+        "path": "experiments/sprint18-context-residual-normalization-spec-v2.md",
+        "sha256": "4d1c8097c9cc27d3fbeb2e2a6e70a29a7bc63d7899646a9c712a315b39d9ffe3"
+      }
+    },
+    "n4_scientific_lock": {
+      "core_sha256": "b171e50014a9bfad0edc865fc42a52a49d073b8b0a2e47788d5020b741266bbf",
+      "locked_config_count": 3,
+      "path": "experiments/sprint18-task14-config-lock-v9.json",
+      "sha256": "a9990bd189706a0fdadfeaee422ef307599e3f4d9c5a72102dfa1f015d5cd57a"
+    },
+    "protocol_id": "sprint18-full-training-protocol-v2",
+    "protocol_path": "experiments/sprint18-full-training-protocol-v2.md",
+    "protocol_sha256": "e1dcd17914e920520ad0d8f50e185874b95414e6a4fe907903619daf145622d2",
+    "protocol_v1_base_path": "experiments/sprint18-full-training-protocol-v1.md",
+    "protocol_v1_base_sha256": "9ae3d43f94a6194bae602d68067958bdf7d11cf47e801dd328e87b22e7907cf6",
+    "role_binding": {
+      "data_binding_canonical_sha256": "8e2705140d07d9c603989ec709de5ebb766e580a8619b37c7462f6dd2751dd3b",
+      "data_binding_raw_sha256": "b8448292b023c9268f64886e5ca68a393c36ff5f2c41573ff160d50ce8ee6c58",
+      "executable_binding_sha256": "383c62114ee6120d5fd19f866dfd585083d1d5899c9ffe91804761bd8a10a2d5",
+      "handoff_path": "experiments/sprint18-task71-certified-data-handoff-S18-ITER-0005-v1.json",
+      "handoff_sha256": "5c28434b6f5b3342a3203a73cd672782e08857299c05b709adbd8bce75d45155",
+      "manifest_aggregate_sha256": "378baf290aa8c17d3d8125942e65def735fefd556ee8c8c2cddad289cb71a309",
+      "qualification_record_sha256": "c5a8e8ccbc6be35a58fe7363ee4e8af489d3fafb93aaf6411c3936e5d349dc4b",
+      "whole16_certification_sha256": "1345d1c8e04c35f3fbb18bddec2b5d474f91ec24c1f1c5081040b342debe2897"
+    },
+    "role_manifests": {
+      "S18I-ITER-0005-CALIBRATION-01": {
+        "assigned_role": "CALIBRATION",
+        "config_hash": "a33f48db784f",
+        "data_permitted_use": "Verified-healthy eligibility; score with frozen Fit probe values and choose only the fixed probe q95. No fitting or retuning.",
+        "data_seed": 32071,
+        "manifest_sha256": "9b83fe7be68c0f1975883c915c5e90db14a854395c3f8d8709fab78d7aa84b56",
+        "model_permitted_use": "Verified-healthy-only scoring for each independent branch's q95 threshold; no model, bank, scale, or standardizer fitting.",
+        "path_relative": "data/generated/sprint18-iterative-v1/S18-ITER-0005-ASSESS-P-ALLOWANCE-V1/CALIBRATION/S18I-ITER-0005-CALIBRATION-01",
+        "sample_count": 6463,
+        "shard_count": 101,
+        "waveform_stream_sha256": "c8f33599a85fd8f4595c0f72ba989f221097ee9929191e53ecc36b14538503bc"
+      },
+      "S18I-ITER-0005-CONFIRMATION-01": {
+        "assigned_role": "CONFIRMATION",
+        "config_hash": "b2315511312e",
+        "data_permitted_use": "After Task69 preceding-role PASS and Main release: structural certification and one fixed-probe evaluation using frozen Fit/Calibration values. No fitting, recalibration, retuning, rescue, or model score.",
+        "data_seed": 32076,
+        "manifest_sha256": "db2b50444cb54c8a4bce700771efcef691e147b96ceb68985997e1115d74bbd2",
+        "model_permitted_use": "One-shot locked scoring only after Task33 lock and Main release; no refit, recalibration, retuning, rescue, or rerun.",
+        "path_relative": "data/generated/sprint18-iterative-v1/S18-ITER-0005-ASSESS-P-ALLOWANCE-V1/CONFIRMATION/S18I-ITER-0005-CONFIRMATION-01",
+        "sample_count": 6457,
+        "shard_count": 101,
+        "waveform_stream_sha256": "4214bdbf03f8a105e09c0a45044b47ea7baabb23a4756f791d54f51cd03e4ebb"
+      },
+      "S18I-ITER-0005-CONFIRMATION-02": {
+        "assigned_role": "CONFIRMATION",
+        "config_hash": "925d262fcc01",
+        "data_permitted_use": "After Task69 preceding-role PASS and Main release: structural certification and one fixed-probe evaluation using frozen Fit/Calibration values. No fitting, recalibration, retuning, rescue, or model score.",
+        "data_seed": 32077,
+        "manifest_sha256": "54d787eb424066c3e8c18acb528f6ec19e2e9f4211b46e669390a3a330c8b762",
+        "model_permitted_use": "One-shot locked scoring only after Task33 lock and Main release; no refit, recalibration, retuning, rescue, or rerun.",
+        "path_relative": "data/generated/sprint18-iterative-v1/S18-ITER-0005-ASSESS-P-ALLOWANCE-V1/CONFIRMATION/S18I-ITER-0005-CONFIRMATION-02",
+        "sample_count": 6468,
+        "shard_count": 102,
+        "waveform_stream_sha256": "7569e0a7893cd19db881440b66b8e9d16d7054d8aafb02e1b18ba89f15fbc884"
+      },
+      "S18I-ITER-0005-CONFIRMATION-03": {
+        "assigned_role": "CONFIRMATION",
+        "config_hash": "928cddace62f",
+        "data_permitted_use": "After Task69 preceding-role PASS and Main release: structural certification and one fixed-probe evaluation using frozen Fit/Calibration values. No fitting, recalibration, retuning, rescue, or model score.",
+        "data_seed": 32078,
+        "manifest_sha256": "5c06a6613bcb7bc83b5646423f44f0440ecff8a276935b630c220ceff247ad3f",
+        "model_permitted_use": "One-shot locked scoring only after Task33 lock and Main release; no refit, recalibration, retuning, rescue, or rerun.",
+        "path_relative": "data/generated/sprint18-iterative-v1/S18-ITER-0005-ASSESS-P-ALLOWANCE-V1/CONFIRMATION/S18I-ITER-0005-CONFIRMATION-03",
+        "sample_count": 6505,
+        "shard_count": 102,
+        "waveform_stream_sha256": "d333f8ff33ca5b0045cce524229ba92cdc62a53c0a4a74c6611c617febdca420"
+      },
+      "S18I-ITER-0005-CONFIRMATION-04": {
+        "assigned_role": "CONFIRMATION",
+        "config_hash": "f5ffb05669f0",
+        "data_permitted_use": "After Task69 preceding-role PASS and Main release: structural certification and one fixed-probe evaluation using frozen Fit/Calibration values. No fitting, recalibration, retuning, rescue, or model score.",
+        "data_seed": 32079,
+        "manifest_sha256": "50a506a4670e5da45dbfa6b29db79f74a84e947b93de6f2d47edd65613c8e840",
+        "model_permitted_use": "One-shot locked scoring only after Task33 lock and Main release; no refit, recalibration, retuning, rescue, or rerun.",
+        "path_relative": "data/generated/sprint18-iterative-v1/S18-ITER-0005-ASSESS-P-ALLOWANCE-V1/CONFIRMATION/S18I-ITER-0005-CONFIRMATION-04",
+        "sample_count": 6456,
+        "shard_count": 101,
+        "waveform_stream_sha256": "db5241e1e51ff395e1cb95b7471aea7fb727acb32d9ab4ee254f377dda6672c9"
+      },
+      "S18I-ITER-0005-DESIGN-01": {
+        "assigned_role": "DESIGN",
+        "config_hash": "aae5e52747a7",
+        "data_permitted_use": "Integrity, causal, construction, and unchanged structural qualification; diagnostics only. No Fit/Calibration use or history selection.",
+        "data_seed": 32064,
+        "manifest_sha256": "6efabe14e35a429221e61e4c1f27440d3e535e34ff59882abb3b12d33976643c",
+        "model_permitted_use": "Healthy-only fixed coefficient-selection protocol; never final fitting or bank fitting.",
+        "path_relative": "data/generated/sprint18-iterative-v1/S18-ITER-0005-ASSESS-P-ALLOWANCE-V1/DESIGN/S18I-ITER-0005-DESIGN-01",
+        "sample_count": 6484,
+        "shard_count": 102,
+        "waveform_stream_sha256": "dffcfa982998409d6a0ac7610f955a2ee41d8e420e932fc62203b8ce5dc6d580"
+      },
+      "S18I-ITER-0005-DESIGN-02": {
+        "assigned_role": "DESIGN",
+        "config_hash": "184e601edc70",
+        "data_permitted_use": "Integrity, causal, construction, and unchanged structural qualification; diagnostics only. No Fit/Calibration use or history selection.",
+        "data_seed": 32065,
+        "manifest_sha256": "c0b3386d4c9e21e539a4ff65f7e5fec61a775e5460d21b2bb311173b20c1103e",
+        "model_permitted_use": "Healthy-only fixed coefficient-selection protocol; never final fitting or bank fitting.",
+        "path_relative": "data/generated/sprint18-iterative-v1/S18-ITER-0005-ASSESS-P-ALLOWANCE-V1/DESIGN/S18I-ITER-0005-DESIGN-02",
+        "sample_count": 6484,
+        "shard_count": 102,
+        "waveform_stream_sha256": "e4c443617a52f1c6b27b6b482f02fb3bf23628a5197620122208b33c971c59dd"
+      },
+      "S18I-ITER-0005-DESIGN-03": {
+        "assigned_role": "DESIGN",
+        "config_hash": "4eae0187d333",
+        "data_permitted_use": "Integrity, causal, construction, and unchanged structural qualification; diagnostics only. No Fit/Calibration use or history selection.",
+        "data_seed": 32066,
+        "manifest_sha256": "b21ab241abd7349c2f58d9e5b9390be0183f2ee004ad54dc436682192fe84e3d",
+        "model_permitted_use": "Healthy-only fixed coefficient-selection protocol; never final fitting or bank fitting.",
+        "path_relative": "data/generated/sprint18-iterative-v1/S18-ITER-0005-ASSESS-P-ALLOWANCE-V1/DESIGN/S18I-ITER-0005-DESIGN-03",
+        "sample_count": 6477,
+        "shard_count": 102,
+        "waveform_stream_sha256": "8f90bbcf028017075eb7151b7c84094d93e57c4ee820b79fd989ff41322b2626"
+      },
+      "S18I-ITER-0005-DESIGN-04": {
+        "assigned_role": "DESIGN",
+        "config_hash": "eba370f48dc3",
+        "data_permitted_use": "Integrity, causal, construction, and unchanged structural qualification; diagnostics only. No Fit/Calibration use or history selection.",
+        "data_seed": 32067,
+        "manifest_sha256": "080dc31254976a9704c7d8705fa496f2ee436747aebbad123dc17dd6ffe00066",
+        "model_permitted_use": "Healthy-only fixed coefficient-selection protocol; never final fitting or bank fitting.",
+        "path_relative": "data/generated/sprint18-iterative-v1/S18-ITER-0005-ASSESS-P-ALLOWANCE-V1/DESIGN/S18I-ITER-0005-DESIGN-04",
+        "sample_count": 6483,
+        "shard_count": 102,
+        "waveform_stream_sha256": "08598b11f6b80c932bbebc5a37b1e2319b2a95a2e4d95805daaf79f552e83eec"
+      },
+      "S18I-ITER-0005-DEVELOPMENT-01": {
+        "assigned_role": "DEVELOPMENT",
+        "config_hash": "ea6d2254d6d3",
+        "data_permitted_use": "Structural qualification and one fixed-probe evaluation using frozen Fit/Calibration values. No selection, promotion, pruning, or tuning.",
+        "data_seed": 32072,
+        "manifest_sha256": "ce7c004b3ba7c6bca4187065df3299691c4d6247500eda480747e37b48fe1e08",
+        "model_permitted_use": "Locked descriptive scoring on fixed common support only; no refit, pruning, promotion, checkpoint reselection, recalibration, or coefficient change.",
+        "path_relative": "data/generated/sprint18-iterative-v1/S18-ITER-0005-ASSESS-P-ALLOWANCE-V1/DEVELOPMENT/S18I-ITER-0005-DEVELOPMENT-01",
+        "sample_count": 6513,
+        "shard_count": 102,
+        "waveform_stream_sha256": "f7e44f2d056ab43d09b826dc101b421d0a42348973d0f9aea855f83cfca1a00e"
+      },
+      "S18I-ITER-0005-DEVELOPMENT-02": {
+        "assigned_role": "DEVELOPMENT",
+        "config_hash": "cfe48c2960db",
+        "data_permitted_use": "Structural qualification and one fixed-probe evaluation using frozen Fit/Calibration values. No selection, promotion, pruning, or tuning.",
+        "data_seed": 32073,
+        "manifest_sha256": "cee368b966874289e8b1b81980ebdf2db566501fe8e2864326651d73f6179310",
+        "model_permitted_use": "Locked descriptive scoring on fixed common support only; no refit, pruning, promotion, checkpoint reselection, recalibration, or coefficient change.",
+        "path_relative": "data/generated/sprint18-iterative-v1/S18-ITER-0005-ASSESS-P-ALLOWANCE-V1/DEVELOPMENT/S18I-ITER-0005-DEVELOPMENT-02",
+        "sample_count": 6460,
+        "shard_count": 101,
+        "waveform_stream_sha256": "ac5b649851e094489ab3c5f2e8a5eb65c190017543e31346507b2e88521509d8"
+      },
+      "S18I-ITER-0005-DEVELOPMENT-03": {
+        "assigned_role": "DEVELOPMENT",
+        "config_hash": "efdcfa19b506",
+        "data_permitted_use": "Structural qualification and one fixed-probe evaluation using frozen Fit/Calibration values. No selection, promotion, pruning, or tuning.",
+        "data_seed": 32074,
+        "manifest_sha256": "b1da957137936e01fda27b2af4194ea8f4be2cf611ce96315dba677145ae8f9e",
+        "model_permitted_use": "Locked descriptive scoring on fixed common support only; no refit, pruning, promotion, checkpoint reselection, recalibration, or coefficient change.",
+        "path_relative": "data/generated/sprint18-iterative-v1/S18-ITER-0005-ASSESS-P-ALLOWANCE-V1/DEVELOPMENT/S18I-ITER-0005-DEVELOPMENT-03",
+        "sample_count": 6483,
+        "shard_count": 102,
+        "waveform_stream_sha256": "622b9038dbbeb82bc9dd25848db6f2379a67a0755bff7714b7da1ff371547f7e"
+      },
+      "S18I-ITER-0005-DEVELOPMENT-04": {
+        "assigned_role": "DEVELOPMENT",
+        "config_hash": "e33293cdf1cd",
+        "data_permitted_use": "Structural qualification and one fixed-probe evaluation using frozen Fit/Calibration values. No selection, promotion, pruning, or tuning.",
+        "data_seed": 32075,
+        "manifest_sha256": "3af0811329031fc6f1ffc56ffa837d46a3b9b9095287128d08c46706b187f9af",
+        "model_permitted_use": "Locked descriptive scoring on fixed common support only; no refit, pruning, promotion, checkpoint reselection, recalibration, or coefficient change.",
+        "path_relative": "data/generated/sprint18-iterative-v1/S18-ITER-0005-ASSESS-P-ALLOWANCE-V1/DEVELOPMENT/S18I-ITER-0005-DEVELOPMENT-04",
+        "sample_count": 6505,
+        "shard_count": 102,
+        "waveform_stream_sha256": "57185818a337404ce1d39f3e562c45cbc26720364cd0f5099bad31659362bec9"
+      },
+      "S18I-ITER-0005-FIT-01": {
+        "assigned_role": "FIT",
+        "config_hash": "2d7524242fd4",
+        "data_permitted_use": "Verified-healthy eligibility; fit only the fixed probe's feature mean/std and healthy centroid. No representation training, bank, alternate scorer, or non-probe fitting.",
+        "data_seed": 32068,
+        "manifest_sha256": "fb0d533c10f1a650647b95d06c87559f244f09a31973c75a35329fd8a04d19dc",
+        "model_permitted_use": "Verified-healthy-only representation fitting, EMA targets, arm-specific reference banks/standardizers, and declared Fit-only auxiliary fitting/cross-fitting.",
+        "path_relative": "data/generated/sprint18-iterative-v1/S18-ITER-0005-ASSESS-P-ALLOWANCE-V1/FIT/S18I-ITER-0005-FIT-01",
+        "sample_count": 6490,
+        "shard_count": 102,
+        "waveform_stream_sha256": "bffbfc674f05a58794c1d47f1c2217b6946f78baa16eaa29bbf728a79c0d877f"
+      },
+      "S18I-ITER-0005-FIT-02": {
+        "assigned_role": "FIT",
+        "config_hash": "8d51d85bb920",
+        "data_permitted_use": "Verified-healthy eligibility; fit only the fixed probe's feature mean/std and healthy centroid. No representation training, bank, alternate scorer, or non-probe fitting.",
+        "data_seed": 32069,
+        "manifest_sha256": "60cf8b5dff31eb2e6ff7e47242ae323a7f8e61e1a556890292fc311ba93bc305",
+        "model_permitted_use": "Verified-healthy-only representation fitting, EMA targets, arm-specific reference banks/standardizers, and declared Fit-only auxiliary fitting/cross-fitting.",
+        "path_relative": "data/generated/sprint18-iterative-v1/S18-ITER-0005-ASSESS-P-ALLOWANCE-V1/FIT/S18I-ITER-0005-FIT-02",
+        "sample_count": 6480,
+        "shard_count": 102,
+        "waveform_stream_sha256": "16c270f26584d0ba51601618ec951381a41598b2935353e759dfe7d92efeb333"
+      },
+      "S18I-ITER-0005-FIT-03": {
+        "assigned_role": "FIT",
+        "config_hash": "8c19eaeb8712",
+        "data_permitted_use": "Verified-healthy eligibility; fit only the fixed probe's feature mean/std and healthy centroid. No representation training, bank, alternate scorer, or non-probe fitting.",
+        "data_seed": 32070,
+        "manifest_sha256": "366a07d07d5e6360ac6de6f4a59c98ef72b070120c81b325c965d8b7b47e801f",
+        "model_permitted_use": "Verified-healthy-only representation fitting, EMA targets, arm-specific reference banks/standardizers, and declared Fit-only auxiliary fitting/cross-fitting.",
+        "path_relative": "data/generated/sprint18-iterative-v1/S18-ITER-0005-ASSESS-P-ALLOWANCE-V1/FIT/S18I-ITER-0005-FIT-03",
+        "sample_count": 6478,
+        "shard_count": 102,
+        "waveform_stream_sha256": "9949351fa2cf5e0c909bb542d44a96d1fdac2c38e47997b04455200e559eecef"
+      }
+    },
+    "supplementary_definition": {
+      "path": "experiments/sprint18-supplementary-development-metrics-v1.md",
+      "sha256": "44916f4bd1bd5e56b0b04873936de5fa1e6e1541812200f8d2dc6739bda41067"
+    },
+    "task14_lock": {
+      "core_sha256": "6eb108b2073181d427f1aedfc81fb3bae4c29595108d15de486082800bdd9d6e",
+      "locked_config_count": 21,
+      "path": "experiments/sprint18-task14-config-lock.json",
+      "sha256": "c4c1a8bde14310cf4436c10762e3e98475f7c84eb74fcb8a74b3e267885edec3"
+    }
+  },
+  "publisher": {
+    "agent_id": "S18T33A01",
+    "attempt_id": "S18T33A01",
+    "role": "silver-task",
+    "task_id": "S18-T33"
+  },
+  "role": "silver-task",
+  "schema_id": "sprint18-confirmation-lock-v1",
+  "scoring": {
+    "branch_rule": "S_pred and S_pop are independent; no branch fusion, pooling, score switch or branch borrowing",
+    "compute_counter": {
+      "functions": [
+        "count_unique_parameters",
+        "primary_inference_parameters",
+        "profile_inference_flops",
+        "validate_compute_envelope"
+      ],
+      "path": "src/representation/sprint18_harness.py",
+      "sha256": "261d1479159f51de11cd2e1b81a6b07358f0d36045b495de2003379b2b77f515"
+    },
+    "confirmation_recovery_gates": {
+      "background_stability_max": 0.1,
+      "directional_count_min": 3,
+      "false_alert_max_per_robot_day": 0.05,
+      "histories_total": 4,
+      "minimum_paired_delta_pw": 0.05,
+      "minimum_positive_histories": 3,
+      "noninferiority_delta_p": -0.02,
+      "noninferiority_delta_w": -0.02,
+      "p_median_lead_days_min": 1.0,
+      "p_recall_min": 0.5,
+      "paired_delta_far_max": 0.02,
+      "post_arm_lcb95_min": 0.55,
+      "rounding": "none before comparison",
+      "w_median_lead_days_min": 0.5,
+      "w_recall_min": 0.25
+    },
+    "metric_code": {
+      "path": "src/representation/sprint18_supplementary.py",
+      "sha256": "dd7f9ac6b934a1036bfba94f85cfd8e3778fd95549f965ee88da55ce5737b4b6"
+    },
+    "metric_families": [
+      "background_stability",
+      "localization",
+      "duration_accounting",
+      "severity_ordering",
+      "subtype_slices"
+    ],
+    "no_outcome_adaptive_choice": "no refit, retune, reselection, rescore, rerun, threshold/support change or pooling rescue after Confirmation opens",
+    "primary_metrics": [
+      "P_AUROC",
+      "W_AUROC",
+      "PW_AUROC",
+      "A_AUROC",
+      "P_recall",
+      "P_median_lead_days",
+      "W_recall",
+      "W_median_lead_days",
+      "FAR_per_robot_day",
+      "false_episodes"
+    ],
+    "score_branches": [
+      "S_pred",
+      "S_pop"
+    ],
+    "status_semantics": {
+      "FAILED": "declared execution could not complete; preserved with reasons",
+      "INVALID": "a contract/provenance/support/finite/score-separation/checkpoint/coefficient/compute invariant failed",
+      "VALID": "metrics reproduced under the frozen contract; a negative is a valid observation"
+    },
+    "uncertainty": {
+      "background_uncertainty_semantics": "[2.5, 97.5] percentile interval of the four seed-averaged per-history stability ratios; it does not relax the per-history <=0.10 gate",
+      "history_block_bootstrap": {
+        "descriptive_interval_percentiles": [
+          2.5,
+          97.5
+        ],
+        "draws": 2000,
+        "lcb_percentile": 2.5,
+        "pairing": "pair arm-minus-B0 within each seed/history; average the three seed values within each history; macro is the unweighted four-history mean",
+        "quantile_method": "numpy linear",
+        "seed": 20260202,
+        "units": "four evaluation histories"
+      },
+      "lcb_semantics": "post-arm history-block LCB95 of P+W AUROC; an within-arm PW_lcb95 value or a difference between such values is not a paired confidence interval",
+      "no_significance_claim": true,
+      "paired_delta_semantics": "point estimates only; no paired confidence interval is claimed"
+    }
+  },
+  "status_matrix": {
+    "B0-FULL": {
+      "seeds": {
+        "181801": {
+          "failure_reasons": [],
+          "status": "VALID"
+        },
+        "181802": {
+          "failure_reasons": [],
+          "status": "VALID"
+        },
+        "181803": {
+          "failure_reasons": [],
+          "status": "VALID"
+        }
+      },
+      "status": "VALID"
+    },
+    "K3-FULL": {
+      "seeds": {
+        "181801": {
+          "failure_reasons": [],
+          "status": "VALID"
+        },
+        "181802": {
+          "failure_reasons": [],
+          "status": "VALID"
+        },
+        "181803": {
+          "failure_reasons": [],
+          "status": "VALID"
+        }
+      },
+      "status": "VALID"
+    },
+    "K7-FULL": {
+      "seeds": {
+        "181801": {
+          "failure_reasons": [],
+          "status": "VALID"
+        },
+        "181802": {
+          "failure_reasons": [],
+          "status": "VALID"
+        },
+        "181803": {
+          "failure_reasons": [],
+          "status": "VALID"
+        }
+      },
+      "status": "VALID"
+    },
+    "K9-FULL": {
+      "seeds": {
+        "181801": {
+          "failure_reasons": [],
+          "status": "VALID"
+        },
+        "181802": {
+          "failure_reasons": [],
+          "status": "VALID"
+        },
+        "181803": {
+          "failure_reasons": [],
+          "status": "VALID"
+        }
+      },
+      "status": "VALID"
+    },
+    "N1-HCC": {
+      "seeds": {},
+      "status": "STOPPED"
+    },
+    "N2-MSP": {
+      "seeds": {
+        "181801": {
+          "failure_reasons": [],
+          "status": "VALID"
+        },
+        "181802": {
+          "failure_reasons": [],
+          "status": "VALID"
+        },
+        "181803": {
+          "failure_reasons": [],
+          "status": "VALID"
+        }
+      },
+      "status": "VALID"
+    },
+    "N3-CCRP": {
+      "seeds": {
+        "181801": {
+          "failure_reasons": [],
+          "status": "VALID"
+        },
+        "181802": {
+          "failure_reasons": [],
+          "status": "VALID"
+        },
+        "181803": {
+          "failure_reasons": [],
+          "status": "VALID"
+        }
+      },
+      "status": "VALID"
+    },
+    "N4-CRN": {
+      "seeds": {
+        "181801": {
+          "failure_reasons": [],
+          "status": "VALID"
+        },
+        "181802": {
+          "failure_reasons": [],
+          "status": "VALID"
+        },
+        "181803": {
+          "failure_reasons": [],
+          "status": "VALID"
+        }
+      },
+      "status": "VALID"
+    }
+  },
+  "supplementary_source": {
+    "historical_source_policy": "per-arm historical source_commit/source_tree/runner_sha256 are preserved verbatim and are never replaced by the supplementary source",
+    "isolated_worktree": "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree",
+    "metric_code": {
+      "path": "src/representation/sprint18_supplementary.py",
+      "sha256": "dd7f9ac6b934a1036bfba94f85cfd8e3778fd95549f965ee88da55ce5737b4b6"
+    },
+    "role": "supplementary Development metric and scoring implementation; distinct from each arm's historical training source and from this lock's publisher",
+    "runner": {
+      "path": "experiments/sprint18_task32_supplementary_runner.py",
+      "sha256": "6e2a9fc58ca5bdc45b86481af391368710abf45d05d85864bbb19eae86aba242"
+    },
+    "source_branch": "sprint18-task68-a02-runtime",
+    "source_commit": "c1996ea17e639b4d9df7a1f08c2407919bd2bfc6",
+    "source_tree": "5960b5204f1dd8c7477b2aa631319a2a7201d050",
+    "supplementary_definition": {
+      "path": "experiments/sprint18-supplementary-development-metrics-v1.md",
+      "sha256": "44916f4bd1bd5e56b0b04873936de5fa1e6e1541812200f8d2dc6739bda41067"
+    }
+  },
+  "support": {
+    "calibration": {
+      "data_permitted_use": "Verified-healthy eligibility; score with frozen Fit probe values and choose only the fixed probe q95. No fitting or retuning.",
+      "healthy_rows": 1877,
+      "history": "S18I-ITER-0005-CALIBRATION-01",
+      "manifest_sha256": "9b83fe7be68c0f1975883c915c5e90db14a854395c3f8d8709fab78d7aa84b56",
+      "model_permitted_use": "Verified-healthy-only scoring for each independent branch's q95 threshold; no model, bank, scale, or standardizer fitting.",
+      "permitted_use": "verified-healthy Calibration only: q95 calibration/verification, never refit",
+      "support_sha256": "ad5310425f2d5737576a5fe34efc7389e2c07714d68cc188d96199ca4e4f5568",
+      "valid_patches": 56889
+    },
+    "confirmation": {
+      "contact_state": "NOT_ACCESSED",
+      "data_permitted_use": "After Task69 preceding-role PASS and Main release: structural certification and one fixed-probe evaluation using frozen Fit/Calibration values. No fitting, recalibration, retuning, rescue, or model score.",
+      "histories": [
+        "S18I-ITER-0005-CONFIRMATION-01",
+        "S18I-ITER-0005-CONFIRMATION-02",
+        "S18I-ITER-0005-CONFIRMATION-03",
+        "S18I-ITER-0005-CONFIRMATION-04"
+      ],
+      "model_permitted_use": "One-shot locked scoring only after Task33 lock and Main release; no refit, recalibration, retuning, rescue, or rerun.",
+      "per_history": {
+        "S18I-ITER-0005-CONFIRMATION-01": {
+          "config_hash": "b2315511312e",
+          "data_permitted_use": "After Task69 preceding-role PASS and Main release: structural certification and one fixed-probe evaluation using frozen Fit/Calibration values. No fitting, recalibration, retuning, rescue, or model score.",
+          "data_seed": 32076,
+          "manifest_sha256": "db2b50444cb54c8a4bce700771efcef691e147b96ceb68985997e1115d74bbd2",
+          "model_permitted_use": "One-shot locked scoring only after Task33 lock and Main release; no refit, recalibration, retuning, rescue, or rerun.",
+          "path_relative": "data/generated/sprint18-iterative-v1/S18-ITER-0005-ASSESS-P-ALLOWANCE-V1/CONFIRMATION/S18I-ITER-0005-CONFIRMATION-01",
+          "sample_count": 6457,
+          "schema_history_id": "H-S18-CONF-01",
+          "shard_count": 101,
+          "waveform_stream_sha256": "4214bdbf03f8a105e09c0a45044b47ea7baabb23a4756f791d54f51cd03e4ebb"
+        },
+        "S18I-ITER-0005-CONFIRMATION-02": {
+          "config_hash": "925d262fcc01",
+          "data_permitted_use": "After Task69 preceding-role PASS and Main release: structural certification and one fixed-probe evaluation using frozen Fit/Calibration values. No fitting, recalibration, retuning, rescue, or model score.",
+          "data_seed": 32077,
+          "manifest_sha256": "54d787eb424066c3e8c18acb528f6ec19e2e9f4211b46e669390a3a330c8b762",
+          "model_permitted_use": "One-shot locked scoring only after Task33 lock and Main release; no refit, recalibration, retuning, rescue, or rerun.",
+          "path_relative": "data/generated/sprint18-iterative-v1/S18-ITER-0005-ASSESS-P-ALLOWANCE-V1/CONFIRMATION/S18I-ITER-0005-CONFIRMATION-02",
+          "sample_count": 6468,
+          "schema_history_id": "H-S18-CONF-02",
+          "shard_count": 102,
+          "waveform_stream_sha256": "7569e0a7893cd19db881440b66b8e9d16d7054d8aafb02e1b18ba89f15fbc884"
+        },
+        "S18I-ITER-0005-CONFIRMATION-03": {
+          "config_hash": "928cddace62f",
+          "data_permitted_use": "After Task69 preceding-role PASS and Main release: structural certification and one fixed-probe evaluation using frozen Fit/Calibration values. No fitting, recalibration, retuning, rescue, or model score.",
+          "data_seed": 32078,
+          "manifest_sha256": "5c06a6613bcb7bc83b5646423f44f0440ecff8a276935b630c220ceff247ad3f",
+          "model_permitted_use": "One-shot locked scoring only after Task33 lock and Main release; no refit, recalibration, retuning, rescue, or rerun.",
+          "path_relative": "data/generated/sprint18-iterative-v1/S18-ITER-0005-ASSESS-P-ALLOWANCE-V1/CONFIRMATION/S18I-ITER-0005-CONFIRMATION-03",
+          "sample_count": 6505,
+          "schema_history_id": "H-S18-CONF-03",
+          "shard_count": 102,
+          "waveform_stream_sha256": "d333f8ff33ca5b0045cce524229ba92cdc62a53c0a4a74c6611c617febdca420"
+        },
+        "S18I-ITER-0005-CONFIRMATION-04": {
+          "config_hash": "f5ffb05669f0",
+          "data_permitted_use": "After Task69 preceding-role PASS and Main release: structural certification and one fixed-probe evaluation using frozen Fit/Calibration values. No fitting, recalibration, retuning, rescue, or model score.",
+          "data_seed": 32079,
+          "manifest_sha256": "50a506a4670e5da45dbfa6b29db79f74a84e947b93de6f2d47edd65613c8e840",
+          "model_permitted_use": "One-shot locked scoring only after Task33 lock and Main release; no refit, recalibration, retuning, rescue, or rerun.",
+          "path_relative": "data/generated/sprint18-iterative-v1/S18-ITER-0005-ASSESS-P-ALLOWANCE-V1/CONFIRMATION/S18I-ITER-0005-CONFIRMATION-04",
+          "sample_count": 6456,
+          "schema_history_id": "H-S18-CONF-04",
+          "shard_count": 101,
+          "waveform_stream_sha256": "db5241e1e51ff395e1cb95b7471aea7fb727acb32d9ab4ee254f377dda6672c9"
+        }
+      },
+      "permitted_use": "one-shot Confirmation scoring only after independent review and release; never tuning/refit",
+      "support_rule": "complete manifest file list without label filtering; the locked manifest SHA-256 is the sole support authority",
+      "support_sha256": null,
+      "support_sha256_policy": "not precomputed: deriving it requires reading Confirmation support content, which stays unopened until the first locked scoring; the frozen harness derives it from the locked manifest bytes"
+    },
+    "development": {
+      "data_permitted_use": "Structural qualification and one fixed-probe evaluation using frozen Fit/Calibration values. No selection, promotion, pruning, or tuning.",
+      "histories": [
+        "S18I-ITER-0005-DEVELOPMENT-01",
+        "S18I-ITER-0005-DEVELOPMENT-02",
+        "S18I-ITER-0005-DEVELOPMENT-03",
+        "S18I-ITER-0005-DEVELOPMENT-04"
+      ],
+      "model_permitted_use": "Locked descriptive scoring on fixed common support only; no refit, pruning, promotion, checkpoint reselection, recalibration, or coefficient change.",
+      "per_history": {
+        "S18I-ITER-0005-DEVELOPMENT-01": {
+          "manifest_sha256": "ce7c004b3ba7c6bca4187065df3299691c4d6247500eda480747e37b48fe1e08",
+          "schema_history_id": "H-S18-DEV-01",
+          "support_sha256": "666154d2e8f6f1d1db948ff56c3fec453560520e56bcc9ff24dfdcc23aa07da9"
+        },
+        "S18I-ITER-0005-DEVELOPMENT-02": {
+          "manifest_sha256": "cee368b966874289e8b1b81980ebdf2db566501fe8e2864326651d73f6179310",
+          "schema_history_id": "H-S18-DEV-02",
+          "support_sha256": "e284e5e856fa8e060dddf3f852453e9a229537d34518767ac88db9d408c47af9"
+        },
+        "S18I-ITER-0005-DEVELOPMENT-03": {
+          "manifest_sha256": "b1da957137936e01fda27b2af4194ea8f4be2cf611ce96315dba677145ae8f9e",
+          "schema_history_id": "H-S18-DEV-03",
+          "support_sha256": "635a8885474002f3dd483d3bb331dcefea7f7f4ec2e939a807ff0738600d2f45"
+        },
+        "S18I-ITER-0005-DEVELOPMENT-04": {
+          "manifest_sha256": "3af0811329031fc6f1ffc56ffa837d46a3b9b9095287128d08c46706b187f9af",
+          "schema_history_id": "H-S18-DEV-04",
+          "support_sha256": "55ce26d1d964c9be8bc0698522d8a1ce01ee6033c527ca0870508c477b47811c"
+        }
+      },
+      "permitted_use": "descriptive metric reporting only; no arm pruning or final-checkpoint reselection"
+    },
+    "fit": {
+      "data_permitted_use": "Verified-healthy eligibility; fit only the fixed probe's feature mean/std and healthy centroid. No representation training, bank, alternate scorer, or non-probe fitting.",
+      "healthy_rows": 5446,
+      "histories": [
+        "S18I-ITER-0005-FIT-01",
+        "S18I-ITER-0005-FIT-02",
+        "S18I-ITER-0005-FIT-03"
+      ],
+      "manifests": {
+        "S18I-ITER-0005-FIT-01": "fb0d533c10f1a650647b95d06c87559f244f09a31973c75a35329fd8a04d19dc",
+        "S18I-ITER-0005-FIT-02": "60cf8b5dff31eb2e6ff7e47242ae323a7f8e61e1a556890292fc311ba93bc305",
+        "S18I-ITER-0005-FIT-03": "366a07d07d5e6360ac6de6f4a59c98ef72b070120c81b325c965d8b7b47e801f"
+      },
+      "model_permitted_use": "Verified-healthy-only representation fitting, EMA targets, arm-specific reference banks/standardizers, and declared Fit-only auxiliary fitting/cross-fitting.",
+      "permitted_use": "verified-healthy Fit only: representation fitting, EMA targets, arm-specific banks/standardizers and declared Fit-only auxiliary fitting",
+      "source_rows_sha256": "447b219e0c77f6d76ed54a4de7a0bee7c2b3a9a8142f61cbb434694ed73acb94",
+      "valid_patches": 167419
+    }
+  },
+  "task_id": "S18-T33",
+  "validation_rules": {
+    "closed_keys": "unknown top-level fields are rejected",
+    "downstream_consumption": "Confirmation workers must load this lock through representation.sprint18_confirmation_lock, use arm_state/confirmation_support, and pass lock_sha256 to the unchanged harness validate_role_permission; they must not re-derive frozen state",
+    "fail_closed": "any byte, digest, support, config, seed, arm or custody mismatch aborts",
+    "lock_digest": "SHA-256 over canonical JSON (sorted keys, compact separators, UTF-8) of every field except lock_sha256",
+    "outcome_separation": "no Development or Confirmation outcome value may appear; Confirmation enters only as published metadata/hashes"
+  }
+}
