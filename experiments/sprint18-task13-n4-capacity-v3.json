@@ -1,0 +1,207 @@
+{
+  "schema": "s18-task13-n4-capacity-v3",
+  "task_id": "S18-T13B-CERT-V3",
+  "attempt_id": "S18T13BV3CERTA01",
+  "internal_runner_labels": {
+    "task_id": "S18-T13B",
+    "attempt_id": "S18-T13B-V3",
+    "note": "frozen labels emitted by the permanent runner; the producer assignment identity is task_id/attempt_id above"
+  },
+  "run_status": "aborted_source_defect_before_folds",
+  "scientific_verdict": "NOT_EVALUATED",
+  "capacity_gate": {
+    "verdict": "NOT_EVALUATED",
+    "reason": "the locked campaign aborted at the first strict B0 restore before any scale fit; zero of nine folds were executed, so no gate input exists",
+    "evaluated_folds": 0,
+    "required_folds": 9
+  },
+  "source_commit": "a4d282944ef661a92f6b79a11bcd6de3425e1dce",
+  "source_parent": "44f56b195597c1c3a46564d63c7269bb29d8c05d",
+  "source_tree": "bf6acfd4f2709d4a4448c49e520a925b7f1b451e",
+  "driver_sha256": "3896e5f057c2826d5f711085e75f839cf52964baa65695a90a2b6a112fbebbc9",
+  "binding_sha256": "91209a89372f8774f588179a9b9d84dbb3c0e71bd218c8cb0f4c5672125ebd78",
+  "executable_binding_sha256": "383c62114ee6120d5fd19f866dfd585083d1d5899c9ffe91804761bd8a10a2d5",
+  "data_handoff_sha256": "5c28434b6f5b3342a3203a73cd672782e08857299c05b709adbd8bce75d45155",
+  "v3_lock": {
+    "path": "experiments/sprint18-task14-config-lock-v2.json",
+    "file_sha256": "ee2094c11a6ce43fb3770fa60912355740550d5f4ce330d8456c6341f285a262",
+    "schema": "s18-task14-config-lock-v2",
+    "lock_version": 2,
+    "coefficient_lock_sha256": "8015d03262daffa3d42cb9d4d4c08d8ad491b1a20bcf160d9992129d327cc353",
+    "runner_sha256": "3896e5f057c2826d5f711085e75f839cf52964baa65695a90a2b6a112fbebbc9",
+    "reviewed_implementation_commit": "44f56b195597c1c3a46564d63c7269bb29d8c05d",
+    "reviewed_runner_sha256_at_source_commit": "09f7beaa9c8b77217d0bd9cdd5b142e5467d02d8bdc6a77c6e22a4a1344fa784",
+    "locked_config_keys": [
+      "N4-CRN/seed-181801",
+      "N4-CRN/seed-181802",
+      "N4-CRN/seed-181803"
+    ],
+    "supersedes_scope": "supersedes the v1 lock for N4-CRN only; the v1 lock bytes, every other arm and all historical evidence remain unchanged"
+  },
+  "mechanism_spec_sha256": {
+    "N4-CRN": "e7fe42e41832ae283614ee6a76c0623ee567068dcc540a222f5b66a9d4262da2"
+  },
+  "mechanism_spec_base_sha256": {
+    "N4-CRN": "4d1c8097c9cc27d3fbeb2e2a6e70a29a7bc63d7899646a9c712a315b39d9ffe3"
+  },
+  "scale_parameterization": "fit-mean-anchored-bias-v1",
+  "guard_contract": "n4-v3-guards-v1",
+  "scale_checkpoint_schema": "s18-n4-scale-checkpoint-v2",
+  "fit_history_ids": [
+    "S18I-ITER-0005-FIT-01",
+    "S18I-ITER-0005-FIT-02",
+    "S18I-ITER-0005-FIT-03"
+  ],
+  "fit_eligible_rows": {
+    "S18I-ITER-0005-FIT-01": 1809,
+    "S18I-ITER-0005-FIT-02": 1882,
+    "S18I-ITER-0005-FIT-03": 1755
+  },
+  "fit_healthy_rows": 5446,
+  "fit_valid_patches": 167419,
+  "model_seeds": [
+    181801,
+    181802,
+    181803
+  ],
+  "folds": [],
+  "fold_count_completed": 0,
+  "folds_expected": 9,
+  "per_seed_mechanical": {
+    "181801": "not_started",
+    "181802": "not_started",
+    "181803": "not_started"
+  },
+  "scale_checkpoints": [],
+  "scale_checkpoints_written": 0,
+  "optimizer_updates_applied": 0,
+  "guard_diagnostics": null,
+  "nll": null,
+  "saturation": null,
+  "consumer_proof": null,
+  "representation_invariance": null,
+  "device": "cuda:0",
+  "cuda": {
+    "cuda_available": true,
+    "device_name": "NVIDIA GeForce RTX 4060 Ti",
+    "device_total_memory_bytes": 16713449472,
+    "torch": "2.14.0+cu130",
+    "cuda_version": "13.0",
+    "python": "3.12.13",
+    "numpy": "2.5.2",
+    "uv": "0.12.21",
+    "platform": "Linux-6.8.0-107-generic-x86_64-with-glibc2.38",
+    "gpu_idle_before_and_after": "257 MiB / 0 %",
+    "peak_memory_trace": null
+  },
+  "preflight": {
+    "standalone_exit": 0,
+    "preflight_ok": true,
+    "fit_eligible_rows": {
+      "S18I-ITER-0005-FIT-01": 1809,
+      "S18I-ITER-0005-FIT-02": 1882,
+      "S18I-ITER-0005-FIT-03": 1755
+    },
+    "fit_healthy_rows": 5446,
+    "n4_sampler_smoke_ok": 9,
+    "shell_wall_seconds": 8.25,
+    "record_path": "/home/trietlm/s18-t13b-v3-certa01-runs/full/preflight.json",
+    "record_bytes": 4578,
+    "record_sha256": "246869ed1522a085b05709176151cc36589756fb976a506932568507d5ab3218"
+  },
+  "timing": {
+    "launch_pid": 1913647,
+    "launch_utc": "2026-10-21T04:19:38Z",
+    "preflight_record_mtime": "2026-10-21T11:19:45.746398+07:00",
+    "final_log_mtime": "2026-10-21T11:20:15.657061+07:00",
+    "observed_launch_to_final_log_seconds": 37.66
+  },
+  "failure": {
+    "type": "ValueError",
+    "message": "checkpoint arm/configuration differs from the requested arm",
+    "raised_at": "src/representation/sprint18_checkpoint.py:577",
+    "propagated_through": "src/representation/sprint18_checkpoint.py:866 -> experiments/sprint18_task13b_n4_capacity.py:833",
+    "pilot_exit_line": null,
+    "root_cause": "run_pilot reuses the v3 lock core digest for the B0-FULL restore arm, but final B0 checkpoints are bound by the historical v1 coefficient lock digest; the strict arm-configuration equality rejects the mismatch before any fit",
+    "runner_lines": {
+      "lock_digest_assignment": 765,
+      "b0_arm_construction": 829,
+      "n4_arm_construction": 863
+    },
+    "stored_b0_coefficient_lock_sha256": "6eb108b2073181d427f1aedfc81fb3bae4c29595108d15de486082800bdd9d6e",
+    "requested_v3_coefficient_lock_sha256": "8015d03262daffa3d42cb9d4d4c08d8ad491b1a20bcf160d9992129d327cc353",
+    "affected_b0_seeds": [
+      181801,
+      181802,
+      181803
+    ],
+    "all_three_store_v1_digest": true,
+    "stored_b0_arm_config_sha256": "db83fed9ff129e0dc96a0c342aa400251f58d1febb2ced0ad10c849cee281973",
+    "v1_digest_request_arm_config_sha256": "db83fed9ff129e0dc96a0c342aa400251f58d1febb2ced0ad10c849cee281973",
+    "v3_digest_request_arm_config_sha256": "8f35733d9a2a33ff71af3d0bdf33aa5e47d5b5b689e59c130dfe2d0f95fc14ec",
+    "differing_fields": [
+      "coefficient_lock_sha256"
+    ],
+    "legacy_digest_restore_probe": {
+      "checkpoint_sha256": "9292d7c59037cba7b7fd337dbb896ed492777abff4713307c98f86a3b5226a8f",
+      "matches_bound_checkpoint_sha256": true,
+      "live_model_state_matches": true,
+      "ema_state_matches": true
+    }
+  },
+  "evidence": {
+    "run_root": "/home/trietlm/s18-t13b-v3-certa01-runs/",
+    "binding_json": {
+      "bytes": 2797,
+      "sha256": "91209a89372f8774f588179a9b9d84dbb3c0e71bd218c8cb0f4c5672125ebd78"
+    },
+    "run_pilot_sh": {
+      "bytes": 692,
+      "sha256": "7ec58a05f9580ff9ac0b3155d28d19699bd6110f5e29d82cd172713b23211368"
+    },
+    "pilot_log": {
+      "bytes": 1186,
+      "sha256": "9c42ba75d83216cc11f531c47f5748c536530dde3899dde9e3c908577ef14bb7"
+    },
+    "preflight_json": {
+      "bytes": 4578,
+      "sha256": "246869ed1522a085b05709176151cc36589756fb976a506932568507d5ab3218"
+    },
+    "root_cause_evidence_json": {
+      "bytes": 1359,
+      "sha256": "63844c2f5b36aebd96e656aff19e5aa5f9b4dd332f2fc7d5b357ce594639b07b"
+    },
+    "local_copies": "artifacts/sprint-18/s18-t13b-cert-v3-a01/"
+  },
+  "preserved_historical_results": {
+    "canonical_v1": {
+      "path": "experiments/sprint18-task13-n4-capacity-v1.json",
+      "disposition": "preserved_byte_identical_never_overwritten",
+      "observed_attempt_id": "S18T13BA03",
+      "observed_bytes": 35311,
+      "observed_sha256": "26535175c8d956d5a942cb6a40da4105b02a48a015e8de59dd1168b8f8fc4dcb",
+      "note": "current file postdates A03 and cites the older C02 JSON 699abc0d… as historical; this attempt did not modify it"
+    },
+    "a03_evidence": {
+      "path": "artifacts/sprint-18/task-13b-a03.md",
+      "bytes": 12431,
+      "sha256": "c3ae79fc5332d59ce70a70d2e0ace1ebed6bee2e02acb59d04e7bd50c9b8f81f"
+    },
+    "v1_lock": {
+      "path": "experiments/sprint18-task14-config-lock.json",
+      "bytes": 34155,
+      "sha256": "c4c1a8bde14310cf4436c10762e3e98475f7c84eb74fcb8a74b3e267885edec3"
+    },
+    "legacy_a03_disposition": {
+      "label": "rejected_failed_dead_zone_v1",
+      "consumed_by_v3": false,
+      "runs_root": "/home/trietlm/s18-t13b-a03-runs/"
+    }
+  },
+  "notes": [
+    "No folds, scale checkpoints, optimizer updates, guard diagnostics, NLL, saturation, or consumer scores were produced; no capacity PASS/FAIL may be inferred from this record.",
+    "No source file was edited and no Git mutation was performed by this attempt.",
+    "The activation commit a4d2829 is the executed source; its runner 3896e5f0 is the defect carrier. A fresh reviewed correction, new Bronze checkpoint, and verified sync are required before a legitimate rerun.",
+    "The v3 lock activation_status string still reads prospective_locked_pending_independent_review_and_bronze_checkpoint because the reviewed lock bytes were not re-sealed after the separate review/checkpoint/sync; the runner does not gate on that descriptive string."
+  ]
+}

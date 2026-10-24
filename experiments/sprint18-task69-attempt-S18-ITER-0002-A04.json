@@ -1,0 +1,139 @@
+{
+  "schema_id": "sprint18-task69-attempt-result-v1",
+  "task_id": "S18-T69",
+  "attempt_id": "S18-T69-A04",
+  "agent_id": "S18Task69A04",
+  "outcome": "CANDIDATE_REJECTED_AFTER_FULL_PREFLIGHT",
+  "candidate_id": "S18-ITER-0002",
+  "candidate_disposition": "Retired by the frozen attempt policy after a complete 16-coordinate PREFLIGHT-FAIL. Do not resume, replay, reseed, replace, promote a prefix, or repair within this candidate.",
+  "authorization": {
+    "source": "This explicit Main assignment authorizes creation of the candidate2 Task68 release receipt and Task69 preflight/nonconfirmation only, after the accepted Task68 PASS, checkpoint, and deployment.",
+    "scope": "Task69-preflight-and-nonconfirmation",
+    "confirmation_authorized": false,
+    "receipt_local_path": "artifacts/sprint-18/S18-ITER-0002-main-task68-release-v1.json",
+    "receipt_remote_path": "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/artifacts/sprint-18/S18-ITER-0002-main-task68-release-v1.json",
+    "receipt_schema_id": "sprint18-main-candidate-release-v2",
+    "receipt_status": "RELEASED_BY_MAIN",
+    "receipt_sha256_local_and_remote": "f92f46099c7bf21e014b04a821c1608e3036d826ee9c5158542e280041b1e75d",
+    "binding_sha256": "aaa8eadd5eba49fce9a37500664a502740aed4261dbcefa3fb5a4de9bd0f3577",
+    "binding_file_sha256": "80746e6ef27ae01e9e13ad10d76db7ded85b5170ca201b8a4145e5c3be4a74fb",
+    "source_closure_sha256": "7ee6840f62754ea0c958047a50a9f7c96ca13cb01ea4b1cb5353c40834fb3130",
+    "source_identity_scheme": "git-tracked-utf8-text-lf-sha256-v1",
+    "base_commit": "4ad4f66c2e47eb9c702145a9a7585edceb9151dc",
+    "checkpoint_parent": "4ad4f66c2e47eb9c702145a9a7585edceb9151dc",
+    "checkpoint_commit": "860b31719bbb53060f9b0e46c3ae7dc166562bca",
+    "evidence_review_ref": "agent://S18Task68R05",
+    "evidence_review_verdict": "PASS",
+    "actionable_findings": 0,
+    "task67_evidence_path": "artifacts/sprint-18/task-67.md",
+    "task67_evidence_sha256": "3758a28f4f27676dbf1014c6290ea5acd9fa27c8054fd0899b1d07bccc85aa3a",
+    "task67_evidence_reference": "accepted Task67 evidence; provenance only, not a deployable source"
+  },
+  "remote_execution": {
+    "host": "trietlm@192.168.30.244",
+    "hostname": "di-server",
+    "worktree": "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree",
+    "branch": "sprint18-task68-a02-runtime",
+    "checkpoint_head": "860b31719bbb53060f9b0e46c3ae7dc166562bca",
+    "interpreter": ".venv/bin/python",
+    "pythonpath": "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/src:/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/experiments:/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree",
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "runtime": "CPython 3.12.13; uv 0.12.20 (build 2274b80d6); NumPy 2.5.2; SciPy 1.18.1; Torch 2.14.0+cu130; CUDA 13.0; NVIDIA GeForce RTX 4060 Ti (15,947 MiB); existing .venv preserved.",
+    "runtime_origin_validation": "The successful normal runner validation checked bound interpreter/prefix, package versions and origins, provider, CUDA/device, source closure, and Git identity. No venv recreation or lock resync occurred."
+  },
+  "validation": {
+    "command": "cd /home/trietlm/anomaly-representation-learning-s18t68-a02-worktree && PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/src:/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/experiments:/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree .venv/bin/python experiments/sprint18_iterative_candidate_v1.py --stage validate",
+    "exit_code": 0,
+    "result": "STATIC_BINDING_PASS",
+    "candidate_id": "S18-ITER-0002",
+    "binding_sha256": "aaa8eadd5eba49fce9a37500664a502740aed4261dbcefa3fb5a4de9bd0f3577",
+    "binding_file_sha256": "80746e6ef27ae01e9e13ad10d76db7ded85b5170ca201b8a4145e5c3be4a74fb",
+    "source_closure_sha256": "7ee6840f62754ea0c958047a50a9f7c96ca13cb01ea4b1cb5353c40834fb3130",
+    "contacted": false
+  },
+  "preflight": {
+    "command": "cd /home/trietlm/anomaly-representation-learning-s18t68-a02-worktree && PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/src:/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/experiments:/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree .venv/bin/python experiments/sprint18_iterative_candidate_v1.py --stage preflight --release artifacts/sprint-18/S18-ITER-0002-main-task68-release-v1.json",
+    "observed_ssh_command_exit_code": 1,
+    "stdout": "empty",
+    "runner_verdict": "PREFLIGHT-FAIL",
+    "feasible_count": "15/16",
+    "protocol": "sprint15-benchmark-protocol-v7",
+    "seed_order": [32016, 32017, 32018, 32019, 32020, 32021, 32022, 32023, 32024, 32025, 32026, 32027, 32028, 32029, 32030, 32031],
+    "coordinate_count": 16,
+    "all_results_no_write": true,
+    "all_results_used_in_memory_waveforms": true,
+    "persisted_role_roots_shards_manifests": false,
+    "raw_result": {
+      "remote_path": "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/data/generated/sprint18-iterative-v1/S18-ITER-0002/_attempt-001/preflight-raw.json",
+      "local_copy": "experiments/sprint18-task69-attempt-S18-ITER-0002-A04-preflight-raw.json",
+      "sha256_local_and_remote": "2f9f79412c0f834bb352153ed6a6ca487ee1751f5e6da97d71d44395a36abd13",
+      "bytes": 94738
+    },
+    "attempt_marker": {
+      "remote_path": "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/data/generated/sprint18-iterative-v1/S18-ITER-0002/_attempt-001/attempt.json",
+      "sha256": "eeef76c866c0c6065947f5b3419c172a5b5842272c03fcdbd2d306b7477db0d8",
+      "started_utc": "2026-10-05T08:35:23.336467+00:00"
+    },
+    "ledger": {
+      "remote_path": "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/data/generated/sprint18-iterative-v1/S18-ITER-0002/_attempt-001/ledger.jsonl",
+      "sha256": "d48c65aacf825edfc698c022e7459acc296700f44eb2cd3797b4a97ef6b259a4",
+      "event_types": ["attempt_started", "preflight_started", "preflight_recorded", "candidate_rejected"],
+      "preflight_event": "PREFLIGHT-FAIL / 15/16; 16 fixed-order coordinates completed, in-memory waveforms true, role-root/shard/manifest persistence false.",
+      "candidate_rejected_reason": "fixed_16_history_preflight_rejected"
+    },
+    "rows": [
+      {"seed":32016,"role":"DESIGN","feasible":true,"eligible":{"P":65,"W":46,"A":59},"subtype_pools":{"P1":34,"P2":31,"W1":21,"W2":25,"A1":24,"A2":35},"controls":76,"robot_days":1685,"failed_checks":[]},
+      {"seed":32017,"role":"DESIGN","feasible":true,"eligible":{"P":72,"W":43,"A":59},"subtype_pools":{"P1":35,"P2":37,"W1":28,"W2":15,"A1":26,"A2":33},"controls":64,"robot_days":1646,"failed_checks":[]},
+      {"seed":32018,"role":"DESIGN","feasible":false,"reason":"quota-shortfall","eligible":{"P":91,"W":31,"A":62},"subtype_pools":{"P1":45,"P2":46,"W1":11,"W2":20,"A1":34,"A2":28},"controls":50,"robot_days":1669,"failed_checks":["eligible_W1_pool_ge_12"]},
+      {"seed":32019,"role":"DESIGN","feasible":true,"eligible":{"P":68,"W":41,"A":63},"subtype_pools":{"P1":36,"P2":32,"W1":25,"W2":16,"A1":35,"A2":28},"controls":61,"robot_days":1616,"failed_checks":[]},
+      {"seed":32020,"role":"FIT","feasible":true,"eligible":{"P":70,"W":49,"A":53},"subtype_pools":{"P1":31,"P2":39,"W1":26,"W2":23,"A1":28,"A2":25},"controls":73,"robot_days":1718,"failed_checks":[]},
+      {"seed":32021,"role":"FIT","feasible":true,"eligible":{"P":82,"W":45,"A":50},"subtype_pools":{"P1":45,"P2":37,"W1":24,"W2":21,"A1":25,"A2":25},"controls":66,"robot_days":1730,"failed_checks":[]},
+      {"seed":32022,"role":"FIT","feasible":true,"eligible":{"P":69,"W":51,"A":49},"subtype_pools":{"P1":35,"P2":34,"W1":18,"W2":33,"A1":27,"A2":22},"controls":74,"robot_days":1691,"failed_checks":[]},
+      {"seed":32023,"role":"CALIBRATION","feasible":true,"eligible":{"P":64,"W":46,"A":64},"subtype_pools":{"P1":39,"P2":25,"W1":21,"W2":25,"A1":36,"A2":28},"controls":69,"robot_days":1685,"failed_checks":[]},
+      {"seed":32024,"role":"DEVELOPMENT","feasible":true,"eligible":{"P":77,"W":43,"A":57},"subtype_pools":{"P1":31,"P2":46,"W1":24,"W2":19,"A1":33,"A2":24},"controls":67,"robot_days":1741,"failed_checks":[]},
+      {"seed":32025,"role":"DEVELOPMENT","feasible":true,"eligible":{"P":68,"W":45,"A":61},"subtype_pools":{"P1":37,"P2":31,"W1":21,"W2":24,"A1":28,"A2":33},"controls":66,"robot_days":1660,"failed_checks":[]},
+      {"seed":32026,"role":"DEVELOPMENT","feasible":true,"eligible":{"P":73,"W":50,"A":46},"subtype_pools":{"P1":41,"P2":32,"W1":29,"W2":21,"A1":23,"A2":23},"controls":72,"robot_days":1784,"failed_checks":[]},
+      {"seed":32027,"role":"DEVELOPMENT","feasible":true,"eligible":{"P":66,"W":50,"A":56},"subtype_pools":{"P1":35,"P2":31,"W1":28,"W2":22,"A1":24,"A2":32},"controls":62,"robot_days":1696,"failed_checks":[]},
+      {"seed":32028,"role":"CONFIRMATION","feasible":true,"eligible":{"P":69,"W":46,"A":50},"subtype_pools":{"P1":34,"P2":35,"W1":28,"W2":18,"A1":24,"A2":26},"controls":71,"robot_days":1673,"failed_checks":[]},
+      {"seed":32029,"role":"CONFIRMATION","feasible":true,"eligible":{"P":75,"W":52,"A":53},"subtype_pools":{"P1":37,"P2":38,"W1":28,"W2":24,"A1":27,"A2":26},"controls":66,"robot_days":1683,"failed_checks":[]},
+      {"seed":32030,"role":"CONFIRMATION","feasible":true,"eligible":{"P":67,"W":50,"A":47},"subtype_pools":{"P1":35,"P2":32,"W1":28,"W2":22,"A1":23,"A2":24},"controls":67,"robot_days":1706,"failed_checks":[]},
+      {"seed":32031,"role":"CONFIRMATION","feasible":true,"eligible":{"P":68,"W":50,"A":50},"subtype_pools":{"P1":32,"P2":36,"W1":24,"W2":26,"A1":25,"A2":25},"controls":74,"robot_days":1637,"failed_checks":[]}
+    ],
+    "failure_detail": {
+      "seed": 32018,
+      "history_id": "S18I-ITER-0002-DESIGN-03",
+      "required_W1_pool": 12,
+      "actual_W1_pool": 11,
+      "solver": "scipy.optimize.milp (HiGHS), SciPy 1.18.1, solver_status=2; infeasible",
+      "design_promotion_checks_passed": true,
+      "full_eligible_support": {"P":91,"W":31,"A":62},
+      "selected_controls": 50,
+      "evaluable_robot_days": 1669
+    }
+  },
+  "downstream": {
+    "materialize_nonconfirmation_invoked": false,
+    "nonconfirmation_role_roots_materialized": 0,
+    "public_loader_materialization_reloads": 0,
+    "task69_qualification_record_created": false,
+    "fixed_probe_fit_or_calibration_invoked": false,
+    "development_probe_invoked": false,
+    "confirmation_role_roots_materialized": 0,
+    "confirmation_probe_or_confirmation_stage_invoked": false,
+    "confirmation_seeds_were_only_in_memory_preflighted": true,
+    "task69_pass_recorded": false,
+    "data_done": false,
+    "task69_complete": false
+  },
+  "project_changes": {
+    "source_or_binding_changed": false,
+    "plan_changed": false,
+    "git_refs_or_commit_changed": false,
+    "existing_venv_recreated_or_resynced": false,
+    "candidate1_receipts_or_attempts_overwritten": false
+  },
+  "verification_limits": [
+    "Candidate2 failed its one-shot fixed-order preflight, so nonconfirmation materialization and actual Task5 qualification/fixed-probe computation were not reached.",
+    "Confirmation seeds participated only in the required 16-coordinate in-memory preflight; no Confirmation role directory, public-loader materialization, probe, or Task70 command was invoked."
+  ]
+}

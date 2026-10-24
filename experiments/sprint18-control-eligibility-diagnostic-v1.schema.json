@@ -1,0 +1,209 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sprint18-control-eligibility-mechanism-diagnostic-v1",
+  "title": "Sprint 18 control and eligibility mechanism diagnostic v1",
+  "description": "Frozen result and attempt-marker shapes for a research-only, no-write diagnostic. Results describe eligibility and control-selection stages under unchanged v7/C2 semantics; they are not qualification or causal evidence.",
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "profile": {
+      "enum": ["sprint15-v7", "sprint18-c2"]
+    },
+    "coordinate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["history_seed", "profile"],
+      "properties": {
+        "history_seed": {"type": "integer", "minimum": 0},
+        "profile": {"$ref": "#/$defs/profile"}
+      }
+    },
+    "coordinateTuple": {
+      "type": "array",
+      "prefixItems": [
+        {"type": "integer", "minimum": 0},
+        {"$ref": "#/$defs/profile"}
+      ],
+      "items": false,
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "sourceClosure": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {"$ref": "#/$defs/sha256"}
+    },
+    "diagnosticRow": {
+      "type": "object",
+      "required": [
+        "history_seed",
+        "profile",
+        "diagnostic_id",
+        "freeze_digest",
+        "protocol",
+        "config_hash",
+        "a_abrupt_rate",
+        "no_write",
+        "generation_writes",
+        "generated_data_roots_written",
+        "waveform_artifacts_written",
+        "model_trained",
+        "sealed_inputs_opened",
+        "benchmark_paths_touched",
+        "evaluation_started",
+        "execution_status",
+        "elapsed_s",
+        "record_sha256"
+      ],
+      "properties": {
+        "history_seed": {"type": "integer", "minimum": 0},
+        "profile": {"$ref": "#/$defs/profile"},
+        "diagnostic_id": {"const": "sprint18-control-eligibility-mechanism-diagnostic-v1"},
+        "freeze_digest": {"$ref": "#/$defs/sha256"},
+        "protocol": {"const": "sprint15-benchmark-protocol-v7"},
+        "config_hash": {"type": ["string", "null"]},
+        "a_abrupt_rate": {"type": ["number", "null"]},
+        "no_write": {"const": true},
+        "generation_writes": {"const": false},
+        "generated_data_roots_written": {"const": false},
+        "waveform_artifacts_written": {"const": false},
+        "model_trained": {"const": false},
+        "sealed_inputs_opened": {"const": false},
+        "benchmark_paths_touched": {"const": false},
+        "evaluation_started": {"const": true},
+        "execution_status": {"enum": ["RECORDED", "BLOCKED"]},
+        "elapsed_s": {"type": "number", "minimum": 0},
+        "record_sha256": {"$ref": "#/$defs/sha256"},
+        "source_closure_sha256_at_start": {"$ref": "#/$defs/sha256"},
+        "source_closure_sha256_after_evaluation": {"$ref": "#/$defs/sha256"},
+        "disposable_failure_probe": {"type": "object"}
+      },
+      "additionalProperties": true
+    },
+    "result": {
+      "type": "object",
+      "required": [
+        "diagnostic_id",
+        "schema_version",
+        "status",
+        "freeze_digest",
+        "contract_sha256",
+        "runner_sha256",
+        "schema_sha256",
+        "base_source_closure_sha256",
+        "source_closure_sha256",
+        "source_closure",
+        "namespace",
+        "coordinate_order",
+        "profile_order",
+        "budget_unique_persisted_coordinates",
+        "persisted_coordinate_count",
+        "results",
+        "interpretation_boundary"
+      ],
+      "properties": {
+        "diagnostic_id": {"const": "sprint18-control-eligibility-mechanism-diagnostic-v1"},
+        "schema_version": {"const": "1.0.0"},
+        "status": {"enum": ["RUNNING", "COMPLETE", "BLOCKED", "SMOKE-PASS"]},
+        "freeze_digest": {"$ref": "#/$defs/sha256"},
+        "contract_sha256": {"$ref": "#/$defs/sha256"},
+        "runner_sha256": {"$ref": "#/$defs/sha256"},
+        "schema_sha256": {"$ref": "#/$defs/sha256"},
+        "base_source_closure_sha256": {"$ref": "#/$defs/sha256"},
+        "source_closure_sha256": {"$ref": "#/$defs/sha256"},
+        "source_closure": {"$ref": "#/$defs/sourceClosure"},
+        "namespace": {"type": "object"},
+        "coordinate_order": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/coordinateTuple"},
+          "maxItems": 16
+        },
+        "profile_order": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/profile"},
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "budget_unique_persisted_coordinates": {"type": "integer", "minimum": 1, "maximum": 16},
+        "persisted_coordinate_count": {"type": "integer", "minimum": 0, "maximum": 16},
+        "results": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/diagnosticRow"},
+          "maxItems": 16
+        },
+        "disposable_fixture_only": {"type": "boolean"},
+        "interpretation_boundary": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    },
+    "attempt": {
+      "type": "object",
+      "required": [
+        "diagnostic_id",
+        "attempt",
+        "mode",
+        "status",
+        "started_at_utc",
+        "updated_at_utc",
+        "freeze_digest",
+        "contract_sha256",
+        "runner_sha256",
+        "schema_sha256",
+        "base_source_closure_sha256",
+        "source_closure_sha256",
+        "source_closure",
+        "seed_order",
+        "profile_order",
+        "coordinate_order",
+        "budget_unique_persisted_coordinates",
+        "persisted_coordinate_count",
+        "evaluation_invocations_started",
+        "next_coordinate_index",
+        "in_progress_coordinate",
+        "remaining_coordinates",
+        "result_sha256",
+        "generated_data_roots_written",
+        "waveform_artifacts_written",
+        "model_trained",
+        "sealed_inputs_opened",
+        "benchmark_paths_touched",
+        "interrupted_invocation_count_caveat"
+      ],
+      "properties": {
+        "diagnostic_id": {"const": "sprint18-control-eligibility-mechanism-diagnostic-v1"},
+        "attempt": {"const": 1},
+        "mode": {"enum": ["study", "disposable-smoke"]},
+        "status": {"enum": ["RUNNING", "COMPLETE", "BLOCKED", "SMOKE-PASS"]},
+        "started_at_utc": {"type": "string", "format": "date-time"},
+        "updated_at_utc": {"type": "string", "format": "date-time"},
+        "freeze_digest": {"$ref": "#/$defs/sha256"},
+        "contract_sha256": {"$ref": "#/$defs/sha256"},
+        "runner_sha256": {"$ref": "#/$defs/sha256"},
+        "schema_sha256": {"$ref": "#/$defs/sha256"},
+        "base_source_closure_sha256": {"$ref": "#/$defs/sha256"},
+        "source_closure_sha256": {"$ref": "#/$defs/sha256"},
+        "source_closure": {"$ref": "#/$defs/sourceClosure"},
+        "seed_order": {"type": "array", "items": {"type": "integer"}, "minItems": 1, "maxItems": 8},
+        "profile_order": {"type": "array", "items": {"$ref": "#/$defs/profile"}, "minItems": 2, "maxItems": 2},
+        "coordinate_order": {"type": "array", "items": {"$ref": "#/$defs/coordinate"}, "minItems": 1, "maxItems": 16},
+        "budget_unique_persisted_coordinates": {"type": "integer", "minimum": 1, "maximum": 16},
+        "persisted_coordinate_count": {"type": "integer", "minimum": 0, "maximum": 16},
+        "evaluation_invocations_started": {"type": "integer", "minimum": 0, "maximum": 16},
+        "next_coordinate_index": {"type": "integer", "minimum": 0, "maximum": 16},
+        "in_progress_coordinate": {"oneOf": [{"$ref": "#/$defs/coordinate"}, {"type": "null"}]},
+        "remaining_coordinates": {"type": "array", "items": {"$ref": "#/$defs/coordinate"}, "maxItems": 16},
+        "result_sha256": {"oneOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]},
+        "generated_data_roots_written": {"const": false},
+        "waveform_artifacts_written": {"const": false},
+        "model_trained": {"const": false},
+        "sealed_inputs_opened": {"const": false},
+        "benchmark_paths_touched": {"const": false},
+        "interrupted_invocation_count_caveat": {"type": "string", "minLength": 1},
+        "stop_reason": {"type": "string"}
+      },
+      "additionalProperties": false
+    }
+  }
+}

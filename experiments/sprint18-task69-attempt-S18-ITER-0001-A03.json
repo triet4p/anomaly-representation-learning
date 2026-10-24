@@ -1,0 +1,119 @@
+{
+  "schema_id": "sprint18-task69-attempt-result-v1",
+  "task_id": "S18-T69",
+  "attempt_id": "S18-T69-A03",
+  "agent_id": "S18Task69A03",
+  "outcome": "CANDIDATE_REJECTED_AFTER_POST_CONTACT_PREFLIGHT_EXCEPTION",
+  "candidate_id": "S18-ITER-0001",
+  "candidate_disposition": "The frozen attempt ledger records candidate_rejected; the binding policy retires this whole candidate after any failed attempt. Do not replay or replace any role under this candidate.",
+  "authorization": {
+    "scope": "Task69 preflight and nonconfirmation only",
+    "main_release_receipt": "artifacts/sprint-18/S18-ITER-0001-main-task68-release-v3.json",
+    "remote_release_receipt": "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/artifacts/sprint-18/S18-ITER-0001-main-task68-release-v3.json",
+    "receipt_schema_id": "sprint18-main-candidate-release-v2",
+    "receipt_status": "RELEASED_BY_MAIN",
+    "receipt_sha256_local_and_remote": "e69fdee2fa4c2bb23ce469a13fd130193d43ece10f962b226833775900afde0f",
+    "binding_sha256": "b9700fd36867627454c0559750c26dd3f622b2ba8df5730ff71b1788565a2c70",
+    "binding_file_sha256": "c3e5a160776b018b86864d9b4b38b8ef2979d2badadc774ca3e51ffffea8a62c",
+    "source_closure_sha256": "3238ea98f422a6fed62831ac10074de76da29cacf327a7cc5da6ffcffe9464a1",
+    "base_commit": "3a15b510ed6fd8a31ff172cb646a7bfa66996715",
+    "checkpoint_commit": "31e51ce2a890c3b5924f5e8dde7995e9e41ddb36",
+    "checkpoint_parent": "3a15b510ed6fd8a31ff172cb646a7bfa66996715",
+    "evidence_review_ref": "agent://S18Task68R04",
+    "task67_evidence_path": "artifacts/sprint-18/task-67.md",
+    "task67_evidence_sha256": "3758a28f4f27676dbf1014c6290ea5acd9fa27c8054fd0899b1d07bccc85aa3a",
+    "task67_evidence_reference": "accepted Task67 evidence; provenance only, not a deployable source"
+  },
+  "remote_execution": {
+    "host": "trietlm@192.168.30.244",
+    "hostname": "di-server",
+    "worktree": "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree",
+    "branch": "sprint18-task68-a02-runtime",
+    "checkpoint_head": "31e51ce2a890c3b5924f5e8dde7995e9e41ddb36",
+    "interpreter": ".venv/bin/python",
+    "pythonpath": "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/src:/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/experiments",
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "environment_identity": {
+      "python": "3.12.13",
+      "uv": "0.12.20 (2274b80d6)",
+      "numpy": "2.5.2",
+      "scipy": "1.18.1",
+      "torch": "2.14.0+cu130",
+      "cuda": "13.0",
+      "gpu": "NVIDIA GeForce RTX 4060 Ti",
+      "gpu_total_mib": 15947,
+      "origins": "bound worktree .venv for NumPy/SciPy/PyTorch and bound worktree src/synth/__init__.py"
+    },
+    "environment_evidence_basis": "The exact A04-bound versions/origins/device were observed in Task69 A02 and the existing .venv was preserved by DEP01. This attempt's normal --stage validate completed successfully; that stage executes validate_runtime and validates the bound versions, origins, provider/prefix, CUDA device, source closure, release/checkpoint identity, and clean worktree before returning."
+  },
+  "validation": {
+    "command": "ssh -o BatchMode=yes -o ConnectTimeout=15 trietlm@192.168.30.244 'cd /home/trietlm/anomaly-representation-learning-s18t68-a02-worktree && PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/src:/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/experiments .venv/bin/python experiments/sprint18_iterative_candidate_v1.py --stage validate'",
+    "exit_code": 0,
+    "output": {
+      "result": "STATIC_BINDING_PASS",
+      "candidate_id": "S18-ITER-0001",
+      "binding_sha256": "b9700fd36867627454c0559750c26dd3f622b2ba8df5730ff71b1788565a2c70",
+      "binding_file_sha256": "c3e5a160776b018b86864d9b4b38b8ef2979d2badadc774ca3e51ffffea8a62c",
+      "source_closure_sha256": "3238ea98f422a6fed62831ac10074de76da29cacf327a7cc5da6ffcffe9464a1",
+      "contacted": false
+    }
+  },
+  "preflight": {
+    "command": "ssh -o BatchMode=yes -o ConnectTimeout=15 trietlm@192.168.30.244 'cd /home/trietlm/anomaly-representation-learning-s18t68-a02-worktree && PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/src:/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/experiments .venv/bin/python experiments/sprint18_iterative_candidate_v1.py --stage preflight --release artifacts/sprint-18/S18-ITER-0001-main-task68-release-v3.json'",
+    "exit_code": 1,
+    "failure": "ModuleNotFoundError: No module named 'experiments'",
+    "stack_location": "src/synth/preflight15.py:_preflight_seed_for, line 225; from experiments.sprint18_task5_measurability import ...",
+    "runner_location": "experiments/sprint18_iterative_candidate_v1.py:run_preflight, line 869",
+    "execution_output_artifact": "artifact://3347",
+    "candidate_contacted": true,
+    "attempt_marker_written": true,
+    "preflight_started": true,
+    "fixed_seed_order": [32000, 32001, 32002, 32003, 32004, 32005, 32006, 32007, 32008, 32009, 32010, 32011, 32012, 32013, 32014, 32015],
+    "first_seed_reached": 32000,
+    "in_memory_build": "The frozen preflight path ran build_chronological, patchification, eligible-pool derivation, and manifest assembly for the first seed in memory before failing at the existing Task5 import. No persisted candidate role root, shard, or manifest was created by preflight.",
+    "per_seed_result_records_written": 0,
+    "preflight_raw_record_written": false,
+    "ledger_events": ["attempt_started", "preflight_started", "candidate_rejected"],
+    "rejection_reason": "preflight_exception:ModuleNotFoundError:No module named 'experiments'",
+    "role_materialization_started_events": 0,
+    "qualification_record": null,
+    "fixed_probe_fit_or_evaluation": null,
+    "confirmation_contacted": false
+  },
+  "preserved_remote_evidence": {
+    "attempt_marker": "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/data/generated/sprint18-iterative-v1/S18-ITER-0001/_attempt-001/attempt.json",
+    "attempt_marker_sha256": "c5d630849f6ca0901c8327f9ef0d7b7309d9256d1e74b89db2594760748bf8f1",
+    "append_only_ledger": "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/data/generated/sprint18-iterative-v1/S18-ITER-0001/_attempt-001/ledger.jsonl",
+    "append_only_ledger_sha256": "1a865e3c86cd526e54e7ba67a4c490eab9989d920854998385919fa54500aef9",
+    "started_utc": "2026-10-05T06:51:44.357655+00:00",
+    "attempt_number": 1,
+    "attempt_sequence": 1,
+    "candidate_attempt_policy": "no_resume; preserve all started evidence; no retry/reseed/substitution/pooling/promotion"
+  },
+  "bounded_diagnosis": {
+    "hypothesis": "The exact bound entrypoint environment omits the repository root, while preflight imports the helper as experiments.sprint18_task5_measurability; with only <root>/src:<root>/experiments on PYTHONPATH, that package import is unavailable.",
+    "discriminating_observation": "The remote execution traceback fails exactly on the import statement in preflight15.py after the root-bound validate stage passed; the append-only ledger records candidate_rejected for the same ModuleNotFoundError.",
+    "conclusion": "Confirmed source/environment import-path incompatibility in the frozen snapshot. No guard bypass or inline source/binding change is authorized. A fresh Main-reviewed Task68 correction, checkpoint/deployment and release are required before a new candidate is contacted.",
+    "lsp": "No LSP/code-intelligence device was exposed in this session; the relevant runner, binding, preflight, Task5 helper, contract and probe sources were read directly."
+  },
+  "ancestry_contract": {
+    "guard": "_validate_task69_checkpoint_parent requires the Task69 checkpoint's Git parent to equal the Task68 checkpoint 31e51ce2a890c3b5924f5e8dde7995e9e41ddb36.",
+    "observed_local_master": "4ad4f66c2e47eb9c702145a9a7585edceb9151dc, a pre-existing plan-only direct child of 31e51ce2a890c3b5924f5e8dde7995e9e41ddb36 (checkpoint record task-68-cp01.md).",
+    "finding": "If the future Task69 checkpoint is made on the current master, its parent would be 4ad4f66 rather than the guard's required 31e51ce; under that checkpoint base, the existing strict guard cannot accept it. A prospective reviewed Task68 ancestry-guard amendment is therefore required before Task70 unless Main establishes an authorized direct-child checkpoint path that satisfies the unchanged guard. Do not reset master or bypass the guard; no future checkpoint PASS is claimed."
+  },
+  "changed_paths": [
+    "artifacts/sprint-18/S18-ITER-0001-main-task68-release-v3.json (authorized, local receipt)",
+    "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/artifacts/sprint-18/S18-ITER-0001-main-task68-release-v3.json (authorized remote copy; SHA-256 parity verified)",
+    "artifacts/sprint-18/task-69.md (A03 worker-evidence appendix)",
+    "experiments/sprint18-task69-attempt-S18-ITER-0001-A03.json (bounded attempt-result record)",
+    "experiments/sprint18-task69-attempt-S18-ITER-0001-A03.md (bounded attempt-result summary)",
+    "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/data/generated/sprint18-iterative-v1/S18-ITER-0001/_attempt-001/attempt.json (runner-created, preserved)",
+    "/home/trietlm/anomaly-representation-learning-s18t68-a02-worktree/data/generated/sprint18-iterative-v1/S18-ITER-0001/_attempt-001/ledger.jsonl (runner-created, preserved)"
+  ],
+  "unresolved_findings": [
+    "Candidate S18-ITER-0001 was contacted and rejected after the pre-attempt marker; it cannot be replayed or resumed.",
+    "No candidate qualification, fixed-probe fit, Development evaluation, or non-Confirmation role materialization was produced by this attempt; those stages were not invoked. Task69 is not data-done.",
+    "Fresh reviewed source/binding correction and release required before any new full candidate.",
+    "Current-master Task69 checkpoint ancestry is incompatible with the strict Task70 guard unless a prospective reviewed correction or authorized direct-child checkpoint path is established."
+  ]
+}

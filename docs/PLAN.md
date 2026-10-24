@@ -1,5 +1,9 @@
 # Project Plan — Anomaly Representation Learning
 
+## Workflow Maintenance
+
+[Sprint 23 — Workflow Rule Alignment](sprint-plans/sprint-23.md) complete: evidence, owner-authorized Sprint 18 file checkpoint `4ad4f66c`, and [final differential review](../artifacts/sprint-23/reviews/workflow-final-deep-3.md) PASS. Research permissions/protocols and closed pilot dispositions unchanged. No push or data contact.
+
 ## Overview
 
 The project builds a representation-learning anomaly detector and calibrated early-warning
@@ -11,18 +15,33 @@ coverage for identifiable early-warning evaluation. Sprint 13 and Sprint 14 both
 reviewed `NOT_MEASURABLE` verdicts. Sprint 15 recovered a balanced causal benchmark and
 closed `MEASURABLE`; its mandatory post-final evidence review passed with zero actionable
 findings. Sprint 16 representation attribution is complete with Deep Review R7 PASS; its
-accepted scientific state remains `UNRESOLVED`. Sprint 17 is now active as an explicitly
-user-authorized controlled diagnostic ablation over the seven provisional SUSPECT components;
-it does not claim that Sprint 16 identified a causal bottleneck.
+accepted scientific state remains `UNRESOLVED`. Sprint 17 is finalized with the bounded
+verdict `NO_REPRODUCIBLE_RECOVERY`. Sprint 18 is finalized with differential review PASS
+and bounded scientific verdict `UNRESOLVED`; required checkpoint and evidence sync succeeded.
 
 ## Current Sprint
 
- [Sprint 17 — Controlled Suspect-Component Architecture Ablation](sprint-plans/sprint-17.md) is **FINALIZED after Task 29**. Tasks 1–29 are complete; Batch A–E evidence reviews and the final differential deep review passed with zero actionable findings (final review confidence 0.9). B0, all 14 singles, and K1–K9 were scored once on locked Confirmation, and the 24-row Development+Confirmation matrix is published read-only (`43d919ac…`). The accepted bounded verdict is **`NO_REPRODUCIBLE_RECOVERY`**: no arm met the frozen recovery gates, the strongest Confirmation K7 ΔP+W is +0.04732481569491994 < +0.05, and no eligible replacement configuration exists. Batch F is closed, no pending Sprint 17 work remains, and Sealed remained untouched.
+[Sprint 18 — Full-Training Representation and Conditional-Relation Study](sprint-plans/sprint-18.md): **Closed; final differential review PASS0, required checkpoint and evidence sync complete.** [Bounded verdict](../artifacts/sprint-18/task-38.md) `UNRESOLVED`: seven executable arms, 21 locked Confirmation cells / 84 calls, no eligible recovery; N1-HCC STOPPED leaves the eight-arm comparison incomplete. [Final review](../artifacts/sprint-18/deep-review-final.md) covers Tasks1–38, Task72 and accepted DATA recovery above passed gates/checkpoints; [final checkpoint](../artifacts/sprint-18/checkpoints/task-39-cp02.md) and [isolated sync](../artifacts/sprint-18/task-39-final-sync01.md) succeeded. No winner, significance or production promotion; paired uncertainty and recorded metric/compute/provenance limits remain explicit. Historical failures and scientific source identities are preserved. No new training, DATA generation, Confirmation tuning/refit/reuse or Sealed contact is authorized.
+
+## Exploratory research track — reviewed pilot stop, no soft gate
+
+[Original soft-gate proposal](exploratory-benchmark-soft-gates.md) separated synthetic exploration from independent confirmation, illustrating 32 evaluation histories and at most two small support/mix misses. The subsequent design review found no justified operating sample size or miss allowance and excluded the illustrative 12.5–62.5% mix band because it conflicts with the inherited hard 15–60% rule. The proposal is historical, not permission to relax Sprint 18 or contact data.
+
+[Sprint 19 — Prospective Exploratory Benchmark Design](sprint-plans/sprint-19.md) **completed its documentary scope**: three task evidence reviews and final differential `agent://S19DeepReviewR2` PASS with zero actionable findings. Its [estimands](exploratory-benchmark-estimands.md), [threshold rationale](exploratory-benchmark-threshold-rationale.md) and [non-executable protocol draft](exploratory-benchmark-protocol-draft-v1.md) leave sample size, allowance, construction quota and fresh role binding unresolved. A separate user decision and prospective independent review are necessary before any executable protocol, seeds, generation or model work. Sprint 18 remains blocked.
+
+[Sprint 20 — Bounded Exploratory Tolerance Decision](sprint-plans/sprint-20.md) **completed its design scope**: both task evidence reviews and final differential `agent://S20DeepReview` PASS with zero actionable findings. Its [sensitivity analysis](exploratory-tolerance-sensitivity.md) bounds the illustrative two-of-32 exposure at 6.25 percentage points for a one-branch history macro and 12.5 for a paired arm contrast, not observed effects or a safety guarantee. Its [decision memo](exploratory-tolerance-decision.md) recommends `NOT_READY` for any positive soft allowance without a justified materiality objective, whole-history variance/dependence evidence and construction support plan. The user subsequently chose a separate pilot path, not a soft-gate approval; no data contact or Sprint 18 change is authorized before the Sprint 21 protocol review.
+
+[Sprint 21 — Prospective Whole-History Exploratory Pilot](sprint-plans/sprint-21.md) **closed its reviewed stopped-run disposition, not its empirical objective**: all six task evidence gates and final differential `agent://S21DeepReview` PASS with zero actionable findings. After actual three-checkpoint toy proof and independent pre-contact review, one authorized pilot invocation materialized `H-S21-PILOT-01` (seed `921000`) and stopped before scoring: the frozen runner required exactly 48 controls while the pinned allocator's minimum-48 contract returned 61. This is a runner/allocator contract mismatch, not evidence of deficient synthetic support. Of the fixed 32 histories, one was materialized, zero scored, and 31 remained unattempted; all full-roster score/variance/bootstrap endpoints are uncomputable. The [results and limits](exploratory-pilot-results.md) preserve the immutable stop record. No retry, resume, roster reuse, positive tolerance allowance, Sprint 18 rescue or Confirmation qualification follows. Any different prospective study requires construction-contract reconciliation and disposable proof, fresh disjoint roles, a separate user decision and new independent pre-contact review. Sprint 20 `NOT_READY` and Sprint 18's quota-48/no-Cycle-4 boundary remain unchanged.
+
+[Sprint 22 — Independent Whole-History Exploratory Pilot](sprint-plans/sprint-22.md) **closed its reviewed stopped-run disposition, not its empirical objective**: all five task evidence gates and final differential `agent://S22DeepReview` PASS, zero actionable findings. The distinct user-authorized research-only H=32 study proved the genuine minimum-48 allocator/scorer boundary, froze fresh seeds `922000..922031` and passed corrected independent pre-contact review. One exact invocation then ran 449.78 s: histories 01–11 passed hard support retaining all 50–73 controls, history 12 encountered an upstream infeasible positive-anchor allocation (`quota-shortfall`), and the frozen first-failure policy stopped before model restore/scoring. Twelve materialized, zero scored, twenty unattempted; full-roster score/variance/bootstrap quantities are uncomputable. [Results and limitations](exploratory-pilot-sprint22-results.md) preserve this scientific stop, not empirical success. All 32 coordinates remain research-only forever; no retry/resume/finish/replacement, positive tolerance or Sprint 18/Gate V2 change follows. Any distinct future research design requires a separate user decision on estimand/qualification-failure handling, genuinely fresh disjoint roles and a new independent pre-contact review.
 
 ## Paused Sprints
 
 - [Sprint 4 — Joint Training Stabilization and Rerun Export](sprint-plans/sprint-4.md) — **Paused with Tasks 15–22 pending**
 ## Completed Sprints
+- [Sprint 20 — Bounded Exploratory Tolerance Decision](sprint-plans/sprint-20.md) — **Design-only scope complete (`NOT_READY` for positive allowance; Tasks 1–2 and final differential `agent://S20DeepReview` PASS, zero findings; no executable gate or data contact).**
+- [Sprint 19 — Prospective Exploratory Benchmark Design](sprint-plans/sprint-19.md) — **Design-only scope complete (Tasks 1–3 and final differential `agent://S19DeepReviewR2` PASS, zero findings; no executable protocol or benchmark/model verdict).**
+- [Sprint 17 — Controlled Suspect-Component Architecture Ablation](sprint-plans/sprint-17.md) — **Complete (`NO_REPRODUCIBLE_RECOVERY`; Tasks 1–29 complete; final differential deep review PASS with zero actionable findings; strongest Confirmation K7 ΔP+W +0.04732481569491994 below the frozen +0.05 gate; all Confirmation rows failed background stability; no replacement promoted).**
 - [Sprint 16 — Representation Failure Localization and Component Attribution](sprint-plans/sprint-16.md) — **Complete (`UNRESOLVED`; Task 19 DONE; Deep Review R7 PASS with zero actionable findings; its empty Sprint 17 production-recovery scope is superseded only by the explicit user authorization for a new diagnostic ablation).**
 - [Sprint 15 — Balanced Causal Benchmark Recovery and Measurability Certification](sprint-plans/sprint-15.md) — **Complete (`MEASURABLE`; Task 22 DONE; post-final evidence review R2 PASS with 0 actionable findings; Sprint 16 authorized).**
 - [Sprint 14 — Benchmark Measurability Recovery](sprint-plans/sprint-14.md) — **Complete (negative closeout review PASS, zero findings; Tasks 1–19 complete on the negative branch with Tasks 10–15 truthfully NOT_RUN; final verdict `NOT_MEASURABLE` — EG2 0/4 abrupt count/share shortfall, 3/3 cycles exhausted, EG4–EG7 NOT_RUN, no deep review; no attribution handoff)**
@@ -63,6 +82,7 @@ it does not claim that Sprint 16 identified a causal bottleneck.
 | 21 | Balanced causal benchmark recovery and measurability certification | Complete — Sprint 15 (final `MEASURABLE`; Task 22 DONE; post-final evidence review R2 PASS with 0 actionable findings) |
 | 22 | Causal localization of representation-to-score bottlenecks | Complete — Sprint 16 (`UNRESOLVED`; R1→R7 lineage recorded; zero valid bottleneck paths) |
 | 23 | Controlled single-component and interaction ablation of provisional representation-to-score suspects | Complete — Sprint 17 finalized after Task 29 final differential deep review PASS (confidence 0.9, zero actionable findings) with bounded verdict `NO_REPRODUCIBLE_RECOVERY` (Tasks 1–29 complete; Batch A–E reviews PASS with zero actionable findings; locked one-shot Confirmation complete for B0+14 singles+K1–K9; 24-row matrix `43d919ac…`; strongest Confirmation K7 ΔP+W +0.04732481569491994 < +0.05; 0 recoveries; no eligible replacement configuration; Batch F closed; Sealed untouched) |
+| 24 | Full-training comparison with active balanced objectives and four new representation/scoring hypotheses | Complete — Sprint 18 bounded verdict `UNRESOLVED`; final differential review PASS0, separate Bronze checkpoint and evidence sync complete. 21 valid locked Confirmation cells / 84 calls, N1 STOPPED, no eligible recovery or production promotion. |
 
 ## High-Level Design Decisions
 
@@ -120,6 +140,7 @@ it does not claim that Sprint 16 identified a causal bottleneck.
   A bottleneck claim requires both stagewise loss and replicated recovery under a bounded
   component bypass/replacement; ambiguous evidence remains `UNRESOLVED`.
 - **Prospective ablation after unresolved attribution:** Sprint 17 may test C2/C3/C5/C6/C7/C8/C9 only as provisional hypotheses. Compare an unchanged architecture retrained on the same fresh roles against one-principal-component alternatives, then predeclared adjacent-pair and stack combinations selected on Development and locked before Confirmation. Use the accepted Sprint 15 Candidate 7 generation methodology unchanged, keep C1/C4 fixed, preserve independent `S_pred`/`S_pop`, and treat any recovery as diagnostic ablation evidence rather than retroactive causal proof or production authorization.
+- **Full-training before broader redesign:** Sprint 18 evaluates B0/K3/K7/K9 and four isolated new mechanisms under one active-objective training contract. Conditional contrastive geometry follows the ordered relation `(robot, program) -> robot -> no positive relation`; multi-scale and cross-channel losses remain latent-prediction objectives; context-dependent residual normalization is Fit-only and representation-frozen. Healthy-only gradient diagnostics choose coefficients from frozen grids, all valid arms reach Confirmation, and no descriptive checkpoint or auxiliary residual may replace or fuse the primary independent scores.
 
 ## Verification Gates
 
@@ -146,7 +167,7 @@ static inference, and chronological early-warning analysis. Every batch requires
 fresh `evidence-reviewer` PASS with zero actionable findings; sprint completion also
 requires a sprint-wide differential `deep-reviewer` PASS.
 
-## Sprint 13–17 Verification Gates
+## Sprint 13–18 Verification Gates
 
 Sprint 13 and Sprint 14 remain immutable negative benchmark records. Sprint 14 followed
 [`Benchmark Measurability Exit Gates`](BENCHMARK_MEASURABILITY_EXIT_GATES.md), exhausted
@@ -180,10 +201,19 @@ evidence review and completion requires a zero-actionable sprint-wide differenti
 Sprint 15 Sealed H-SEAL-37..40 remain forbidden, and no result authorizes calibrated risk,
 production recovery, or independent sealed-performance claims.
 
+Sprint 18 begins only after its common protocol and four mechanism specifications are frozen
+and independently reviewed. It uses fresh disjoint roles, three seed-matched 100-epoch runs
+for every trainable arm, a healthy-only mechanical coefficient-balance gate, a fixed final
+checkpoint, complete Development reporting without arm pruning, and an eight-arm
+Confirmation lock. B0/K3/K7/K9 preserve Sprint 17 mechanism identities; N1–N4 each isolate
+one declared hypothesis. Every batch requires a zero-actionable evidence review and sprint
+completion requires a zero-actionable differential deep review. Sprint 15 Sealed histories,
+score fusion, calibrated risk, and production claims remain out of scope.
+
 ## Out of Scope for V1
 
 - Raw waveform reconstruction or reconstruction-based anomaly verdicts
 - RVQ/codebooks in the primary model
-- Learned masking networks, discrete priors, metadata-based positive pairs
+- Learned masking networks or discrete priors; metadata-derived relation targets are permitted only by the prospectively frozen Sprint 18 N1-HCC contract
 - Fusion of context and population scores before independent diagnostics
 - Real-data deployment before the synthetic hypothesis and ablation gates pass

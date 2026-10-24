@@ -1,0 +1,921 @@
+{
+  "attempt_id": "S18T13BA03",
+  "binding_sha256": "c867bf4e37fbe10201218da88ad45da00b782e0f8090e354655497e3a93a1c46",
+  "candidate_elimination": {
+    "a02_fresh_init": "init SHAs 52a6d200/6ac99526/e5029f8b (=T12 step-0 inits), 0 rep updates; R01 F-01 surrogate.",
+    "t11_refs_0cce2892": "B0 InfoNCE0.05 30ep pilot refs 2e86fe88/a18b1fc8/ab9b8f94; non-final, no N4 caches/bank, older source.",
+    "t12_refs_a56c76f": "B0 InfoNCE0.05 30ep pilot refs 25f7d8a6/9cdb6427/68bcec89; same pilot ineligibility.",
+    "t72_smoke_7acd8417": "seed181801 only, 12 updates epochs1-3 on 118 FIT-01 rows; not final/all-seeds/full-Fit.",
+    "t9_pilots_e2dc8249": "30ep/1290 steps full-Fit5446 all seeds but selection_state=coefficient_pilot (non-final per protocol-v1:131); sel-0.05 212fa480/75b04be1/35b2db97; refs-0.0 79766e2f/bb20fef0/7d195814."
+  },
+  "capacity_gate": {
+    "cap_saturation": "frac_at_cap=1.0 on all 9 folds train and heldout (100% cap-side clamping); frac_at_floor=0.0; heldout_spearman=0.0 on all 9 folds -- descriptive, no new thresholds, no tuning.",
+    "gate": "Frozen validate_n4_capacity: every fold frac_at_cap<=0.20 (cap-only N4_SATURATION_CAP_GATE); no floor/correlation gate invented.",
+    "historical_note": "C02 BLOCKED record (699abc0d237f3adc027a27e5a8dc74b023eb691a49972d6aefb25dbbb8aa47f9, 21842 B) preserved immutable in artifacts/sprint-18/s18-t13b-pub01/history/; fresh-init surrogate FAIL (R01) and its disqualification retained as history, never reused, never called false.",
+    "mechanical": "A03 per-seed verdicts FAILED/FAILED/FAILED, per_seed_updates 13150=50*(88+86+89) exact; reasons verbatim on all seeds: fold 0/1/2 held-out v_cap saturation exceeds 20%; train cap gate also false on all 9 folds. Honest gate output, no rescue.",
+    "n4_effect": "N4 remains BLOCKED: no capacity PASS, no certification, no Task30 enablement from this record.",
+    "prerequisite_resolved": "Task23 A04 exact final 100-epoch B0-FULL checkpoints+caches for seeds 181801/181802/181803 now bound (was the missing prerequisite in C02).",
+    "verdict": "FAILED_NOT_CERTIFIED"
+  },
+  "checkpoints": [
+    {
+      "checkpoint_sha256": "e411eaaf1d32072282b857b3c918748e65b557fc47fd4483cf92f11fa07b9d8f",
+      "fold": 0,
+      "seed": 181801
+    },
+    {
+      "checkpoint_sha256": "62a7053b826abd215fd206e0073c137ccdd39366e0c28d1455fdb773b84e2600",
+      "fold": 1,
+      "seed": 181801
+    },
+    {
+      "checkpoint_sha256": "ed21762b742ad2acad49ab3415a215de1c2e25a19adebaf7082a094412541478",
+      "fold": 2,
+      "seed": 181801
+    },
+    {
+      "checkpoint_sha256": "0d956f578662201f9d13dd4e23082eff0a29e24bd81b6c793197bc6329ea112d",
+      "fold": 0,
+      "seed": 181802
+    },
+    {
+      "checkpoint_sha256": "6008dca91febabee25aaea7aa5b38e6723984f91035cc892c787debc483157dc",
+      "fold": 1,
+      "seed": 181802
+    },
+    {
+      "checkpoint_sha256": "5e7fe467a509a215b7f0ab97b9be4c04a8b61e9064eee3c9a5e274fc5f145c55",
+      "fold": 2,
+      "seed": 181802
+    },
+    {
+      "checkpoint_sha256": "0710c01a14424e2ada2f10b39de46169ffc745c3b74c48231abd0ea1d3759d7d",
+      "fold": 0,
+      "seed": 181803
+    },
+    {
+      "checkpoint_sha256": "14347105e851eb3d627a1140faa2ea0a00bd3cb2ebc64b74f5742e59aae7621d",
+      "fold": 1,
+      "seed": 181803
+    },
+    {
+      "checkpoint_sha256": "8bbf0421628b904a4bb90fedb3133ce4870ccffd200cc3f81407074e8b62f048",
+      "fold": 2,
+      "seed": 181803
+    }
+  ],
+  "closure_note": "Runtime COMPLETE (9/9 folds, exit 0, PILOT_EXIT ok) with honest scientific FAIL. This record MUST NOT be read as capacity PASS or certification. Fresh independent final review of S18T13BA03 (Main-owned) must adjudicate the FAILED verdicts against the frozen criteria before any Bronze exact-snapshot final checkpoint or sync. No T24+/T30 authority follows.",
+  "consumer_proof": {
+    "181801|0": {
+      "files": [
+        "S-op-000000-db991b23f9",
+        "S-op-000001-dc545253ec"
+      ],
+      "scores": {
+        "S-op-000000-db991b23f9": {
+          "normalized": 0.1729072481393814,
+          "raw": 0.05083604156970978,
+          "scale": 0.2940065562725067
+        },
+        "S-op-000001-dc545253ec": {
+          "normalized": 0.1415369063615799,
+          "raw": 0.04161291942000389,
+          "scale": 0.2940065562725067
+        }
+      }
+    },
+    "181801|1": {
+      "files": [
+        "S-op-000000-fc65fa8dd9",
+        "S-op-000002-7b7919e6fc"
+      ],
+      "scores": {
+        "S-op-000000-fc65fa8dd9": {
+          "normalized": 0.23342788219451904,
+          "raw": 0.06764423847198486,
+          "scale": 0.2897854745388031
+        },
+        "S-op-000002-7b7919e6fc": {
+          "normalized": 0.10607326775789261,
+          "raw": 0.030738597735762596,
+          "scale": 0.2897854745388031
+        }
+      }
+    },
+    "181801|2": {
+      "files": [
+        "S-op-000001-5db802bbc3",
+        "S-op-000003-ad99b89723"
+      ],
+      "scores": {
+        "S-op-000001-5db802bbc3": {
+          "normalized": 0.26894891262054443,
+          "raw": 0.0782138928771019,
+          "scale": 0.2908121645450592
+        },
+        "S-op-000003-ad99b89723": {
+          "normalized": 0.16542509198188782,
+          "raw": 0.04810779169201851,
+          "scale": 0.2908121943473816
+        }
+      }
+    },
+    "181802|0": {
+      "files": [
+        "S-op-000000-db991b23f9",
+        "S-op-000001-dc545253ec"
+      ],
+      "scores": {
+        "S-op-000000-db991b23f9": {
+          "normalized": 0.13626398146152496,
+          "raw": 0.03472500294446945,
+          "scale": 0.25483524799346924
+        },
+        "S-op-000001-dc545253ec": {
+          "normalized": 0.14042267203330994,
+          "raw": 0.03578478842973709,
+          "scale": 0.25483524799346924
+        }
+      }
+    },
+    "181802|1": {
+      "files": [
+        "S-op-000000-fc65fa8dd9",
+        "S-op-000002-7b7919e6fc"
+      ],
+      "scores": {
+        "S-op-000000-fc65fa8dd9": {
+          "normalized": 0.2904045581817627,
+          "raw": 0.07284531742334366,
+          "scale": 0.25083982944488525
+        },
+        "S-op-000002-7b7919e6fc": {
+          "normalized": 0.14547695219516754,
+          "raw": 0.03649156168103218,
+          "scale": 0.25083982944488525
+        }
+      }
+    },
+    "181802|2": {
+      "files": [
+        "S-op-000001-5db802bbc3",
+        "S-op-000003-ad99b89723"
+      ],
+      "scores": {
+        "S-op-000001-5db802bbc3": {
+          "normalized": 0.24123018980026245,
+          "raw": 0.060994479805231094,
+          "scale": 0.2528465986251831
+        },
+        "S-op-000003-ad99b89723": {
+          "normalized": 0.18302570283412933,
+          "raw": 0.04627761244773865,
+          "scale": 0.2528465986251831
+        }
+      }
+    },
+    "181803|0": {
+      "files": [
+        "S-op-000000-db991b23f9",
+        "S-op-000001-dc545253ec"
+      ],
+      "scores": {
+        "S-op-000000-db991b23f9": {
+          "normalized": 0.19967705011367798,
+          "raw": 0.05082950368523598,
+          "scale": 0.2545575499534607
+        },
+        "S-op-000001-dc545253ec": {
+          "normalized": 0.14784762263298035,
+          "raw": 0.03763588145375252,
+          "scale": 0.2545575499534607
+        }
+      }
+    },
+    "181803|1": {
+      "files": [
+        "S-op-000000-fc65fa8dd9",
+        "S-op-000002-7b7919e6fc"
+      ],
+      "scores": {
+        "S-op-000000-fc65fa8dd9": {
+          "normalized": 0.23429274559020996,
+          "raw": 0.058119818568229675,
+          "scale": 0.24806395173072815
+        },
+        "S-op-000002-7b7919e6fc": {
+          "normalized": 0.13230592012405396,
+          "raw": 0.032820459455251694,
+          "scale": 0.24806398153305054
+        }
+      }
+    },
+    "181803|2": {
+      "files": [
+        "S-op-000001-5db802bbc3",
+        "S-op-000003-ad99b89723"
+      ],
+      "scores": {
+        "S-op-000001-5db802bbc3": {
+          "normalized": 0.18862879276275635,
+          "raw": 0.04806504026055336,
+          "scale": 0.2548118531703949
+        },
+        "S-op-000003-ad99b89723": {
+          "normalized": 0.1047261655330658,
+          "raw": 0.026685573160648346,
+          "scale": 0.2548118829727173
+        }
+      }
+    }
+  },
+  "cuda": {
+    "cuda_available": true,
+    "device_name": "NVIDIA GeForce RTX 4060 Ti",
+    "device_used": "cuda:0",
+    "mem_free_bytes": 16209674240,
+    "mem_total_bytes": 16713449472
+  },
+  "device": "cuda:0",
+  "driver_sha256": "677bd279caf792eef747ba02f7499939bf118de28fa42d7fdd322c3caf953db9",
+  "evidence_hashes": {
+    "a03_binding_json": "c867bf4e37fbe10201218da88ad45da00b782e0f8090e354655497e3a93a1c46",
+    "a03_capacity_json": "2839aa404b1ed2176dd2117b3ae0f2ea2052ac1c1c3e1b1de4eb48c099421355",
+    "a03_pilot_log": "2ad1e19e635131d55943f707956b0aa4d1f45718f6418cc6a17456c57ba634ab",
+    "a03_preflight_json": "dd447953d45662d17c80ec21bf4516e6788711bae6a2cb9e679b5a7f0e6365a0",
+    "a03_progress_jsonl": "e973f4a3489acd7a0df60679a228d42f7c049f2b63e128b9fdd0a327e752e503",
+    "a03_results_json": "299c7028815fbfbf207c59cf837175f677498953cd2e7aa6f9c747e657b1b318",
+    "a03_run_pilot_sh": "a75e1890b7eaebac2d85686761140c339d0c1adce6a5c0739ac381869321dbf9"
+  },
+  "executable_binding_sha256": "383c62114ee6120d5fd19f866dfd585083d1d5899c9ffe91804761bd8a10a2d5",
+  "fit_history_ids": [
+    "S18I-ITER-0005-FIT-01",
+    "S18I-ITER-0005-FIT-02",
+    "S18I-ITER-0005-FIT-03"
+  ],
+  "fit_support": {
+    "S18I-ITER-0005-FIT-01": {
+      "cached_records_per_seed": 22328,
+      "eligible_rows": 1809
+    },
+    "S18I-ITER-0005-FIT-02": {
+      "cached_records_per_seed": 23098,
+      "eligible_rows": 1882
+    },
+    "S18I-ITER-0005-FIT-03": {
+      "cached_records_per_seed": 21563,
+      "eligible_rows": 1755
+    },
+    "fit_healthy_rows": 5446,
+    "fit_valid_patches": 167419
+  },
+  "folds": [
+    {
+      "bounds": {
+        "v_cap": 0.2940065786242485,
+        "v_floor": 0.02940065786242485
+      },
+      "cap_gate_pass_train": false,
+      "checkpoint_path": "checkpoints/seed181801-fold0-S18I-ITER-0005-FIT-01.pt",
+      "checkpoint_sha256": "e411eaaf1d32072282b857b3c918748e65b557fc47fd4483cf92f11fa07b9d8f",
+      "final_train_nll": -0.4901111423969269,
+      "fold_index": 0,
+      "heldout_count": 22328,
+      "heldout_history_id": "S18I-ITER-0005-FIT-01",
+      "heldout_nll": -0.49722933769226074,
+      "heldout_spearman": 0.0,
+      "model_seed": 181801,
+      "optimizer_steps": 4400,
+      "per_epoch_steps": 88,
+      "quantiles": {
+        "q05": 0.02940065786242485,
+        "q95": 0.17290270328521729
+      },
+      "record_count": 44661,
+      "restored_forward_max_abs_diff": 0.0,
+      "restored_nll": -0.4972294270992279,
+      "saturation_heldout": {
+        "frac_at_cap": 1.0,
+        "frac_at_floor": 0.0
+      },
+      "saturation_train": {
+        "frac_at_cap": 1.0,
+        "frac_at_floor": 0.0
+      },
+      "scale_parameters": 4417,
+      "scale_state_sha256": "2fcb8c3f94a441fe04e15d10d0ec3eca62ad291ae23b998f6975bdc5e3d73fd4",
+      "scope": "fold:S18I-ITER-0005-FIT-01",
+      "training_history_ids": [
+        "S18I-ITER-0005-FIT-02",
+        "S18I-ITER-0005-FIT-03"
+      ]
+    },
+    {
+      "bounds": {
+        "v_cap": 0.2897854521870613,
+        "v_floor": 0.02897854521870613
+      },
+      "cap_gate_pass_train": false,
+      "checkpoint_path": "checkpoints/seed181801-fold1-S18I-ITER-0005-FIT-02.pt",
+      "checkpoint_sha256": "62a7053b826abd215fd206e0073c137ccdd39366e0c28d1455fdb773b84e2600",
+      "final_train_nll": -0.49927249550819397,
+      "fold_index": 1,
+      "heldout_count": 23098,
+      "heldout_history_id": "S18I-ITER-0005-FIT-02",
+      "heldout_nll": -0.49550163745880127,
+      "heldout_spearman": 0.0,
+      "model_seed": 181801,
+      "optimizer_steps": 4300,
+      "per_epoch_steps": 86,
+      "quantiles": {
+        "q05": 0.02897854521870613,
+        "q95": 0.16668739914894104
+      },
+      "record_count": 43891,
+      "restored_forward_max_abs_diff": 0.0,
+      "restored_nll": -0.49550163745880127,
+      "saturation_heldout": {
+        "frac_at_cap": 1.0,
+        "frac_at_floor": 0.0
+      },
+      "saturation_train": {
+        "frac_at_cap": 1.0,
+        "frac_at_floor": 0.0
+      },
+      "scale_parameters": 4417,
+      "scale_state_sha256": "47f20b4eafe32033289d4b10c50f4dd27b918342f63105299baf2464d68df232",
+      "scope": "fold:S18I-ITER-0005-FIT-02",
+      "training_history_ids": [
+        "S18I-ITER-0005-FIT-01",
+        "S18I-ITER-0005-FIT-03"
+      ]
+    },
+    {
+      "bounds": {
+        "v_cap": 0.29081217013299465,
+        "v_floor": 0.029081217013299465
+      },
+      "cap_gate_pass_train": false,
+      "checkpoint_path": "checkpoints/seed181801-fold2-S18I-ITER-0005-FIT-03.pt",
+      "checkpoint_sha256": "ed21762b742ad2acad49ab3415a215de1c2e25a19adebaf7082a094412541478",
+      "final_train_nll": -0.49773871898651123,
+      "fold_index": 2,
+      "heldout_count": 21563,
+      "heldout_history_id": "S18I-ITER-0005-FIT-03",
+      "heldout_nll": -0.4943014681339264,
+      "heldout_spearman": 0.0,
+      "model_seed": 181801,
+      "optimizer_steps": 4450,
+      "per_epoch_steps": 89,
+      "quantiles": {
+        "q05": 0.029081217013299465,
+        "q95": 0.1660251021385193
+      },
+      "record_count": 45426,
+      "restored_forward_max_abs_diff": 0.0,
+      "restored_nll": -0.4943014979362488,
+      "saturation_heldout": {
+        "frac_at_cap": 1.0,
+        "frac_at_floor": 0.0
+      },
+      "saturation_train": {
+        "frac_at_cap": 1.0,
+        "frac_at_floor": 0.0
+      },
+      "scale_parameters": 4417,
+      "scale_state_sha256": "a07bde30ddb08f5e7152e9b34d8be3b4445e679066a7ed6788cab8d7d815fdfb",
+      "scope": "fold:S18I-ITER-0005-FIT-03",
+      "training_history_ids": [
+        "S18I-ITER-0005-FIT-01",
+        "S18I-ITER-0005-FIT-02"
+      ]
+    },
+    {
+      "bounds": {
+        "v_cap": 0.25483526289463043,
+        "v_floor": 0.025483526289463043
+      },
+      "cap_gate_pass_train": false,
+      "checkpoint_path": "checkpoints/seed181802-fold0-S18I-ITER-0005-FIT-01.pt",
+      "checkpoint_sha256": "0d956f578662201f9d13dd4e23082eff0a29e24bd81b6c793197bc6329ea112d",
+      "final_train_nll": -0.5617908239364624,
+      "fold_index": 0,
+      "heldout_count": 22328,
+      "heldout_history_id": "S18I-ITER-0005-FIT-01",
+      "heldout_nll": -0.5706549286842346,
+      "heldout_spearman": 0.0,
+      "model_seed": 181802,
+      "optimizer_steps": 4400,
+      "per_epoch_steps": 88,
+      "quantiles": {
+        "q05": 0.025483526289463043,
+        "q95": 0.15296809375286102
+      },
+      "record_count": 44661,
+      "restored_forward_max_abs_diff": 0.0,
+      "restored_nll": -0.5706549286842346,
+      "saturation_heldout": {
+        "frac_at_cap": 1.0,
+        "frac_at_floor": 0.0
+      },
+      "saturation_train": {
+        "frac_at_cap": 1.0,
+        "frac_at_floor": 0.0
+      },
+      "scale_parameters": 4417,
+      "scale_state_sha256": "198718b2a87a50b610030984a58910753a36f9a797ad893422789da014e6a061",
+      "scope": "fold:S18I-ITER-0005-FIT-01",
+      "training_history_ids": [
+        "S18I-ITER-0005-FIT-02",
+        "S18I-ITER-0005-FIT-03"
+      ]
+    },
+    {
+      "bounds": {
+        "v_cap": 0.25083983317017555,
+        "v_floor": 0.025083983317017555
+      },
+      "cap_gate_pass_train": false,
+      "checkpoint_path": "checkpoints/seed181802-fold1-S18I-ITER-0005-FIT-02.pt",
+      "checkpoint_sha256": "6008dca91febabee25aaea7aa5b38e6723984f91035cc892c787debc483157dc",
+      "final_train_nll": -0.572990357875824,
+      "fold_index": 1,
+      "heldout_count": 23098,
+      "heldout_history_id": "S18I-ITER-0005-FIT-02",
+      "heldout_nll": -0.5665043592453003,
+      "heldout_spearman": 0.0,
+      "model_seed": 181802,
+      "optimizer_steps": 4300,
+      "per_epoch_steps": 86,
+      "quantiles": {
+        "q05": 0.025083983317017555,
+        "q95": 0.144096739590168
+      },
+      "record_count": 43891,
+      "restored_forward_max_abs_diff": 0.0,
+      "restored_nll": -0.5665042996406555,
+      "saturation_heldout": {
+        "frac_at_cap": 1.0,
+        "frac_at_floor": 0.0
+      },
+      "saturation_train": {
+        "frac_at_cap": 1.0,
+        "frac_at_floor": 0.0
+      },
+      "scale_parameters": 4417,
+      "scale_state_sha256": "09de8c4941d232b4856ce587c0e2ffc596e228af2d139f4c267800eb8c2448a8",
+      "scope": "fold:S18I-ITER-0005-FIT-02",
+      "training_history_ids": [
+        "S18I-ITER-0005-FIT-01",
+        "S18I-ITER-0005-FIT-03"
+      ]
+    },
+    {
+      "bounds": {
+        "v_cap": 0.2528465911746025,
+        "v_floor": 0.02528465911746025
+      },
+      "cap_gate_pass_train": false,
+      "checkpoint_path": "checkpoints/seed181802-fold2-S18I-ITER-0005-FIT-03.pt",
+      "checkpoint_sha256": "5e7fe467a509a215b7f0ab97b9be4c04a8b61e9064eee3c9a5e274fc5f145c55",
+      "final_train_nll": -0.5685117840766907,
+      "fold_index": 2,
+      "heldout_count": 21563,
+      "heldout_history_id": "S18I-ITER-0005-FIT-03",
+      "heldout_nll": -0.5660765171051025,
+      "heldout_spearman": 0.0,
+      "model_seed": 181802,
+      "optimizer_steps": 4450,
+      "per_epoch_steps": 89,
+      "quantiles": {
+        "q05": 0.02528465911746025,
+        "q95": 0.14508917927742004
+      },
+      "record_count": 45426,
+      "restored_forward_max_abs_diff": 0.0,
+      "restored_nll": -0.5660765171051025,
+      "saturation_heldout": {
+        "frac_at_cap": 1.0,
+        "frac_at_floor": 0.0
+      },
+      "saturation_train": {
+        "frac_at_cap": 1.0,
+        "frac_at_floor": 0.0
+      },
+      "scale_parameters": 4417,
+      "scale_state_sha256": "4c2bce6e5acbacbca93a9766ddfd9d451c5be8e1d8d070b7c06d79f3c867ad33",
+      "scope": "fold:S18I-ITER-0005-FIT-03",
+      "training_history_ids": [
+        "S18I-ITER-0005-FIT-01",
+        "S18I-ITER-0005-FIT-02"
+      ]
+    },
+    {
+      "bounds": {
+        "v_cap": 0.2545575425028801,
+        "v_floor": 0.02545575425028801
+      },
+      "cap_gate_pass_train": false,
+      "checkpoint_path": "checkpoints/seed181803-fold0-S18I-ITER-0005-FIT-01.pt",
+      "checkpoint_sha256": "0710c01a14424e2ada2f10b39de46169ffc745c3b74c48231abd0ea1d3759d7d",
+      "final_train_nll": -0.5646558403968811,
+      "fold_index": 0,
+      "heldout_count": 22328,
+      "heldout_history_id": "S18I-ITER-0005-FIT-01",
+      "heldout_nll": -0.5710033774375916,
+      "heldout_spearman": 0.0,
+      "model_seed": 181803,
+      "optimizer_steps": 4400,
+      "per_epoch_steps": 88,
+      "quantiles": {
+        "q05": 0.02545575425028801,
+        "q95": 0.14554864168167114
+      },
+      "record_count": 44661,
+      "restored_forward_max_abs_diff": 0.0,
+      "restored_nll": -0.5710034370422363,
+      "saturation_heldout": {
+        "frac_at_cap": 1.0,
+        "frac_at_floor": 0.0
+      },
+      "saturation_train": {
+        "frac_at_cap": 1.0,
+        "frac_at_floor": 0.0
+      },
+      "scale_parameters": 4417,
+      "scale_state_sha256": "095dcde4024d3f6e3bbc5a3180f1588f7a4f878e2c467d737396c2763255fd2f",
+      "scope": "fold:S18I-ITER-0005-FIT-01",
+      "training_history_ids": [
+        "S18I-ITER-0005-FIT-02",
+        "S18I-ITER-0005-FIT-03"
+      ]
+    },
+    {
+      "bounds": {
+        "v_cap": 0.24806393310427666,
+        "v_floor": 0.024806393310427666
+      },
+      "cap_gate_pass_train": false,
+      "checkpoint_path": "checkpoints/seed181803-fold1-S18I-ITER-0005-FIT-02.pt",
+      "checkpoint_sha256": "14347105e851eb3d627a1140faa2ea0a00bd3cb2ebc64b74f5742e59aae7621d",
+      "final_train_nll": -0.5790539979934692,
+      "fold_index": 1,
+      "heldout_count": 23098,
+      "heldout_history_id": "S18I-ITER-0005-FIT-02",
+      "heldout_nll": -0.5719949007034302,
+      "heldout_spearman": 0.0,
+      "model_seed": 181803,
+      "optimizer_steps": 4300,
+      "per_epoch_steps": 86,
+      "quantiles": {
+        "q05": 0.024806393310427666,
+        "q95": 0.13751520216464996
+      },
+      "record_count": 43891,
+      "restored_forward_max_abs_diff": 0.0,
+      "restored_nll": -0.5719949007034302,
+      "saturation_heldout": {
+        "frac_at_cap": 1.0,
+        "frac_at_floor": 0.0
+      },
+      "saturation_train": {
+        "frac_at_cap": 1.0,
+        "frac_at_floor": 0.0
+      },
+      "scale_parameters": 4417,
+      "scale_state_sha256": "aa9873961338af4b01fb98f8e95dc7684687e5d31adccc1a9bebae1d492543eb",
+      "scope": "fold:S18I-ITER-0005-FIT-02",
+      "training_history_ids": [
+        "S18I-ITER-0005-FIT-01",
+        "S18I-ITER-0005-FIT-03"
+      ]
+    },
+    {
+      "bounds": {
+        "v_cap": 0.2548118447884917,
+        "v_floor": 0.025481184478849173
+      },
+      "cap_gate_pass_train": false,
+      "checkpoint_path": "checkpoints/seed181803-fold2-S18I-ITER-0005-FIT-03.pt",
+      "checkpoint_sha256": "8bbf0421628b904a4bb90fedb3133ce4870ccffd200cc3f81407074e8b62f048",
+      "final_train_nll": -0.5661779046058655,
+      "fold_index": 2,
+      "heldout_count": 21563,
+      "heldout_history_id": "S18I-ITER-0005-FIT-03",
+      "heldout_nll": -0.5668348670005798,
+      "heldout_spearman": 0.0,
+      "model_seed": 181803,
+      "optimizer_steps": 4450,
+      "per_epoch_steps": 89,
+      "quantiles": {
+        "q05": 0.025481184478849173,
+        "q95": 0.14220232516527176
+      },
+      "record_count": 45426,
+      "restored_forward_max_abs_diff": 0.0,
+      "restored_nll": -0.5668348670005798,
+      "saturation_heldout": {
+        "frac_at_cap": 1.0,
+        "frac_at_floor": 0.0
+      },
+      "saturation_train": {
+        "frac_at_cap": 1.0,
+        "frac_at_floor": 0.0
+      },
+      "scale_parameters": 4417,
+      "scale_state_sha256": "b25ea1bf084056833a4cefe7003934eb743fe8939c4666f7fb44406f7d610276",
+      "scope": "fold:S18I-ITER-0005-FIT-03",
+      "training_history_ids": [
+        "S18I-ITER-0005-FIT-01",
+        "S18I-ITER-0005-FIT-02"
+      ]
+    }
+  ],
+  "handoff_sha256": "5c28434b6f5b3342a3203a73cd672782e08857299c05b709adbd8bce75d45155",
+  "historical_result": {
+    "c02_json": {
+      "bytes": 21842,
+      "sha256": "699abc0d237f3adc027a27e5a8dc74b023eb691a49972d6aefb25dbbb8aa47f9"
+    },
+    "c02_task13_md": {
+      "bytes": 13068,
+      "sha256": "53b827cd5b9d9a83e861e7312e8cb0deb6ef81d69fb37d94ff6fccb3500c8250"
+    },
+    "note": "Exact C02 canonical bytes preserved immutable; this record supersedes their scientific content only via actual final-feature evidence, without rewriting history.",
+    "preserved_dir": "artifacts/sprint-18/s18-t13b-pub01/history/"
+  },
+  "mechanism_spec_sha256": {
+    "N4-CRN": "4d1c8097c9cc27d3fbeb2e2a6e70a29a7bc63d7899646a9c712a315b39d9ffe3"
+  },
+  "model_seeds": [
+    181801,
+    181802,
+    181803
+  ],
+  "per_seed_mechanical": {
+    "181801": {
+      "per_seed_updates": 13150,
+      "reasons": [
+        "fold 0 held-out v_cap saturation exceeds 20%",
+        "fold 1 held-out v_cap saturation exceeds 20%",
+        "fold 2 held-out v_cap saturation exceeds 20%"
+      ],
+      "record_counts": [
+        44661,
+        43891,
+        45426
+      ],
+      "verdict": "FAILED"
+    },
+    "181802": {
+      "per_seed_updates": 13150,
+      "reasons": [
+        "fold 0 held-out v_cap saturation exceeds 20%",
+        "fold 1 held-out v_cap saturation exceeds 20%",
+        "fold 2 held-out v_cap saturation exceeds 20%"
+      ],
+      "record_counts": [
+        44661,
+        43891,
+        45426
+      ],
+      "verdict": "FAILED"
+    },
+    "181803": {
+      "per_seed_updates": 13150,
+      "reasons": [
+        "fold 0 held-out v_cap saturation exceeds 20%",
+        "fold 1 held-out v_cap saturation exceeds 20%",
+        "fold 2 held-out v_cap saturation exceeds 20%"
+      ],
+      "record_counts": [
+        44661,
+        43891,
+        45426
+      ],
+      "verdict": "FAILED"
+    }
+  },
+  "preflight": {
+    "PREFLIGHT_OK": true,
+    "attempt_id": "S18-T13B-C06",
+    "binding_sha256": "c867bf4e37fbe10201218da88ad45da00b782e0f8090e354655497e3a93a1c46",
+    "cuda_available": true,
+    "device": "cuda:0",
+    "driver_sha256": "677bd279caf792eef747ba02f7499939bf118de28fa42d7fdd322c3caf953db9",
+    "executable_binding_sha256": "383c62114ee6120d5fd19f866dfd585083d1d5899c9ffe91804761bd8a10a2d5",
+    "final_checkpoints_sha256": {
+      "181801": "9292d7c59037cba7b7fd337dbb896ed492777abff4713307c98f86a3b5226a8f",
+      "181802": "8ae58da90818883ffa8b7dd7b0c73fadfcd5a24a0d3f2fc713c9a1d055b6621f",
+      "181803": "79edbdf37e4180368814e02b7201c7dd3f8a7b4c7bc47408bd9bbde5d059d408"
+    },
+    "fit_eligible_rows": {
+      "S18I-ITER-0005-FIT-01": 1809,
+      "S18I-ITER-0005-FIT-02": 1882,
+      "S18I-ITER-0005-FIT-03": 1755
+    },
+    "fit_healthy_rows": 5446,
+    "fit_history_ids": [
+      "S18I-ITER-0005-FIT-01",
+      "S18I-ITER-0005-FIT-02",
+      "S18I-ITER-0005-FIT-03"
+    ],
+    "handoff_sha256": "5c28434b6f5b3342a3203a73cd672782e08857299c05b709adbd8bce75d45155",
+    "mechanism_spec_sha256": {
+      "N4-CRN": "4d1c8097c9cc27d3fbeb2e2a6e70a29a7bc63d7899646a9c712a315b39d9ffe3"
+    },
+    "n4_sampler_smoke_ok": 9,
+    "prediction_cache_sha256": {
+      "181801": "18345f863d04f71d16d9be7b6f58982568a4ee4317eba526922369471355bece",
+      "181802": "e035b2b7cdac53b6484244239f3db1d851cb0395e2fdd788133de5278f9333b2",
+      "181803": "1d4a2a74de36d8bf45a67e7ff795ce279e6aec08494d8ca27a1bca817db332a7"
+    },
+    "protocol_sha256": "e1dcd17914e920520ad0d8f50e185874b95414e6a4fe907903619daf145622d2",
+    "schema": "s18-task13b-c01-preflight-v1",
+    "source_commit": "fe17b9ed9bb76d353ed45db9344198461d6f8e78",
+    "task_id": "S18-T13B",
+    "torch_version": "2.14.0+cu130"
+  },
+  "protocol_sha256": "e1dcd17914e920520ad0d8f50e185874b95414e6a4fe907903619daf145622d2",
+  "publication": {
+    "agent_id": "S18T13BPUB01",
+    "attempt_id": "S18T13BPUB01",
+    "base": {
+      "commit": "fe17b9ed9bb76d353ed45db9344198461d6f8e78",
+      "parent": "5a491ad1d774f9fb93882ea0f4c5c4a655a22cb9",
+      "ref": "refs/heads/master",
+      "tree": "219e465708e0dfecd4cf1644364e3c4b20134a9e"
+    },
+    "binding": {
+      "executable_binding_sha256": "383c62114ee6120d5fd19f866dfd585083d1d5899c9ffe91804761bd8a10a2d5",
+      "handoff_sha256": "5c28434b6f5b3342a3203a73cd672782e08857299c05b709adbd8bce75d45155",
+      "mechanism_N4-CRN_sha256": "4d1c8097c9cc27d3fbeb2e2a6e70a29a7bc63d7899646a9c712a315b39d9ffe3",
+      "protocol_sha256": "e1dcd17914e920520ad0d8f50e185874b95414e6a4fe907903619daf145622d2",
+      "task14_coefficient_lock_sha256": "6eb108b2073181d427f1aedfc81fb3bae4c29595108d15de486082800bdd9d6e"
+    },
+    "producer": {
+      "artifact": "artifacts/sprint-18/task-13b-a03.md",
+      "artifact_bytes": 12431,
+      "artifact_sha256": "c3ae79fc5332d59ce70a70d2e0ace1ebed6bee2e02acb59d04e7bd50c9b8f81f",
+      "handoff": "artifacts/sprint-18/handoffs/s18-t13b-a03-handoff.md",
+      "handoff_bytes": 11659,
+      "handoff_sha256": "372191d1d846439a1333a3dd12733e7bd95d8a583ff0058e45b735308cd399"
+    },
+    "review": "PENDING fresh independent final review of S18T13BA03 (Main-owned); no certification conveyed.",
+    "role": "gold-task",
+    "runner_note": "Runner hardcodes ATTEMPT=S18-T13B-C06 (line 78); normative attempt is S18T13BA03 per binding agent/attempt. Preflight block kept verbatim including its runner-emitted attempt label.",
+    "source_pair": {
+      "driver_sha256": "677bd279caf792eef747ba02f7499939bf118de28fa42d7fdd322c3caf953db9",
+      "runner_bytes": 43951,
+      "source_commit": "fe17b9ed9bb76d353ed45db9344198461d6f8e78"
+    },
+    "task_id": "S18-T13B"
+  },
+  "representation_baseline": {
+    "kind": "exact_final_B0-FULL_epoch100",
+    "live_ema_state_sha256": {
+      "181801": "3b1121c3796d688d3d8ccc69fabf73331ae71304269e8108ebc61bd8218f4fd9",
+      "181802": "e5e0761fd98ac7ab943106667011720e2400323e89f1cff3af902ddf3951ca76",
+      "181803": "8c5f9e1b4dd8fb694060af1d610f96327100bd9c08556b8b5b0d4be6d4f9953d"
+    },
+    "live_model_state_sha256": {
+      "181801": "81e07ee1b9161ba353480811678d72bdcf78a3ac67e41fcc0034e11d23a04ef7",
+      "181802": "03e8779e25c0dd7a0730727d41146e5c4cb3b64cfc060d140f221f5905938062",
+      "181803": "4b5936e84deb6b753afdaf28ca079883a889c3947544fd0b15f22bb9fdbfdf8e"
+    },
+    "mode": "eval",
+    "model_class": "V1RepresentationModel",
+    "note": "Exact final Task23 A04 epoch-100 B0-FULL online/EMA checkpoints + prediction caches bound per seed (Development diagnostic prediction only; Confirmation never touched; no refit). Representation epochs completed 100, representation optimizer steps 0; zero representation updates by construction (frozen no_grad cache, eval, scale-only optimizer; bitwise invariance holds all seeds). Prior provisional fresh-init surrogate (52a6d200/6ac99526/e5029f8b) disqualified per R01 FAIL and retained only in preserved historical copies.",
+    "representation_updates": 0,
+    "seeds": {
+      "181801": {
+        "cache_file_sha256": "18345f863d04f71d16d9be7b6f58982568a4ee4317eba526922369471355bece",
+        "cache_inner_sha256": "bbed6278076cd533ddcc5944844c7c6e735755e804b673d8184a04b781f7f449",
+        "cache_path": "/home/trietlm/s18-t23-a04-runs/full/seed-181801/prediction_cache.json",
+        "cache_records": 7323,
+        "checkpoint_path": "/home/trietlm/s18-t23-a04-runs/full/seed-181801/checkpoints/b0-seed181801-epoch100.pt",
+        "checkpoint_sha256": "9292d7c59037cba7b7fd337dbb896ed492777abff4713307c98f86a3b5226a8f",
+        "kind": "exact_final_B0-FULL_epoch100",
+        "live_ema_state_sha256": "3b1121c3796d688d3d8ccc69fabf73331ae71304269e8108ebc61bd8218f4fd9",
+        "live_model_state_sha256": "81e07ee1b9161ba353480811678d72bdcf78a3ac67e41fcc0034e11d23a04ef7",
+        "representation_epochs_completed": 100,
+        "representation_optimizer_steps": 0
+      },
+      "181802": {
+        "cache_file_sha256": "e035b2b7cdac53b6484244239f3db1d851cb0395e2fdd788133de5278f9333b2",
+        "cache_inner_sha256": "1a1d534d227da3583debaf2ee781d2e78e6fdbb4c4790e408104d3bd9c6a9344",
+        "cache_path": "/home/trietlm/s18-t23-a04-runs/full/seed-181802/prediction_cache.json",
+        "cache_records": 7323,
+        "checkpoint_path": "/home/trietlm/s18-t23-a04-runs/full/seed-181802/checkpoints/b0-seed181802-epoch100.pt",
+        "checkpoint_sha256": "8ae58da90818883ffa8b7dd7b0c73fadfcd5a24a0d3f2fc713c9a1d055b6621f",
+        "kind": "exact_final_B0-FULL_epoch100",
+        "live_ema_state_sha256": "e5e0761fd98ac7ab943106667011720e2400323e89f1cff3af902ddf3951ca76",
+        "live_model_state_sha256": "03e8779e25c0dd7a0730727d41146e5c4cb3b64cfc060d140f221f5905938062",
+        "representation_epochs_completed": 100,
+        "representation_optimizer_steps": 0
+      },
+      "181803": {
+        "cache_file_sha256": "1d4a2a74de36d8bf45a67e7ff795ce279e6aec08494d8ca27a1bca817db332a7",
+        "cache_inner_sha256": "385c0a50cf12413be2190763cae0566ae3fedbf5c72288e42dbac04e35d1b814",
+        "cache_path": "/home/trietlm/s18-t23-a04-runs/full/seed-181803/prediction_cache.json",
+        "cache_records": 7323,
+        "checkpoint_path": "/home/trietlm/s18-t23-a04-runs/full/seed-181803/checkpoints/b0-seed181803-epoch100.pt",
+        "checkpoint_sha256": "79edbdf37e4180368814e02b7201c7dd3f8a7b4c7bc47408bd9bbde5d059d408",
+        "kind": "exact_final_B0-FULL_epoch100",
+        "live_ema_state_sha256": "8c5f9e1b4dd8fb694060af1d610f96327100bd9c08556b8b5b0d4be6d4f9953d",
+        "live_model_state_sha256": "4b5936e84deb6b753afdaf28ca079883a889c3947544fd0b15f22bb9fdbfdf8e",
+        "representation_epochs_completed": 100,
+        "representation_optimizer_steps": 0
+      }
+    }
+  },
+  "representation_invariance": {
+    "181801": {
+      "ema_after_sha256": "3b1121c3796d688d3d8ccc69fabf73331ae71304269e8108ebc61bd8218f4fd9",
+      "ema_before_sha256": "3b1121c3796d688d3d8ccc69fabf73331ae71304269e8108ebc61bd8218f4fd9",
+      "ema_equal": true,
+      "live_ema_state_sha256": "3b1121c3796d688d3d8ccc69fabf73331ae71304269e8108ebc61bd8218f4fd9",
+      "model_state_equal_bitwise": true,
+      "restored_online_sha256": "81e07ee1b9161ba353480811678d72bdcf78a3ac67e41fcc0034e11d23a04ef7"
+    },
+    "181802": {
+      "ema_after_sha256": "e5e0761fd98ac7ab943106667011720e2400323e89f1cff3af902ddf3951ca76",
+      "ema_before_sha256": "e5e0761fd98ac7ab943106667011720e2400323e89f1cff3af902ddf3951ca76",
+      "ema_equal": true,
+      "live_ema_state_sha256": "e5e0761fd98ac7ab943106667011720e2400323e89f1cff3af902ddf3951ca76",
+      "model_state_equal_bitwise": true,
+      "restored_online_sha256": "03e8779e25c0dd7a0730727d41146e5c4cb3b64cfc060d140f221f5905938062"
+    },
+    "181803": {
+      "ema_after_sha256": "8c5f9e1b4dd8fb694060af1d610f96327100bd9c08556b8b5b0d4be6d4f9953d",
+      "ema_before_sha256": "8c5f9e1b4dd8fb694060af1d610f96327100bd9c08556b8b5b0d4be6d4f9953d",
+      "ema_equal": true,
+      "live_ema_state_sha256": "8c5f9e1b4dd8fb694060af1d610f96327100bd9c08556b8b5b0d4be6d4f9953d",
+      "model_state_equal_bitwise": true,
+      "restored_online_sha256": "4b5936e84deb6b753afdaf28ca079883a889c3947544fd0b15f22bb9fdbfdf8e"
+    }
+  },
+  "review_binding": "PENDING fresh independent final review of S18T13BA03 (Main-owned); prior S18-T13-R01 FAIL and S18-T13-R02 FAIL-BLOCKED retained -- see preserved copies in artifacts/sprint-18/s18-t13b-pub01/history/.",
+  "schema": "s18-task13-n4-capacity-v1",
+  "server_run_dir": "/home/trietlm/s18-t13b-a03-runs/full/",
+  "source_commit": "fe17b9ed9bb76d353ed45db9344198461d6f8e78",
+  "status": "failed_not_certified",
+  "support": {
+    "181801|S18I-ITER-0005-FIT-01": {
+      "eligible_rows": 1809,
+      "masking_rule": "bound Task23 cache mask_seed per (file, history); no re-masking",
+      "masking_seed": null,
+      "record_count": 22328
+    },
+    "181801|S18I-ITER-0005-FIT-02": {
+      "eligible_rows": 1882,
+      "masking_rule": "bound Task23 cache mask_seed per (file, history); no re-masking",
+      "masking_seed": null,
+      "record_count": 23098
+    },
+    "181801|S18I-ITER-0005-FIT-03": {
+      "eligible_rows": 1755,
+      "masking_rule": "bound Task23 cache mask_seed per (file, history); no re-masking",
+      "masking_seed": null,
+      "record_count": 21563
+    },
+    "181802|S18I-ITER-0005-FIT-01": {
+      "eligible_rows": 1809,
+      "masking_rule": "bound Task23 cache mask_seed per (file, history); no re-masking",
+      "masking_seed": null,
+      "record_count": 22328
+    },
+    "181802|S18I-ITER-0005-FIT-02": {
+      "eligible_rows": 1882,
+      "masking_rule": "bound Task23 cache mask_seed per (file, history); no re-masking",
+      "masking_seed": null,
+      "record_count": 23098
+    },
+    "181802|S18I-ITER-0005-FIT-03": {
+      "eligible_rows": 1755,
+      "masking_rule": "bound Task23 cache mask_seed per (file, history); no re-masking",
+      "masking_seed": null,
+      "record_count": 21563
+    },
+    "181803|S18I-ITER-0005-FIT-01": {
+      "eligible_rows": 1809,
+      "masking_rule": "bound Task23 cache mask_seed per (file, history); no re-masking",
+      "masking_seed": null,
+      "record_count": 22328
+    },
+    "181803|S18I-ITER-0005-FIT-02": {
+      "eligible_rows": 1882,
+      "masking_rule": "bound Task23 cache mask_seed per (file, history); no re-masking",
+      "masking_seed": null,
+      "record_count": 23098
+    },
+    "181803|S18I-ITER-0005-FIT-03": {
+      "eligible_rows": 1755,
+      "masking_rule": "bound Task23 cache mask_seed per (file, history); no re-masking",
+      "masking_seed": null,
+      "record_count": 21563
+    }
+  },
+  "task_id": "S18-T13",
+  "wall_seconds": 134.01675820350647
+}

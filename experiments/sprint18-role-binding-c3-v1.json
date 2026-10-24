@@ -1,0 +1,497 @@
+{
+  "schema_id": "sprint18-role-binding-c3-v1",
+  "sprint_id": "sprint18",
+  "cycle": 3,
+  "status": "FROZEN_PROSPECTIVELY",
+  "protocol_id": "sprint18-full-training-protocol-v2",
+  "protocol_sha256": "e1dcd17914e920520ad0d8f50e185874b95414e6a4fe907903619daf145622d2",
+  "base_protocol": {
+    "path": "experiments/sprint18-full-training-protocol-v1.md",
+    "sha256": "9ae3d43f94a6194bae602d68067958bdf7d11cf47e801dd328e87b22e7907cf6"
+  },
+  "mechanism_spec_sha256": {
+    "N1-HCC": "0f5ede73d65441014caf22a22058c17d8ed34be735790d20ca7f36873a34d144",
+    "N2-MSP": "a2deeb5479957ef8777ec4cfd66898e3ecd5e0aef80e2043f11882529ae3a9f2",
+    "N3-CCRP": "eee44cebd29de2b5cbfdf0263fcca21d82fee92e0773922c0bc3209dee50443c",
+    "N4-CRN": "4d1c8097c9cc27d3fbeb2e2a6e70a29a7bc63d7899646a9c712a315b39d9ffe3"
+  },
+  "method_id": "sprint18-data-method-c2-v1",
+  "method_sha256": "f4cc8901c2e59f615ebcaaa3509fd654773efd06f7f6fd6a55faeab6b3ba4b9b",
+  "method_override": "C2-M1: profile sprint18-c2 only, v7 section-1a A abrupt_rate 2.2e-5 -> 3.3e-5 (kappa 1.5); v7 file bytes untouched",
+  "method_repetition": {
+    "repeated_method_candidate": true,
+    "new_causal_method": false,
+    "exception_document": {
+      "path": "experiments/sprint18-data-method-c3-v1.md",
+      "sha256": "eea08188db6495c58e9ffba769d12bbbdd554fa8307d1bdda27a286941c4545b"
+    },
+    "reused_method": {
+      "method_id": "sprint18-data-method-c2-v1",
+      "method_sha256": "f4cc8901c2e59f615ebcaaa3509fd654773efd06f7f6fd6a55faeab6b3ba4b9b"
+    },
+    "retired_precedent_binding": {
+      "path": "experiments/sprint18-role-binding-c2-v2.json",
+      "note": "retired-cycle precedent only; not reused for Cycle 3"
+    },
+    "user_authorization": ".agents/memory/decisions.md [2026-09-25] Permit a declared same-method Cycle 3 repetition",
+    "task50_blocker_retained": "no distinct defensible Cycle 3 amendment justified; user exception does not imply a new causal lever",
+    "inference_limitation": "Any Cycle 3 eligibility outcome is conditional on a repeated-method candidate; a PASS must not be reported as validation of a new methodology; successive candidate cycles are no longer independent methodology tests; Cycles 4-10 require their own prospective justification"
+  },
+  "profile_id": "sprint18-c2",
+  "generator_protocol_id": "sprint15-benchmark-protocol-v7",
+  "generator_protocol_sha256": "a1fc09db2e246ed79d0595aec953a7788fd1b47c4981fbe1d92017d944b8d7b6",
+  "generation_entrypoints": {
+    "config_factory": "synth.chronicle.sprint18_c2_history_config(data_seed)",
+    "materializer": "synth.chronicle.materialize_chronological(cfg, root, shard_size=64, overwrite=false, role=history_id, protocol=generator_protocol_id, sprint15=None)",
+    "roster_free_public_generation_path": true
+  },
+  "preflight_entrypoints": {
+    "profile": "sprint18-c2",
+    "protocol": "sprint15-benchmark-protocol-v7",
+    "preflight_seed_entry": "synth.preflight15.preflight_seed_c2(history_seed)",
+    "run_preflight_entry": "synth.preflight15.run_preflight_c2(seeds)",
+    "module_path": "src/synth/preflight15.py",
+    "module_sha256": "da1239b3e3d1df145389083c813ce97d99b7f80c32a9452d1d7a683b61dd5df6",
+    "legacy_v7_entries_preserved": "synth.preflight15.preflight_seed/run_preflight default profile sprint15-v7 unchanged; must not be used for the C3 roster",
+    "rejection_only_no_write": true,
+    "unanimity_required": true
+  },
+  "role_binding": [
+    {
+      "role": "DESIGN",
+      "history_id": "H-S18C3-DES-01",
+      "data_seed": 31832,
+      "directory": "data/generated/sprint18-full-training-c3-v1/DESIGN/H-S18C3-DES-01",
+      "permitted_use": "Structural/measurability qualification and healthy-only coefficient-pilot retention evaluation; Design-only diagnosis on failure. Never final fitting.",
+      "expected_config_hash": "2a133066409b"
+    },
+    {
+      "role": "DESIGN",
+      "history_id": "H-S18C3-DES-02",
+      "data_seed": 31833,
+      "directory": "data/generated/sprint18-full-training-c3-v1/DESIGN/H-S18C3-DES-02",
+      "permitted_use": "Structural/measurability qualification and healthy-only coefficient-pilot retention evaluation; Design-only diagnosis on failure. Never final fitting.",
+      "expected_config_hash": "0f5f448baec4"
+    },
+    {
+      "role": "DESIGN",
+      "history_id": "H-S18C3-DES-03",
+      "data_seed": 31834,
+      "directory": "data/generated/sprint18-full-training-c3-v1/DESIGN/H-S18C3-DES-03",
+      "permitted_use": "Structural/measurability qualification and healthy-only coefficient-pilot retention evaluation; Design-only diagnosis on failure. Never final fitting.",
+      "expected_config_hash": "e8377a61991f"
+    },
+    {
+      "role": "DESIGN",
+      "history_id": "H-S18C3-DES-04",
+      "data_seed": 31835,
+      "directory": "data/generated/sprint18-full-training-c3-v1/DESIGN/H-S18C3-DES-04",
+      "permitted_use": "Structural/measurability qualification and healthy-only coefficient-pilot retention evaluation; Design-only diagnosis on failure. Never final fitting.",
+      "expected_config_hash": "eb6cc0578db7"
+    },
+    {
+      "role": "FIT",
+      "history_id": "H-S18C3-FIT-01",
+      "data_seed": 31836,
+      "directory": "data/generated/sprint18-full-training-c3-v1/FIT/H-S18C3-FIT-01",
+      "permitted_use": "Verified-healthy representation fitting, EMA targets, Fit reference banks/standardizers, Fit-only auxiliary fitting and cross-fitting.",
+      "expected_config_hash": "fe1f74e91e9c"
+    },
+    {
+      "role": "FIT",
+      "history_id": "H-S18C3-FIT-02",
+      "data_seed": 31837,
+      "directory": "data/generated/sprint18-full-training-c3-v1/FIT/H-S18C3-FIT-02",
+      "permitted_use": "Verified-healthy representation fitting, EMA targets, Fit reference banks/standardizers, Fit-only auxiliary fitting and cross-fitting.",
+      "expected_config_hash": "e445793cd2c9"
+    },
+    {
+      "role": "FIT",
+      "history_id": "H-S18C3-FIT-03",
+      "data_seed": 31838,
+      "directory": "data/generated/sprint18-full-training-c3-v1/FIT/H-S18C3-FIT-03",
+      "permitted_use": "Verified-healthy representation fitting, EMA targets, Fit reference banks/standardizers, Fit-only auxiliary fitting and cross-fitting.",
+      "expected_config_hash": "369ce2e732ce"
+    },
+    {
+      "role": "CALIBRATION",
+      "history_id": "H-S18C3-CAL-01",
+      "data_seed": 31839,
+      "directory": "data/generated/sprint18-full-training-c3-v1/CALIBRATION/H-S18C3-CAL-01",
+      "permitted_use": "Verified-healthy per-arm/per-seed q95 thresholds only.",
+      "expected_config_hash": "4a9b139e72f6"
+    },
+    {
+      "role": "DEVELOPMENT",
+      "history_id": "H-S18C3-DEV-01",
+      "data_seed": 31840,
+      "directory": "data/generated/sprint18-full-training-c3-v1/DEVELOPMENT/H-S18C3-DEV-01",
+      "permitted_use": "Complete descriptive comparison and diagnostics after all configs are frozen. No coefficient, arm, mask, checkpoint, branch, or threshold selection.",
+      "expected_config_hash": "71a4771dbc3a"
+    },
+    {
+      "role": "DEVELOPMENT",
+      "history_id": "H-S18C3-DEV-02",
+      "data_seed": 31841,
+      "directory": "data/generated/sprint18-full-training-c3-v1/DEVELOPMENT/H-S18C3-DEV-02",
+      "permitted_use": "Complete descriptive comparison and diagnostics after all configs are frozen. No coefficient, arm, mask, checkpoint, branch, or threshold selection.",
+      "expected_config_hash": "b9be4420ba07"
+    },
+    {
+      "role": "DEVELOPMENT",
+      "history_id": "H-S18C3-DEV-03",
+      "data_seed": 31842,
+      "directory": "data/generated/sprint18-full-training-c3-v1/DEVELOPMENT/H-S18C3-DEV-03",
+      "permitted_use": "Complete descriptive comparison and diagnostics after all configs are frozen. No coefficient, arm, mask, checkpoint, branch, or threshold selection.",
+      "expected_config_hash": "3a1311825307"
+    },
+    {
+      "role": "DEVELOPMENT",
+      "history_id": "H-S18C3-DEV-04",
+      "data_seed": 31843,
+      "directory": "data/generated/sprint18-full-training-c3-v1/DEVELOPMENT/H-S18C3-DEV-04",
+      "permitted_use": "Complete descriptive comparison and diagnostics after all configs are frozen. No coefficient, arm, mask, checkpoint, branch, or threshold selection.",
+      "expected_config_hash": "31bbcf3111c0"
+    },
+    {
+      "role": "CONFIRMATION",
+      "history_id": "H-S18C3-CONF-01",
+      "data_seed": 31844,
+      "directory": "data/generated/sprint18-full-training-c3-v1/CONFIRMATION/H-S18C3-CONF-01",
+      "permitted_use": "One-shot locked final comparison only, opened solely under Task 56 after all prior gates pass.",
+      "expected_config_hash": "1a71312f1aad"
+    },
+    {
+      "role": "CONFIRMATION",
+      "history_id": "H-S18C3-CONF-02",
+      "data_seed": 31845,
+      "directory": "data/generated/sprint18-full-training-c3-v1/CONFIRMATION/H-S18C3-CONF-02",
+      "permitted_use": "One-shot locked final comparison only, opened solely under Task 56 after all prior gates pass.",
+      "expected_config_hash": "08961deb3480"
+    },
+    {
+      "role": "CONFIRMATION",
+      "history_id": "H-S18C3-CONF-03",
+      "data_seed": 31846,
+      "directory": "data/generated/sprint18-full-training-c3-v1/CONFIRMATION/H-S18C3-CONF-03",
+      "permitted_use": "One-shot locked final comparison only, opened solely under Task 56 after all prior gates pass.",
+      "expected_config_hash": "ab098a722646"
+    },
+    {
+      "role": "CONFIRMATION",
+      "history_id": "H-S18C3-CONF-04",
+      "data_seed": 31847,
+      "directory": "data/generated/sprint18-full-training-c3-v1/CONFIRMATION/H-S18C3-CONF-04",
+      "permitted_use": "One-shot locked final comparison only, opened solely under Task 56 after all prior gates pass.",
+      "expected_config_hash": "3a44a1f7c20f"
+    }
+  ],
+  "role_id_pattern": "^H-S18C3-(DES|FIT|CAL|DEV|CONF)-[0-9]{2}$",
+  "directory_pattern": "data/generated/sprint18-full-training-c3-v1/{DESIGN,FIT,CALIBRATION,DEVELOPMENT,CONFIRMATION}/<history-id>",
+  "roster_contract": {
+    "exact_data_seed_block": {
+      "namespace": "sprint18-role-data-c3-v1",
+      "min": 31832,
+      "max": 31847,
+      "count": 16,
+      "assignment_order": [
+        "DESIGN",
+        "FIT",
+        "CALIBRATION",
+        "DEVELOPMENT",
+        "CONFIRMATION"
+      ]
+    },
+    "role_counts": {
+      "DESIGN": 4,
+      "FIT": 3,
+      "CALIBRATION": 1,
+      "DEVELOPMENT": 4,
+      "CONFIRMATION": 4
+    },
+    "one_complete_roster_only": true,
+    "reserve_blocks": false,
+    "per_seed_replacement": false,
+    "retry": false,
+    "screening_or_favorable_selection": false,
+    "omission": false,
+    "pooling_for_rescue": false,
+    "role_reassignment": false,
+    "failed_confirmation_to_design_promotion": false
+  },
+  "model_seeds": [
+    181801,
+    181802,
+    181803
+  ],
+  "retired_cycles": [
+    {
+      "cycle": 1,
+      "data_seeds": {
+        "min": 31800,
+        "max": 31815
+      },
+      "binding_file_sha256": "493c5d6a7a9b807f1fe915f00bb917be45a11183512581606eee34ee678bb228",
+      "binding_sha256": "d2a398e223cbdfc14fd64cd582513aa71dc9c4e44737f6e66abf73954f270bdf",
+      "roots": "data/generated/sprint18-full-training-v1/",
+      "status": "REJECTED-CANDIDATE retired byte-identical; never reused, screened, pooled, promoted, or rewritten"
+    },
+    {
+      "cycle": 2,
+      "data_seeds": {
+        "min": 31816,
+        "max": 31831
+      },
+      "binding_file_sha256": "45818410f8d483d66a5523fd4ec38169bed9dc45d3a82f16979c05f9ab91dd92",
+      "binding_sha256": "9905a2eec94fbb811eaf120b35850c230129a708d21fdc0d36a0720505960ddf",
+      "roots": "data/generated/sprint18-full-training-c2-v1/ (never created; zero roots)",
+      "status": "retired at roster preflight PREFLIGHT-FAIL 14/16 with zero roots; rejected seeds 31829 (W/W2 pool 10<12) and 31830 (controls 47<48) are rejection facts only; never retried, replaced, rescued, or reassigned"
+    }
+  ],
+  "manifest_expectations": {
+    "format": 1,
+    "generator_version": "2.0.0",
+    "protocol": "sprint15-benchmark-protocol-v7",
+    "profile": "sprint18-c2",
+    "role": "must equal bound history_id",
+    "config_hash": "must equal bound expected_config_hash",
+    "seed_fields": {
+      "factory": "data_seed",
+      "scheduler": "data_seed",
+      "health": "data_seed",
+      "signal": "data_seed",
+      "temporal": "data_seed"
+    },
+    "required_top_level_fields": [
+      "format",
+      "generator_version",
+      "protocol",
+      "role",
+      "config_hash",
+      "resolved_config",
+      "seeds",
+      "counts",
+      "schedule",
+      "episodes",
+      "failure_events",
+      "maintenance_windows",
+      "calendar",
+      "splits",
+      "files",
+      "shards"
+    ],
+    "sprint15_provenance_block": "absent (sprint15=None)",
+    "resolved_config_health_stratified_subtype_emission": true,
+    "resolved_config_abrupt_rate_A": 3.3e-05,
+    "root_layout": [
+      "manifest.json",
+      "files/"
+    ],
+    "shard_size": 64
+  },
+  "disjoint_seed_ranges_checked": [
+    {
+      "source": "Sprint15 accepted Candidate 1 band",
+      "min": 1000,
+      "max": 1017,
+      "result": "disjoint"
+    },
+    {
+      "source": "Sprint15 accepted Candidate 2 band",
+      "min": 1100,
+      "max": 1117,
+      "result": "disjoint"
+    },
+    {
+      "source": "Sprint15 accepted Candidate 3 band",
+      "min": 1200,
+      "max": 1217,
+      "result": "disjoint"
+    },
+    {
+      "source": "Sprint15 accepted Candidate 4 band",
+      "min": 1300,
+      "max": 1317,
+      "result": "disjoint"
+    },
+    {
+      "source": "Sprint15 accepted Candidate 5 band",
+      "min": 1400,
+      "max": 1417,
+      "result": "disjoint"
+    },
+    {
+      "source": "Sprint15 accepted Candidate 6 band",
+      "min": 1500,
+      "max": 1517,
+      "result": "disjoint"
+    },
+    {
+      "source": "Sprint15 accepted Candidate 7 band",
+      "min": 1600,
+      "max": 1617,
+      "result": "disjoint"
+    },
+    {
+      "source": "Sprint15/Sprint18 disposable proof fixtures (Task42-class public-entry seed 9000; Task51 C2-identity seed 9001)",
+      "seeds": [
+        9000,
+        9001
+      ],
+      "result": "disjoint"
+    },
+    {
+      "source": "Sprint17 fresh ablation roster (binding v3)",
+      "min": 2800,
+      "max": 2815,
+      "result": "disjoint"
+    },
+    {
+      "source": "Sprint17 protocol-v2 failed roster (complete exclusion)",
+      "min": 2700,
+      "max": 2715,
+      "result": "disjoint"
+    },
+    {
+      "source": "Sprint14 accepted history band",
+      "min": 742,
+      "max": 797,
+      "result": "disjoint"
+    },
+    {
+      "source": "Sprint14 documented test-generation band",
+      "min": 910,
+      "max": 933,
+      "result": "disjoint"
+    },
+    {
+      "source": "Sprint18 Cycle 1 retired roster",
+      "min": 31800,
+      "max": 31815,
+      "result": "disjoint"
+    },
+    {
+      "source": "Sprint18 model seeds",
+      "seeds": [
+        181801,
+        181802,
+        181803
+      ],
+      "result": "disjoint"
+    },
+    {
+      "source": "Sprint17 model seeds",
+      "seeds": [
+        171701,
+        171702,
+        171703
+      ],
+      "result": "disjoint"
+    },
+    {
+      "source": "Sprint18 Cycle 2 retired roster",
+      "min": 31816,
+      "max": 31831,
+      "result": "disjoint"
+    }
+  ],
+  "collision_check": {
+    "roster_history_id_count": 16,
+    "unique_history_ids": true,
+    "roster_data_seed_count": 16,
+    "unique_data_seeds": true,
+    "roster_canonical_path_count": 16,
+    "unique_canonical_paths": true,
+    "all_paths_under": "data/generated/sprint18-full-training-c3-v1/",
+    "model_seed_namespace_disjoint": true,
+    "cycle1_seeds_retired_not_reassigned": true,
+    "cycle2_seeds_retired_not_reassigned": true,
+    "c2_rejected_seeds_not_reused": true,
+    "c3_roots_absent_before_binding": true,
+    "prior_sprint18_c1_c2_binding_or_root_reused": false,
+    "sealed_identity_seed_path_query": false
+  },
+  "generator_digest_expectations": {
+    "src/synth/config.py": "55fed2ef5b253d48c1b0c7f1dd5f7f966cdd03ad250cb86a988ac8de23d5c056",
+    "src/synth/health.py": "e5854641fb85eb9b88e05ee9d8e503c69a9432b13177d8c62ad38c3494e7fc6d",
+    "src/synth/events.py": "85100f5e0aca47dd2e8b01a08c58f39d32be4f1eab469cdc38e4a4b57768169d",
+    "src/synth/chronicle.py": "f932e1a3c3bbc4bf7c8123e0ae9d3125200fedf0ce586d6d7eaf637d335f2cb6",
+    "src/synth/balanced.py": "d62de3422bd51f870d39d18b1a8bb942f9ca73fc0044d8f23cc2d0948bd35a43",
+    "src/synth/cli.py": "19918890c50ed121cfc6de646ed98c73fd96651bfc1d0b18f8877d05972b550d",
+    "src/synth/__init__.py": "6b98c860a7d39e152f57f829d43a6eff4446d5301a1e9be6454a8945067e80c6",
+    "src/synth/preflight15.py": "da1239b3e3d1df145389083c813ce97d99b7f80c32a9452d1d7a683b61dd5df6",
+    "src/synth/probe15.py": "a08b3d5fb83001e1f5c43f4c56ff536bae85e41d494db289304aeb33a339242b",
+    "docs/BENCHMARK_MEASURABILITY_EXIT_GATES_V2.md": "d294762331ded4fd213f6870e563e32e17e12c632d7cb11a80373478ede34e1c",
+    "experiments/sprint15-benchmark-protocol-v7.md": "a1fc09db2e246ed79d0595aec953a7788fd1b47c4981fbe1d92017d944b8d7b6"
+  },
+  "source_closure": {
+    "experiments/sprint18-full-training-protocol-v1.md": "9ae3d43f94a6194bae602d68067958bdf7d11cf47e801dd328e87b22e7907cf6",
+    "experiments/sprint18-full-training-protocol-v2.md": "e1dcd17914e920520ad0d8f50e185874b95414e6a4fe907903619daf145622d2",
+    "experiments/sprint18-hierarchical-conditional-contrastive-spec-v2.md": "0f5ede73d65441014caf22a22058c17d8ed34be735790d20ca7f36873a34d144",
+    "experiments/sprint18-multiscale-latent-prediction-spec-v2.md": "a2deeb5479957ef8777ec4cfd66898e3ecd5e0aef80e2043f11882529ae3a9f2",
+    "experiments/sprint18-cross-channel-relational-prediction-spec-v2.md": "eee44cebd29de2b5cbfdf0263fcca21d82fee92e0773922c0bc3209dee50443c",
+    "experiments/sprint18-context-residual-normalization-spec-v2.md": "4d1c8097c9cc27d3fbeb2e2a6e70a29a7bc63d7899646a9c712a315b39d9ffe3",
+    "docs/BENCHMARK_MEASURABILITY_EXIT_GATES_V2.md": "d294762331ded4fd213f6870e563e32e17e12c632d7cb11a80373478ede34e1c",
+    "experiments/sprint15-benchmark-protocol-v7.md": "a1fc09db2e246ed79d0595aec953a7788fd1b47c4981fbe1d92017d944b8d7b6",
+    "experiments/sprint15-observable-probe-v7.md": "4d4c2b53b3879efdf92935e362956c87d16892feba8276367f1e5aa13aa4a51a",
+    "experiments/sprint18-data-method-c2-v1.md": "f4cc8901c2e59f615ebcaaa3509fd654773efd06f7f6fd6a55faeab6b3ba4b9b",
+    "experiments/sprint18-data-method-c3-v1.md": "eea08188db6495c58e9ffba769d12bbbdd554fa8307d1bdda27a286941c4545b",
+    "src/synth/config.py": "55fed2ef5b253d48c1b0c7f1dd5f7f966cdd03ad250cb86a988ac8de23d5c056",
+    "src/synth/health.py": "e5854641fb85eb9b88e05ee9d8e503c69a9432b13177d8c62ad38c3494e7fc6d",
+    "src/synth/events.py": "85100f5e0aca47dd2e8b01a08c58f39d32be4f1eab469cdc38e4a4b57768169d",
+    "src/synth/chronicle.py": "f932e1a3c3bbc4bf7c8123e0ae9d3125200fedf0ce586d6d7eaf637d335f2cb6",
+    "src/synth/balanced.py": "d62de3422bd51f870d39d18b1a8bb942f9ca73fc0044d8f23cc2d0948bd35a43",
+    "src/synth/cli.py": "19918890c50ed121cfc6de646ed98c73fd96651bfc1d0b18f8877d05972b550d",
+    "src/synth/__init__.py": "6b98c860a7d39e152f57f829d43a6eff4446d5301a1e9be6454a8945067e80c6",
+    "src/synth/preflight15.py": "da1239b3e3d1df145389083c813ce97d99b7f80c32a9452d1d7a683b61dd5df6",
+    "src/synth/probe15.py": "a08b3d5fb83001e1f5c43f4c56ff536bae85e41d494db289304aeb33a339242b",
+    "experiments/sprint18_task5_measurability.py": "0ee9e3ff9ae884dfa5a19efdfa921417ae52304c01e7f8293740a5dc4aa059b9",
+    "experiments/sprint18-role-binding-v1.json": "493c5d6a7a9b807f1fe915f00bb917be45a11183512581606eee34ee678bb228",
+    "experiments/sprint18-role-binding-c2.json": "afe28bc4453a909c5ccba2872e6f37813d0c95f40e5e8a113fd01d3c6c29f14a",
+    "experiments/sprint18-role-binding-c2-v2.json": "45818410f8d483d66a5523fd4ec38169bed9dc45d3a82f16979c05f9ab91dd92"
+  },
+  "qualification_runner": {
+    "path": "experiments/sprint18_task5_measurability.py",
+    "sha256": "0ee9e3ff9ae884dfa5a19efdfa921417ae52304c01e7f8293740a5dc4aa059b9",
+    "role": "inherited frozen observable-qualification runner identity; Task52 binds the hash only and runs no qualification"
+  },
+  "generation_contract": {
+    "exact_method": "sprint18-c2",
+    "repeated_method_candidate": true,
+    "one_root_per_binding": true,
+    "retry": false,
+    "replacement": false,
+    "omission": false,
+    "pooling_for_rescue": false,
+    "outcome_selected_seed": false,
+    "preflight_before_materialization": true,
+    "task52_root_creation": false,
+    "confirmation_access_before_final_lock": false,
+    "sealed_access": false,
+    "cycle1_root_reuse": false,
+    "cycle2_root_reuse": false,
+    "c2_rejected_seed_reuse": false,
+    "staged_gates": "Task53 roster preflight then Design-only materialization; Task54 Design gate; Task55 Fit/Calibration/Development; Task56 Confirmation"
+  },
+  "binding_guard_fail_closed": {
+    "purpose": "exact predicate Task53 public entry must verify before any write; any miss aborts with no root",
+    "predicates": [
+      "recompute canonical binding_sha256 over this file minus binding_sha256 and require equality",
+      "recompute every source_closure sha256 from disk and require equality (C2 factory + C2-capable preflight sources unchanged)",
+      "require sprint18_c2_history_config(seed).hash() equals expected_config_hash for all 16 seeds and all five sub-seeds equal the history seed",
+      "require single-leaf v7->c2 resolved-config diff /health/cohorts/2/abrupt_rate 2.2e-5 -> 3.3e-5",
+      "require all 16 directories absent and data/generated/sprint18-full-training-c3-v1/ absent before preflight",
+      "require Cycle 1 16 manifest hashes still match task4-materialization.json (old roots immutable) and data/generated/sprint18-full-training-c2-v1/ still absent",
+      "run one rejection-only roster preflight via synth.preflight15.run_preflight_c2 (profile sprint18-c2) with no_write over all 16 seeds; unanimous PASS required; the legacy v7-default entries must not be used for the C3 roster",
+      "materialize Design-only first under Task53 with overwrite=false and one-shot attempt markers; any miss retires Cycle 3 in full"
+    ]
+  },
+  "one_shot_record": {
+    "preflight_attempts": 0,
+    "materialization_attempts": 0,
+    "attempt_markers": "to be created by Task53 only (none exist at binding freeze)",
+    "cycle_consumption": "Cycle 3 starts when this reviewed binding proceeds to a rejection-only preflight"
+  },
+  "binding_digest_algorithm": "sha256(canonical_json_utf8_without_binding_sha256; sort_keys=true; separators=(',',':'); ensure_ascii=false; no_bom)",
+  "binding_sha256": "82be44d3f36b8006a0870df00bd26ec6e24bbbcadc2067de6f67c77e0d00b3bc"
+}
