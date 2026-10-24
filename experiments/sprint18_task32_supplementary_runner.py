@@ -9,10 +9,11 @@ Fit roster; it accepts that byte state only if both the historical bank digest a
 source-row digest match exactly. A mismatch aborts before scoring output or bank
 artifact publication. No alternate order, recipe, threshold, or fallback exists.
 
-N4 restores its accepted final scale envelope strictly and combines public N4
-normalized prediction scoring with the unchanged paired-B0 population bank path.
-The bank bytes and immutable provenance are published together in a new append-only
-artifact directory. Existing artifacts and score documents are never overwritten.
+N4 binds its accepted v9 scientific configuration separately from the paired B0
+v1 representation configuration, then restores the accepted final scale envelope
+strictly and combines public N4 normalized prediction scoring with the unchanged
+paired-B0 population bank path. Both lock authorities and the accepted paired-B0
+record are immutable inputs.
 
 ``metrics`` consumes three validated seed documents (and, for non-B0, the three
 same-seed B0 documents), computes the frozen §8.2 families, and emits one
@@ -100,10 +101,12 @@ from synth.config import PatchConfig  # noqa: E402
 from synth.patchify import Patchifier  # noqa: E402
 
 TASK_ID = "S18-T32"
-DEFAULT_ATTEMPT = "S18T32-C03"
-DEFAULT_AGENT = "S18T32C03"
+DEFAULT_ATTEMPT = "S18T32C05"
+DEFAULT_AGENT = "S18T32C05"
 B0_ARM_ID = "B0-FULL"
 K_LEGACY_ARMS = ("K3-FULL", "K7-FULL", "K9-FULL")
+N4_TASK14_LOCK_SHA256 = S.N4_SCIENTIFIC_TASK14_LOCK_V9_SHA256
+B0_TASK14_LOCK_SHA256 = S.TASK14_LOCK_V1_SHA256
 
 
 @dataclass(frozen=True, slots=True)
@@ -275,9 +278,67 @@ def _accepted_development_support_digests(
 
 def _task14_lock(inputs: S.FrozenSupplementaryInputs) -> Mapping[str, object]:
     raw = Path(inputs.task14_lock_path).read_bytes()
-    if hashlib.sha256(raw).hexdigest() != inputs.task14_lock_sha256:
+    digest = hashlib.sha256(raw).hexdigest()
+    if digest != inputs.task14_lock_sha256:
         raise _fail("Task14 lock bytes changed after manifest validation")
+    if inputs.arm_id == "N4-CRN" and digest != N4_TASK14_LOCK_SHA256:
+        raise _fail("N4 scientific Task14 lock bytes differ from the accepted v9 authority")
     return _mapping(json.loads(raw), "Task14 lock")
+
+
+def _paired_baseline_task14_lock(
+    inputs: S.FrozenSupplementaryInputs,
+) -> Mapping[str, object]:
+    if (
+        inputs.arm_id != "N4-CRN"
+        or inputs.paired_baseline_task14_lock_path is None
+        or inputs.paired_baseline_task14_lock_sha256 is None
+    ):
+        raise _fail("N4 manifest lacks an explicit paired-B0 Task14 lock authority")
+    raw = Path(inputs.paired_baseline_task14_lock_path).read_bytes()
+    digest = hashlib.sha256(raw).hexdigest()
+    if digest != inputs.paired_baseline_task14_lock_sha256 or digest != B0_TASK14_LOCK_SHA256:
+        raise _fail("paired-B0 Task14 lock bytes differ from the accepted v1 authority")
+    return _mapping(json.loads(raw), "paired-B0 Task14 lock")
+
+
+def _validate_n4_paired_baseline_record(
+    n4_record: Mapping[str, object],
+    b0_record: Mapping[str, object],
+    b0_arm: Sprint18ArmConfig,
+    model_seed: int,
+) -> str:
+    if (
+        b0_record.get("status") != "ok"
+        or b0_record.get("arm_id") != B0_ARM_ID
+        or b0_record.get("model_seed") != model_seed
+        or n4_record.get("status") != "ok"
+        or n4_record.get("arm_id") != "N4-CRN"
+        or n4_record.get("model_seed") != model_seed
+    ):
+        raise _fail("N4 and paired B0 accepted record identities do not match")
+    b0_config_sha = b0_record.get("arm_config_sha256")
+    if (
+        not isinstance(b0_config_sha, str)
+        or b0_config_sha != arm_config_sha256(b0_arm)
+    ):
+        raise _fail("paired B0 lock config differs from its accepted B0 record")
+    b0_state = _accepted_record_state_digests(b0_record, B0_ARM_ID)
+    n4_state = _accepted_record_state_digests(n4_record, "N4-CRN")
+    b0_primary = _mapping(b0_record.get("primary"), "accepted paired B0 primary")
+    n4_baseline = _mapping(
+        n4_record.get("representation_baseline"), "accepted N4 paired B0 baseline"
+    )
+    if (
+        b0_state != n4_state
+        or b0_primary.get("sha256") != b0_state[0]
+        or b0_primary.get("path") != n4_baseline.get("checkpoint_path")
+        or n4_baseline.get("checkpoint_sha256") != b0_state[0]
+        or n4_baseline.get("live_model_state_sha256") != b0_state[1]
+        or n4_baseline.get("live_ema_state_sha256") != b0_state[2]
+    ):
+        raise _fail("paired B0 checkpoint/model/EMA differs from the accepted N4 representation baseline")
+    return b0_config_sha
 
 
 def _arm_config(lock: Mapping[str, object], arm_id: str, model_seed: int) -> Sprint18ArmConfig:
@@ -1056,6 +1117,14 @@ def _build_bank_artifact_records(
         "input_manifest_path": inputs.manifest_path,
         "input_manifest_sha256": inputs.manifest_sha256,
         "task14_lock_path": inputs.task14_lock_path,
+        "arm_config_sha256": inputs.expected["arm_config_sha256"],
+        "paired_baseline_arm_config_sha256": inputs.expected[
+            "paired_baseline_arm_config_sha256"
+        ],
+        "paired_baseline_task14_lock_path": inputs.paired_baseline_task14_lock_path,
+        "paired_baseline_task14_lock_sha256": inputs.paired_baseline_task14_lock_sha256,
+        "paired_baseline_accepted_record_path": inputs.paired_baseline_accepted_record_path,
+        "paired_baseline_accepted_record_sha256": inputs.paired_baseline_accepted_record_sha256,
         "task14_lock_sha256": inputs.task14_lock_sha256,
         "handoff_path": inputs.handoff_path,
         "handoff_sha256": inputs.handoff_sha256,
@@ -1170,7 +1239,8 @@ def prepare_input_manifest(args: argparse.Namespace) -> dict[str, object]:
     handoff_path = Path(args.handoff).resolve()
     accepted_path = Path(args.accepted_record).resolve()
     data_root = Path(args.data_root).resolve()
-    lock = _mapping(_load_json(lock_path), "Task14 lock")
+    lock_bytes = lock_path.read_bytes()
+    lock = _mapping(json.loads(lock_bytes), "Task14 lock")
     accepted_record = _mapping(_load_json(accepted_path), "accepted arm record")
     if (
         accepted_record.get("status") != "ok"
@@ -1178,11 +1248,41 @@ def prepare_input_manifest(args: argparse.Namespace) -> dict[str, object]:
         or accepted_record.get("model_seed") != model_seed
     ):
         raise _fail("accepted record status/arm/seed does not match the manifest request")
-    arm = _arm_config(lock, arm_id, model_seed)
-    restore_arm = _arm_config(lock, _restore_arm_id(arm_id), model_seed)
+    paired_lock_path: Path | None = None
+    paired_record_path: Path | None = None
+    paired_record: Mapping[str, object] | None = None
+    paired_config_sha: str | None = None
+    if arm_id == "N4-CRN":
+        paired_lock_argument = getattr(args, "paired_baseline_task14_lock", None)
+        paired_record_argument = getattr(args, "paired_baseline_record", None)
+        if not paired_lock_argument or not paired_record_argument:
+            raise _fail(
+                "N4 requires explicit --paired-baseline-task14-lock and --paired-baseline-record"
+            )
+        if hashlib.sha256(lock_bytes).hexdigest() != N4_TASK14_LOCK_SHA256:
+            raise _fail("N4 scientific Task14 lock must be the accepted v9 authority")
+        paired_lock_path = Path(paired_lock_argument).resolve()
+        paired_record_path = Path(paired_record_argument).resolve()
+        paired_lock_bytes = paired_lock_path.read_bytes()
+        if hashlib.sha256(paired_lock_bytes).hexdigest() != B0_TASK14_LOCK_SHA256:
+            raise _fail("paired-B0 Task14 lock must be the accepted v1 authority")
+        paired_lock = _mapping(json.loads(paired_lock_bytes), "paired-B0 Task14 lock")
+        paired_record = _mapping(_load_json(paired_record_path), "accepted paired B0 record")
+        arm = _arm_config(lock, arm_id, model_seed)
+        restore_arm = _arm_config(paired_lock, B0_ARM_ID, model_seed)
+        paired_config_sha = _validate_n4_paired_baseline_record(
+            accepted_record, paired_record, restore_arm, model_seed
+        )
+    else:
+        if getattr(args, "paired_baseline_task14_lock", None) or getattr(
+            args, "paired_baseline_record", None
+        ):
+            raise _fail("paired-baseline authorities are only valid for N4-CRN")
+        arm = _arm_config(lock, arm_id, model_seed)
+        restore_arm = arm
     accepted_arm_sha = accepted_record.get("arm_config_sha256")
     if accepted_arm_sha != arm_config_sha256(arm):
-        raise _fail("accepted record arm config differs from the frozen Task14 lock")
+        raise _fail("accepted record arm config differs from its explicit Task14 lock")
 
     record_checkpoint_sha, model_state_sha, ema_state_sha = (
         _accepted_record_state_digests(accepted_record, arm_id)
@@ -1339,6 +1439,22 @@ def prepare_input_manifest(args: argparse.Namespace) -> dict[str, object]:
             "path": str(lock_path),
             "sha256": _sha256_file(lock_path),
         },
+        "paired_baseline": (
+            {
+                "arm_id": B0_ARM_ID,
+                "accepted_record": {
+                    "path": str(paired_record_path),
+                    "sha256": _sha256_file(paired_record_path),
+                },
+                "task14_lock": {
+                    "path": str(paired_lock_path),
+                    "sha256": _sha256_file(paired_lock_path),
+                },
+                "arm_config_sha256": paired_config_sha,
+            }
+            if paired_record_path is not None and paired_lock_path is not None
+            else None
+        ),
         "handoff": {
             "path": str(handoff_path),
             "sha256": _sha256_file(handoff_path),
@@ -1371,6 +1487,7 @@ def prepare_input_manifest(args: argparse.Namespace) -> dict[str, object]:
             "bank_order_id": order_id,
             "calibration_thresholds": accepted_thresholds,
             "development_support_sha256": development_support,
+            "paired_baseline_arm_config_sha256": paired_config_sha,
             "development_manifest_sha256": development_manifests,
         },
     }
@@ -1423,12 +1540,13 @@ def run_scores(args: argparse.Namespace) -> dict[str, object]:
     if binding.executable_binding_sha256 != inputs.expected["data_binding_sha256"]:
         raise _fail("certified DATA binding differs from the frozen manifest expectation")
     lock = _task14_lock(inputs)
-    restore_arm = _arm_config(lock, _restore_arm_id(inputs.arm_id), inputs.model_seed)
-    arm = (
-        _arm_config(lock, inputs.arm_id, inputs.model_seed)
-        if inputs.arm_id != restore_arm.arm_id
-        else restore_arm
-    )
+    if inputs.arm_id == "N4-CRN":
+        paired_lock = _paired_baseline_task14_lock(inputs)
+        restore_arm = _arm_config(paired_lock, B0_ARM_ID, inputs.model_seed)
+        arm = _arm_config(lock, inputs.arm_id, inputs.model_seed)
+    else:
+        restore_arm = _arm_config(lock, _restore_arm_id(inputs.arm_id), inputs.model_seed)
+        arm = restore_arm
     expected = inputs.expected
     accepted_record = _mapping(_load_json(inputs.accepted_record_path), "accepted arm record")
     if (
@@ -1437,6 +1555,18 @@ def run_scores(args: argparse.Namespace) -> dict[str, object]:
         or accepted_record.get("arm_config_sha256") != expected["arm_config_sha256"]
     ):
         raise _fail("input manifest arm/seed/config differs from the accepted arm record")
+    if inputs.arm_id == "N4-CRN":
+        if inputs.paired_baseline_accepted_record_path is None:
+            raise _fail("N4 manifest lacks its accepted paired B0 record")
+        paired_record = _mapping(
+            _load_json(inputs.paired_baseline_accepted_record_path),
+            "accepted paired B0 record",
+        )
+        paired_config_sha = _validate_n4_paired_baseline_record(
+            accepted_record, paired_record, restore_arm, inputs.model_seed
+        )
+        if paired_config_sha != expected["paired_baseline_arm_config_sha256"]:
+            raise _fail("N4 paired B0 record config differs from its frozen manifest digest")
     record_checkpoint_sha, record_model_sha, record_ema_sha = (
         _accepted_record_state_digests(accepted_record, inputs.arm_id)
     )
@@ -1653,7 +1783,7 @@ def run_scores(args: argparse.Namespace) -> dict[str, object]:
 
     document = {
         "schema_id": S.SUPPLEMENTARY_SCORES_SCHEMA_ID,
-        "schema_version": 2,
+        "schema_version": 3,
         "protocol_id": "sprint18-full-training-protocol-v2",
         "protocol_sha256": inputs.protocol_sha256,
         "phase": "development",
@@ -1687,6 +1817,13 @@ def run_scores(args: argparse.Namespace) -> dict[str, object]:
             "accepted_record_sha256": inputs.accepted_record_sha256,
             "task14_lock_path": inputs.task14_lock_path,
             "task14_lock_sha256": inputs.task14_lock_sha256,
+            "paired_baseline_task14_lock_path": inputs.paired_baseline_task14_lock_path,
+            "paired_baseline_task14_lock_sha256": inputs.paired_baseline_task14_lock_sha256,
+            "paired_baseline_accepted_record_path": inputs.paired_baseline_accepted_record_path,
+            "paired_baseline_accepted_record_sha256": inputs.paired_baseline_accepted_record_sha256,
+            "paired_baseline_arm_config_sha256": inputs.expected[
+                "paired_baseline_arm_config_sha256"
+            ],
             "handoff_path": inputs.handoff_path,
             "handoff_sha256": inputs.handoff_sha256,
             "seed_score_documents": [],
@@ -1697,6 +1834,9 @@ def run_scores(args: argparse.Namespace) -> dict[str, object]:
         },
         "reproduction": {
             "arm_config_sha256": arm_config_sha256(arm),
+            "paired_baseline_arm_config_sha256": inputs.expected[
+                "paired_baseline_arm_config_sha256"
+            ],
             "data_binding_sha256": binding.executable_binding_sha256,
             "model_state_sha256": checkpoint.model_state_sha256,
             "ema_state_sha256": checkpoint.ema_state_sha256,
@@ -1801,7 +1941,16 @@ def _verify_score_manifest_custody(
         or inputs["accepted_record_sha256"] != manifest.accepted_record_sha256
         or inputs["task14_lock_path"] != manifest.task14_lock_path
         or inputs["task14_lock_sha256"] != manifest.task14_lock_sha256
-        or inputs["handoff_path"] != manifest.handoff_path
+        or inputs["paired_baseline_task14_lock_path"]
+        != manifest.paired_baseline_task14_lock_path
+        or inputs["paired_baseline_task14_lock_sha256"]
+        != manifest.paired_baseline_task14_lock_sha256
+        or inputs["paired_baseline_accepted_record_path"]
+        != manifest.paired_baseline_accepted_record_path
+        or inputs["paired_baseline_accepted_record_sha256"]
+        != manifest.paired_baseline_accepted_record_sha256
+        or inputs["paired_baseline_arm_config_sha256"]
+        != expected["paired_baseline_arm_config_sha256"]
         or inputs["handoff_sha256"] != manifest.handoff_sha256
         or inputs["reference_artifact_path"] != manifest.reference_artifact["path"]
         or inputs["reference_artifact_sha256"] != manifest.reference_artifact["sha256"]
@@ -1810,6 +1959,8 @@ def _verify_score_manifest_custody(
         or execution["supplementary_definition_sha256"]
         != manifest.supplementary_definition_sha256
         or reproduction["arm_config_sha256"] != expected["arm_config_sha256"]
+        or reproduction["paired_baseline_arm_config_sha256"]
+        != expected["paired_baseline_arm_config_sha256"]
         or reproduction["data_binding_sha256"] != expected["data_binding_sha256"]
         or reproduction["model_state_sha256"] != expected["model_state_sha256"]
         or reproduction["ema_state_sha256"] != expected["ema_state_sha256"]
@@ -1826,6 +1977,29 @@ def _verify_score_manifest_custody(
     ):
         raise _fail("score document does not match its exact frozen input-manifest custody")
     accepted = _mapping(_load_json(manifest.accepted_record_path), "accepted arm record")
+    primary_lock = _task14_lock(manifest)
+    arm = _arm_config(primary_lock, manifest.arm_id, manifest.model_seed)
+    if arm_config_sha256(arm) != expected["arm_config_sha256"]:
+        raise _fail("score document scientific config differs from its bound Task14 authority")
+    if manifest.arm_id == "N4-CRN":
+        paired_lock = _paired_baseline_task14_lock(manifest)
+        restore_arm = _arm_config(paired_lock, B0_ARM_ID, manifest.model_seed)
+        if manifest.paired_baseline_accepted_record_path is None:
+            raise _fail("N4 score manifest lacks its accepted paired B0 record")
+        paired_record = _mapping(
+            _load_json(manifest.paired_baseline_accepted_record_path),
+            "accepted paired B0 record",
+        )
+        paired_config_sha = _validate_n4_paired_baseline_record(
+            accepted, paired_record, restore_arm, manifest.model_seed
+        )
+        if (
+            paired_config_sha != expected["paired_baseline_arm_config_sha256"]
+            or arm_config_sha256(restore_arm) != expected["checkpoint_arm_config_sha256"]
+        ):
+            raise _fail("score document paired-B0 config differs from its bound v1 authority")
+    elif arm_config_sha256(arm) != expected["checkpoint_arm_config_sha256"]:
+        raise _fail("score document checkpoint config differs from its Task14 authority")
     accepted_bank = _mapping(
         accepted.get("downstream")
         if manifest.arm_id == K9_ARM_ID
@@ -2060,6 +2234,12 @@ def _verify_score_bank_artifacts(
         "input_manifest_sha256",
         "task14_lock_path",
         "task14_lock_sha256",
+        "arm_config_sha256",
+        "paired_baseline_arm_config_sha256",
+        "paired_baseline_task14_lock_path",
+        "paired_baseline_task14_lock_sha256",
+        "paired_baseline_accepted_record_path",
+        "paired_baseline_accepted_record_sha256",
         "handoff_path",
         "handoff_sha256",
         "accepted_record_path",
@@ -2111,6 +2291,17 @@ def _verify_score_bank_artifacts(
         or provenance["input_manifest_sha256"] != inputs["manifest_sha256"]
         or provenance["task14_lock_path"] != inputs["task14_lock_path"]
         or provenance["task14_lock_sha256"] != inputs["task14_lock_sha256"]
+        or provenance["arm_config_sha256"] != reproduction["arm_config_sha256"]
+        or provenance["paired_baseline_arm_config_sha256"]
+        != reproduction["paired_baseline_arm_config_sha256"]
+        or provenance["paired_baseline_task14_lock_path"]
+        != inputs["paired_baseline_task14_lock_path"]
+        or provenance["paired_baseline_task14_lock_sha256"]
+        != inputs["paired_baseline_task14_lock_sha256"]
+        or provenance["paired_baseline_accepted_record_path"]
+        != inputs["paired_baseline_accepted_record_path"]
+        or provenance["paired_baseline_accepted_record_sha256"]
+        != inputs["paired_baseline_accepted_record_sha256"]
         or provenance["handoff_path"] != inputs["handoff_path"]
         or provenance["handoff_sha256"] != inputs["handoff_sha256"]
         or provenance["accepted_record_path"] != inputs["accepted_record_path"]
@@ -2209,7 +2400,14 @@ def _assert_n4_b0_parity(
         n4_reproduction = _mapping(n4["reproduction"])
         b0_reproduction = _mapping(b0["reproduction"])
         if (
-            n4_inputs["checkpoint_sha256"] != b0_inputs["checkpoint_sha256"]
+            n4_inputs["paired_baseline_task14_lock_path"] != b0_inputs["task14_lock_path"]
+            or n4_inputs["paired_baseline_task14_lock_sha256"] != b0_inputs["task14_lock_sha256"]
+            or n4_inputs["paired_baseline_accepted_record_path"] != b0_inputs["accepted_record_path"]
+            or n4_inputs["paired_baseline_accepted_record_sha256"]
+            != b0_inputs["accepted_record_sha256"]
+            or n4_inputs["paired_baseline_arm_config_sha256"]
+            != b0_reproduction["arm_config_sha256"]
+            or n4_inputs["checkpoint_sha256"] != b0_inputs["checkpoint_sha256"]
             or n4_reproduction["model_state_sha256"] != b0_reproduction["model_state_sha256"]
             or n4_reproduction["ema_state_sha256"] != b0_reproduction["ema_state_sha256"]
             or n4_reproduction["bank_sha256"] != b0_reproduction["bank_sha256"]
@@ -2217,7 +2415,7 @@ def _assert_n4_b0_parity(
             or n4_reproduction["bank_source_rows_sha256"]
             != b0_reproduction["bank_source_rows_sha256"]
         ):
-            raise _fail("N4 seed is not paired to the accepted B0 checkpoint/EMA/Fit bank")
+            raise _fail("N4 is not bound to the same accepted B0 lock, record, checkpoint, and Fit bank")
         n4_support = _mapping(n4["support"])
         b0_support = _mapping(b0["support"])
         for field in (
@@ -2636,7 +2834,7 @@ def run_metrics(args: argparse.Namespace) -> dict[str, object]:
     reference_artifact = inputs.reference_artifact
     document = {
         "schema_id": S.SUPPLEMENTARY_SCHEMA_ID,
-        "schema_version": 1,
+        "schema_version": 2,
         "protocol_id": "sprint18-full-training-protocol-v2",
         "protocol_sha256": inputs.protocol_sha256,
         "phase": "development",
@@ -2670,6 +2868,13 @@ def run_metrics(args: argparse.Namespace) -> dict[str, object]:
             "accepted_record_sha256": inputs.accepted_record_sha256,
             "task14_lock_path": inputs.task14_lock_path,
             "task14_lock_sha256": inputs.task14_lock_sha256,
+            "paired_baseline_task14_lock_path": inputs.paired_baseline_task14_lock_path,
+            "paired_baseline_task14_lock_sha256": inputs.paired_baseline_task14_lock_sha256,
+            "paired_baseline_accepted_record_path": inputs.paired_baseline_accepted_record_path,
+            "paired_baseline_accepted_record_sha256": inputs.paired_baseline_accepted_record_sha256,
+            "paired_baseline_arm_config_sha256": inputs.expected[
+                "paired_baseline_arm_config_sha256"
+            ],
             "handoff_path": inputs.handoff_path,
             "handoff_sha256": inputs.handoff_sha256,
             "seed_score_documents": [
@@ -2693,6 +2898,10 @@ def run_metrics(args: argparse.Namespace) -> dict[str, object]:
         "reproduction": {
             "arm_config_sha256_by_seed": [
                 str(_mapping(seed["reproduction"])["arm_config_sha256"])
+                for seed in seed_documents
+            ],
+            "paired_baseline_arm_config_sha256_by_seed": [
+                _mapping(seed["reproduction"]).get("paired_baseline_arm_config_sha256")
                 for seed in seed_documents
             ],
             "data_binding_sha256": str(
@@ -2835,6 +3044,16 @@ def _parser() -> argparse.ArgumentParser:
     manifest.add_argument("--model-seed", required=True, type=int)
     manifest.add_argument("--accepted-record", required=True)
     manifest.add_argument("--task14-lock", required=True)
+    manifest.add_argument(
+        "--paired-baseline-task14-lock",
+        default=None,
+        help="explicit accepted B0 Task14 lock; required with --arm N4-CRN",
+    )
+    manifest.add_argument(
+        "--paired-baseline-record",
+        default=None,
+        help="explicit accepted same-seed B0 record; required with --arm N4-CRN",
+    )
     manifest.add_argument("--handoff", required=True)
     manifest.add_argument("--data-root", required=True)
     manifest.add_argument("--source-commit", required=True)

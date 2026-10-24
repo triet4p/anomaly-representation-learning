@@ -1,6 +1,6 @@
-# Sprint 18 supplementary Development metric supplement v1
+# Sprint 18 supplementary Development metric contract v2
 
-**Identity:** prospective supplement `sprint18-supplementary-development-v1`
+**Identity:** prospective supplement `sprint18-supplementary-development-v2`
 **Scope:** supplementary **Development** metrics only, for the seven executable
 arms of `experiments/sprint18-full-training-protocol-v2.md` (SHA-256
 `e1dcd17914e920520ad0d8f50e185874b95414e6a4fe907903619daf145622d2`).
@@ -36,6 +36,7 @@ For one `(arm_id, model_seed)` the supplementary run consumes exactly:
 | Input | Frozen requirement |
 |---|---|
 | Checkpoint | Accepted epoch-100 checkpoint (N4: the paired B0 epoch-100 checkpoint). Exact bytes restored through the unchanged `restore_sprint18_checkpoint`; the restored model/EMA state digests must equal the accepted digests. |
+| Task 14 config authority | Non-N4 arms use the accepted v1 lock (`experiments/sprint18-task14-config-lock.json`, raw SHA-256 `c4c1a8bde14310cf4436c10762e3e98475f7c84eb74fcb8a74b3e267885edec3`). N4 uses the separate accepted scientific v9 lock (`experiments/sprint18-task14-config-lock-v9.json`, raw SHA-256 `a9990bd189706a0fdadfeaee422ef307599e3f4d9c5a72102dfa1f015d5cd57a`) plus its same-seed accepted B0 record and the v1 B0 config. These authorities are never inferred or selected from outcomes. |
 | Reference state | K9: the persisted `k9_downstream.pt` restored byte-for-byte, provenance re-checked against arm/seed/checkpoint/binding. N4: the final `s18-n4-scale-checkpoint-v2` envelope restored strictly, bounds re-checked. B0/K3/K7/N2/N3: see §1.1. |
 | Fit support | The complete certified Fit-healthy support (5,446 rows), fixed to the accepted membership/order, is used to restore the exact historical bank where required (§1.1) and as the stability-ratio denominator. No bank, threshold, standardizer, or weight is fitted from Development. |
 | Calibration support | The complete certified Calibration-healthy support (1,877 rows). The **operative** per-branch q95 thresholds are the accepted values from custody; the Calibration re-score only *verifies* that they reproduce (≤1e-12 absolute) and aborts on mismatch. Re-scoring never reselects a threshold. |
@@ -59,6 +60,17 @@ bank digest must equal the accepted historical `bank_sha256`. A mismatch aborts
 before any score or bank artifact is published. There is no retry, alternate
 order/recipe/options, or new scientific bank.
 
+For N4, the accepted scientific config comes only from v9; the paired restore
+config comes only from v1 and its same-seed accepted B0 record. The v1 lock's N4
+config entries do not match the accepted N4 records, and v9 contains no B0
+config. Preserve the distinct identities: N4 scientific run source
+`6ffcfc9f4ab339604ff201abb75f9d18fb12466d`, v9 lock source
+`1d9a646e9f57051fdc582e950919905f1dd70326`, and Task 30 report-only source
+`1cc11165852fa90a6c4284725dadd9e234e7381f`. The report-only v11 lock
+(`ba93edda451fcf66607a49b00a88c5f9ad54e9af0f581e8ae568cf482b9bfed7`) is
+not an accepted scientific N4 authority. No lock/config or accepted record is
+merged, relabelled, or migrated.
+
 | Arm | `S_pred` state | `S_pop` state | Frozen behavior |
 |---|---|---|---|
 | `K9-FULL` | Accepted checkpoint and persisted `s18-k9-downstream-state-v1` restored as-is | Same persisted downstream state restored as-is | No Fit-bank reconstruction |
@@ -71,8 +83,8 @@ digest
 per-arm/per-seed historical bank digests and accepted-record pointers are listed
 in `artifacts/sprint-18/task-32-source-c03.md`. Preflight also checks the
 qualified Fit history roster, full row provenance, data binding, checkpoint,
-model/EMA digests, accepted thresholds, and (for N4) the final scale roster and
-paired B0 threshold.
+model/EMA digests, accepted thresholds, Development support, and (for N4) the
+final scale roster and paired B0 threshold.
 
 After a successful exact digest match, the runner publishes an append-only
 `bank.pt` byte artifact beside a closed `provenance.json` carrying all input
@@ -181,26 +193,39 @@ when the subtype has no evaluable event or no control exists.
 
 ## 4. Additive schema and strict consumer compatibility
 
-**Input manifest** `sprint18-supplementary-input-manifest-v1` (closed): protocol
+**Input manifest** `sprint18-supplementary-input-manifest-v3` (closed): protocol
 and supplement bytes, metric-code digest, source commit, arm, seed, scope
-`experiment`, phase `development`, certified data root, Task 14 lock, certified
-DATA handoff, accepted record, checkpoint, reference artifact
-(`k9_downstream` | `n4_scale` | `none`), and the expected digests (arm config,
-model/EMA state, DATA binding, bank, accepted thresholds, Development manifest
-and support digests). Every referenced file is re-hashed and every digest
-compared before inference.
+`experiment`, phase `development`, certified data root, primary Task 14 lock,
+certified DATA handoff, accepted record, checkpoint, reference artifact
+(`k9_downstream` | `n4_scale` | `none`), and expected digests (arm config,
+checkpoint config, model/EMA state, DATA binding, bank, accepted thresholds,
+Development manifest/support). N4 alone has a `paired_baseline` object binding
+the same-seed accepted B0 record, exact v1 lock path/raw SHA, and B0 config
+digest separately from its v9 scientific config. Non-N4 pair fields are null.
+Every referenced file is re-hashed and every digest compared before inference.
 
-**Score document** `sprint18-supplementary-scores-v1` (closed): per-file
+**Score document** `sprint18-supplementary-scores-v3` (closed): per-file
 `S_pred`/`S_pop` maps for Fit-healthy, Calibration-healthy, and the four
 Development histories; compact localization diagnostics plus the timestep-vector
 digest; support counts; and reproduction records for accepted/recomputed q95
 thresholds, bank and provenance byte artifacts, `encoder_updates = 0`,
-`representation_state_unchanged`, and `reference_state_unchanged`.
+`representation_state_unchanged`, and `reference_state_unchanged`. N4 score
+custody repeats its separate v9 science lock and v1 paired-B0 lock/record/config
+digests; restore uses the v1 B0 config while N4 scale state uses v9.
 
-**Metric document** `sprint18-supplementary-development-v1` (closed):
+**Bank artifact/provenance:** non-K9 bank bytes keep
+`sprint18-fit-reference-bank-v2`; immutable provenance uses
+`sprint18-fit-reference-bank-provenance-v3` and carries the paired-B0 authority
+paths, raw hashes, accepted-record hash, and config digest for N4.
+
+**Metric document** `sprint18-supplementary-development-v2` (closed):
 `phase = development`, `arm_id`, `execution`, `inputs` (with the three seed
 score documents and, for non-B0 arms, the three B0 baseline documents),
 `reproduction`, `support`, `metric_definitions`, and `branches`. Each branch has:
+
+For N4, `reproduction` carries the separate per-seed scientific and paired-B0
+config digests; each paired authority must equal that seed's accepted B0 score
+document.
 
 - `thresholds_by_seed` — the three accepted q95 thresholds;
 - `per_seed` — the raw 3×4 seed/history cells, each carrying the frozen v2
@@ -214,6 +239,9 @@ Compatibility is proven executable, not asserted: the per-seed row's v2
 projection must validate under the unchanged v2 validator, and the complete row
 (with `duration_accounting`) must still be refused by it
 (`_assert_v2_refuses_supplementary_row`, run at import).
+
+There is no v1 input/score or v2 bank-provenance compatibility shim. Existing
+accepted v1/v9 lock and record bytes remain unchanged.
 
 `VALID` additionally requires every family (including the duration medians and
 the aggregate uncertainty) to be non-null on its fixed support, mirroring §10's
@@ -240,21 +268,32 @@ the aggregate uncertainty) to be non-null on its fixed support, mirroring §10's
 
 ### 5.1 Exact accepted-input manifest preparation
 
-Do not prepare normative manifests or run normative scoring until the fresh
-C03 same-level source review, separate Bronze checkpoint, and isolated-server
-synchronization have passed. The exact Task 14 lock, certified Task 71 handoff,
-DATA root, accepted-record path map, and historical per-seed bank digests are
-listed in `artifacts/sprint-18/task-32-source-c03.md`; do not infer or substitute
-any of those inputs.
+Do not prepare normative manifests or run normative scoring until a fresh
+same-level review of the final source candidate, a separate Bronze checkpoint,
+and isolated-server synchronization have passed. The exact Task 14 authorities,
+certified Task 71 handoff, DATA root, accepted-record path map, and historical
+per-seed bank digests are listed in `artifacts/sprint-18/task-32-source-c03.md`;
+do not infer or substitute any of those inputs.
+
+A narrowly scoped pre-gate source proof may invoke the public
+`prepare-manifest` CLI on the 21 actual accepted `(arm, seed)` records. Those
+unique-path manifests are metadata-only, explicitly nonnormative, and must not
+be reused after review/publication; they do not authorize scores, bank
+reconstruction, checkpoint inference, or Confirmation access.
 
 On the isolated synced worktree, invoke the public
 `experiments/sprint18_task32_supplementary_runner.py prepare-manifest` CLI once
 per accepted `(arm, seed)`, using its required `--arm`, `--model-seed`,
 `--accepted-record`, `--task14-lock`, `--handoff`, `--data-root`,
-`--source-commit`, and append-only `--out` arguments. The source commit must be
-the exact lowercase 40-hex reviewed/synced commit selected after those gates;
-C03 does not supply a future commit value. The generator derives checkpoint
-paths from `primary.path` (or N4's paired
+`--source-commit`, and append-only `--out` arguments. For N4, `--task14-lock`
+must bind the accepted v9 scientific config; the explicit
+`--paired-baseline-task14-lock` must bind the accepted v1 B0 config and
+`--paired-baseline-record` the same-seed accepted B0 record. Non-N4 invocations
+must not supply paired-baseline flags. There is no fallback to another lock.
+The normative source commit must be the exact lowercase 40-hex reviewed/synced
+commit selected after those gates; the pre-gate proof does not supply a future
+normative commit value.
+The generator derives checkpoint paths from `primary.path` (or N4's paired
 `representation_baseline.checkpoint_path`) and K9/N4 reference paths from the
 accepted record. Optional path overrides are only for staged byte-identical
 copies whose SHA-256 still equals accepted custody; B0/K3/K7/N2/N3 cannot name
@@ -265,8 +304,9 @@ row digest, accepted bank digest/count, arm and checkpoint/model/EMA digests,
 accepted q95 thresholds, Development manifest/support digests, and N4 final
 scale histories/bounds plus paired-B0 `S_pop` threshold. Its output reports the
 closed manifest SHA-256 and a complete `input_sha256` map of protocol,
-supplement, source code, lock, handoff, accepted record, checkpoint/reference
-artifacts, certified DATA binding, role manifests, and every referenced shard.
+supplement, source code, each applicable Task 14 lock authority, handoff,
+accepted record, checkpoint/reference artifacts, certified DATA binding, role
+manifests, and every referenced shard.
 The subsequent score document and immutable bank provenance bind these exact
 inputs again before/after scoring. Never hand-author or relax an input manifest.
 

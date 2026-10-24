@@ -22,6 +22,10 @@ import pytest
 from representation import sprint18_supplementary as S
 from representation.sprint18_harness import _validate_history_metric
 
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+_TASK14_V1_LOCK = _REPO_ROOT / "experiments/sprint18-task14-config-lock.json"
+_TASK14_V9_LOCK = _REPO_ROOT / "experiments/sprint18-task14-config-lock-v9.json"
+
 
 def _row(file_id: str, end: float, **extra: object) -> dict[str, object]:
     row: dict[str, object] = {
@@ -315,7 +319,7 @@ def test_branch_aggregation_applies_frozen_seed_averaging_and_uncertainty() -> N
 def _document(branch: dict[str, object]) -> dict[str, object]:
     return {
         "schema_id": S.SUPPLEMENTARY_SCHEMA_ID,
-        "schema_version": 1,
+        "schema_version": 2,
         "protocol_id": "sprint18-full-training-protocol-v2",
         "protocol_sha256": "e1dcd17914e920520ad0d8f50e185874b95414e6a4fe907903619daf145622d2",
         "phase": "development",
@@ -323,8 +327,8 @@ def _document(branch: dict[str, object]) -> dict[str, object]:
         "model_seed": 181801,
         "execution": {
             "task_id": "S18-T32",
-            "attempt_id": "S18T32C02",
-            "agent_id": "S18T32C02",
+            "attempt_id": "S18T32C05-TEST",
+            "agent_id": "S18T32C05",
             "source_commit": "1" * 40,
             "protocol_path": str(S.PROTOCOL_PATH.resolve()),
             "metric_code_path": str(Path(S.__file__).resolve()),
@@ -349,18 +353,32 @@ def _document(branch: dict[str, object]) -> dict[str, object]:
             "reference_artifact_sha256": None,
             "accepted_record_path": "a.json",
             "accepted_record_sha256": "0" * 64,
-            "task14_lock_path": "l.json",
-            "task14_lock_sha256": "1" * 64,
+            "task14_lock_path": str(_TASK14_V1_LOCK),
+            "task14_lock_sha256": S.TASK14_LOCK_V1_SHA256,
+            "paired_baseline_task14_lock_path": None,
+            "paired_baseline_task14_lock_sha256": None,
+            "paired_baseline_accepted_record_path": None,
+            "paired_baseline_accepted_record_sha256": None,
+            "paired_baseline_arm_config_sha256": None,
             "handoff_path": "h.json",
             "handoff_sha256": "2" * 64,
             "seed_score_documents": [{"path": "s.json", "sha256": "3" * 64}] * 3,
             "baseline_score_documents": [],
-            "sha256_before": {"checkpoint": "f" * 64},
-            "sha256_after": {"checkpoint": "f" * 64},
+            "sha256_before": {
+                "checkpoint": "f" * 64,
+                "accepted_record": "0" * 64,
+                "task14_lock": S.TASK14_LOCK_V1_SHA256,
+            },
+            "sha256_after": {
+                "checkpoint": "f" * 64,
+                "accepted_record": "0" * 64,
+                "task14_lock": S.TASK14_LOCK_V1_SHA256,
+            },
             "unchanged": True,
         },
         "reproduction": {
             "arm_config_sha256_by_seed": ["4" * 64] * 3,
+            "paired_baseline_arm_config_sha256_by_seed": [None] * 3,
             "data_binding_sha256": "5" * 64,
             "model_state_sha256_by_seed": ["6" * 64] * 3,
             "ema_state_sha256_by_seed": ["7" * 64] * 3,
@@ -460,7 +478,7 @@ def test_closed_supplementary_schema_accepts_valid_and_rejects_drift() -> None:
     with pytest.raises(ValueError):
         S.validate_supplementary_result(tampered(phase="confirmation"))
     with pytest.raises(ValueError):
-        S.validate_supplementary_result(tampered(schema_id="sprint18-supplementary-development-v2"))
+        S.validate_supplementary_result(tampered(schema_id="sprint18-supplementary-development-v1"))
     with pytest.raises(ValueError):
         S.validate_supplementary_result(tampered(arm_id="N1-HCC"))
     with pytest.raises(ValueError):
@@ -493,8 +511,6 @@ def _manifest(tmp_path: Path, **changes: object) -> Path:
     tmp_path.mkdir(parents=True, exist_ok=True)
     checkpoint = tmp_path / "checkpoint.pt"
     checkpoint.write_bytes(b"fixture-checkpoint")
-    lock = tmp_path / "lock.json"
-    lock.write_bytes(b"{}")
     handoff = tmp_path / "handoff.json"
     handoff.write_bytes(b"{}")
     accepted = tmp_path / "accepted.json"
@@ -514,8 +530,12 @@ def _manifest(tmp_path: Path, **changes: object) -> Path:
         "data_root": str(data_root),
         "arm_id": "B0-FULL",
         "model_seed": 181801,
-        "task14_lock": {"path": str(lock), "sha256": hashlib.sha256(b"{}").hexdigest()},
+        "task14_lock": {
+            "path": str(_TASK14_V1_LOCK),
+            "sha256": S.TASK14_LOCK_V1_SHA256,
+        },
         "handoff": {"path": str(handoff), "sha256": hashlib.sha256(b"{}").hexdigest()},
+        "paired_baseline": None,
         "accepted_record": {"path": str(accepted), "sha256": hashlib.sha256(b"{}").hexdigest()},
         "checkpoint": {
             "path": str(checkpoint),
@@ -530,7 +550,8 @@ def _manifest(tmp_path: Path, **changes: object) -> Path:
         },
         "expected": {
             "arm_config_sha256": "3" * 64,
-            "checkpoint_arm_config_sha256": "a" * 64,
+            "checkpoint_arm_config_sha256": "3" * 64,
+            "paired_baseline_arm_config_sha256": None,
             "data_binding_sha256": "4" * 64,
             "model_state_sha256": "5" * 64,
             "ema_state_sha256": "6" * 64,
@@ -548,6 +569,171 @@ def _manifest(tmp_path: Path, **changes: object) -> Path:
     path = tmp_path / "manifest.json"
     path.write_text(json.dumps(document), encoding="utf-8")
     return path
+
+
+def _n4_manifest(tmp_path: Path) -> Path:
+    path = _manifest(tmp_path, arm_id="N4-CRN")
+    document = json.loads(path.read_text(encoding="utf-8"))
+    document["task14_lock"] = {
+        "path": str(_TASK14_V9_LOCK),
+        "sha256": S.N4_SCIENTIFIC_TASK14_LOCK_V9_SHA256,
+    }
+    checkpoint = document["checkpoint"]
+    checkpoint_path = checkpoint["path"]
+    checkpoint_sha = checkpoint["sha256"]
+    b0_config_sha = "c" * 64
+    n4_config_sha = "d" * 64
+    model_sha = document["expected"]["model_state_sha256"]
+    ema_sha = document["expected"]["ema_state_sha256"]
+    scale_path = tmp_path / "n4-scale.pt"
+    scale_path.write_bytes(b"fixture-scale")
+    document["reference_artifact"] = {
+        "kind": "n4_scale",
+        "path": str(scale_path),
+        "sha256": hashlib.sha256(scale_path.read_bytes()).hexdigest(),
+        "fit_scope": "final",
+        "bounds": {"v_floor": 1e-5, "v_cap": 100.0},
+    }
+
+    baseline_lock_path = _TASK14_V1_LOCK
+    baseline_record_path = tmp_path / "accepted-b0.json"
+    baseline_record = {
+        "status": "ok",
+        "arm_id": "B0-FULL",
+        "model_seed": 181801,
+        "arm_config_sha256": b0_config_sha,
+        "primary": {
+            "path": checkpoint_path,
+            "sha256": checkpoint_sha,
+            "restored_checkpoint_sha256": checkpoint_sha,
+            "live_model_state_sha256": model_sha,
+            "live_ema_state_sha256": ema_sha,
+        },
+    }
+    baseline_record_bytes = json.dumps(baseline_record).encode("utf-8")
+    baseline_record_path.write_bytes(baseline_record_bytes)
+    n4_record = {
+        "status": "ok",
+        "arm_id": "N4-CRN",
+        "model_seed": 181801,
+        "arm_config_sha256": n4_config_sha,
+        "coherent_checkpoint": {
+            "paired_b0_checkpoint_sha256": checkpoint_sha,
+            "restored_model_state_sha256": model_sha,
+            "restored_ema_state_sha256": ema_sha,
+        },
+        "representation_baseline": {
+            "checkpoint_path": checkpoint_path,
+            "checkpoint_sha256": checkpoint_sha,
+            "live_model_state_sha256": model_sha,
+            "live_ema_state_sha256": ema_sha,
+        },
+    }
+    accepted_record_path = Path(document["accepted_record"]["path"])
+    accepted_record_bytes = json.dumps(n4_record).encode("utf-8")
+    accepted_record_path.write_bytes(accepted_record_bytes)
+    document["accepted_record"]["sha256"] = hashlib.sha256(
+        accepted_record_bytes
+    ).hexdigest()
+    document["paired_baseline"] = {
+        "arm_id": "B0-FULL",
+        "accepted_record": {
+            "path": str(baseline_record_path),
+            "sha256": hashlib.sha256(baseline_record_bytes).hexdigest(),
+        },
+        "task14_lock": {
+            "path": str(baseline_lock_path),
+            "sha256": S.TASK14_LOCK_V1_SHA256,
+        },
+        "arm_config_sha256": b0_config_sha,
+    }
+    document["expected"]["arm_config_sha256"] = n4_config_sha
+    document["expected"]["checkpoint_arm_config_sha256"] = b0_config_sha
+    document["expected"]["paired_baseline_arm_config_sha256"] = b0_config_sha
+    path.write_text(json.dumps(document), encoding="utf-8")
+    return path
+
+
+def test_n4_manifest_requires_distinct_digest_bound_paired_b0_authority(
+    tmp_path: Path,
+) -> None:
+    path = _n4_manifest(tmp_path)
+    inputs = S.load_frozen_input_manifest(path)
+    assert inputs.task14_lock_sha256 != inputs.paired_baseline_task14_lock_sha256
+    assert inputs.task14_lock_sha256 == S.N4_SCIENTIFIC_TASK14_LOCK_V9_SHA256
+    assert inputs.paired_baseline_task14_lock_sha256 == S.TASK14_LOCK_V1_SHA256
+    assert inputs.expected["checkpoint_arm_config_sha256"] == "c" * 64
+    assert inputs.expected["arm_config_sha256"] == "d" * 64
+    assert set(S.compute_input_digests(inputs)) >= {
+        "paired_baseline_task14_lock",
+        "paired_baseline_accepted_record",
+    }
+
+    wrong_science = json.loads(path.read_text(encoding="utf-8"))
+    wrong_science["task14_lock"] = {
+        "path": str(_TASK14_V1_LOCK),
+        "sha256": S.TASK14_LOCK_V1_SHA256,
+    }
+    wrong_science_path = tmp_path / "wrong-science-lock.json"
+    wrong_science_path.write_text(json.dumps(wrong_science), encoding="utf-8")
+    with pytest.raises(ValueError, match="accepted N4 scientific v9"):
+        S.load_frozen_input_manifest(wrong_science_path)
+
+    wrong_pair = json.loads(path.read_text(encoding="utf-8"))
+    wrong_pair["paired_baseline"]["task14_lock"] = {
+        "path": str(_TASK14_V9_LOCK),
+        "sha256": S.N4_SCIENTIFIC_TASK14_LOCK_V9_SHA256,
+    }
+    wrong_pair_path = tmp_path / "wrong-paired-lock.json"
+    wrong_pair_path.write_text(json.dumps(wrong_pair), encoding="utf-8")
+    with pytest.raises(ValueError, match="accepted v1 authority"):
+        S.load_frozen_input_manifest(wrong_pair_path)
+    document = json.loads(path.read_text(encoding="utf-8"))
+    document["paired_baseline"]["arm_config_sha256"] = "e" * 64
+    path.write_text(json.dumps(document), encoding="utf-8")
+    with pytest.raises(ValueError, match="paired baseline config digest"):
+        S.load_frozen_input_manifest(path)
+
+
+def test_closed_metric_validation_binds_distinct_n4_task14_authorities() -> None:
+    document = _document(_branch())
+    document["arm_id"] = "N4-CRN"
+    document["status"] = "INVALID"
+    document["failure_reasons"] = ["fixture-only invalid metric row"]
+    inputs = document["inputs"]
+    inputs["task14_lock_path"] = str(_TASK14_V9_LOCK)
+    inputs["task14_lock_sha256"] = S.N4_SCIENTIFIC_TASK14_LOCK_V9_SHA256
+    inputs["paired_baseline_task14_lock_path"] = str(_TASK14_V1_LOCK)
+    inputs["paired_baseline_task14_lock_sha256"] = S.TASK14_LOCK_V1_SHA256
+    inputs["paired_baseline_accepted_record_path"] = "accepted-b0.json"
+    inputs["paired_baseline_accepted_record_sha256"] = "a" * 64
+    inputs["paired_baseline_arm_config_sha256"] = "c" * 64
+    for name in ("sha256_before", "sha256_after"):
+        inputs[name]["task14_lock"] = S.N4_SCIENTIFIC_TASK14_LOCK_V9_SHA256
+        inputs[name]["paired_baseline_task14_lock"] = S.TASK14_LOCK_V1_SHA256
+        inputs[name]["paired_baseline_accepted_record"] = "a" * 64
+    document["reproduction"]["paired_baseline_arm_config_sha256_by_seed"] = ["c" * 64] * 3
+    S.validate_supplementary_result(document)
+
+    for field, value in (
+        ("task14_lock_sha256", S.TASK14_LOCK_V1_SHA256),
+        ("paired_baseline_task14_lock_sha256", S.N4_SCIENTIFIC_TASK14_LOCK_V9_SHA256),
+    ):
+        tampered = json.loads(json.dumps(document))
+        tampered["inputs"][field] = value
+        with pytest.raises(ValueError):
+            S.validate_supplementary_result(tampered)
+
+    tampered = json.loads(json.dumps(document))
+    tampered["inputs"]["paired_baseline_task14_lock_path"] = str(_TASK14_V9_LOCK)
+    with pytest.raises(ValueError, match="must be distinct"):
+        S.validate_supplementary_result(tampered)
+
+    tampered = json.loads(json.dumps(document))
+    del tampered["inputs"]["sha256_before"]["paired_baseline_task14_lock"]
+    del tampered["inputs"]["sha256_after"]["paired_baseline_task14_lock"]
+    with pytest.raises(ValueError, match="raw custody digest"):
+        S.validate_supplementary_result(tampered)
 
 
 def test_frozen_input_manifest_enforces_the_metric_code_and_identity(tmp_path: Path) -> None:

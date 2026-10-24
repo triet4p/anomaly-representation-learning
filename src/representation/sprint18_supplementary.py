@@ -97,19 +97,21 @@ __all__ = [
 ]
 
 #: Closed supplementary result identity. A new version is required for any change.
-SUPPLEMENTARY_SCHEMA_ID = "sprint18-supplementary-development-v1"
-SUPPLEMENTARY_SCHEMA_VERSION = 1
+SUPPLEMENTARY_SCHEMA_ID = "sprint18-supplementary-development-v2"
+SUPPLEMENTARY_SCHEMA_VERSION = 2
 
 #: Frozen supplementary input-manifest identity (custody contract).
-SUPPLEMENTARY_INPUT_SCHEMA_ID = "sprint18-supplementary-input-manifest-v2"
+SUPPLEMENTARY_INPUT_SCHEMA_ID = "sprint18-supplementary-input-manifest-v3"
 
 #: Frozen per-file score document identity (runner output / metric consumer input).
-SUPPLEMENTARY_SCORES_SCHEMA_ID = "sprint18-supplementary-scores-v2"
+SUPPLEMENTARY_SCORES_SCHEMA_ID = "sprint18-supplementary-scores-v3"
+TASK14_LOCK_V1_SHA256 = "c4c1a8bde14310cf4436c10762e3e98475f7c84eb74fcb8a74b3e267885edec3"
+N4_SCIENTIFIC_TASK14_LOCK_V9_SHA256 = "a9990bd189706a0fdadfeaee422ef307599e3f4d9c5a72102dfa1f015d5cd57a"
 
 BANK_RECIPE_ID = "sprint18-fit-bank-restore-v1"
 BANK_ORDER_ID = "global-file-id-ascending-v1"
 BANK_ARTIFACT_SCHEMA_ID = "sprint18-fit-reference-bank-v2"
-BANK_PROVENANCE_SCHEMA_ID = "sprint18-fit-reference-bank-provenance-v2"
+BANK_PROVENANCE_SCHEMA_ID = "sprint18-fit-reference-bank-provenance-v3"
 K9_BANK_RECIPE_ID = "s18-k9-downstream-state-v1"
 K9_BANK_ORDER_ID = "persisted-downstream-order-v1"
 
@@ -189,6 +191,11 @@ SUPPLEMENTARY_INPUTS_KEYS = frozenset(
         "accepted_record_sha256",
         "task14_lock_path",
         "task14_lock_sha256",
+        "paired_baseline_task14_lock_path",
+        "paired_baseline_task14_lock_sha256",
+        "paired_baseline_accepted_record_path",
+        "paired_baseline_accepted_record_sha256",
+        "paired_baseline_arm_config_sha256",
         "handoff_path",
         "handoff_sha256",
         "seed_score_documents",
@@ -202,6 +209,7 @@ SUPPLEMENTARY_INPUTS_KEYS = frozenset(
 SUPPLEMENTARY_REPRODUCTION_KEYS = frozenset(
     {
         "arm_config_sha256_by_seed",
+        "paired_baseline_arm_config_sha256_by_seed",
         "data_binding_sha256",
         "model_state_sha256_by_seed",
         "ema_state_sha256_by_seed",
@@ -223,6 +231,7 @@ SUPPLEMENTARY_REPRODUCTION_KEYS = frozenset(
 SCORES_REPRODUCTION_KEYS = frozenset(
     {
         "arm_config_sha256",
+        "paired_baseline_arm_config_sha256",
         "data_binding_sha256",
         "model_state_sha256",
         "ema_state_sha256",
@@ -401,6 +410,69 @@ def _validate_execution_paths(execution: Mapping[str, object], label: str) -> No
         raise ValueError(f"{label}.metric_code_sha256 differs from the executed source bytes")
     if _hash_file(SUPPLEMENTARY_DEFINITION_PATH) != execution["supplementary_definition_sha256"]:
         raise ValueError(f"{label}.supplementary_definition_sha256 differs from the source document bytes")
+
+
+def _validate_paired_baseline_fields(
+    inputs: Mapping[str, object], arm_id: object, label: str
+) -> None:
+    primary_path = inputs["task14_lock_path"]
+    if not isinstance(primary_path, str) or not primary_path:
+        raise ValueError(f"{label}.task14_lock_path must be a non-empty path")
+    primary_sha = _require_hash(inputs["task14_lock_sha256"], f"{label}.task14_lock_sha256")
+    expected_primary_sha = (
+        N4_SCIENTIFIC_TASK14_LOCK_V9_SHA256 if arm_id == "N4-CRN" else TASK14_LOCK_V1_SHA256
+    )
+    if primary_sha != expected_primary_sha:
+        authority = "accepted N4 scientific v9" if arm_id == "N4-CRN" else "accepted v1"
+        raise ValueError(f"{label}.task14_lock_sha256 is not the {authority} authority")
+
+    names = (
+        "paired_baseline_task14_lock_path",
+        "paired_baseline_task14_lock_sha256",
+        "paired_baseline_accepted_record_path",
+        "paired_baseline_accepted_record_sha256",
+        "paired_baseline_arm_config_sha256",
+    )
+    values = [inputs[name] for name in names]
+    if arm_id == "N4-CRN":
+        if any(not isinstance(value, str) or not value for value in (values[0], values[2])):
+            raise ValueError(f"{label} N4 paired-B0 custody paths must be non-empty")
+        for name, value in zip(names[1::2], (values[1], values[3]), strict=True):
+            _require_hash(value, f"{label}.{name}")
+        _require_hash(values[4], f"{label}.{names[4]}")
+        if values[1] != TASK14_LOCK_V1_SHA256:
+            raise ValueError(f"{label}.paired_baseline_task14_lock_sha256 is not the accepted v1 authority")
+        if values[0] == primary_path or values[1] == primary_sha:
+            raise ValueError(f"{label} N4 scientific and paired-B0 Task14 authorities must be distinct")
+    elif any(value is not None for value in values):
+        raise ValueError(f"{label} only N4 may declare a paired-B0 authority")
+
+
+def _validate_task14_authority_digest_map(
+    inputs: Mapping[str, object],
+    arm_id: object,
+    digests: Mapping[str, str],
+    label: str,
+) -> None:
+    expected = {
+        "task14_lock": inputs["task14_lock_sha256"],
+        "accepted_record": inputs["accepted_record_sha256"],
+    }
+    if arm_id == "N4-CRN":
+        expected.update(
+            {
+                "paired_baseline_task14_lock": inputs["paired_baseline_task14_lock_sha256"],
+                "paired_baseline_accepted_record": inputs["paired_baseline_accepted_record_sha256"],
+            }
+        )
+    elif any(
+        name in digests
+        for name in ("paired_baseline_task14_lock", "paired_baseline_accepted_record")
+    ):
+        raise ValueError(f"{label} non-N4 digest map declares paired-B0 custody")
+    for name, digest in expected.items():
+        if digests.get(name) != digest:
+            raise ValueError(f"{label}.{name} raw custody digest is missing or differs")
 
 
 # ---------------------------------------------------------------------------
@@ -1076,7 +1148,7 @@ def _validate_branch(value: object, label: str) -> None:
 
 
 def validate_supplementary_result(result: Mapping[str, object]) -> Mapping[str, object]:
-    """Validate the closed supplementary v1 document and its v2 projection.
+    """Validate the closed supplementary v2 document and its v2 projection.
 
     Additive-versioning proof: every per-history row's v2 projection must pass
     the unchanged frozen v2 history validator, while the complete row (with
@@ -1085,7 +1157,7 @@ def validate_supplementary_result(result: Mapping[str, object]) -> Mapping[str, 
     """
     row = _closed_keys(result, SUPPLEMENTARY_RESULT_KEYS, "supplementary result")
     if row["schema_id"] != SUPPLEMENTARY_SCHEMA_ID or row["schema_version"] != SUPPLEMENTARY_SCHEMA_VERSION:
-        raise ValueError(f"supplementary result identity must be exactly {SUPPLEMENTARY_SCHEMA_ID} v1")
+        raise ValueError(f"supplementary result identity must be exactly {SUPPLEMENTARY_SCHEMA_ID} v2")
     if row["protocol_id"] != PROTOCOL_ID or row["protocol_sha256"] != PROTOCOL_SHA256:
         raise ValueError("supplementary result must bind the accepted v2 protocol bytes")
     if row["phase"] != _PHASE:
@@ -1122,6 +1194,7 @@ def validate_supplementary_result(result: Mapping[str, object]) -> Mapping[str, 
         "handoff_sha256",
     ):
         _require_hash(inputs[name], f"supplementary inputs.{name}")
+    _validate_paired_baseline_fields(inputs, arm_id, "supplementary inputs")
     if not isinstance(inputs["data_root"], str) or not inputs["data_root"]:
         raise ValueError("supplementary inputs.data_root must be a non-empty path")
     for name in ("reference_artifact_sha256",):
@@ -1145,6 +1218,7 @@ def validate_supplementary_result(result: Mapping[str, object]) -> Mapping[str, 
     after = _require_digest_map(inputs["sha256_after"], "supplementary inputs.sha256_after")
     if dict(before) != dict(after):
         raise ValueError("immutable input digest proof is missing or changed")
+    _validate_task14_authority_digest_map(inputs, arm_id, before, "supplementary inputs.sha256_before")
     if inputs["unchanged"] is not True:
         raise ValueError("immutable inputs must be unchanged for a supplementary result")
     reproduction = _closed_keys(row["reproduction"], SUPPLEMENTARY_REPRODUCTION_KEYS, "supplementary reproduction")
@@ -1161,6 +1235,16 @@ def validate_supplementary_result(result: Mapping[str, object]) -> Mapping[str, 
             raise ValueError(f"supplementary reproduction.{name} must have one digest per seed")
         for index, value in enumerate(values):
             _require_hash(value, f"supplementary reproduction.{name}[{index}]")
+    paired_configs = reproduction["paired_baseline_arm_config_sha256_by_seed"]
+    if not isinstance(paired_configs, list) or len(paired_configs) != len(MODEL_SEEDS):
+        raise ValueError("supplementary paired-baseline config digests must have one entry per seed")
+    if arm_id == "N4-CRN":
+        for index, value in enumerate(paired_configs):
+            _require_hash(value, f"supplementary reproduction.paired_baseline_arm_config_sha256_by_seed[{index}]")
+        if inputs["paired_baseline_arm_config_sha256"] != paired_configs[0]:
+            raise ValueError("supplementary N4 inputs do not bind the first paired-B0 config digest")
+    elif any(value is not None for value in paired_configs):
+        raise ValueError("only N4 supplementary metrics may declare paired-baseline config digests")
     if list(reproduction["bank_sha256_by_seed"]) != list(reproduction["accepted_bank_sha256_by_seed"]):
         raise ValueError("supplementary bank bytes do not reproduce the accepted bank digests")
     if reproduction["bank_reproduced"] is not True:
@@ -1334,6 +1418,10 @@ class FrozenSupplementaryInputs:
     data_root: str
     task14_lock_path: str
     task14_lock_sha256: str
+    paired_baseline_task14_lock_path: str | None
+    paired_baseline_task14_lock_sha256: str | None
+    paired_baseline_accepted_record_path: str | None
+    paired_baseline_accepted_record_sha256: str | None
     handoff_path: str
     handoff_sha256: str
     accepted_record_path: str
@@ -1360,6 +1448,7 @@ _INPUT_MANIFEST_KEYS = frozenset(
         "arm_id",
         "model_seed",
         "task14_lock",
+        "paired_baseline",
         "handoff",
         "accepted_record",
         "checkpoint",
@@ -1371,6 +1460,7 @@ _INPUT_MANIFEST_KEYS = frozenset(
 _EXPECTED_KEYS = frozenset(
     {
         "arm_config_sha256",
+        "paired_baseline_arm_config_sha256",
         "checkpoint_arm_config_sha256",
         "data_binding_sha256",
         "model_state_sha256",
@@ -1408,6 +1498,92 @@ def _custody_file(record: object, label: str) -> tuple[str, str]:
     if observed != digest:
         raise ValueError(f"{label} digest mismatch: {path}")
     return path, digest
+
+
+def _validate_paired_baseline_manifest(
+    paired: object,
+    *,
+    arm_id: object,
+    model_seed: object,
+    accepted_record_path: str,
+    expected: Mapping[str, object],
+) -> tuple[str | None, str | None, str | None, str | None]:
+    paired_config = expected["paired_baseline_arm_config_sha256"]
+    if arm_id != "N4-CRN":
+        if paired is not None or paired_config is not None:
+            raise ValueError("only N4 input manifests may declare a paired-B0 authority")
+        if expected["checkpoint_arm_config_sha256"] != expected["arm_config_sha256"]:
+            raise ValueError("non-N4 checkpoint config must equal its accepted arm config")
+        return None, None, None, None
+
+    record = _closed_keys(
+        paired,
+        frozenset({"arm_id", "accepted_record", "task14_lock", "arm_config_sha256"}),
+        "supplementary input manifest paired_baseline",
+    )
+    if record["arm_id"] != "B0-FULL":
+        raise ValueError("N4 paired baseline must identify B0-FULL")
+    baseline_record_path, baseline_record_sha = _custody_file(
+        record["accepted_record"], "paired_baseline.accepted_record"
+    )
+    baseline_lock_path, baseline_lock_sha = _custody_file(
+        record["task14_lock"], "paired_baseline.task14_lock"
+    )
+    baseline_config_sha = _require_hash(
+        record["arm_config_sha256"], "paired_baseline.arm_config_sha256"
+    )
+    if (
+        paired_config != baseline_config_sha
+        or expected["checkpoint_arm_config_sha256"] != baseline_config_sha
+    ):
+        raise ValueError("N4 paired baseline config digest disagrees with its manifest expectation")
+
+    n4_record = json.loads(Path(accepted_record_path).read_bytes())
+    b0_record = json.loads(Path(baseline_record_path).read_bytes())
+    if (
+        not isinstance(n4_record, Mapping)
+        or not isinstance(b0_record, Mapping)
+        or b0_record.get("status") != "ok"
+        or b0_record.get("arm_id") != "B0-FULL"
+        or b0_record.get("model_seed") != model_seed
+        or b0_record.get("arm_config_sha256") != baseline_config_sha
+        or n4_record.get("status") != "ok"
+        or n4_record.get("arm_id") != "N4-CRN"
+        or n4_record.get("model_seed") != model_seed
+        or n4_record.get("arm_config_sha256") != expected["arm_config_sha256"]
+    ):
+        raise ValueError("N4/B0 accepted records do not match their paired authority identities")
+    b0_primary = b0_record.get("primary")
+    n4_baseline = n4_record.get("representation_baseline")
+    if not isinstance(b0_primary, Mapping) or not isinstance(n4_baseline, Mapping):
+        raise ValueError("N4 paired baseline records lack primary checkpoint custody")
+    b0_state = (
+        b0_primary.get("restored_checkpoint_sha256"),
+        b0_primary.get("live_model_state_sha256"),
+        b0_primary.get("live_ema_state_sha256"),
+    )
+    n4_state = (
+        n4_baseline.get("checkpoint_sha256"),
+        n4_baseline.get("live_model_state_sha256"),
+        n4_baseline.get("live_ema_state_sha256"),
+    )
+    n4_coherent = n4_record.get("coherent_checkpoint")
+    if (
+        any(not isinstance(value, str) or not _is_hash(value) for value in b0_state + n4_state)
+        or b0_state != n4_state
+        or b0_primary.get("path") != n4_baseline.get("checkpoint_path")
+        or not isinstance(n4_coherent, Mapping)
+        or n4_coherent.get("paired_b0_checkpoint_sha256") != b0_state[0]
+        or b0_state[1] != expected["model_state_sha256"]
+        or b0_state[2] != expected["ema_state_sha256"]
+    ):
+        raise ValueError("N4 paired B0 checkpoint/model/EMA differs from its accepted B0 record")
+    return (
+        baseline_lock_path,
+        baseline_lock_sha,
+        baseline_record_path,
+        baseline_record_sha,
+    )
 
 
 def load_frozen_input_manifest(path: str | Path) -> FrozenSupplementaryInputs:
@@ -1498,6 +1674,36 @@ def load_frozen_input_manifest(path: str | Path) -> FrozenSupplementaryInputs:
         "bank_source_rows_sha256",
     ):
         _require_hash(expected[name], f"expected.{name}")
+    paired_config_sha = expected["paired_baseline_arm_config_sha256"]
+    if arm_id == "N4-CRN":
+        _require_hash(paired_config_sha, "expected.paired_baseline_arm_config_sha256")
+    elif paired_config_sha is not None:
+        raise ValueError("only N4 input manifests may declare a paired-B0 config digest")
+    (
+        paired_lock_path,
+        paired_lock_sha,
+        paired_record_path,
+        paired_record_sha,
+    ) = _validate_paired_baseline_manifest(
+        row["paired_baseline"],
+        arm_id=arm_id,
+        model_seed=model_seed,
+        accepted_record_path=accepted_path,
+        expected=expected,
+    )
+    _validate_paired_baseline_fields(
+        {
+            "task14_lock_path": task14_path,
+            "task14_lock_sha256": task14_sha,
+            "paired_baseline_task14_lock_path": paired_lock_path,
+            "paired_baseline_task14_lock_sha256": paired_lock_sha,
+            "paired_baseline_accepted_record_path": paired_record_path,
+            "paired_baseline_accepted_record_sha256": paired_record_sha,
+            "paired_baseline_arm_config_sha256": paired_config_sha,
+        },
+        arm_id,
+        "supplementary input manifest",
+    )
     bank_rows = expected["bank_source_rows"]
     if isinstance(bank_rows, bool) or not isinstance(bank_rows, int) or bank_rows < 1:
         raise ValueError("expected.bank_source_rows must be a positive integer")
@@ -1540,6 +1746,10 @@ def load_frozen_input_manifest(path: str | Path) -> FrozenSupplementaryInputs:
         data_root=data_root,
         task14_lock_path=task14_path,
         task14_lock_sha256=task14_sha,
+        paired_baseline_task14_lock_path=paired_lock_path,
+        paired_baseline_task14_lock_sha256=paired_lock_sha,
+        paired_baseline_accepted_record_path=paired_record_path,
+        paired_baseline_accepted_record_sha256=paired_record_sha,
         handoff_path=handoff_path,
         handoff_sha256=handoff_sha,
         accepted_record_path=accepted_path,
@@ -1582,6 +1792,22 @@ def compute_input_digests(
         "accepted_record": Path(inputs.accepted_record_path),
         "checkpoint": Path(inputs.checkpoint_path),
     }
+    if inputs.paired_baseline_task14_lock_path is not None:
+        assert inputs.paired_baseline_task14_lock_sha256 is not None
+        assert inputs.paired_baseline_accepted_record_path is not None
+        assert inputs.paired_baseline_accepted_record_sha256 is not None
+        declared.update(
+            {
+                "paired_baseline_task14_lock": inputs.paired_baseline_task14_lock_sha256,
+                "paired_baseline_accepted_record": inputs.paired_baseline_accepted_record_sha256,
+            }
+        )
+        paths.update(
+            {
+                "paired_baseline_task14_lock": Path(inputs.paired_baseline_task14_lock_path),
+                "paired_baseline_accepted_record": Path(inputs.paired_baseline_accepted_record_path),
+            }
+        )
     digests = {key: _hash_file(path) for key, path in paths.items()}
     digests["metric_code"] = metric_code_sha256()
     for key, expected in declared.items():
@@ -1741,8 +1967,8 @@ def _validate_localization_record(value: object, label: str) -> None:
 def validate_supplementary_scores(result: Mapping[str, object]) -> Mapping[str, object]:
     """Validate one closed per-file score document before any metric consumes it."""
     row = _closed_keys(result, SCORES_RESULT_KEYS, "supplementary scores")
-    if row["schema_id"] != SUPPLEMENTARY_SCORES_SCHEMA_ID or row["schema_version"] != 2:
-        raise ValueError(f"supplementary scores identity must be exactly {SUPPLEMENTARY_SCORES_SCHEMA_ID} v2")
+    if row["schema_id"] != SUPPLEMENTARY_SCORES_SCHEMA_ID or row["schema_version"] != 3:
+        raise ValueError(f"supplementary scores identity must be exactly {SUPPLEMENTARY_SCORES_SCHEMA_ID} v3")
     if row["protocol_id"] != PROTOCOL_ID or row["protocol_sha256"] != PROTOCOL_SHA256:
         raise ValueError("supplementary scores must bind the accepted v2 protocol bytes")
     if row["phase"] != _PHASE:
@@ -1770,6 +1996,7 @@ def validate_supplementary_scores(result: Mapping[str, object]) -> Mapping[str, 
     inputs = _closed_keys(row["inputs"], SUPPLEMENTARY_INPUTS_KEYS, "supplementary scores.inputs")
     for name in ("manifest_sha256", "checkpoint_sha256", "accepted_record_sha256", "task14_lock_sha256", "handoff_sha256"):
         _require_hash(inputs[name], f"supplementary scores.inputs.{name}")
+    _validate_paired_baseline_fields(inputs, row["arm_id"], "supplementary scores.inputs")
     if not isinstance(inputs["data_root"], str) or not inputs["data_root"]:
         raise ValueError("supplementary scores.inputs.data_root must be a non-empty path")
     if inputs["unchanged"] is not True:
@@ -1778,6 +2005,7 @@ def validate_supplementary_scores(result: Mapping[str, object]) -> Mapping[str, 
     after = _require_digest_map(inputs["sha256_after"], "supplementary scores.inputs.sha256_after")
     if dict(before) != dict(after):
         raise ValueError("supplementary score input digest proof is inconsistent")
+    _validate_task14_authority_digest_map(inputs, row["arm_id"], before, "supplementary scores.inputs.sha256_before")
     reproduction = _closed_keys(
         row["reproduction"], SCORES_REPRODUCTION_KEYS, "supplementary scores.reproduction"
     )
@@ -1791,6 +2019,13 @@ def validate_supplementary_scores(result: Mapping[str, object]) -> Mapping[str, 
         "bank_source_rows_sha256",
     ):
         _require_hash(reproduction[name], f"supplementary scores.reproduction.{name}")
+    paired_config = reproduction["paired_baseline_arm_config_sha256"]
+    if row["arm_id"] == "N4-CRN":
+        _require_hash(paired_config, "supplementary scores.reproduction.paired_baseline_arm_config_sha256")
+        if paired_config != inputs["paired_baseline_arm_config_sha256"]:
+            raise ValueError("supplementary N4 score does not bind its paired-B0 config digest")
+    elif paired_config is not None:
+        raise ValueError("only N4 supplementary scores may declare a paired-baseline config digest")
     bank_rows = reproduction["bank_source_rows"]
     if isinstance(bank_rows, bool) or not isinstance(bank_rows, int) or bank_rows < 1:
         raise ValueError("supplementary scores bank_source_rows must be a positive integer")
