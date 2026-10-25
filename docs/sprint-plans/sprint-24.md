@@ -2,7 +2,7 @@
 
 ## Status and authority
 
-**Status:** Phase A authorized; Task 1 evidence PASS, exact-snapshot checkpoint pending. Tasks 2–12 pending; no empirical result is claimed.
+**Status:** Phase A executing; Task 1 complete, Task 2 in progress, Tasks 3–12 pending. No empirical model result is claimed.
 
 **Why Sprint 24:** Sprints 19–23 already exist. This is the next unused sprint number, continuing the scientific direction of Sprint 18 without overwriting the intervening research/workflow records.
 
@@ -90,9 +90,9 @@ Task 3 freezes exact executable choices after the support audit and before runni
 
 ### Phase A — Preservation and executable study design
 
-- [~] **Task 1 — Preserve and verify the inherited assets.** Inventory the transitive data/checkpoint/bank/scorer/config/custody dependencies from the accepted handoff, lock and publication. Produce a hash-bound retention/relocation manifest; verify destination copies and load compatibility on non-Confirmation support before releasing any source directory for deletion. No deletion is part of this task. Acceptance: all required bytes accounted for, missing assets explicit, archive paths mapped without editing immutable S18 records. See [retention note](../sprint18-retention-for-sprint24.md).
-  - Evidence [round 2 PASS](../../artifacts/sprint-24/reviews/task-1-evidence-r2.md); [worker result](../../artifacts/sprint-24/task-1.md). Owner approved whole-file checkpoint staging of `docs/PLAN.md`, this sprint plan and `docs/sprint18-retention-for-sprint24.md`, including pre-existing content; memory and ignored artifacts remain excluded. No source directory released for deletion; Task 2 cannot start before checkpoint success.
-- [ ] **Task 2 — Audit temporal and label support.** On the preserved corpus, produce the source-ID/exposure inventory, label/episode counts and feasible chronological grouping. Record actual pretraining support and which faults/regimes can be introduced sequentially. Acceptance: a leakage-auditable support report, including unsupported scenarios, with no model fitting or performance-based sampling.
+- [x] **Task 1 — Preserve and verify the inherited assets.** Inventory the transitive data/checkpoint/bank/scorer/config/custody dependencies from the accepted handoff, lock and publication. Produce a hash-bound retention/relocation manifest; verify destination copies and load compatibility on non-Confirmation support before releasing any source directory for deletion. No deletion is part of this task. Acceptance: all required bytes accounted for, missing assets explicit, archive paths mapped without editing immutable S18 records. See [retention note](../sprint18-retention-for-sprint24.md).
+  - Evidence [round 2 PASS](../../artifacts/sprint-24/reviews/task-1-evidence-r2.md); [worker result](../../artifacts/sprint-24/task-1.md); [Bronze checkpoint PASS](../../artifacts/sprint-24/checkpoints/task-1-cp01.md), commit `129f363d7e9c72a22908cd07d9e0ba78338844c1`. Accepted assets remain source-retained except the verified 57-file manifest/bank archive; no source directory released for deletion. Owner approved whole-file staging of the three plan/retention documents; memory and ignored artifacts remain excluded.
+- [~] **Task 2 — Audit temporal and label support.** On the preserved corpus, produce the source-ID/exposure inventory, label/episode counts and feasible chronological grouping. Record actual pretraining support and which faults/regimes can be introduced sequentially. Acceptance: a leakage-auditable support report, including unsupported scenarios, with no model fitting or performance-based sampling.
 - [ ] **Task 3 — Freeze the prospective research protocol.** Specify the exact source-to-role views, nested budgets, feedback delays, experience schedule, method matrix, thresholds, replay policy, conditional fine-tuning trigger, compute budgets, metrics and uncertainty. Explicitly approve the new secondary-use boundary without altering S18. Obtain independent pre-execution review and owner acceptance of any practical performance/forgetting tolerances and data-role amendments. Acceptance: executable choices contain no unresolved values; negative results remain acceptable; no actual benchmark model execution before this gate.
 
 ### Phase B — Reusable evaluation machinery
