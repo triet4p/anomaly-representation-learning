@@ -54,6 +54,7 @@ from __future__ import annotations
 
 import copy
 import math
+import os
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -123,6 +124,51 @@ SCRATCH_WEIGHT_DECAY = 0.01
 
 #: Layer-norm-style floor for a zero-variance feature column.
 NORMALIZER_STD_FLOOR = 1e-6
+
+#: Documented cuBLAS workspace setting required by deterministic CUDA training.
+S24_CUBLAS_WORKSPACE_CONFIG = ":4096:8"
+
+
+def enable_s24_deterministic_execution(
+    device: str | torch.device = "cpu",
+) -> dict[str, object]:
+    """Enable the owner-approved deterministic CUDA training execution setting.
+
+    ``cpu`` is untouched and returns ``deterministic_algorithms: False``. On
+    CUDA this requires ``CUBLAS_WORKSPACE_CONFIG`` (``":4096:8"`` or ``":16:8"``)
+    in the process environment *before* CUDA initialization, enables
+    :func:`torch.use_deterministic_algorithms` — which raises instead of
+    silently falling back when an operation has no deterministic
+    implementation — and disables cuDNN benchmark autotuning. Dtype, precision
+    flags, architecture, seeds, epochs and labels are unchanged: the setting
+    only removes kernel non-determinism. Idempotent.
+    """
+    target = resolve_s24_device(device)
+    if target.type != "cuda":
+        return {
+            "device": str(target),
+            "deterministic_algorithms": False,
+            "cublas_workspace_config": None,
+        }
+    workspace = os.environ.get("CUBLAS_WORKSPACE_CONFIG", "")
+    if workspace not in (":4096:8", ":16:8"):
+        raise ValueError(
+            "S24 deterministic CUDA execution requires "
+            f"CUBLAS_WORKSPACE_CONFIG={S24_CUBLAS_WORKSPACE_CONFIG} in the process "
+            "environment before CUDA initialization"
+        )
+    torch.use_deterministic_algorithms(True)
+    torch.backends.cudnn.benchmark = False
+    torch.backends.cudnn.deterministic = True
+    return {
+        "device": str(target),
+        "deterministic_algorithms": bool(
+            torch.are_deterministic_algorithms_enabled()
+        ),
+        "cublas_workspace_config": workspace,
+        "cudnn_benchmark": bool(torch.backends.cudnn.benchmark),
+        "cudnn_deterministic": bool(torch.backends.cudnn.deterministic),
+    }
 
 #: Support roles a learner may declare.
 LABEL_TRAIN = "training"
@@ -595,6 +641,7 @@ class S24Learner:
         if max_epochs <= 0 or patience < 0 or batch_size <= 0 or learning_rate <= 0:
             raise ValueError("S24 learner configuration is outside the frozen protocol")
         self.device = resolve_s24_device(device)
+        self.deterministic = enable_s24_deterministic_execution(self.device)
         self.method = method
         self.encoder = encoder.to(self.device)
         self.head = S24LinearHead(int(encoder.config.d_model)).to(self.device)
@@ -1126,6 +1173,9 @@ class S24Learner:
             "support_digest": self.support.support_digest,
             "identity_digest": self.identity_digest(),
             "device": str(self.device),
+            "deterministic_algorithms": bool(
+                self.deterministic["deterministic_algorithms"]
+            ),
             "event_id": self.event_id,
             "epochs_completed": self.epoch,
             "best_epoch": self.best_epoch,
@@ -1540,6 +1590,12 @@ def save_s24_learner_checkpoint(
         "execution": {
             "device": str(learner.device),
             "device_type": learner.device.type,
+            "deterministic_algorithms": bool(
+                learner.deterministic["deterministic_algorithms"]
+            ),
+            "cublas_workspace_config": learner.deterministic[
+                "cublas_workspace_config"
+            ],
         },
         "state_digests": {
             "head_state_sha256": state_sha256(head_state),
@@ -1897,6 +1953,7 @@ __all__ = [
     "METHOD_RANDOM_FROZEN",
     "METHOD_SCRATCH",
     "RANDOM_ENCODER_SEEDS",
+    "S24_CUBLAS_WORKSPACE_CONFIG",
     "S24_LEARNERS_SCHEMA_ID",
     "S24_LEARNER_CHECKPOINT_SCHEMA_ID",
     "S24_METHODS",
@@ -1917,6 +1974,7 @@ __all__ = [
     "build_s24_random_frozen_learner",
     "build_s24_scratch_learner",
     "build_s24_train_support",
+    "enable_s24_deterministic_execution",
     "fit_s24_learner",
     "restore_s24_learner_checkpoint",
     "s24_label_target",

@@ -9,6 +9,7 @@ metadata fixture through the public views builder.
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import cast
 
@@ -16,11 +17,16 @@ import numpy as np
 import pytest
 import torch
 
+# The documented deterministic-CUDA setting must exist in the process
+# environment before CUDA initialization; no other test path depends on it.
+os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
+
 from representation.config import V1Config
 from representation.sprint18_checkpoint import state_sha256
 from representation.sprint24_learners import (
     METHOD_RANDOM_FROZEN,
     METHOD_SCRATCH,
+    S24_CUBLAS_WORKSPACE_CONFIG,
     S24FeatureNormalizer,
     S24LabelConsumptionLedger,
     S24TrainSupport,
@@ -29,6 +35,7 @@ from representation.sprint24_learners import (
     build_s24_random_frozen_learner,
     build_s24_scratch_learner,
     build_s24_train_support,
+    enable_s24_deterministic_execution,
     fit_s24_learner,
     restore_s24_learner_checkpoint,
     save_s24_learner_checkpoint,
@@ -455,7 +462,10 @@ def test_checkpoint_is_device_neutral_and_binds_its_rng_state(tmp_path: Path) ->
     metadata = save_s24_learner_checkpoint(path, learner)
     assert metadata["device"] == "cpu"
     payload = torch.load(path, map_location="cpu", weights_only=False)
-    assert payload["execution"] == {"device": "cpu", "device_type": "cpu"}
+    execution = payload["execution"]
+    assert execution["device"] == "cpu" and execution["device_type"] == "cpu"
+    assert execution["deterministic_algorithms"] is False
+    assert execution["cublas_workspace_config"] is None
     stored = _nested_tensors(payload["state"])
     assert stored
     assert all(tensor.device.type == "cpu" for tensor in stored)
@@ -491,10 +501,13 @@ def test_checkpoint_is_device_neutral_and_binds_its_rng_state(tmp_path: Path) ->
 def test_cuda_scratch_training_restore_and_resume_are_device_aligned(
     tmp_path: Path,
 ) -> None:
-    """CUDA training, checkpoint restore and same-device resume keep one device.
+    """CUDA training, checkpoint restore and deterministic resume keep one device.
 
-    The resume leg only reproduces the uninterrupted continuation when the CUDA
-    generator state is restored, so it also proves the RNG binding.
+    The learner enables the documented deterministic CUDA execution setting, so
+    restore, same-device resume and two independent identically seeded runs must
+    all be exactly equal; the resume leg also proves the RNG binding. AdamW keeps
+    its ``step`` counter as a CPU scalar by design, while the moment tensors
+    follow the parameter device.
     """
     views, gate, support, samples, _ = _synthetic_cell(
         d_model=16, train_count=4, val_count=2
@@ -510,12 +523,24 @@ def test_cuda_scratch_training_restore_and_resume_are_device_aligned(
     assert _device_type(learner.encoder) == "cuda"
     assert _device_type(learner.head) == "cuda"
     assert learner.normalizer is not None and learner.normalizer.mean.is_cuda
+    assert torch.are_deterministic_algorithms_enabled()
+    assert torch.backends.cudnn.benchmark is False
     assert learner._optimizer is not None
-    assert all(
-        value.is_cuda
+    moments = [
+        value
         for entry in learner._optimizer.state.values()
-        for value in entry.values()
-        if isinstance(value, torch.Tensor)
+        for key, value in entry.items()
+        if key != "step" and isinstance(value, torch.Tensor)
+    ]
+    assert moments and all(value.is_cuda for value in moments)
+    steps = [
+        entry["step"] for entry in learner._optimizer.state.values() if "step" in entry
+    ]
+    assert steps and all(
+        isinstance(step, torch.Tensor)
+        and step.device.type == "cpu"
+        and step.numel() == 1
+        for step in steps
     )
     support_samples = [samples[file_id] for file_id in support.label_ids]
     before = learner.predict(support_samples, history_id=support.history_id)
@@ -537,6 +562,14 @@ def test_cuda_scratch_training_restore_and_resume_are_device_aligned(
         model_config=config, support=support, mask_model_seed=181801, device="cuda"
     )
     fit_s24_learner(uninterrupted, samples, epochs=2)
+    twin = build_s24_scratch_learner(
+        model_config=config, support=support, mask_model_seed=181801, device="cuda"
+    )
+    fit_s24_learner(twin, samples, epochs=2)
+    assert state_sha256(twin.encoder.state_dict()) == state_sha256(
+        uninterrupted.encoder.state_dict()
+    )
+    assert torch.equal(twin.head.linear.weight, uninterrupted.head.linear.weight)
     partial = build_s24_scratch_learner(
         model_config=config, support=support, mask_model_seed=181801, device="cuda"
     )
@@ -554,3 +587,31 @@ def test_cuda_scratch_training_restore_and_resume_are_device_aligned(
     assert uninterrupted.predict(
         support_samples, history_id=support.history_id
     ) == resumed.predict(support_samples, history_id=support.history_id)
+
+
+def test_deterministic_execution_is_cuda_only_and_fails_closed() -> None:
+    """CPU needs no CUDA environment variable; an absent CUDA target fails closed."""
+    before = torch.are_deterministic_algorithms_enabled()
+    settings = enable_s24_deterministic_execution("cpu")
+    assert settings["device"] == "cpu"
+    assert settings["deterministic_algorithms"] is False
+    assert torch.are_deterministic_algorithms_enabled() is before
+    if not torch.cuda.is_available():
+        with pytest.raises(ValueError, match="CUDA is unavailable"):
+            enable_s24_deterministic_execution("cuda")
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="requires CUDA")
+def test_deterministic_cuda_execution_requires_the_documented_workspace_env(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The documented cuBLAS workspace setting is mandatory before CUDA init."""
+    monkeypatch.delenv("CUBLAS_WORKSPACE_CONFIG", raising=False)
+    with pytest.raises(ValueError, match="CUBLAS_WORKSPACE_CONFIG"):
+        enable_s24_deterministic_execution("cuda")
+    monkeypatch.setenv("CUBLAS_WORKSPACE_CONFIG", S24_CUBLAS_WORKSPACE_CONFIG)
+    settings = enable_s24_deterministic_execution("cuda")
+    assert settings["deterministic_algorithms"] is True
+    assert settings["cublas_workspace_config"] == S24_CUBLAS_WORKSPACE_CONFIG
+    assert torch.are_deterministic_algorithms_enabled()
+    assert torch.backends.cudnn.benchmark is False
