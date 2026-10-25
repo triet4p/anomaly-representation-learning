@@ -34,6 +34,17 @@ Label and validation boundaries are enforced, not merely documented:
   same predictions, and resumes deterministically without re-consuming the same
   label event (:class:`S24LabelConsumptionLedger`).
 
+Device contract: every learner builder and restore call takes an explicit
+``device`` argument (default ``"cpu"``) that accepts only ``cpu`` and
+``cuda``/``cuda:N``. An unavailable CUDA target fails closed; nothing reads the
+process-global default device, and the frozen scientific identity digests stay
+device-independent. Model, head, normalizer statistics, support features,
+label/index tensors and optimizer state live on that one device; batch tensors
+are co-located immediately before the forward pass. Checkpoints are written as
+device-neutral CPU tensors plus an ``execution`` provenance record and the CUDA
+RNG stream when training ran on CUDA, so a checkpoint written on one device can
+be restored and scored on the other.
+
 Out of scope by assignment: the sequential evaluator (Task 8), the locked
 comparison (Task 7), conditional fine-tuning (Task 10), any Confirmation
 contact, and any performance gate.
@@ -62,8 +73,12 @@ from representation.sprint18_harness import (
     deterministic_mask_seed,
 )
 from representation.sprint24_features import (
+    S24_DEVICE_TYPES,
     S24B0Bundle,
     assert_s24_frozen_unchanged,
+    require_s24_bundle_device,
+    resolve_s24_device,
+    s24_device_identity,
     s24_live_state_digests,
 )
 from representation.sprint24_views import (
@@ -376,11 +391,16 @@ class S24FeatureNormalizer:
         return cls(mean=mean, std=std)
 
     def transform(self, features: torch.Tensor) -> torch.Tensor:
-        """Apply the frozen standardization to embeddings."""
+        """Apply the frozen standardization to embeddings on the fitted device."""
         if features.ndim != 2 or features.shape[1] != self.mean.shape[0]:
             raise ValueError(
                 f"S24 normalizer expects [B, {self.mean.shape[0]}] features, "
                 f"got {tuple(features.shape)}"
+            )
+        if features.device != self.mean.device:
+            raise ValueError(
+                f"S24 normalizer features are on {str(features.device)} but the "
+                f"fitted statistics are on {str(self.mean.device)}"
             )
         return (features - self.mean) / self.std
 
@@ -473,6 +493,68 @@ def _copy_state(state: Mapping[str, object]) -> dict[str, object]:
     return copied
 
 
+def _cpu_tree(value: object) -> object:
+    """Return a device-neutral CPU copy of arbitrarily nested checkpoint state.
+
+    Optimizer state, feature matrices and RNG tensors are written as CPU tensors
+    so one checkpoint file restores on either a CPU or a CUDA runtime.
+    """
+    if isinstance(value, torch.Tensor):
+        return value.detach().to(device="cpu").clone()
+    if isinstance(value, Mapping):
+        return {key: _cpu_tree(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_cpu_tree(item) for item in value]
+    if isinstance(value, tuple):
+        return tuple(_cpu_tree(item) for item in value)
+    return copy.deepcopy(value)
+
+
+def _move_batch_to_device(
+    batch: Mapping[str, object], device: torch.device
+) -> dict[str, object]:
+    """Co-locate an encoder batch without copying already-aligned tensors."""
+    moved: dict[str, object] = {}
+    for key, value in batch.items():
+        if isinstance(value, torch.Tensor) and value.device != device:
+            moved[key] = value.to(device)
+        else:
+            moved[key] = value
+    return moved
+
+
+def _cuda_rng_state() -> list[torch.Tensor]:
+    """Capture every CUDA generator state as a CPU tensor (empty without CUDA)."""
+    if not torch.cuda.is_available():
+        return []
+    return [state.detach().to(device="cpu").clone() for state in torch.cuda.get_rng_state_all()]
+
+
+def _set_cuda_rng_state(states: Sequence[torch.Tensor]) -> None:
+    """Restore CUDA generator states, failing closed on an incompatible runtime."""
+    if not states:
+        return
+    if not torch.cuda.is_available():
+        raise ValueError("S24 checkpoint holds CUDA RNG state but CUDA is unavailable")
+    if len(states) != torch.cuda.device_count():
+        raise ValueError("S24 checkpoint CUDA RNG device count differs from this runtime")
+    try:
+        torch.cuda.set_rng_state_all([state.detach().to(device="cpu") for state in states])
+    except RuntimeError as exc:
+        raise ValueError("S24 checkpoint CUDA RNG state cannot be restored") from exc
+
+
+def _rng_state_digest(cpu_state: object, cuda_states: object) -> str:
+    """Digest the exact CPU and CUDA generator states bound into a checkpoint."""
+    return state_sha256(
+        {
+            "kind": "s24-rng-state",
+            "torch_cpu": cpu_state,
+            "torch_cuda": cuda_states,
+        }
+    )
+
+
 class S24Learner:
     """One frozen-head or scratch-supervised learner cell.
 
@@ -481,6 +563,11 @@ class S24Learner:
     conditional-normalization statistics therefore cannot move) and train the
     linear head only; ``M3`` trains the identical architecture plus head from a
     declared random initialization.
+
+    The constructor deploys the supplied encoder to ``device``; callers that
+    share a restored model (the ``M1`` path shares the bundle model) must pass
+    that model's own device, which the ``M1`` builder enforces instead of
+    silently relocating a model someone else owns.
     """
 
     def __init__(
@@ -497,6 +584,7 @@ class S24Learner:
         frozen_embeddings: Mapping[str, torch.Tensor] | None = None,
         learning_rate: float = HEAD_LR,
         batch_size: int = HEAD_BATCH_SIZE,
+        device: str | torch.device = "cpu",
     ) -> None:
         if method not in S24_METHODS:
             raise ValueError(f"unknown S24 method: {method!r}")
@@ -506,9 +594,10 @@ class S24Learner:
             raise ValueError("S24 mask seed must stay inside the frozen Sprint18 namespace")
         if max_epochs <= 0 or patience < 0 or batch_size <= 0 or learning_rate <= 0:
             raise ValueError("S24 learner configuration is outside the frozen protocol")
+        self.device = resolve_s24_device(device)
         self.method = method
-        self.encoder = encoder
-        self.head = S24LinearHead(int(encoder.config.d_model))
+        self.encoder = encoder.to(self.device)
+        self.head = S24LinearHead(int(encoder.config.d_model)).to(self.device)
         self.support = support
         self.identity = dict(identity)
         self.mask_model_seed = int(mask_model_seed)
@@ -533,12 +622,18 @@ class S24Learner:
         self._optimizer: torch.optim.AdamW | None = None
         self._generator = torch.Generator().manual_seed(int(shuffle_seed))
         self._pending_rng_state: torch.Tensor | None = None
+        self._pending_cuda_rng_state: list[torch.Tensor] | None = None
+        self._rng_restored_from_checkpoint = False
         if frozen_embeddings is not None:
             for file_id, vector in frozen_embeddings.items():
-                tensor = vector.detach().to(device="cpu", dtype=torch.float32).reshape(-1)
+                tensor = (
+                    vector.detach()
+                    .to(device=self.device, dtype=torch.float32)
+                    .reshape(-1)
+                )
                 if tensor.shape[0] != encoder.config.d_model:
                     raise ValueError("S24 frozen embedding width differs from the model")
-                if not torch.isfinite(tensor).all():
+                if not bool(torch.isfinite(tensor).all()):
                     raise ValueError("S24 frozen embeddings must be finite")
                 self._frozen_embeddings[str(file_id)] = tensor.clone()
         trainable = method == METHOD_SCRATCH
@@ -631,16 +726,13 @@ class S24Learner:
                         masking_config=self.encoder.config,
                         masking_seed=seed,
                     )
-                    output = self.encoder(_encoder_batch(batch))
+                    clean = _move_batch_to_device(_encoder_batch(batch), self.device)
+                    output = self.encoder(cast(Any, clean))
                     embedding = output["file_embedding"]
                     if embedding.shape != (1, self.encoder.config.d_model):
                         raise ValueError("S24 encoder returned a malformed file embedding")
-                    vector = (
-                        embedding.detach()
-                        .to(device="cpu", dtype=torch.float32)
-                        .reshape(-1)
-                    )
-                    if not torch.isfinite(vector).all():
+                    vector = embedding.detach().to(dtype=torch.float32).reshape(-1)
+                    if not bool(torch.isfinite(vector).all()):
                         raise ValueError("S24 file embedding is non-finite")
                     vectors.append(vector.clone())
         finally:
@@ -653,7 +745,8 @@ class S24Learner:
 
         Frozen arms may supply Task 5 captured embeddings for the training and
         validation support; per-file deterministic capture covers everything
-        else. Returned rows always follow the input order.
+        else. Returned rows always follow the input order and live on this
+        learner's device (``cpu`` by default).
         """
         materialized = list(samples)
         if not materialized:
@@ -694,17 +787,25 @@ class S24Learner:
             masking_config=self.encoder.config,
             masking_seed=batch_seed,
         )
-        return self.encoder(_encoder_batch(batch))["file_embedding"]
+        clean = _move_batch_to_device(_encoder_batch(batch), self.device)
+        return self.encoder(cast(Any, clean))["file_embedding"]
 
     def predict_embeddings(self, embeddings: torch.Tensor) -> torch.Tensor:
-        """Return anomaly probabilities from already-captured embeddings."""
+        """Return anomaly probabilities from already-captured embeddings.
+
+        ``embeddings`` may be CPU- or device-resident; it is co-located onto the
+        learner device (a no-op copy when already aligned) before the head runs,
+        and the probabilities are returned on the CPU for a device-neutral
+        public record.
+        """
         if self.normalizer is None:
             raise ValueError("S24 learner has no fitted feature normalizer")
         if embeddings.ndim != 2 or embeddings.shape[0] == 0:
             raise ValueError("S24 prediction requires a non-empty [N, D] matrix")
         self.head.eval()
         with torch.no_grad():
-            logits = self.head(self.normalizer.transform(embeddings.to(torch.float32)))
+            aligned = embeddings.to(device=self.device, dtype=torch.float32)
+            logits = self.head(self.normalizer.transform(aligned))
             return torch.sigmoid(logits).detach().cpu()
 
     def predict(self, samples: Sequence[Any], *, history_id: str) -> dict[str, float]:
@@ -807,12 +908,14 @@ class S24Learner:
         self.head.train()
         self.encoder.eval()
         x = self.normalizer.transform(self._train_features)
-        y = torch.tensor(self.support.training_labels, dtype=torch.float32)
+        y = torch.tensor(
+            self.support.training_labels, dtype=torch.float32, device=self.device
+        )
         order = torch.randperm(x.shape[0], generator=self._generator)
         criterion = nn.BCEWithLogitsLoss()
         total = 0.0
         for start in range(0, int(order.numel()), self.batch_size):
-            index = order[start : start + self.batch_size]
+            index = order[start : start + self.batch_size].to(self.device)
             loss = criterion(self.head(x.index_select(0, index)), y.index_select(0, index))
             self._optimizer.zero_grad(set_to_none=True)
             loss.backward()
@@ -825,7 +928,11 @@ class S24Learner:
             val_loss = float(
                 criterion(
                     val_logits,
-                    torch.tensor(self.support.validation_labels, dtype=torch.float32),
+                    torch.tensor(
+                        self.support.validation_labels,
+                        dtype=torch.float32,
+                        device=self.device,
+                    ),
                 ).detach()
             )
         if val_loss < self.best_val_loss:
@@ -846,7 +953,9 @@ class S24Learner:
             group["lr"] = self._epoch_lr(epoch)
         self.encoder.train()
         self.head.train()
-        y = torch.tensor(self.support.training_labels, dtype=torch.float32)
+        y = torch.tensor(
+            self.support.training_labels, dtype=torch.float32, device=self.device
+        )
         order = torch.randperm(len(self.support.training_ids), generator=self._generator)
         criterion = nn.BCEWithLogitsLoss()
         total = 0.0
@@ -887,6 +996,16 @@ class S24Learner:
             isinstance(epochs, bool) or not isinstance(epochs, int) or epochs < 0
         ):
             raise ValueError("S24 epoch request must be a non-negative integer")
+        if (
+            self.method == METHOD_SCRATCH
+            and self.device.type == "cuda"
+            and self._rng_restored_from_checkpoint
+            and not self._pending_cuda_rng_state
+        ):
+            raise ValueError(
+                "S24 CUDA scratch resume requires the checkpoint's CUDA RNG state; "
+                "a CPU-written checkpoint cannot reproduce CUDA training"
+            )
         if ledger is not None:
             ledger.consume(
                 scope=self.method,
@@ -899,6 +1018,9 @@ class S24Learner:
         if self._pending_rng_state is not None:
             torch.set_rng_state(self._pending_rng_state)
             self._pending_rng_state = None
+        if self._pending_cuda_rng_state:
+            _set_cuda_rng_state(self._pending_cuda_rng_state)
+            self._pending_cuda_rng_state = None
         before = None if self.method == METHOD_SCRATCH else self._encoder_digest()
         if self.epoch == 0:
             self._initialise_fit(samples_by_id)
@@ -970,7 +1092,11 @@ class S24Learner:
             loss = float(
                 nn.BCEWithLogitsLoss()(
                     logits,
-                    torch.tensor(self.support.validation_labels, dtype=torch.float32),
+                    torch.tensor(
+                        self.support.validation_labels,
+                        dtype=torch.float32,
+                        device=self.device,
+                    ),
                 ).detach()
             )
             probabilities = torch.sigmoid(logits).detach().cpu()
@@ -999,6 +1125,7 @@ class S24Learner:
             "budget": self.support.budget,
             "support_digest": self.support.support_digest,
             "identity_digest": self.identity_digest(),
+            "device": str(self.device),
             "event_id": self.event_id,
             "epochs_completed": self.epoch,
             "best_epoch": self.best_epoch,
@@ -1019,8 +1146,20 @@ def assert_s24_trainables(learner: S24Learner) -> dict[str, object]:
     ``eval`` encoder; the scratch arm must have every encoder parameter
     trainable and must be in ``eval`` mode between fit steps. The head is
     always the only declared classification head and must have exactly
-    ``129`` trainable parameters.
+    ``129`` trainable parameters. Every declared component must also live on
+    the learner's single execution device.
     """
+    for label, module in (("encoder", learner.encoder), ("head", learner.head)):
+        parameter = next(module.parameters(), None)
+        if parameter is None:
+            raise ValueError(f"S24 {label} exposes no parameters")
+        if parameter.device != learner.device:
+            raise ValueError(
+                f"S24 {label} is on {str(parameter.device)} but the learner "
+                f"device is {str(learner.device)}"
+            )
+    if learner.normalizer is not None and learner.normalizer.mean.device != learner.device:
+        raise ValueError("S24 normalizer statistics are not on the learner device")
     encoder_trainable = [
         name for name, p in learner.encoder.named_parameters() if p.requires_grad
     ]
@@ -1122,16 +1261,22 @@ def build_s24_frozen_head_learner(
     bundle: S24B0Bundle,
     support: S24TrainSupport,
     frozen_embeddings: Mapping[str, torch.Tensor] | None = None,
+    device: str | torch.device | None = None,
 ) -> S24Learner:
     """Build the ``M1`` frozen-B0 + linear-head cell.
 
     The encoder is the strictly restored accepted B0 model; it is frozen and
     left in ``eval`` mode so ``ConditionalBatchNorm`` statistics cannot be
-    refitted. The bank identity is carried for provenance (this method adds no
-    bank computation).
+    refitted. The learner inherits the bundle's device, because it shares the
+    restored model rather than a second copy; an explicit ``device`` must match
+    that deployment and otherwise fails closed. The bank identity is carried
+    for provenance (this method adds no bank computation).
     """
     if bundle.bank.bank.embeddings is None:
         raise ValueError("S24 frozen-head learner requires a restored reference bank")
+    learner_device = require_s24_bundle_device(
+        bundle, device, label="S24 frozen-head learner"
+    )
     live = s24_live_state_digests(bundle.model, bundle.bank)
     identity = _identity_base(
         method=METHOD_FROZEN_HEAD,
@@ -1167,6 +1312,7 @@ def build_s24_frozen_head_learner(
         frozen_embeddings=frozen_embeddings,
         learning_rate=HEAD_LR,
         batch_size=HEAD_BATCH_SIZE,
+        device=learner_device,
     )
 
 
@@ -1177,13 +1323,16 @@ def build_s24_random_frozen_learner(
     init_seed: int,
     mask_model_seed: int,
     frozen_embeddings: Mapping[str, torch.Tensor] | None = None,
+    device: str | torch.device = "cpu",
 ) -> S24Learner:
     """Build the ``M2`` random-initialized frozen-encoder control.
 
     The architecture and head protocol are identical to ``M1``; only the
     encoder initialization differs (frozen seeds ``241801``-``241803``). The
     per-file mask seed stays keyed by the paired accepted B0 seed so both arms
-    see identical file masks.
+    see identical file masks. Initialization runs on the CPU under the frozen
+    seed and is then deployed to ``device``; the initialization digest is
+    device-independent.
     """
     if init_seed not in RANDOM_ENCODER_SEEDS:
         raise ValueError("S24 random encoder seed is outside the frozen control set")
@@ -1217,6 +1366,7 @@ def build_s24_random_frozen_learner(
         frozen_embeddings=frozen_embeddings,
         learning_rate=HEAD_LR,
         batch_size=HEAD_BATCH_SIZE,
+        device=device,
     )
 
 
@@ -1226,8 +1376,15 @@ def build_s24_scratch_learner(
     support: S24TrainSupport,
     mask_model_seed: int,
     initial_state_sha256: str | None = None,
+    device: str | torch.device = "cpu",
 ) -> S24Learner:
-    """Build the ``M3`` scratch-supervised cell (all weights trainable)."""
+    """Build the ``M3`` scratch-supervised cell (all weights trainable).
+
+    Initialization runs on the CPU under the frozen seed and is then deployed
+    to ``device``. On CUDA the encoder's dropout consumes the CUDA generator,
+    which the checkpoint records so a resume on the same device stays exactly
+    reproducible.
+    """
     if mask_model_seed not in MODEL_SEEDS:
         raise ValueError("S24 mask seed must stay inside the frozen Sprint18 namespace")
     torch.manual_seed(SCRATCH_INIT_SEED)
@@ -1267,6 +1424,7 @@ def build_s24_scratch_learner(
         patience=0,
         learning_rate=SCRATCH_LR_START,
         batch_size=SCRATCH_BATCH_SIZE,
+        device=device,
     )
 
 
@@ -1283,7 +1441,7 @@ def fit_s24_learner(
 
 def _checkpoint_digest(payload: Mapping[str, object]) -> str:
     state = cast(Mapping[str, object], payload["state"])
-    provenance = {
+    provenance: dict[str, object] = {
         "schema_id": payload.get("schema_id"),
         "protocol_id": payload.get("protocol_id"),
         "method": payload.get("method"),
@@ -1305,7 +1463,27 @@ def _checkpoint_digest(payload: Mapping[str, object]) -> str:
             )
         },
     }
+    # ``execution`` was added with explicit device support; binding it only
+    # when present keeps earlier v1 checkpoint digests reproducible.
+    if "execution" in payload:
+        provenance["execution"] = payload["execution"]
     return _canonical(provenance)
+
+
+def _verify_execution(execution: object) -> None:
+    """Validate the optional execution-device provenance record."""
+    if execution is None:
+        return
+    if not isinstance(execution, Mapping):
+        raise ValueError("S24 checkpoint execution record is malformed")
+    recorded = execution.get("device")
+    kind = execution.get("device_type")
+    if not isinstance(recorded, str) or not isinstance(kind, str):
+        raise ValueError("S24 checkpoint execution record is malformed")
+    if s24_device_identity(recorded) != recorded or kind not in S24_DEVICE_TYPES:
+        raise ValueError("S24 checkpoint execution device is unknown")
+    if torch.device(recorded).type != kind:
+        raise ValueError("S24 checkpoint execution device type is inconsistent")
 
 
 def save_s24_learner_checkpoint(
@@ -1316,6 +1494,9 @@ def save_s24_learner_checkpoint(
     The payload binds the exact identity, revealed support with labels, reveal
     boundary, declared trainables, model configuration, tensor-state digests
     and the full resumable state (head/encoder/optimizer/both RNG streams).
+    Every tensor is written as a device-neutral CPU copy, and the execution
+    device plus the CUDA generator state (when training ran on CUDA) are bound
+    as provenance, so one file restores on either a CPU or a CUDA runtime.
     """
     if learner.normalizer is None:
         raise ValueError("S24 checkpoint requires a fitted learner")
@@ -1323,8 +1504,24 @@ def save_s24_learner_checkpoint(
         raise ValueError("S24 checkpoint requires optimizer state")
     target = Path(path)
     target.parent.mkdir(parents=True, exist_ok=True)
-    head_state = _copy_state(learner.head.state_dict())
-    encoder_state = _copy_state(learner.encoder.state_dict())
+    head_state = cast(dict[str, object], _cpu_tree(learner.head.state_dict()))
+    encoder_state = cast(dict[str, object], _cpu_tree(learner.encoder.state_dict()))
+    # A restored-but-not-yet-resumed cell must re-save the RNG state that will
+    # govern its next epoch, not the ambient process RNG.
+    cpu_rng_state = (
+        cast(torch.Tensor, learner._pending_rng_state).detach()
+        .to(device="cpu")
+        .clone()
+        if learner._pending_rng_state is not None
+        else cast(torch.Tensor, _cpu_tree(torch.get_rng_state()))
+    )
+    if learner._pending_cuda_rng_state:
+        cuda_rng_state = [
+            item.detach().to(device="cpu").clone()
+            for item in learner._pending_cuda_rng_state
+        ]
+    else:
+        cuda_rng_state = _cuda_rng_state() if learner.device.type == "cuda" else []
     payload: dict[str, object] = {
         "schema_id": S24_LEARNER_CHECKPOINT_SCHEMA_ID,
         "protocol_id": PROTOCOL_ID,
@@ -1340,34 +1537,40 @@ def save_s24_learner_checkpoint(
         },
         "trainables": learner.trainable_record(),
         "model_config": learner.encoder.config.to_dict(),
+        "execution": {
+            "device": str(learner.device),
+            "device_type": learner.device.type,
+        },
         "state_digests": {
             "head_state_sha256": state_sha256(head_state),
             "encoder_state_sha256": state_sha256(encoder_state),
             "normalizer_mean_sha256": state_sha256(learner.normalizer.mean),
             "normalizer_std_sha256": state_sha256(learner.normalizer.std),
+            "rng_state_sha256": _rng_state_digest(cpu_rng_state, cuda_rng_state),
         },
         "state": {
             "epoch": int(learner.epoch),
             "head": head_state,
             "encoder": encoder_state,
-            "normalizer_mean": learner.normalizer.mean.detach().clone(),
-            "normalizer_std": learner.normalizer.std.detach().clone(),
+            "normalizer_mean": _cpu_tree(learner.normalizer.mean),
+            "normalizer_std": _cpu_tree(learner.normalizer.std),
             "train_features": (
-                None if learner._train_features is None else learner._train_features.clone()
+                None if learner._train_features is None else _cpu_tree(learner._train_features)
             ),
             "val_features": (
-                None if learner._val_features is None else learner._val_features.clone()
+                None if learner._val_features is None else _cpu_tree(learner._val_features)
             ),
-            "optimizer": learner._optimizer.state_dict(),
-            "shuffle_generator": learner._generator.get_state(),
-            "torch_rng_state": torch.get_rng_state(),
+            "optimizer": _cpu_tree(learner._optimizer.state_dict()),
+            "shuffle_generator": _cpu_tree(learner._generator.get_state()),
+            "torch_rng_state": cpu_rng_state,
+            "torch_cuda_rng_state": cuda_rng_state,
             "history": list(learner.history),
             "best_epoch": int(learner.best_epoch),
             "best_val_loss": float(learner.best_val_loss),
             "best_head_state": (
                 None
                 if learner.best_head_state is None
-                else _copy_state(learner.best_head_state)
+                else _cpu_tree(learner.best_head_state)
             ),
             "patience_left": int(learner.patience_left),
             "stop_reason": learner.stop_reason,
@@ -1382,6 +1585,7 @@ def save_s24_learner_checkpoint(
         "schema_id": S24_LEARNER_CHECKPOINT_SCHEMA_ID,
         "path": str(target),
         "method": learner.method,
+        "device": str(learner.device),
         "checkpoint_digest": payload["checkpoint_digest"],
         "identity_digest": learner.identity_digest(),
         "support_digest": learner.support.support_digest,
@@ -1463,6 +1667,7 @@ def restore_s24_learner_checkpoint(
     bundle: S24B0Bundle | None = None,
     gate: LabelReleaseGate | None = None,
     ledger: S24LabelConsumptionLedger | None = None,
+    device: str | torch.device = "cpu",
 ) -> S24Learner:
     """Restore a learner checkpoint after verifying every bound identity.
 
@@ -1471,7 +1676,12 @@ def restore_s24_learner_checkpoint(
     identity (accepted checkpoint/model state, random-init state, or scratch
     state) must match, and the checkpoint digest must be intact. Any mismatch
     fails closed before a learner object is returned.
+
+    Tensors are read on the CPU and deployed to ``device`` (default ``"cpu"``),
+    so a checkpoint written on either device restores on the other; an ``M1``
+    restore must use the restored bundle's device because it shares that model.
     """
+    target = resolve_s24_device(device)
     source = Path(path)
     if not source.is_file():
         raise ValueError(f"S24 learner checkpoint is missing: {source}")
@@ -1498,6 +1708,7 @@ def restore_s24_learner_checkpoint(
     state_digests = payload.get("state_digests")
     if not isinstance(state_digests, Mapping):
         raise ValueError("S24 checkpoint state digests are missing")
+    _verify_execution(payload.get("execution"))
     support = _verify_support(
         views,
         support_record,
@@ -1512,6 +1723,7 @@ def restore_s24_learner_checkpoint(
     if method == METHOD_FROZEN_HEAD:
         if bundle is None:
             raise ValueError("S24 M1 restore requires the restored accepted B0 bundle")
+        require_s24_bundle_device(bundle, target, label="S24 M1 restore")
         live = s24_live_state_digests(bundle.model, bundle.bank)
         if encoder_record.get("checkpoint_sha256") != bundle.checkpoint.checkpoint_sha256:
             raise ValueError("S24 checkpoint was fitted from a different accepted checkpoint")
@@ -1542,15 +1754,17 @@ def restore_s24_learner_checkpoint(
         encoder.eval()
     if state_sha256(encoder.state_dict()) != state_digests.get("encoder_state_sha256"):
         raise ValueError("S24 restored encoder state does not match its digest")
-    normalizer = S24FeatureNormalizer(
-        mean=cast(torch.Tensor, state["normalizer_mean"]).detach().clone(),
-        std=cast(torch.Tensor, state["normalizer_std"]).detach().clone(),
-    )
+    normalizer_mean = cast(torch.Tensor, state["normalizer_mean"]).detach()
+    normalizer_std = cast(torch.Tensor, state["normalizer_std"]).detach()
     if (
-        state_sha256(normalizer.mean) != state_digests.get("normalizer_mean_sha256")
-        or state_sha256(normalizer.std) != state_digests.get("normalizer_std_sha256")
+        state_sha256(normalizer_mean) != state_digests.get("normalizer_mean_sha256")
+        or state_sha256(normalizer_std) != state_digests.get("normalizer_std_sha256")
     ):
         raise ValueError("S24 restored normalizer statistics do not match their digest")
+    normalizer = S24FeatureNormalizer(
+        mean=normalizer_mean.to(device=target, dtype=torch.float32).clone(),
+        std=normalizer_std.to(device=target, dtype=torch.float32).clone(),
+    )
     learner = S24Learner(
         method=method,
         encoder=encoder,
@@ -1564,9 +1778,14 @@ def restore_s24_learner_checkpoint(
         patience=0 if method == METHOD_SCRATCH else HEAD_PATIENCE,
         learning_rate=SCRATCH_LR_START if method == METHOD_SCRATCH else HEAD_LR,
         batch_size=SCRATCH_BATCH_SIZE if method == METHOD_SCRATCH else HEAD_BATCH_SIZE,
+        device=target,
     )
     learner.head.load_state_dict(cast(Any, state["head"]))
     learner.head.eval()
+    if method == METHOD_SCRATCH:
+        # The constructor enables train mode for the scratch encoder; a restored
+        # cell sits outside a fit step until ``fit`` starts the next epoch.
+        learner.encoder.eval()
     if state_sha256(learner.head.state_dict()) != state_digests.get("head_state_sha256"):
         raise ValueError("S24 restored head state does not match its digest")
     if learner.identity_digest() != payload.get("identity_digest"):
@@ -1579,7 +1798,30 @@ def restore_s24_learner_checkpoint(
     learner._optimizer = learner._new_optimizer()
     learner._optimizer.load_state_dict(cast(dict[str, Any], state["optimizer"]))
     learner._generator.set_state(cast(torch.Tensor, state["shuffle_generator"]))
-    learner._pending_rng_state = cast(torch.Tensor, state["torch_rng_state"]).clone()
+    cpu_rng_state = cast(torch.Tensor, state["torch_rng_state"]).detach().clone()
+    stored_cuda_rng = state.get("torch_cuda_rng_state")
+    if stored_cuda_rng is None:
+        stored_cuda_rng = []
+    if not isinstance(stored_cuda_rng, list) or any(
+        not isinstance(item, torch.Tensor) or item.dtype != torch.uint8
+        for item in stored_cuda_rng
+    ):
+        raise ValueError("S24 checkpoint CUDA RNG state is malformed")
+    bound_rng_digest = state_digests.get("rng_state_sha256")
+    if bound_rng_digest is not None and bound_rng_digest != _rng_state_digest(
+        cpu_rng_state, stored_cuda_rng
+    ):
+        raise ValueError("S24 restored RNG state does not match its digest")
+    learner._pending_rng_state = cpu_rng_state
+    if target.type == "cuda" and stored_cuda_rng:
+        if len(stored_cuda_rng) != torch.cuda.device_count():
+            raise ValueError(
+                "S24 checkpoint CUDA RNG device count differs from this runtime"
+            )
+        learner._pending_cuda_rng_state = [
+            item.detach().to(device="cpu").clone() for item in stored_cuda_rng
+        ]
+    learner._rng_restored_from_checkpoint = True
     learner.epoch = int(cast(int, state["epoch"]))
     learner.history = [
         dict(cast(Mapping[str, float], row))
@@ -1589,7 +1831,14 @@ def restore_s24_learner_checkpoint(
     learner.best_val_loss = float(cast(float, state["best_val_loss"]))
     best_state = state.get("best_head_state")
     learner.best_head_state = (
-        _copy_state(cast(Mapping[str, object], best_state))
+        {
+            name: (
+                value.detach().to(device=target).clone()
+                if isinstance(value, torch.Tensor)
+                else copy.deepcopy(value)
+            )
+            for name, value in cast(Mapping[str, object], best_state).items()
+        }
         if isinstance(best_state, Mapping)
         else None
     )
@@ -1608,10 +1857,14 @@ def restore_s24_learner_checkpoint(
     )
     train_features = state.get("train_features")
     if isinstance(train_features, torch.Tensor):
-        learner._train_features = train_features.detach().clone()
+        learner._train_features = (
+            train_features.detach().to(device=target, dtype=torch.float32).clone()
+        )
     val_features = state.get("val_features")
     if isinstance(val_features, torch.Tensor):
-        learner._val_features = val_features.detach().clone()
+        learner._val_features = (
+            val_features.detach().to(device=target, dtype=torch.float32).clone()
+        )
     if learner.method != METHOD_SCRATCH:
         if learner._train_features is None or learner._val_features is None:
             raise ValueError("S24 frozen checkpoint is missing its support features")

@@ -160,3 +160,23 @@ def test_timestep_scores_localize_synthetic_spike_deterministically() -> None:
     background = np.asarray(first, dtype=float)[:16]
     assert bool((background == 0.0).all())
     assert float(np.asarray(first, dtype=float)[16:24].mean()) > 0.0
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="requires CUDA")
+def test_bank_scores_on_its_deployed_device_and_returns_query_device() -> None:
+    """A CUDA-deployed bank computes kNN on CUDA without changing the contract.
+
+    Sprint 24 restores the Fit bank onto an explicit device; the score must run
+    where the bank is deployed (no silent CPU fallback) and still match the CPU
+    result within FP32 tolerance, returning values on the query's device.
+    """
+    torch.manual_seed(5)
+    reference = torch.randn(64, 8)
+    queries = torch.randn(7, 8)
+    cpu_bank = NormalReferenceBank(k=5).fit(reference)
+    cuda_bank = NormalReferenceBank(k=5)
+    cuda_bank.embeddings = reference.to("cuda")
+    cpu_scores = cpu_bank.score(queries)
+    cuda_scores = cuda_bank.score(queries.to("cuda"))
+    assert cuda_scores.device.type == "cuda"
+    torch.testing.assert_close(cuda_scores.cpu(), cpu_scores, rtol=1e-4, atol=1e-5)

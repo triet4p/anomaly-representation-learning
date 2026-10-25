@@ -18,7 +18,7 @@ from synth.schema import FileSample
 
 
 class NormalReferenceBank:
-    """CPU reference embeddings fitted exclusively from normal files."""
+    """Normal-only reference embeddings; fitted on CPU, deployable to a device."""
 
     def __init__(self, k: int = 5) -> None:
         if k <= 0:
@@ -47,13 +47,22 @@ class NormalReferenceBank:
         return self
 
     def score(self, embeddings: torch.Tensor) -> torch.Tensor:
-        """Return mean distance to up to ``k`` nearest normal references."""
-        if self.embeddings is None:
+        """Return mean distance to up to ``k`` nearest normal references.
+
+        The kNN distance is computed where the bank itself is deployed (CPU for
+        a CPU-fitted bank, the target device for a bank restored with an
+        explicit CUDA device) and the result is returned on the query's device.
+        A CPU bank with a CUDA query keeps the established behaviour of moving
+        the query to the bank, so an undeployed bank neither changes the values
+        nor raises a device mismatch.
+        """
+        bank = self.embeddings
+        if bank is None:
             raise ValueError("reference bank has not been fitted")
-        if embeddings.ndim != 2 or embeddings.shape[1] != self.embeddings.shape[1]:
+        if embeddings.ndim != 2 or embeddings.shape[1] != bank.shape[1]:
             raise ValueError("query embeddings must be [B, D] with matching D")
-        distances = torch.cdist(embeddings.float().cpu(), self.embeddings)
-        nearest = distances.topk(min(self.k, self.embeddings.shape[0]), largest=False, dim=1).values
+        distances = torch.cdist(embeddings.float().to(bank.device), bank)
+        nearest = distances.topk(min(self.k, bank.shape[0]), largest=False, dim=1).values
         return nearest.mean(dim=1).to(device=embeddings.device)
 
 

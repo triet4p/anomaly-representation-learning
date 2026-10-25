@@ -18,9 +18,20 @@ adds no new modeling, fitting, or bank construction:
   strictly restored final scale envelope. ``S_pop`` is never recomputed by
   N4; the restored B0 bank map is carried through unchanged.
 
+Device contract: every public entry point takes an explicit ``device``
+argument that defaults to ``"cpu"``. Only ``cpu`` and ``cuda``/``cuda:N`` are
+accepted; an unavailable CUDA target raises ``ValueError`` instead of silently
+falling back to the CPU, and no function reads the process-global default
+device. Restored checkpoints/banks are loaded on the CPU first
+(``map_location="cpu"``) and then deployed to the requested device, so the
+device-neutral frozen-state/checkpoint digests stay identical across devices.
+Batch tensors are co-located onto the deployed model device immediately before
+the forward pass; record-level outputs remain device-neutral CPU values.
+
 Fail-fast contract: any digest mismatch, seed/bank/scaler mismatch, empty or
-duplicated support, or non-finite output raises ``ValueError``. There is no
-random fallback, no checkpoint/bank refit, and no Confirmation contact.
+duplicated support, non-finite output, or model/bank device disagreement raises
+``ValueError``. There is no random fallback, no checkpoint/bank refit, and no
+Confirmation contact.
 """
 
 from __future__ import annotations
@@ -79,6 +90,94 @@ S24_MASK_RULE_ID = "sprint18-score-mask-v2"
 #: N4 scoring with no eligible masked valid patch is a hard failure.
 S24_N4_EMPTY_PATCHES_ERROR = "N4 scoring file has no eligible masked valid patches"
 
+#: Execution devices the S24 feature/learner path accepts explicitly.
+S24_DEVICE_TYPES = ("cpu", "cuda")
+
+
+def resolve_s24_device(device: str | torch.device = "cpu") -> torch.device:
+    """Resolve an explicit execution device; unavailable CUDA fails closed.
+
+    ``"cpu"`` (the default) and ``"cuda"``/``"cuda:N"`` are the only accepted
+    targets. There is no ``"auto"`` selection and no read of the process-global
+    default device, so a requested CUDA execution never silently degrades to
+    the CPU.
+    """
+    target = _parse_s24_device(device)
+    if target.type == "cuda":
+        if not torch.cuda.is_available():
+            raise ValueError("S24 CUDA device requested but CUDA is unavailable")
+        index = target.index
+        if index is None:
+            index = torch.cuda.current_device()
+        if not 0 <= index < torch.cuda.device_count():
+            raise ValueError(
+                f"S24 CUDA device index {index} is outside the available devices"
+            )
+        target = torch.device("cuda", index)
+    return target
+
+
+def s24_device_identity(device: str | torch.device = "cpu") -> str:
+    """Return the canonical device label used in cache/checkpoint provenance.
+
+    This is a provenance label only: it validates the device type without
+    requiring that CUDA is present, so a recorded cache/checkpoint identity can
+    be re-derived when reading artifacts on another host.
+    """
+    return str(_parse_s24_device(device))
+
+
+def _parse_s24_device(device: str | torch.device) -> torch.device:
+    if isinstance(device, bool) or not isinstance(device, (str, torch.device)):
+        raise ValueError("S24 device must be a torch.device or a device string")
+    if isinstance(device, str) and not device:
+        raise ValueError("S24 device string must not be empty")
+    try:
+        target = device if isinstance(device, torch.device) else torch.device(device)
+    except (RuntimeError, TypeError, ValueError) as exc:
+        raise ValueError(f"S24 device {device!r} is not a valid torch device") from exc
+    if target.type not in S24_DEVICE_TYPES:
+        raise ValueError(f"S24 device {str(target)!r} is not cpu or cuda")
+    return target
+
+
+def _module_device(model: V1RepresentationModel) -> torch.device:
+    parameter = next(model.parameters(), None)
+    if parameter is None:
+        raise ValueError("S24 model exposes no parameters to locate a device")
+    return parameter.device
+
+
+def require_s24_bundle_device(
+    bundle: S24B0Bundle,
+    device: str | torch.device | None,
+    *,
+    label: str,
+) -> torch.device:
+    """Fail closed unless the bundle model, bank and request share one device."""
+    model_device = _module_device(bundle.model)
+    embeddings = bundle.bank.bank.embeddings
+    if not isinstance(embeddings, torch.Tensor):
+        raise ValueError(f"{label} requires a restored reference bank")
+    if embeddings.device != model_device:
+        raise ValueError(
+            f"{label} model device {str(model_device)} differs from the restored "
+            f"bank device {str(embeddings.device)}"
+        )
+    if bundle.device != str(model_device):
+        raise ValueError(
+            f"{label} bundle device identity {bundle.device!r} differs from the "
+            f"deployed model device {str(model_device)!r}"
+        )
+    if device is not None:
+        requested = resolve_s24_device(device)
+        if requested != model_device:
+            raise ValueError(
+                f"{label} requested device {str(requested)} differs from the "
+                f"deployed model device {str(model_device)}"
+            )
+    return model_device
+
 
 def _sha256_file(path: Path) -> str:
     digest = sha256()
@@ -132,14 +231,18 @@ def restore_s24_provenanced_bank(
     arm: Sprint18ArmConfig,
     expected_bank_sha256: str,
     expected_checkpoint_sha256: str,
+    device: str | torch.device = "cpu",
 ) -> ProvenancedBank:
     """Restore the locked Fit bank from custody bytes without refitting.
 
     Verifies the ``sprint18-fit-reference-bank-v2`` envelope (schema, frozen
     recipe/order IDs, recomputed tensor digest, checkpoint/model/EMA/arm
     binding, complete Fit-role membership) and attaches the stored embeddings
-    to a :class:`NormalReferenceBank`. ``fit`` is never called.
+    to a :class:`NormalReferenceBank` on ``device`` (default ``"cpu"``). The
+    custody bytes are always validated on the CPU, so the bank digest is
+    device-independent. ``fit`` is never called.
     """
+    target = resolve_s24_device(device)
     validate_arm_config(arm, require_locked=True)
     expected_bank = _require_sha256(expected_bank_sha256, "expected bank SHA-256")
     expected_checkpoint = _require_sha256(
@@ -209,10 +312,12 @@ def restore_s24_provenanced_bank(
     if envelope.get("k") != bank_k:
         raise ValueError("S24 bank envelope k differs from its provenance k")
     bank = NormalReferenceBank(k=int(bank_k))
-    bank.embeddings = embeddings.detach().to(device="cpu", dtype=torch.float32).clone()
+    bank.embeddings = (
+        embeddings.detach().to(device=target, dtype=torch.float32).contiguous().clone()
+    )
     if bank.embeddings.ndim != 2 or bank.embeddings.shape[0] == 0:
         raise ValueError("S24 restored bank embeddings are empty or malformed")
-    if not torch.isfinite(bank.embeddings).all():
+    if not bool(torch.isfinite(bank.embeddings).all()):
         raise ValueError("S24 restored bank embeddings are non-finite")
     return ProvenancedBank(
         bank=bank,
@@ -243,6 +348,7 @@ class S24B0Bundle:
     checkpoint: RestoredSprint18Checkpoint = field(compare=False)
     preprocessing_sha256: str = ""
     frozen_state_sha256: str = ""
+    device: str = "cpu"
 
 
 def s24_live_state_digests(
@@ -283,13 +389,18 @@ def restore_s24_b0_bundle(
     bank_path: str | Path,
     expected_checkpoint_sha256: str,
     expected_bank_sha256: str,
+    device: str | torch.device = "cpu",
 ) -> S24B0Bundle:
     """Restore the locked B0 checkpoint, normalization, and bank as one bundle.
 
-    The checkpoint is strictly restored (``scope="experiment"``); the bank is
-    restored from custody without refit. The model is left in ``eval`` mode so
-    the frozen ``ConditionalBatchNorm`` statistics can never update.
+    The checkpoint is strictly restored on the CPU (``map_location="cpu"``,
+    ``scope="experiment"``) and then deployed to ``device``; the bank is
+    restored from custody without refit on the same device. Frozen-state
+    digests are computed from CPU values, so they are identical for a CPU and a
+    CUDA deployment. The model is left in ``eval`` mode so the frozen
+    ``ConditionalBatchNorm`` statistics can never update.
     """
+    target = resolve_s24_device(device)
     validate_arm_config(arm, require_locked=True)
     if arm.model_seed not in MODEL_SEEDS:
         raise ValueError("S24 model seed is outside the frozen Sprint18 seed namespace")
@@ -318,12 +429,14 @@ def restore_s24_b0_bundle(
     )
     if restored.checkpoint_sha256 != expected_checkpoint:
         raise ValueError("S24 restored checkpoint identity differs from the accepted digest")
+    model.to(target)
     bank = restore_s24_provenanced_bank(
         bank_path,
         binding=binding,
         arm=arm,
         expected_bank_sha256=expected_bank_sha256,
         expected_checkpoint_sha256=expected_checkpoint,
+        device=target,
     )
     if bank.bank.k != model.config.knn_k:
         raise ValueError("S24 restored bank k differs from the model contract")
@@ -355,6 +468,7 @@ def restore_s24_b0_bundle(
         checkpoint=restored,
         preprocessing_sha256=preprocessing,
         frozen_state_sha256=frozen,
+        device=str(target),
     )
 
 
@@ -384,14 +498,18 @@ def capture_s24_file_features(
     history_id: str,
     model_seed: int,
     masking_policy: Any = None,
+    device: str | torch.device | None = None,
 ) -> list[S24FileFeatures]:
     """Capture frozen file embeddings and B0 scores through public inference.
 
     Every file is collated with its deterministic
     ``sprint18-score-mask-v2`` seed, filtered to the encoder-visible batch,
-    and scored with :class:`RepresentationInference` (frozen ``eval`` mode, no
-    gradients). File/patch identity and valid lengths are retained alongside
-    the outputs; the batch order always matches the input sample order.
+    co-located onto the deployed model device, and scored with
+    :class:`RepresentationInference` (frozen ``eval`` mode, no gradients). The
+    bank must already be deployed on the same device; an explicit ``device``
+    (default: derived from the model) must match it. File/patch identity and
+    valid lengths are retained alongside the device-neutral CPU outputs; the
+    batch order always matches the input sample order.
     """
     if model_seed not in MODEL_SEEDS:
         raise ValueError("S24 model seed is outside the frozen Sprint18 seed namespace")
@@ -407,6 +525,17 @@ def capture_s24_file_features(
         raise ValueError("S24 feature capture requires unique file IDs")
     if bank.bank.embeddings is None:
         raise ValueError("S24 feature capture requires a restored reference bank")
+    target = _module_device(model)
+    if bank.bank.embeddings.device != target:
+        raise ValueError(
+            "S24 feature capture model/bank devices differ: "
+            f"model {str(target)} bank {str(bank.bank.embeddings.device)}"
+        )
+    if device is not None and resolve_s24_device(device) != target:
+        raise ValueError(
+            f"S24 feature capture requested device {str(resolve_s24_device(device))} "
+            f"differs from the deployed model device {str(target)}"
+        )
     model.eval()
     inference = RepresentationInference(
         model, bank.bank, model.patchifier, masking_config=model.config
@@ -478,17 +607,21 @@ def score_s24_development_support(
     arm: Sprint18ArmConfig,
     bundle: S24B0Bundle,
     rows: Sequence[CertifiedSample],
+    device: str | torch.device | None = None,
 ) -> HarnessScores:
     """Score Development rows through the public harness entry point.
 
     Thin call to :func:`score_certified_rows` with the restored bundle
-    (``action="score_development"``, ``scope="experiment"``). Returns the two
-    independent branch maps on the exact requested support.
+    (``action="score_development"``, ``scope="experiment"``). The bundle model,
+    its bank and an optional explicit ``device`` must all agree before any row
+    is scored. Returns the two independent branch maps on the exact requested
+    support.
     """
     if not rows:
         raise ValueError("S24 development scoring requires a non-empty row batch")
     if len({row.actual_history_id for row in rows}) != 1:
         raise ValueError("S24 development scoring requires a single-history batch")
+    require_s24_bundle_device(bundle, device, label="S24 development scoring")
     return score_certified_rows(
         binding,
         arm,
@@ -511,19 +644,34 @@ def score_s24_n4_normalized(
     model_seed: int,
     v_floor: float,
     v_cap: float,
+    device: str | torch.device | None = None,
 ) -> dict[str, dict[str, float]]:
     """Score files through the frozen B0 encoder plus the fitted N4 scale head.
 
     Thin call to :func:`n4_score_files` with one deterministic per-file mask
-    seed per single-sample batch (the accepted runner convention). Returns the
-    per-file ``{"raw", "scale", "normalized"}`` triples on exactly the
-    requested file set; the bank/``S_pop`` path is untouched here.
+    seed per single-sample batch (the accepted runner convention). The frozen
+    encoder and the fitted scale head must be deployed on the same device, and
+    an optional explicit ``device`` must match it; the batch is co-located onto
+    that device inside the scorer. Returns the per-file
+    ``{"raw", "scale", "normalized"}`` triples on exactly the requested file
+    set; the bank/``S_pop`` path is untouched here.
     """
     if model_seed not in MODEL_SEEDS:
         raise ValueError("S24 model seed is outside the frozen Sprint18 seed namespace")
     materialized = list(samples)
     if not materialized:
         raise ValueError("S24 N4 scoring requires a non-empty file batch")
+    target = _module_device(model)
+    scale_parameter = next(scale_model.parameters(), None)
+    if scale_parameter is None or scale_parameter.device != target:
+        raise ValueError(
+            "S24 N4 scoring scale head device differs from the B0 model device"
+        )
+    if device is not None and resolve_s24_device(device) != target:
+        raise ValueError(
+            f"S24 N4 scoring requested device {str(resolve_s24_device(device))} "
+            f"differs from the deployed model device {str(target)}"
+        )
     merged: dict[str, dict[str, float]] = {}
     for sample in materialized:
         seed = deterministic_mask_seed(model_seed, history_id, sample.file_id)
@@ -552,18 +700,23 @@ def s24_feature_cache_identity(
     data_binding_sha256: str,
     model_seed: int,
     scale_state_sha256: str | None = None,
+    device: str | torch.device = "cpu",
 ) -> str:
     """Bind the exact checkpoint/source-support/preprocessing identity.
 
     ``scale_state_sha256`` carries the fitted N4 scale digest for N4-scored
-    caches and ``"none"`` for B0-only caches. Any substitution changes the
-    digest; malformed inputs fail closed.
+    caches and ``"none"`` for B0-only caches. ``device`` records the execution
+    device that produced the features: CPU and CUDA results are equivalent
+    within the declared FP32 tolerances but are not bit-identical, so a cache
+    computed on one device is never silently reused as the other's. Any
+    substitution changes the digest; malformed inputs fail closed.
     """
     if model_seed not in MODEL_SEEDS:
         raise ValueError("S24 model seed is outside the frozen Sprint18 seed namespace")
     record: dict[str, object] = {
         "schema": S24_FEATURES_SCHEMA_ID,
         "kind": "feature-cache",
+        "device": s24_device_identity(device),
         "checkpoint_sha256": _require_sha256(checkpoint_sha256, "checkpoint SHA-256"),
         "bank_sha256": _require_sha256(bank_sha256, "bank SHA-256"),
         "support_sha256": _require_sha256(support_sha256, "support SHA-256"),
@@ -585,14 +738,18 @@ def s24_feature_cache_identity(
 
 
 __all__ = [
+    "S24_DEVICE_TYPES",
     "S24_FEATURES_SCHEMA_ID",
     "S24_MASK_RULE_ID",
     "S24B0Bundle",
     "S24FileFeatures",
     "assert_s24_frozen_unchanged",
     "capture_s24_file_features",
+    "require_s24_bundle_device",
+    "resolve_s24_device",
     "restore_s24_b0_bundle",
     "restore_s24_provenanced_bank",
+    "s24_device_identity",
     "s24_feature_cache_identity",
     "s24_live_state_digests",
     "s24_preprocessing_digest",

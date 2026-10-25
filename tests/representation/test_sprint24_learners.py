@@ -380,3 +380,177 @@ def test_normalizer_is_fitted_on_training_support_only() -> None:
     assert torch.allclose(learner.normalizer.std, expected.std, atol=1e-6)
     combined = torch.stack([shifted[file_id] for file_id in support.label_ids])
     assert not torch.allclose(learner.normalizer.mean, combined.mean(dim=0), atol=1e-3)
+
+
+def _device_type(module: torch.nn.Module) -> str:
+    parameter = next(module.parameters(), None)
+    assert parameter is not None
+    return parameter.device.type
+
+
+def _nested_tensors(value: object) -> list[torch.Tensor]:
+    if isinstance(value, torch.Tensor):
+        return [value]
+    if isinstance(value, dict):
+        found: list[torch.Tensor] = []
+        for item in value.values():
+            found.extend(_nested_tensors(item))
+        return found
+    if isinstance(value, (list, tuple)):
+        found = []
+        for item in value:
+            found.extend(_nested_tensors(item))
+        return found
+    return []
+
+
+def test_cpu_default_keeps_every_training_tensor_on_cpu() -> None:
+    """The default device must keep the whole cell on the CPU (compatibility contract)."""
+    _, _, support, _, embeddings = _synthetic_cell()
+    learner = build_s24_random_frozen_learner(
+        model_config=V1Config(sequence_layers=1),
+        support=support,
+        init_seed=241801,
+        mask_model_seed=181801,
+        frozen_embeddings=embeddings,
+    )
+    assert learner.device == torch.device("cpu")
+    assert _device_type(learner.encoder) == "cpu"
+    assert _device_type(learner.head) == "cpu"
+    assert learner._frozen_embeddings and all(
+        vector.device.type == "cpu" for vector in learner._frozen_embeddings.values()
+    )
+    fit_s24_learner(learner, epochs=1)
+    assert learner.normalizer is not None
+    assert learner.normalizer.mean.device.type == "cpu"
+    assert learner._train_features is not None
+    assert learner._train_features.device.type == "cpu"
+    assert learner._val_features is not None
+    assert learner._val_features.device.type == "cpu"
+    assert learner._optimizer is not None
+    assert all(
+        value.device.type == "cpu"
+        for entry in learner._optimizer.state.values()
+        for value in entry.values()
+        if isinstance(value, torch.Tensor)
+    )
+    assert assert_s24_trainables(learner)["declared_trainable_parameters"] == 129
+
+
+def test_checkpoint_is_device_neutral_and_binds_its_rng_state(tmp_path: Path) -> None:
+    """A checkpoint is written as CPU tensors plus bound execution/RNG provenance."""
+    views, gate, support, _, embeddings = _synthetic_cell()
+    learner = build_s24_random_frozen_learner(
+        model_config=V1Config(sequence_layers=1),
+        support=support,
+        init_seed=241802,
+        mask_model_seed=181801,
+        frozen_embeddings=embeddings,
+    )
+    fit_s24_learner(learner, epochs=2)
+    matrix = torch.stack([embeddings[file_id] for file_id in support.label_ids])
+    before = learner.predict_embeddings(matrix)
+
+    path = tmp_path / "device-neutral.pt"
+    metadata = save_s24_learner_checkpoint(path, learner)
+    assert metadata["device"] == "cpu"
+    payload = torch.load(path, map_location="cpu", weights_only=False)
+    assert payload["execution"] == {"device": "cpu", "device_type": "cpu"}
+    stored = _nested_tensors(payload["state"])
+    assert stored
+    assert all(tensor.device.type == "cpu" for tensor in stored)
+    assert payload["state"]["torch_cuda_rng_state"] == []
+
+    restored = restore_s24_learner_checkpoint(path, views=views, gate=gate, device="cpu")
+    assert restored.device == torch.device("cpu")
+    assert torch.equal(before, restored.predict_embeddings(matrix))
+    assert_s24_trainables(restored)
+
+    # Restore -> re-save -> restore must keep the pending RNG binding instead of
+    # recording the ambient process RNG.
+    chained = restore_s24_learner_checkpoint(path, views=views, gate=gate)
+    chain_path = tmp_path / "device-neutral-chain.pt"
+    save_s24_learner_checkpoint(chain_path, chained)
+    chain_payload = torch.load(chain_path, map_location="cpu", weights_only=False)
+    assert torch.equal(
+        chain_payload["state"]["torch_rng_state"], payload["state"]["torch_rng_state"]
+    )
+    chained_restored = restore_s24_learner_checkpoint(
+        chain_path, views=views, gate=gate
+    )
+    assert torch.equal(before, chained_restored.predict_embeddings(matrix))
+
+    payload["state"]["torch_rng_state"][0] ^= 1
+    tampered = tmp_path / "device-neutral-tampered.pt"
+    torch.save(payload, tampered)
+    with pytest.raises(ValueError, match="RNG state does not match"):
+        restore_s24_learner_checkpoint(tampered, views=views, gate=gate)
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="requires CUDA")
+def test_cuda_scratch_training_restore_and_resume_are_device_aligned(
+    tmp_path: Path,
+) -> None:
+    """CUDA training, checkpoint restore and same-device resume keep one device.
+
+    The resume leg only reproduces the uninterrupted continuation when the CUDA
+    generator state is restored, so it also proves the RNG binding.
+    """
+    views, gate, support, samples, _ = _synthetic_cell(
+        d_model=16, train_count=4, val_count=2
+    )
+    config = V1Config(
+        d_model=16, sequence_layers=1, attention_heads=4, n_robots=9, n_programs=8
+    )
+    learner = build_s24_scratch_learner(
+        model_config=config, support=support, mask_model_seed=181801, device="cuda"
+    )
+    fit_s24_learner(learner, samples, epochs=2)
+    assert learner.device.type == "cuda"
+    assert _device_type(learner.encoder) == "cuda"
+    assert _device_type(learner.head) == "cuda"
+    assert learner.normalizer is not None and learner.normalizer.mean.is_cuda
+    assert learner._optimizer is not None
+    assert all(
+        value.is_cuda
+        for entry in learner._optimizer.state.values()
+        for value in entry.values()
+        if isinstance(value, torch.Tensor)
+    )
+    support_samples = [samples[file_id] for file_id in support.label_ids]
+    before = learner.predict(support_samples, history_id=support.history_id)
+
+    path = tmp_path / "cuda-cell.pt"
+    save_s24_learner_checkpoint(path, learner)
+    payload = torch.load(path, map_location="cpu", weights_only=False)
+    assert payload["execution"]["device_type"] == "cuda"
+    assert payload["state"]["torch_cuda_rng_state"]
+    assert all(t.device.type == "cpu" for t in _nested_tensors(payload["state"]))
+    restored = restore_s24_learner_checkpoint(
+        path, views=views, gate=gate, device="cuda"
+    )
+    assert restored.device.type == "cuda"
+    assert restored.predict(support_samples, history_id=support.history_id) == before
+    assert_s24_trainables(restored)
+
+    uninterrupted = build_s24_scratch_learner(
+        model_config=config, support=support, mask_model_seed=181801, device="cuda"
+    )
+    fit_s24_learner(uninterrupted, samples, epochs=2)
+    partial = build_s24_scratch_learner(
+        model_config=config, support=support, mask_model_seed=181801, device="cuda"
+    )
+    fit_s24_learner(partial, samples, epochs=1)
+    partial_path = tmp_path / "cuda-cell-partial.pt"
+    save_s24_learner_checkpoint(partial_path, partial)
+    resumed = restore_s24_learner_checkpoint(
+        partial_path, views=views, gate=gate, device="cuda"
+    )
+    fit_s24_learner(resumed, samples, epochs=1)
+    assert state_sha256(uninterrupted.encoder.state_dict()) == state_sha256(
+        resumed.encoder.state_dict()
+    )
+    assert torch.equal(uninterrupted.head.linear.weight, resumed.head.linear.weight)
+    assert uninterrupted.predict(
+        support_samples, history_id=support.history_id
+    ) == resumed.predict(support_samples, history_id=support.history_id)

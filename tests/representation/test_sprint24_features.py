@@ -6,10 +6,13 @@ import pytest
 import torch
 
 from representation.sprint24_features import (
+    S24_DEVICE_TYPES,
     S24_FEATURES_SCHEMA_ID,
     assert_s24_frozen_unchanged,
     capture_s24_file_features,
+    resolve_s24_device,
     restore_s24_provenanced_bank,
+    s24_device_identity,
     s24_feature_cache_identity,
     s24_preprocessing_digest,
     score_s24_development_support,
@@ -124,4 +127,58 @@ def test_missing_bank_file_fails_fast() -> None:
             arm=arm,
             expected_bank_sha256="b" * 64,
             expected_checkpoint_sha256="a" * 64,
+        )
+
+
+def test_device_resolution_is_explicit_and_fails_closed() -> None:
+    """Only cpu/cuda are accepted, and an unavailable CUDA target never degrades."""
+    assert resolve_s24_device().type == "cpu"
+    assert resolve_s24_device(torch.device("cpu")).type == "cpu"
+    assert s24_device_identity("cpu") == "cpu"
+    assert s24_device_identity(torch.device("cpu")) == "cpu"
+    assert S24_DEVICE_TYPES == ("cpu", "cuda")
+    with pytest.raises(ValueError, match="not cpu or cuda"):
+        resolve_s24_device("mps")
+    with pytest.raises(ValueError, match="not a valid torch device"):
+        resolve_s24_device("auto")
+    with pytest.raises(ValueError, match="must not be empty"):
+        resolve_s24_device("")
+    with pytest.raises(ValueError, match="torch.device or a device string"):
+        resolve_s24_device(3)  # type: ignore[arg-type]
+    if torch.cuda.is_available():
+        assert resolve_s24_device("cuda").type == "cuda"
+        assert s24_device_identity("cuda").startswith("cuda")
+    else:
+        with pytest.raises(ValueError, match="CUDA is unavailable"):
+            resolve_s24_device("cuda")
+
+
+def test_cache_identity_binds_the_execution_device() -> None:
+    """CPU and CUDA caches are equivalent within tolerance, never interchangeable."""
+    kwargs: dict[str, object] = {
+        "checkpoint_sha256": "a" * 64,
+        "bank_sha256": "b" * 64,
+        "support_sha256": "c" * 64,
+        "preprocessing_sha256": "d" * 64,
+        "arm_config_sha256": "e" * 64,
+        "data_binding_sha256": "f" * 64,
+        "model_seed": 181801,
+    }
+    cpu = s24_feature_cache_identity(**kwargs)  # type: ignore[arg-type]
+    cuda = s24_feature_cache_identity(device=torch.device("cuda"), **kwargs)  # type: ignore[arg-type]
+    assert cpu != cuda
+    assert cpu == s24_feature_cache_identity(device="cpu", **kwargs)  # type: ignore[arg-type]
+
+
+@pytest.mark.skipif(torch.cuda.is_available(), reason="CPU-only runtime contract")
+def test_cuda_bank_restore_fails_closed_without_a_cuda_runtime() -> None:
+    """An explicit CUDA restore must refuse before touching any custody bytes."""
+    with pytest.raises(ValueError, match="CUDA is unavailable"):
+        restore_s24_provenanced_bank(
+            "missing-bank.pt",
+            binding=None,  # type: ignore[arg-type]
+            arm=None,  # type: ignore[arg-type]
+            expected_bank_sha256="b" * 64,
+            expected_checkpoint_sha256="a" * 64,
+            device="cuda",
         )
