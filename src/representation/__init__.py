@@ -52,6 +52,16 @@ from representation.sprint18_harness import (
     validate_sprint18_result,
     verify_contract_files,
 )
+from representation.sprint24_views import (
+    BUDGETS,
+    BUDGET_ORDER,
+    HistoryViews,
+    LabelReleaseGate,
+    ReplayEligibility,
+    build_episode_groups,
+    build_history_views,
+    is_eligible_for_training,
+)
 from representation.sprint18_checkpoint import (
     CHECKPOINT_SCHEMA_ID,
     RestoredSprint18Checkpoint,
@@ -387,6 +397,14 @@ __all__ = [
     "validate_sprint18_checkpoint",
     "validate_sprint18_result",
     "verify_contract_files",
+    "BUDGETS",
+    "BUDGET_ORDER",
+    "HistoryViews",
+    "LabelReleaseGate",
+    "ReplayEligibility",
+    "build_episode_groups",
+    "build_history_views",
+    "is_eligible_for_training",
     "validate_output",
     "BatchConfig",
     "BoundedEmbeddingExtractor",
