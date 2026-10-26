@@ -81,6 +81,7 @@ import io
 import json
 import math
 import os
+import re
 import subprocess
 import sys
 import time
@@ -329,9 +330,10 @@ def build_window_manifest(hid: str, files, mw, ok, ref, ev_spans, tmax: float):
             "label_blind_inputs_only": True}
 
 
-def preflight_assets() -> dict:
-    if source_commit() != SOURCE_COMMIT:
-        raise RuntimeError(f"source commit mismatch: {source_commit()} != {SOURCE_COMMIT}")
+def preflight_assets(expected_execution_commit: str) -> dict:
+    actual = source_commit()
+    if actual != expected_execution_commit:
+        raise RuntimeError(f"execution commit mismatch: {actual} != {expected_execution_commit}")
     if subprocess.check_output(["git", "-C", str(REPO), "status", "--porcelain=v1"], text=True).strip():
         raise RuntimeError("exact source worktree is dirty")
     if sha(REPO / "docs/sprint24-geometry-time-diagnostic-v1.md") != PROTOCOL_SHA256:
@@ -378,10 +380,17 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", required=True)
     ap.add_argument("--mode", required=True, choices=["preflight", "manifest", "smoke", "full"])
+    ap.add_argument("--expected-execution-commit", required=True,
+                    help="externally supplied expected execution commit (post-Bronze release); actual HEAD must match exactly")
     args = ap.parse_args()
     out = Path(args.out)
+    expected = args.expected_execution_commit
+    if not re.fullmatch(r"[0-9a-f]{40}", expected or ""):
+        raise RuntimeError("expected execution commit must be a 40-char hex SHA")
 
-    ctx = preflight_assets()
+    ctx = preflight_assets(expected)
+    if SOURCE_COMMIT not in subprocess.check_output(["git", "-C", str(REPO), "log", "--format=%H", "--", "docs/sprint24-geometry-time-diagnostic-v1.md", "docs/sprint-plans/sprint-24.md"], text=True).split():
+        raise RuntimeError("base provenance commit is not an ancestor of the execution checkout")
     per_history = {}
     for hid in HISTORIES:
         manifest, directory, files, mw, ok, ref, ev_spans, tmax = check_history_manifest(hid)
