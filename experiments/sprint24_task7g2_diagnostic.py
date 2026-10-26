@@ -299,7 +299,12 @@ def build_window_manifest(hid: str, files, mw, ok, ref, ev_spans, tmax: float):
         "quarantine_excluded": sum(1 for r in files if r.get("is_quarantined")),
         "censor_excluded": sum(1 for r in files if r.get("is_censored")),
     }
-    ev_sorted = sorted(ev_spans)
+    # Protocol §4 trailing windows (T-W,T] with W=14d>S=7d imply T1-W=c1-7d<c1,
+    # so window 1 causally includes pre-c1 reference-pool files; the consistency
+    # guard below therefore counts all eligible ends (not eval-span-only ends).
+    # Overlap is observable-timestamp overlap only: reference construction keeps
+    # zero evaluation contact and labels never enter construction (§3, §5).
+    ok_sorted = sorted(float(r["end_time"]) for r in ok)
     windows = []
     unsupported = 0
     t = C1[hid] + STRIDE_S
@@ -307,12 +312,13 @@ def build_window_manifest(hid: str, files, mw, ok, ref, ev_spans, tmax: float):
         lo = t - WIDTH_S
         members = [r for r in ok if lo < float(r["end_time"]) <= t]
         n = len(members)
-        assert n == bisect.bisect_right(ev_sorted, t) - bisect.bisect_right(ev_sorted, lo)
+        assert n == bisect.bisect_right(ok_sorted, t) - bisect.bisect_right(ok_sorted, lo)
         status = "SUPPORTED" if n >= MIN_N else "UNSUPPORTED"
         unsupported += status == "UNSUPPORTED"
         windows.append({
             "history_id": hid, "window_end_T": t, "window_start": lo,
             "n_eligible": n,
+            "n_ref_overlap": sum(1 for r in members if float(r["end_time"]) <= C1[hid]),
             "n_quarantine_excluded": sum(1 for r in files if r.get("is_quarantined") and lo < float(r["end_time"]) <= t),
             "n_overlap_excluded": 0,
             "robot_mix": dict(sorted(collections.Counter(r["robot_id"] for r in members).items())),
@@ -322,11 +328,14 @@ def build_window_manifest(hid: str, files, mw, ok, ref, ev_spans, tmax: float):
             "member_ids": sorted(r["file_id"] for r in members),
         })
         t += STRIDE_S
+    ref_overlap_ids = sorted({fid for w in windows for fid in w["member_ids"]} & {r["file_id"] for r in ref})
     return {"protocol": PROTOCOL, "history_id": hid, "width_days": 14.0,
             "stride_days": 7.0, "min_n": MIN_N, "seed": SPLIT_SEED,
             "c1_s": C1[hid], "c2_s": C2[hid], "tmax_s": tmax,
             "device": DEVICE, "reference": ref_record, "windows": windows,
             "n_windows": len(windows), "n_unsupported": unsupported,
+            "n_ref_overlap_any_window": len(ref_overlap_ids),
+            "ref_overlap_file_ids": ref_overlap_ids,
             "label_blind_inputs_only": True}
 
 
