@@ -27,7 +27,9 @@ Task **7-M2 complete**: [day/week/month measurement proposal](sprint24-business-
 
 Owner priority: study weekly/monthly collective movement first; daily evaluation is deferred, not abandoned. Reported deployment volume is approximately 500–1,000 files/day, distinct from current synthetic density. Scale inference data only after a prospectively defined promising result; freeze the bounded weekly/monthly execution amendment first. No scale/corpus/retraining/Phase C release is implied.
 
-Task **7-M3 is in progress**: freeze the bounded weekly/monthly prospective protocol, label-blind study manifests and a justified research-promise decision rule before new geometry outcomes. Required gates: independent evidence review, then separate Bronze exact-snapshot checkpoint. Protocol completion is not an inference/scale release.
+Task **7-M3 complete**: [frozen weekly/monthly protocol](sprint24-weekly-monthly-protocol-v1.md) `S24-BIZ-WM-v1`, [C1/R1 evidence PASS](../artifacts/sprint-24/reviews/task-7-m3-evidence.md), [Bronze checkpoint PASS](../artifacts/sprint-24/checkpoints/task-7-m3-cp01.md), commit `0a17ffa`. Metadata manifests and research-promise triage are verified; both horizons remain pending actual outcomes, no new forwards. Next execution requires verified cache custody/coverage and explicit release; fresh span capture exceeds inherited headroom by 659. No scaling, corpus change, retraining or Phase C release.
+
+Task **7-M4 is in progress**: cache preflight refused because G2 persisted no embeddings; owner approved bounded recapture on the existing corpus and raised the cumulative cap from 41,000 to **54,000**, retaining already used **26,431**. Full capture needs **26,262** new forwards; 96-forward smoke plus capture totals **52,789**. Independent readiness review and Bronze checkpoint precede reviewed exact-commit remote execution and durable-cache admission; final study evidence review and a separate Bronze checkpoint follow. Frozen scientific rules remain unchanged. No scaling, new corpus, retraining, Confirmation or Phase C release.
 
 ## Closed Scientific Baseline
 
