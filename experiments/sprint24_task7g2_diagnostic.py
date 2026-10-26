@@ -651,7 +651,7 @@ def main() -> int:
                 })
             # comparator event summaries on identical support (frozen q95 only)
             for comp, key in (("M0a-S_pred", "S_pred"), ("M0b-S_pop", "S_pop"), ("M0c-N4-S_pred", "S_pred_N4")):
-                thr = (FROZEN_S18_Q95 if key != "S_pred_N4" else FROZEN_N4_Q95)[seed] if key != "S_pop" else FROZEN_S18_Q95[seed]["S_pop"]
+                thr = (FROZEN_N4_Q95[seed] if key == "S_pred_N4" else FROZEN_S18_Q95[seed][key])
                 sc = {f: file_scores[(hid, seed)][f][key] for f in capture_plan[hid]}
                 rec, n, delays, alarms = _comparator_events(per_history[hid]["manifest"], by_id, man, sc, thr)
                 comp_rows.append({"history_id": hid, "encoder_seed": seed, "method": comp,
