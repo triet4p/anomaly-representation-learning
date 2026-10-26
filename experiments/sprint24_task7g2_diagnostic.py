@@ -659,7 +659,10 @@ def main() -> int:
                                   "delay_median_s": float(np.median(delays)) if delays else None,
                                   "delay_iqr_s": float(np.percentile(delays, 75) - np.percentile(delays, 25)) if delays else None,
                                   "false_alarm_episodes": alarms})
-    # calibration gate: finite non-degenerate nulls + >= half healthy controls below q95
+    # calibration gate (§10.3): finite non-degenerate nulls + >= half healthy
+    # controls below q95. Zero healthy-control support (healthy_total == 0) is
+    # NOT a pass: the gate's condition (b) cannot hold, so the disposition is
+    # NO-CALIBRATION (negative result for G3), never a fallback threshold.
     healthy_below, healthy_total = 0, 0
     for c in control_rows:
         if c["is_healthy_control"]:
@@ -670,7 +673,7 @@ def main() -> int:
             if s is not None:
                 healthy_total += 1
                 healthy_below += (not s["mmd_crosses_q95"])
-    gate_ok = all(n["finite_nondegenerate"] for n in null_rows) and (healthy_total == 0 or healthy_below >= healthy_total / 2)
+    gate_ok = all(n["finite_nondegenerate"] for n in null_rows) and (healthy_total > 0 and healthy_below >= healthy_total / 2)
     disposition = "CALIBRATED" if gate_ok else "NO-CALIBRATION"
     # false-alarm episodes: maximal crossing-window runs with no covered event
     fa_rows = []
@@ -730,8 +733,9 @@ def main() -> int:
          "healthy_below": healthy_below, "healthy_total": healthy_total}, sort_keys=True, indent=2), encoding="utf-8")
     (out / "state.json").write_text(json.dumps(
         {"state": "COMPLETE", "protocol": PROTOCOL, "source_commit": SOURCE_COMMIT,
-         "device": DEVICE, "mode": args.mode, "disposition": disposition,
-         "runner_sha256": sha(Path(__file__))}, sort_keys=True, indent=2), encoding="utf-8")
+         "execution_commit": source_commit(), "device": DEVICE, "mode": args.mode,
+         "disposition": disposition, "runner_sha256": sha(Path(__file__))},
+        sort_keys=True, indent=2), encoding="utf-8")
     print(json.dumps({"status": "COMPLETE", "mode": args.mode, "disposition": disposition,
                        "n_stats": len(stats_rows), "n_events": len(event_rows),
                        "forwards_actual": actual_forwards, "forwards_full_planned": full_total,
