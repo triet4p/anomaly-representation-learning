@@ -1,0 +1,183 @@
+{
+  "artifact_id": "S24-WM-ESTIMATOR-CONVENTIONS-A01",
+  "task": "S24-7-M4",
+  "attempt": "S24-7-M4-A01",
+  "agent": "S24M4GoldA01",
+  "created_utc": "2026-10-26T00:00:00Z",
+  "state": "FROZEN-BEFORE-ANY-MOVEMENT",
+  "no_outcome_computed": true,
+  "evidence_of_absence": [
+    "artifacts/sprint-24/evidence/s24-7-m4-a01/admission-full/run.json records movement_computed=false and dispositions_computed=[]",
+    "artifacts/sprint-24/evidence/s24-7-m4-a01/runs/full/capture-report.json records movement_computed=false and outcomes_computed=false",
+    "only cache admission, coverage, identity and cost facts exist; no E1-E4, association, bootstrap or disposition value has been computed"
+  ],
+  "binding": {
+    "study_id": "S24-BIZ-WM-v1",
+    "study_sha256": "6f96c2750c15552bcdf25678a51ed7b24a1f7aecdb5914bf5985d3012d1daefd",
+    "protocol_doc": "docs/sprint24-weekly-monthly-protocol-v1.md",
+    "protocol_sha256": "8da4afda89dd303099843eecda546cdc337696525ece0eed59f400d1031d8b63",
+    "source_commit": "31d113b4e5009cc41911023efa85ff05e92fdef5",
+    "capture_runner": "experiments/sprint24_task7m4_capture_runner.py",
+    "capture_runner_sha256": "4abe08b56399ee54613388b0887ca414f594375b8923dec36b0ffa0e3b8ff92c",
+    "admission_module": "src/representation/sprint24_weekly_monthly_execution.py",
+    "admission_module_sha256": "ff12ac786c6b729418e30ea31a8f7815e74b9ee255096eda9495956b5cd62610",
+    "capture_report_sha256": "2d55e64813f520d925c4f2ab3a737776df86eb89486698e185c8d2c024328f15",
+    "capture_store_root": "artifacts/sprint-24/evidence/s24-7-m4-a01/runs/full/store",
+    "store_tree_manifest": "artifacts/sprint-24/evidence/s24-7-m4-a01/runs/tree-sha256-local.txt",
+    "representation_seeds": [181801, 181802, 181803],
+    "null_seed": 2407,
+    "bootstrap_replicates": 2000
+  },
+  "conventions": [
+    {
+      "id": "E1-KERNEL",
+      "endpoint": "E1",
+      "role": "PRIMARY",
+      "choice": "Gaussian kernel k(a,b)=exp(-||a-b||^2/(2*sigma^2)); sigma = median pairwise Euclidean distance over every eligible file in the causal reference pool of that history and representation seed.",
+      "protocol_pointer": "protocol §6 E1 and §5 reference-only fitting",
+      "rationale": "The frozen protocol says the reference pool, with no subset cap. G2 used the first 400 reference rows; that is a G2 implementation detail and is not adopted as the study convention.",
+      "decision_bearing": true
+    },
+    {
+      "id": "E1-ESTIMATOR",
+      "endpoint": "E1",
+      "role": "PRIMARY",
+      "choice": "Unbiased U-statistic MMD^2 = 1/(n(n-1)) sum_{i!=j} k(x_i,x_j) + 1/(m(m-1)) sum_{i!=j} k(y_i,y_j) - 2/(nm) sum_{i,j} k(x_i,y_j). The biased plug-in value is computed beside it and reported; it never enters the decision.",
+      "protocol_pointer": "protocol §6 estimator rules",
+      "rationale": "Required so unequal period sizes do not create an O(1/n) bias; the biased value is continuity-only.",
+      "decision_bearing": true
+    },
+    {
+      "id": "E1-WEIGHTING",
+      "endpoint": "E1",
+      "role": "SENSITIVITY",
+      "choice": "Primary movement weights every member file equally. The exposure-weighted variant is the weighted biased plug-in with weight w_i = overlap of the member observation interval with the period interval in days (clipped), normalised within the period; it is reported beside E2-E4 and never enters the decision.",
+      "protocol_pointer": "protocol §6 estimator rules and §11 sensitivity variant 5",
+      "rationale": "Equal-file is the declared primary; exposure weighting is a declared sensitivity, not an alternative estimand.",
+      "decision_bearing": false
+    },
+    {
+      "id": "E1-CAPPED-N",
+      "endpoint": "E1",
+      "role": "SENSITIVITY",
+      "choice": "For each COMPARABLE-UNMATCHED-EXPOSURE pair, order each period's member IDs by ascending sha256('2407|{history_id}|{period_identity}|{file_id}') and keep the first min(n_previous,n_current) per period; compute the primary unbiased E1 on those rows. The capped-n association set is composed of every COMPARABLE-MATCHED pair unchanged plus every capped COMPARABLE-UNMATCHED-EXPOSURE pair.",
+      "protocol_pointer": "protocol §8 comparability ladder and §11 sensitivity variant 2",
+      "rationale": "The protocol states that unmatched pairs enter the capped-n sensitivity; matched pairs are already in the primary support and are not degraded.",
+      "decision_bearing": false
+    },
+    {
+      "id": "E2-CLUSTER",
+      "endpoint": "E2",
+      "role": "SECONDARY",
+      "choice": "K-means with K=8 fitted once on the same reference pool (random_state=2407, n_init=10); occupancy = member counts over nearest prototypes / member count; E2 = 0.5*sum_g |p_g - q_g|. K in {4,16} is fitted the same way as a declared descriptive sensitivity.",
+      "protocol_pointer": "protocol §6 E2 and §11 sensitivity variant 4",
+      "rationale": "Prototypes are reference-only and never refit per period or pair.",
+      "decision_bearing": false
+    },
+    {
+      "id": "E3-LOCATION",
+      "endpoint": "E3",
+      "role": "DESCRIPTIVE-ONLY",
+      "choice": "sum_d ((mean_current_d - mean_previous_d)/sd_reference_d)^2 with sd_reference computed with ddof=0 on the reference pool.",
+      "protocol_pointer": "protocol §6 E3",
+      "rationale": "The protocol fixes the standardization source; ddof=0 matches the reference standardisation already used by the accepted G2 capture.",
+      "decision_bearing": false
+    },
+    {
+      "id": "E4-DISPERSION",
+      "endpoint": "E4",
+      "role": "DESCRIPTIVE-ONLY",
+      "choice": "abs(log(trace(Sigma_current)/trace(Sigma_previous))) with Sigma the sample covariance (ddof=1); undefined when either trace is non-positive or non-finite.",
+      "protocol_pointer": "protocol §6 E4",
+      "rationale": "Sample covariance matches the np.cov convention used by the accepted G2 movement code.",
+      "decision_bearing": false
+    },
+    {
+      "id": "N1-NULL",
+      "endpoint": "N1",
+      "role": "DESCRIPTIVE-ONLY",
+      "choice": "numpy.random.default_rng(2407); the first null uses one random permutation split of the reference pool in half, then 199 further resamples; q95 of the 200 unbiased MMD^2 values is reported per history and seed.",
+      "protocol_pointer": "protocol §10 N1 and §11 pair dependence",
+      "rationale": "Mirrors the accepted G2 split-half null convention while remaining descriptive; crossing is necessary and never sufficient.",
+      "decision_bearing": false
+    },
+    {
+      "id": "N2-HALFSPLIT",
+      "endpoint": "N2",
+      "role": "DESCRIPTIVE-ONLY",
+      "choice": "Within each period, order member IDs by ascending sha256('{seed}|{period_identity}|{file_id}'), split into floor(n/2) and the next floor(n/2), and compute the unbiased MMD^2 between the halves with the reference bandwidth; report both periods and their maximum as the within-period noise band.",
+      "protocol_pointer": "protocol §10 N2",
+      "rationale": "The protocol requires a within-period noise reference but does not fix the split; this deterministic rule is frozen before any outcome and cannot track movement values.",
+      "decision_bearing": false
+    },
+    {
+      "id": "C1-ASSOCIATION",
+      "endpoint": "C1",
+      "role": "DECISION-RELEVANT",
+      "choice": "Within each history and horizon, Spearman rank correlation (average ranks for ties) between the pair-level unbiased E1 and the primary burden = covered failure events summed over both periods. Only COMPARABLE-MATCHED pairs are used; a history is estimable with at least 3 pairs and at least 2 distinct burden values.",
+      "protocol_pointer": "protocol §7 burden relation, §12.1 inputs and §12.2 estimability",
+      "rationale": "The burden association is within-history only and is never pooled across histories.",
+      "decision_bearing": true
+    },
+    {
+      "id": "C2-RESIDUAL",
+      "endpoint": "C2",
+      "role": "DECISION-RELEVANT",
+      "choice": "Within each history and horizon, rank-transform E1 and the pair-level robot-mix total-variation distance with average ranks, fit OLS of rank(E1) on rank(drift), and report Spearman(residual, burden). Pairs with a missing drift are excluded from the residual association only.",
+      "protocol_pointer": "protocol §8 C2 residual and §12.1 inputs",
+      "rationale": "This is the frozen composition-confound adjustment; it is co-required for a PROMISING disposition.",
+      "decision_bearing": true
+    },
+    {
+      "id": "SEED-COMBINATION",
+      "endpoint": "DECISION",
+      "role": "DECISION-RELEVANT",
+      "choice": "Each (history, representation seed) yields its own within-history association. The history-level input to the decision is the median of the three seed values for that history; every per-seed value and the three-seed sign agreement are reported. Seeds are never treated as independent pairs and n is never 12. A sensitivity-variant value is the median across the same estimable histories of the per-history seed medians.",
+      "protocol_pointer": "protocol §11 seed replication and §12.1 inputs",
+      "rationale": "The protocol requires seed agreement as a stability requirement and forbids treating seeds as independent data; the median is fixed here before any outcome.",
+      "decision_bearing": true
+    },
+    {
+      "id": "DECISION-INPUTS",
+      "endpoint": "DECISION",
+      "role": "DECISION-RELEVANT",
+      "choice": "The frozen study.evaluate_decision receives per-history n_pairs (COMPARABLE-MATCHED), n_distinct_burden (distinct covered event counts), rho_burden and rho_residual; sensitivity values are the median rho_burden across the same estimable histories under: rolling boundary mode, capped-n pair set, and the alternate anchor (2024-03-07T00:00:00Z, Etc/GMT-7, Sunday week start).",
+      "protocol_pointer": "protocol §12 decision rule and §11 declared sensitivities",
+      "rationale": "No rule, floor, retention or consistency threshold is changed; the decision function is the frozen implementation.",
+      "decision_bearing": true
+    },
+    {
+      "id": "UNCERTAINTY",
+      "endpoint": "UNCERTAINTY",
+      "role": "DESCRIPTIVE",
+      "choice": "History-cluster bootstrap with numpy.random.default_rng(2407): draw 2000 resamples of the four history-level rho_burden values with replacement, recompute the median each time, and report the 2.5/97.5 percentiles. Pairs inside a history are never treated as independent.",
+      "protocol_pointer": "protocol §11 uncertainty",
+      "rationale": "n=4 clusters makes the interval descriptive only; it is never read as a precise standard error.",
+      "decision_bearing": false
+    },
+    {
+      "id": "MULTIPLICITY",
+      "endpoint": "MULTIPLICITY",
+      "role": "AUXILIARY",
+      "choice": "No p-value is claimed from overlapping pairs. Per-history rank resolution is reported as the exact minimum two-sided permutation tail 2/n!, and the frozen Holm-over-4 policy is quoted as auxiliary only. The disposition never depends on a p-value.",
+      "protocol_pointer": "protocol §11 multiplicity and §12",
+      "rationale": "Adjacent pairs share a period, so a nominal p-value would overstate independence.",
+      "decision_bearing": false
+    },
+    {
+      "id": "UNSUPPORTED",
+      "endpoint": "ALL",
+      "role": "REPORTING",
+      "choice": "Pairs whose comparison_state is not COMPARABLE-MATCHED or COMPARABLE-UNMATCHED-EXPOSURE are published as UNSUPPORTED with their state and reason and remain in the denominator. Periods below the 30-file floor or with non-finite inputs are never computed.",
+      "protocol_pointer": "protocol §10 supported/unsupported reporting",
+      "rationale": "Abstention is a declared outcome, never a floor relaxation or a dropped cell.",
+      "decision_bearing": false
+    }
+  ],
+  "conflict_check": {
+    "contradicts_documented_rules": false,
+    "statement": "No choice redefines the unbiased/biased MMD distinction, the kernel definition, the reference-only fitting custody, the sampling-null role, the capped-pair rule or the endpoint hierarchy. Underspecified details (bandwidth subset, split rule, resample count, ddof, capped set composition, weighted variant form) are fixed here before outcomes and disclosed for independent review.",
+    "stop_rule": "If any reviewer finds a concrete contradiction with the frozen protocol, that path stops and is reported rather than redefined."
+  },
+  "post_outcome_policy": "No alternative is permitted after any outcome is seen. This artifact's canonical JSON digest is bound in the first actual movement run manifest."
+}

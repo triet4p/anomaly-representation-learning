@@ -1,176 +1,184 @@
-# Sprint 24 weekly/monthly collective-movement study — execution record
+# Sprint 24 weekly/monthly collective-movement study — results
 
 - Study identity: `S24-BIZ-WM-v1`, freeze digest `6f96c2750c15552bcdf25678a51ed7b24a1f7aecdb5914bf5985d3012d1daefd`.
 - Frozen protocol: [`sprint24-weekly-monthly-protocol-v1.md`](sprint24-weekly-monthly-protocol-v1.md), digest `8da4afda89dd303099843eecda546cdc337696525ece0eed59f400d1031d8b63`.
-- Frozen at Task 7-M3 checkpoint `0a17ffa7927f0e2187cd262f7770e3dfbd7dbc48`; execution attempt `S24-7-M4-A01`.
-- Criterion: `docs/sprint-plans/sprint-24.md:166-167`.
+- Pre-outcome estimator conventions: [`sprint24-weekly-monthly-estimator-conventions-a01.json`](sprint24-weekly-monthly-estimator-conventions-a01.json), canonical digest `014ed05952c48196776e3292e096bfd56590f379fd08bf4a24aeb23dfcf06460`.
+- Executed at source commit `31d113b4e5009cc41911023efa85ff05e92fdef5`; criterion `docs/sprint-plans/sprint-24.md:166-168`.
+- Task / attempt / agent: `S24-7-M4` / `S24-7-M4-A01` / `S24M4GoldA01`.
 
-**Status: execution not performed — the cache preflight failed closed.** The frozen study requires 8,754 reusable embedding rows per representation seed and **0** exist. No movement value, contrast, uncertainty interval or disposition was computed. Per the frozen protocol, a blocked cache preflight is a **data-availability blocker, not a negative scientific result**.
+**Result: both horizons are `INCONCLUSIVE`.** The weekly burden association leans positive but sits below both promise magnitude floors and is not retained under the capped-`n` sensitivity. The monthly association leans negative with the correct consistency, but its rolling-boundary sensitivity flips sign, so the frozen non-promise criteria do not all hold. Neither horizon is `PROMISING`; neither is `NOT-PROMISING`; no scaling study is proposed, and no specificity, detector or per-file claim is made.
 
-Execution is paused pending an owner decision on a bounded recapture and forward-cap allowance. The assigned evidence review (`S24-7-M4-C1` R1) is not consumed, the criteria are unchanged, and no forward, remote write, protocol amendment or disposition is proposed by this record.
+## 1. What was executed
 
-**Update — owner decision received.** The owner authorized a recapture and raised this study's cumulative forward cap to 54,000. The resulting bounded amendment ([`sprint24-weekly-monthly-cache-budget-amendment-a01.md`](sprint24-weekly-monthly-cache-budget-amendment-a01.md)) and the capture runner are prepared for the readiness review `S24-7-M4-PRE-C1R1`; nothing has been deployed or executed. The refusal below remains the current preflight result and is not superseded by the amendment.
+The study reused no pre-existing embedding cache because none existed; the owner authorized a bounded recapture and raised this study's cumulative forward cap from 41,000 to **54,000** ([amendment A01](sprint24-weekly-monthly-cache-budget-amendment-a01.md)).
 
-## 1. Release prerequisites and their verification
+| Step | Observed |
+|---|---|
+| Reviewed commit | `31d113b4e5009cc41911023efa85ff05e92fdef5` (parent `0a17ffa7…`), 9 paths, non-force push, clean remote checkout |
+| Smoke | 96 forwards, `gpu-forward-smoke`, admission refused by design |
+| Full capture | 26,262 forwards, 12/12 identity groups, 26,262/26,262 rows, `gpu-forward`, device `cuda`, live model/bank unchanged |
+| Admission | `ADMITTED`, 192 cells pending endpoint computation |
+| Cumulative forwards | 52,789 of 54,000 (96 smoke + 26,262 full), 1,211 remaining, no retry budget |
+| Statistical analysis | 0 forwards, 0 model loads, 0 waveform reads |
+| Determinism | two independent runs produced byte-identical data outputs |
 
-The frozen protocol (§15) lists five release prerequisites. Four hold; the cache-coverage prerequisite fails.
+The 13 `DEVELOPMENT-01` window-1 files that the accepted G2 capture omitted are included here; the cache-input identity for that history is therefore a new identity over the study's full required union, not a G2 match.
 
-| # | Prerequisite | Verification | Result |
+## 2. Pre-outcome freeze
+
+Every estimator convention was frozen before any movement value, at canonical digest `014ed059…`, and bound in the run manifest. The frozen choices cover the E1 kernel (median pairwise distance over the **full** reference pool), the unbiased/biased estimator split, equal-file versus exposure weighting, the capped-`n` hash order and pair set, E2 prototypes (`K=8`, 4/16 sensitivity), E3/E4 definitions, N1/N2 null rules, C1/C2 association construction, seed combination (median of three run replicates, never `n=12`), sensitivity medians, bootstrap, multiplicity policy and unsupported handling. The record states that an underspecified detail was fixed rather than redefined and that a concrete protocol contradiction would stop the path; none was found.
+
+## 3. Endpoint summaries (comparable pairs, pooled over three seeds)
+
+| Horizon | Mode | E1 unbiased median | E1 biased median | E2 K=8 median | E3 median | E4 median | N2 half-split median |
+|---|---|---:|---:|---:|---:|---:|---:|
+| week | calendar | 0.005935 | 0.023461 | 0.2838 | 8.1175 | 0.030904 | 0.004796 |
+| week | rolling | 0.009193 | 0.027421 | 0.3153 | 9.6309 | 0.030664 | 0.003432 |
+| month | calendar | 0.001269 | 0.005679 | 0.1290 | 2.0331 | 0.012777 | 0.000999 |
+| month | rolling | 0.000282 | 0.004417 | 0.1226 | 1.5373 | 0.011245 | 0.000568 |
+
+Two descriptive observations matter for interpretation and are not decision inputs. First, the biased plug-in exceeds the unbiased value by roughly an order of magnitude at these sample sizes, which is why the frozen rule uses the U-statistic. Second, the median period-to-period movement is of the same order as the within-period half-split noise band (`E1` 0.0059 versus `N2` 0.0048 weekly; 0.00127 versus 0.00100 monthly), so the movement signal is weak relative to within-period sampling noise. The reference split-half null `q95` is `0.00069–0.00088` and the reference bandwidth `sigma` is `10.76–12.26` per history and seed, also descriptive.
+
+## 4. Primary burden association by history
+
+Spearman rank association within history; each cell lists the three per-seed values, their median (the decision input) and the mix-adjusted residual median. No cross-history pooling.
+
+### Week (calendar, comparable matched pairs)
+
+| History | Pairs | Distinct burden | Seed rhos | Seed median | Residual median |
+|---|---:|---:|---|---:|---:|
+| `DEVELOPMENT-01` | 12 | 5 | 0.199 / 0.296 / 0.540 | 0.296 | 0.322 |
+| `DEVELOPMENT-02` | 5 | 4 | 0.667 / 0.821 / 0.667 | 0.667 | 0.667 |
+| `DEVELOPMENT-03` | 6 | 4 | 0.030 / 0.516 / 0.213 | 0.213 | 0.030 |
+| `DEVELOPMENT-04` | 13 | 6 | 0.190 / 0.283 / 0.285 | 0.283 | -0.168 |
+
+### Month (calendar, comparable matched pairs)
+
+| History | Pairs | Distinct burden | Seed rhos | Seed median | Residual median |
+|---|---:|---:|---|---:|---:|
+| `DEVELOPMENT-01` | 3 | 3 | -1.000 / -0.500 / -1.000 | -1.000 | -0.500 |
+| `DEVELOPMENT-02` | 5 | 4 | -0.154 / -0.154 / -0.051 | -0.154 | 0.154 |
+| `DEVELOPMENT-03` | 3 | 3 | +1.000 / -0.500 / -1.000 | -0.500 | 0.500 |
+| `DEVELOPMENT-04` | 3 | 3 | -1.000 / -1.000 / -1.000 | -1.000 | -0.500 |
+
+Seed stability is only partial. The weekly `DEVELOPMENT-03` seed values span `0.030–0.516`, and the monthly `DEVELOPMENT-03` values change sign across seeds (`+1.0`, `-0.5`, `-1.0`). The frozen rule uses the seed median as the run-replicate summary, but that instability is a real limitation of the three-seed representation, not a second independent test.
+
+## 5. Sensitivity variants
+
+Values are the median across the four estimable histories of the per-history seed medians.
+
+| Variant | Week | Month | Primary (calendar) |
+|---|---:|---:|---:|
+| Primary | 0.289 | -0.750 | — |
+| Rolling boundary | 0.280 | **+0.032** | sign kept weekly, flipped monthly |
+| Capped-`n` exposure set | 0.105 | -0.279 | weekly retention 0.36 (< 0.5) |
+| Alternate anchor (`2024-03-07Z`, `Etc/GMT-7`, Sunday) | 0.574 | -0.100 | sign kept both |
+
+The weekly result fails the promise sensitivity criterion because the capped-`n` variant retains only 36 % of the primary magnitude (the other two variants retain the sign and at least half). The monthly result fails the non-promise sensitivity criterion because the rolling-boundary variant is positive.
+
+## 6. Uncertainty
+
+History-cluster bootstrap over the four histories, `B = 2000`, seed `2407`, descriptive at `n = 4`.
+
+| Horizon | Point median | 95 % interval |
+|---|---:|---|
+| week | 0.289 | [0.213, 0.667] |
+| month | -0.750 | [-1.000, -0.154] |
+
+These intervals are coarse by construction and are never read as precise standard errors; adjacent pairs share a period, so no p-value is claimed.
+
+## 7. Frozen decision traces
+
+| Criterion | Week | Month | Detail |
 |---|---|---|---|
-| 1 | Owner decisions recorded | M4 release text acknowledges `D1–D3`/`D10` as research defaults and the `OWNER-REQUIRED` rows | satisfied by release |
-| 2 | Frozen study, protocol and manifest digests unchanged | Study/protocol digests re-verified; the M3 metadata CLI reproduced all 14 data outputs byte-identically; label-blind manifest digests `e86157b0…` (periods), `6b848cf6…` (pairs), `1057570f…` (references) match | PASS |
-| 3 | Every required row reusable under an identical cache identity | Full inventory of the accepted lineage and the declared cache stores; 0 of 26,262 rows available | **FAIL** |
-| 4 | Confirmation custody unchanged, no retraining/corpus/Phase C | Nothing read, written or trained | PASS (unchanged) |
-| 5 | Written execution record accounting for every cell and contrast | This document plus `execution-ledger.json` | PASS (192/192 cells, 8/8 contrasts accounted) |
+| `A.estimability` | PASS | PASS | 4 of 4 histories reach ≥3 pairs with ≥2 burden values |
+| `B.promise-magnitude` | FAIL | FAIL | medians 0.289/0.176 (week) and -0.750/-0.173 (month) versus floors 0.5/0.3 |
+| `C.promise-consistency` | PASS | FAIL | 4/4 weekly histories positive; 0/4 monthly histories positive |
+| `D.promise-sensitivity` | FAIL | FAIL | weekly capped-`n` retention 0.36; monthly rolling sign flip |
+| `N1.nonpromise-magnitude` | FAIL | PASS | weekly median > 0; monthly median ≤ 0 and residual ≤ 0 |
+| `N2.nonpromise-consistency` | FAIL | PASS | 0/4 weekly non-positive; 4/4 monthly non-positive |
+| `N3.nonpromise-sensitivity` | FAIL | FAIL | weekly variants not all non-positive; monthly rolling positive |
+| Specificity | not claimed | not claimed | zero annotated-clean and zero quiet-period pairs exist |
 
-## 2. Required row plan (compiled without computing movement)
+Precedence per the frozen rule: a conflict between the promise and non-promise criteria yields `INCONCLUSIVE`. That is exactly what happens at both horizons, for different reasons: the week is positive but too weak and not capped-`n` stable; the month is negative but not rolling-stable.
 
-The plan is derived from the accepted Development metadata, the frozen decile edges and the inherited eligibility predicate — the same construction path the accepted M2/M3 passes used. Reference rows are the causal pool ending at or before each history's `c1`; span rows are the eligible files in `(c1, tmax]`.
+Resolution block: the monthly horizon is **coarse** (3–5 matched pairs per history; smallest attainable two-sided rank tail `0.0167–0.333`), so no per-history significance claim is possible there. The weekly histories have 5–13 pairs, but overlapping pairs still preclude an independence-based p-value.
 
-| History | Reference rows | Span rows | Required rows | Reference state |
-|---|---:|---:|---:|---|
-| `S18I-ITER-0005-DEVELOPMENT-01` | 850 | 1,226 | 2,076 | `REFERENCE-OK` |
-| `S18I-ITER-0005-DEVELOPMENT-02` | 974 | 1,353 | 2,327 | `REFERENCE-OK` |
-| `S18I-ITER-0005-DEVELOPMENT-03` | 935 | 1,118 | 2,053 | `REFERENCE-OK` |
-| `S18I-ITER-0005-DEVELOPMENT-04` | 919 | 1,379 | 2,298 | `REFERENCE-OK` |
-| **Per seed** | **3,678** | **5,076** | **8,754** | |
-| **Three seeds** | 11,034 | 15,228 | 26,262 | |
+## 8. Matrix and contrast accounting
 
-Reference digests reproduce the frozen protocol's recorded values (`dd9c9f98…`, `cd05f55f…`, `ee8f0ec2…`, `be814983…`). Every row identity and per-history union digest is in `row-plan.json`.
+- All **192** declared cells (`horizon × mode × endpoint × seed × history`) are published with an execution status: `EXECUTED` for every cell, with pair counts and median/min/max endpoint values.
+- All **8** declared contrasts are accounted: `C1` and `C2` `AVAILABLE` with the associations above; `C3` quiet-period and `C4` temporal specificity `UNSUPPORTED-CONTROL-ABSENT`; `N3`/`N3b` `UNSUPPORTED-CONTROL-ABSENT`; `N1`/`N2` `DESCRIPTIVE-ONLY`.
+- Pair accounting: 312 primary-calendar pairs (102 `COMPARABLE-MATCHED`, 100 `COMPARABLE-UNMATCHED-EXPOSURE`, 82 `INSUFFICIENT-PERIOD-SUPPORT`, 28 `PARTIAL-PERIOD`), plus the alternate-anchor pair table. Unsupported pairs stay in the denominator and are never silently dropped.
 
-## 3. Accepted capture identity, re-derived
+## 9. What this does and does not establish
 
-The accepted G2 run recorded one `s24_feature_cache_identity` value per `(history, representation seed)` in its window-statistics table. Re-deriving that value from the recorded preflight provenance (checkpoint, bank tensor, arm config, data binding, preprocessing contract, model seed, scale state `none`, device `cuda`) and the reconstructed captured-file union reproduced **all 12 recorded identities exactly**. This proves the identity derivation end to end without opening any model, checkpoint or waveform.
+- It establishes, for this exposed Development corpus and design: weekly collective movement is positively but weakly rank-associated with post-hoc failure burden, below the predeclared magnitude floors and not stable under exposure-capped support; monthly movement is negatively associated with a 4/4 consistent sign but reverses under the rolling boundary convention. Neither reaches a decisive triage disposition.
+- It does **not** establish a detector, an operating point, calibrated specificity, recall, detection delay, false-alarm rate, per-file accuracy or causal effect. Movement remains a description, not an anomaly; absence of annotation remains unknown, not healthy.
+- It does **not** answer the business question of whether week/month movement is promising enough to scale. The frozen rule returns `INCONCLUSIVE`; a scaling proposal would require the owner to revise the study design (more histories, denser periods, verified controls) or the disposition rule, neither of which is proposed here.
+- The daily horizon remains deferred with its floor unchanged; the owner's 500–1,000 files/day deployment context is not evidence about this corpus's density.
 
-The study-required identity applies the same function to the study-required union (reference rows plus all 5,076 span rows):
+## 10. Limitations
 
-| History | Seeds equal to the accepted identity | Required vs accepted |
-|---|---|---|
-| `DEVELOPMENT-01` | 0 of 3 | **differs** — the accepted capture omitted 13 span files |
-| `DEVELOPMENT-02` | 3 of 3 | equal |
-| `DEVELOPMENT-03` | 3 of 3 | equal |
-| `DEVELOPMENT-04` | 3 of 3 | equal |
+- Four histories, three run-replicate seeds, and overlapping adjacent pairs; monthly support is 3–5 comparable matched pairs per history, weekly 5–13. Every association is coarse.
+- No annotated-clean or quiet-period pair exists at either horizon, so no specificity or normal-variation contrast is available.
+- Weekly composition drift is strong and the mix-adjusted residual is load-bearing; the residual medians are themselves unstable in sign at some histories.
+- The pre-outcome conventions fixed several underspecified details (full-reference bandwidth, half-split rule, capped set composition, weighted-variant form, `ddof`); these are disclosed for independent review and were not chosen after seeing outcomes.
+- The corpus is exposed-benchmark exploratory research: encoder, normalization, bank and thresholds previously saw Fit/Calibration-healthy rows spanning the timeline. Sprint 18 remains `UNRESOLVED`; Confirmation was never touched.
 
-The three `DEVELOPMENT-01` identities differ for one precise reason: the accepted G2 run never captured the members of its first window (`n = 28`, below the inherited 30-file floor). Those 13 files are required by the frozen study and were excluded from the accepted capture, so even a *persisted* copy of the G2 capture would not satisfy the required identity for that history. Full identity values are in `required-identities.json` and the comparison in `accepted-g2-identities.json`.
-
-The identity binds the capture device (`cuda`). A CPU-produced copy is not interchangeable, per the frozen `s24_feature_cache_identity` contract.
-
-## 4. Why the cache preflight fails closed
-
-No persisted per-file embedding store exists anywhere in the accepted lineage.
-
-- The accepted G2 runner held per-file embeddings **in memory** (`embeddings[(history, seed)]`) and persisted only aggregate tables: window statistics, controls, event mapping, false alarms, bootstrap. Its own tracked header states that stored waveform shards are source bytes, not embedding caches, and that no hash-compatible embedding cache is reused.
-- A read-only inventory of every `/home/trietlm/s24-*` tree found **no `.npz`, `.npy`, `.pkl`, `.parquet` or `.arrow`** artifact. The only `.npz` files in the wider home tree are Sprint 18 RCA census arrays over **FIT** histories (context-patch embeddings), not Development file embeddings.
-- The earlier Task 7 label-efficiency lineage wrote `feature-cache-records.jsonl` — identity/support **metadata**, not arrays — and `per-file-scores.jsonl`, which holds scores rather than 128-d embeddings.
-- The accepted G2 output directory contains only `preflight.json`, `state.json`, `costs.json`, `calibration.json`, the four window/reference manifests and the aggregate tables.
-- The retained G2 window statistics cannot substitute: they aggregate 14-day windows against a reference pool, whereas the study's `E1` is a period-to-period sample distance. Re-aggregating them would change the estimand, which the frozen protocol forbids.
-
-Result: **0 of 8,754 required rows per seed**, and therefore 0 of 26,262 rows across the three accepted seeds, exist under the required identity. The declared cache-admission contract in `src/representation/sprint24_weekly_monthly_execution.py` describes the store a future accepted capture would have to write; no producer of that store exists today.
-
-## 5. Consequence for endpoints, contrasts and dispositions
-
-- No movement endpoint (`E1`–`E4`) was computed, no `C1`/`C2` association, no `C3`/`C4`/`N1`/`N2`/`N3`/`N3b` contrast, no history-cluster bootstrap and no Holm-adjusted auxiliary inference.
-- All **192** declared cells are published as `NOT-EXECUTED-CACHE-PREFLIGHT-FAILED`; all **8** declared contrasts are published as not executed; both horizons are `NOT-COMPUTED` with all seven frozen decision criteria marked `NOT-EVALUATED`.
-- No `PROMISING`, `NOT-PROMISING` or `INCONCLUSIVE` disposition is claimed. `INCONCLUSIVE` is a scientific disposition requiring an analysis; here there is no analysis to run, so manufacturing one would misreport a data-availability blocker as a result. Unknown is never treated as a pass.
-- `specificity_claim` is `false` for both horizons. No specificity, recall, detection delay, false-alarm rate, per-file accuracy or PR-AUC claim is made. Scaling and Phase C remain unreleased.
-
-## 6. Cost, cap and custody
+## 11. Cost and custody
 
 | Quantity | Value |
 |---|---:|
-| Forwards executed by this attempt | 0 |
-| Model / checkpoint / waveform loads | 0 / 0 / 0 |
-| Required rows per seed | 8,754 |
-| Available rows per seed | 0 |
-| Missing rows per seed | 8,754 |
-| Required rows, three seeds | 26,262 |
-| Declared smoke (`8 files/history x 4 histories x 3 seeds`) | 96 |
-| Minimal full recapture, no smoke | 26,262 |
-| Minimal full recapture with the declared smoke | 26,358 |
-| Cumulative after a full recapture | 52,693 (**11,693 above the cap**) |
-| Cumulative after a full recapture with smoke | 52,789 (**11,789 above the cap**) |
-| Span-only capture | 15,228 — **not sufficient on its own**; 0 reference rows are reusable |
-| Inherited cumulative forwards | 26,431 of 41,000 |
-| Inherited headroom | 14,569 |
+| Forwards executed by the analysis | 0 |
+| Capture forwards (smoke + full) | 96 + 26,262 = 26,358 |
+| Cumulative after capture | 52,789 of 54,000 |
+| Remaining authorized | 1,211 |
 | Cap reset | none |
+| Model / checkpoint / waveform loads in analysis | 0 / 0 / 0 |
 
-Custody: the accepted G2 review artifacts were copied from the server with identical SHA-256 before and after transfer; the accepted Development manifests and frozen decile edges were digest-verified before use; no remote file was written, moved or modified. Custody digests are in `custody.json`.
+Capture store and reports were transferred byte-identically (54 files verified). Accepted G2 raw outputs were never modified; the reviewed G2 record root stayed outside the clean checkout and was passed explicitly.
 
-## 7. Limitations
-
-- The reuse negative is a property of the **accepted lineage**: the G2 run spent its forwards but discarded the per-file embeddings. It says nothing about the encoders, the calendar design or the study's scientific premise.
-- The acceptance criterion's "actual-cache public-entry-point smoke" could not be run because no actual cache exists. The executable smoke instead proves (a) the admitted path with a complete identity-matched store on synthetic fixtures and (b) the refusal path on the accepted inputs; 12 focused tests cover identity strictness, device mismatch, missing sidecars, incomplete coverage, duplicate IDs and non-finite embeddings.
-- The execution-side cache contract is declared by this task rather than inherited; a future accepted capture must write it (or an explicitly documented equivalent) at the study-required identity, including the 13 `DEVELOPMENT-01` window-1 files.
-- Everything the frozen protocol already discloses about monthly coarseness, weekly composition confounding and the absence of healthy/quiet controls still holds, but none of it is exercised because no outcome exists.
-
-## 8. What would unblock execution
-
-These are owner decisions, not worker actions; none was taken or implied here. The minimal truthful recapture is the full per-seed row plan: 3,678 reference + 5,076 span = 8,754 rows per seed, 26,262 across the three seeds. A span-only capture does **not** unblock the study because zero reference rows are reusable either. Adding the declared 96-forward smoke (`8 files/history x 4 histories x 3 seeds`) gives 26,358 new forwards.
-
-| Option | New forwards | Cumulative | Over the 41,000 cap by |
-|---|---:|---:|---:|
-| Full recapture, no smoke | 26,262 | 52,693 | 11,693 |
-| Full recapture with the declared smoke | 26,358 | 52,789 | 11,789 |
-| Span-only capture (insufficient on its own) | 15,228 | 41,659 | 659 |
-
-A truthful minimal allowance is therefore either 11,693 additional forwards (no smoke) or 11,789 (with smoke), or an explicit cap extension to at least 52,693 / 52,789. No approval is invented here: the 41,000 cap, the 26,431 cumulative count and every criterion remain unchanged, and the 659 span-only figure is arithmetic only, never a viable plan.
-
-- **No protocol or study-identity amendment is required.** The frozen period manifests already include the 13 `DEVELOPMENT-01` window-1 files in the required union; G2's omission was a capture-window property, not a study-membership property. A recapture must record its support digest over the study's full 8,754-ID union per seed rather than G2's window-support union, and that is the identity this preflight already requires.
-- **A `cuda` cache identity cannot be produced on CPU.** The frozen identity binds the capture device, and a CPU capture is not interchangeable. Any recapture must run on a GPU host through a separately reviewed runner against the accepted assets, because the waveform shards and the accepted checkpoint/bank assets live on the server. Unreviewed local capture is not a substitute and would be refused by this gate.
-- **Transferring a cache cannot unblock today** because no persisted cache exists to transfer. A producer run would itself need the allowances above, plus a reviewed runner and a persisted store written at the study-required identity.
-
-No protocol change, cap reset, retraining, corpus generation, Confirmation contact or Phase C execution is proposed.
-
-## 9. Reproduction
+## 12. Reproduction
 
 ```bash
-python experiments/sprint24_task7m4_weekly_monthly_execution.py \
+# Statistical analysis on the admitted store (no forwards)
+python experiments/sprint24_task7m4_weekly_monthly_study.py \
   --data-root F:/ai-ml/_s24m1-local-metadata \
   --edges experiments/sprint24_task7m1_dev-edges.json \
-  --expected-manifest-sha256 S18I-ITER-0005-DEVELOPMENT-01=ce7c004b3ba7c6bca4187065df3299691c4d6247500eda480747e37b48fe1e08 \
-  --expected-manifest-sha256 S18I-ITER-0005-DEVELOPMENT-02=cee368b966874289e8b1b81980ebdf2db566501fe8e2864326651d73f6179310 \
-  --expected-manifest-sha256 S18I-ITER-0005-DEVELOPMENT-03=b1da957137936e01fda27b2af4194ea8f4be2cf611ce96315dba677145ae8f9e \
-  --expected-manifest-sha256 S18I-ITER-0005-DEVELOPMENT-04=3af0811329031fc6f1ffc56ffa837d46a3b9b9095287128d08c46706b187f9af \
   --g2-accepted-root artifacts/sprint-24/evidence/s24-7-m4-a01/g2-accepted \
-  --out artifacts/sprint-24/evidence/s24-7-m4-a01
+  --cache-root artifacts/sprint-24/evidence/s24-7-m4-a01/runs/full/store \
+  --expected-manifest-sha256 <history>=<sha256> ... \
+  --out artifacts/sprint-24/evidence/s24-7-m4-a01/study-primary
+
+# Focused checks
+PYTHONPATH=src python -m pytest \
+  tests/representation/test_sprint24_weekly_monthly_endpoints.py \
+  tests/representation/test_sprint24_weekly_monthly_execution.py -q
 ```
 
-The command exits `3` with `"admission": "REFUSED"`. Passing one or more `--cache-root` directories inspects those stores instead; an empty or absent root contributes zero rows. Focused checks:
+## 13. Evidence inventory
 
-```bash
-PYTHONPATH=src python -m pytest tests/representation/test_sprint24_weekly_monthly_execution.py -q
-```
-
-## 10. Evidence inventory
-
-All outputs are under `artifacts/sprint-24/evidence/s24-7-m4-a01/`; two independent CLI processes produced byte-identical data outputs.
+All outputs are under `artifacts/sprint-24/evidence/s24-7-m4-a01/`.
 
 | Output | Content | SHA-256 |
 |---|---|---|
-| `preflight.json` | digest verification, row plan totals, identity comparison, inventory, admission | `0b9dac77c391e29ea17cc406be8cec5b259e31a439d3889e823e20ce45739da5` |
-| `row-plan.json` | exact required file IDs, per-history digests and counts | `bb8747d7d87c4fa776896920048f3bf34287d77bd0e9bdb2ef8ccd9bae564e85` |
-| `required-identities.json` | 12 study-required cache identities and support digests | `f7d67f5ff38309418ab42385293d596edc87083a4d5199c5e8a03cf7c6db203f` |
-| `accepted-g2-identities.json` | re-derived accepted identities and the required comparison | `677776adec0b50571f222d2bb469c162daf89f32ccbad4ae62fb7ba169e83a55` |
-| `cache-inventory.json` | inspected roots and artifacts | `b8b7b9c31c2835f1fe219e44c8e7ebb7f12fd8b51474253992fe95665c34cb44` |
-| `coverage.json` | per-group required/available/missing rows under identity-strict matching | `79cb77f2211772330670eccdeaf2efadac733950b3ead6093870871eab2eb6b2` |
-| `execution-ledger.json` | 192 cells, 8 contrasts and both dispositions with true states | `ac107e60c613c5322a2914e62baea97f6cc99a8103e56219e087c1a10247a0a5` |
-| `cost.json` | zero-forward cost, envelope and cap accounting | `2885e5f05ba3ab0c6c5b3b4da351de730be60e9e71bd1a3402bd4fddedc5e971` |
-| `custody.json` | input and accepted-artifact digests | `ea2df3612788d2f52039979e1aefa9f77525520f998d2bccd35d506f490d586a` |
-| `blocked.json` | the fail-closed blocker record | `dcf59c1bfbf708e9b484685a953de9043f8405648e437f321eebfa89d6205ba7` |
-| `capture-fixture/fixture-smoke.json` | local no-forward fixture/public-path smoke of the capture store writer and refusal gate | `a91f365eb06af893520c066b1d8f0cdc3975360e0480a8fe5ccf8f34cd9b71c2` |
-| `capture-fixture/store-hashes.json` | hashes of the 12 fixture entries (inadmissible by provenance) | `29883751e927e73d049d4bfcb2c8c722a998425e606a0d2b8d70b808fd12dd25` |
-| `run.json` | run identity, environment, timing, output digest map | (self-referential; digest map inside) |
-| `g2-accepted/` | transferred accepted G2 records with `remote-sha256-before.txt` / `remote-sha256-after.txt` | see custody |
-| `m3-reverify/` | reproduced frozen M3 outputs (14 data files byte-identical) | see `run.json` of M3 |
+| `study-primary/decisions.json` | both disposition traces, medians, sensitivity values, resolution | `5c538f32548881f6568f03f3f6a6584c060da7c52c7dc0d000a3c9a95b9f3bcc` |
+| `study-primary/associations.json` | per-history per-seed and seed-median associations | `ef04cf025a245c486fef3fd80e5554d1c405b3d0e885dd8ac3290b334512ff63` |
+| `study-primary/sensitivities.json` | rolling, capped-`n` and alternate-anchor blocks | `367e7e5b5aa7cb773a1387e03fcc809a6c4dbb3e664254af76066e6669336694` |
+| `study-primary/uncertainty.json` | history-cluster bootstrap intervals | `1d2cee826df2d96ac66f5d0ba2634fd7b4f147a1906691ef9463822fe0abb2a4` |
+| `study-primary/contrasts.json` | C1–C4/N1–N3b states and outcomes | `2081ea08f791202aa562363a3abaaf2c4e560725461a716546da130df3d90b26` |
+| `study-primary/execution-cells.json` | 192 cell outcomes | `d15d3b31ca05a0a8e463d436d7111edd71e6a7ba924b11983924e87f74f4156e` |
+| `study-primary/execution-ledger.json` | combined cells, contrasts, decisions, uncertainty | `3c9a7c94d50b5d00cce6c0d9fe97774b223c6fb6109a789b35e38a747cbb8e8a` |
+| `study-primary/pair-endpoints-primary.jsonl` | every primary-calendar pair and seed endpoint row | `c1b6745a7d4dfc11e2dc18e7b6b25c86fe5834d000235353d5c83b0c1ed87320` |
+| `study-primary/pair-endpoints-alternate.jsonl` | alternate-anchor pair table | `17257050bf5fb4d63cc8183b621dbd842fd467553b5e45557db5a991da5cc530` |
+| `study-primary/reference-fits.json` | bandwidth, null `q95`, reference sizes per history and seed | `086031256c20c5d7a6ddd3dc17c2c7bd69ba5320faff26f933e2d5596b89f9d6` |
+| `study-primary/pre-outcome-conventions.json` | bound conventions digest | `a908fd75d72b1177670b4cda620f9d4fc148a335bbb6ae3a4f32b2e32ae6fa41` |
+| `study-primary/cost.json` | zero-forward analysis cost | `eb41c3c3536346dc936d6999d2ea75864f707927f8ac09c860a79dd116476353` |
+| `study-primary/custody.json` | cache and protocol custody | `d3fbf0b41e8693ce3bc2dcf644e60616609b64f3167de63cbb2fe29b1ec6e7ac` |
+| `runs/full/capture-report.json` | capture proof (12 groups, 26,262 rows, `ADMITTED`) | `2d55e64813f520d925c4f2ab3a737776df86eb89486698e185c8d2c024328f15` |
+| `runs/smoke/smoke-report.json` | 96-forward smoke | `6caa8b87fec6fd8ccfa87a72835e85a6adc6ab90542ad78ace2bcb2425a8405d` |
+| `admission-full/run.json` | local admission proof from the transferred store | see output digest map inside |
 
-## 11. Owner decision and bounded recapture amendment
+## 14. History: preflight refusal and amendment
 
-After the refusal was accepted as ground truth, the owner answered **"Capture lại, nâng cap lên 54.000"** (recapture; raise the cap to 54,000). The bounded amendment is [`sprint24-weekly-monthly-cache-budget-amendment-a01.md`](sprint24-weekly-monthly-cache-budget-amendment-a01.md); it is prepared for readiness review `S24-7-M4-PRE-C1R1` and no deployment, remote execution or movement has occurred.
-
-- Cap accounting: 54,000 cumulative, 26,431 spent, 27,569 available; the declared 96-forward smoke plus the 26,262-row full capture totals 26,358 new forwards and a cumulative 52,789, leaving 1,211. Without the separate smoke the cumulative is 52,693, leaving 1,307. This is an accounting amendment, not a retry budget, and the frozen protocol document and study digest are unchanged.
-- Identity: the study-required identity remains the existing `s24_feature_cache_identity` over the study's full required union. For `DEVELOPMENT-01` it is a **new cache-input identity** because G2 omitted the 13 window-1 files; that is declared as exact study coverage, never as a G2 match.
-- Capture route: `experiments/sprint24_task7m4_capture_runner.py` with `fixture` (local, no model), `smoke` (96 forwards) and `full` (26,262 forwards). Only `gpu-forward` provenance bound to the execution commit is admissible; `gpu-forward-smoke` and `fixture-no-forward` are refused by the admission gate, so a smoke or local fixture can never satisfy the study.
-- Local public-path smoke: `capture-fixture/fixture-smoke.json` — 0 forwards, 0 model loads, 12 fixture entries written and read back, all rejected for their provenance, coverage `0/26,262`, admission `REFUSED`. This proves the writer/sidecar/identity/coverage plumbing and the provenance guard without a local forward; the local host has a CPU-only build, so no local `cuda` identity was claimed.
-- Sequence after review PASS and a fresh Bronze checkpoint: exact reviewed commit, empty remote checkout, bounded `smoke` then `full`, store identity/coverage proof (`26,262/26,262`), then the study admission CLI, and only then endpoint computation. Final evidence remains `S24-7-M4-C1R1` plus a separate Bronze final checkpoint.
-
-This section records preparation only. It is not an execution result, and it changes no endpoint, criterion or disposition.
+The first execution attempt found no persisted embedding cache and failed closed (0 of 26,262 rows; no movement). That refusal remains part of the record and is preserved in `blocked.json`, `preflight.json` and the admission evidence. The owner then authorized the bounded recapture at a 54,000 cumulative cap; the cache-budget amendment and the pre-outcome conventions above govern the run reported here. The frozen protocol, study digest, endpoints and decision rule were never changed.
