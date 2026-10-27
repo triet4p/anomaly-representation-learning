@@ -45,6 +45,10 @@ def inject_missing_event(
     ]
 
     if not candidate_idx:
+        # Degenerate session (fewer than 3 regimes, or only edge regimes):
+        # no interior event exists to miss. Decline instead of fabricating
+        # a marker on an edge regime (S24-7-M8-R2: honest injector-level
+        # refusal; the planner reports it as REFUSED-GENERATION).
         mask = np.zeros((C, T), dtype=bool)
         meta = AnomalyMeta(
             family=AnomalyFamily.MISSING_EVENT, start=0, end=0,
@@ -89,8 +93,17 @@ def inject_missing_event(
                 t_new = np.linspace(0, reps, dur) % 1.0
                 fill = np.interp(t_new, t_orig, prev_seg)
 
-            # Add small noise to avoid exact repetition
-            fill = fill + rng.normal(0, float(np.std(fill)) * 0.05, dur)
+            # Level/scale-match the continuation to the local original
+            # (S24-7-M8-R2: same bound as the wrong-regime branch).
+            target_mean = float(np.mean(x[c, anom_start:anom_end]))
+            fill_mean = float(np.mean(fill))
+            fill_std = float(np.std(fill)) + 1e-8
+            target_std = float(np.std(x[c, anom_start:anom_end])) + 1e-8
+            fill = (fill - fill_mean) / fill_std * target_std + target_mean
+
+            # Severity blend (S24-7-M8-R2).
+            sev = float(np.clip(float(severity), 0.0, 1.0))
+            fill = sev * fill + (1.0 - sev) * x[c, anom_start:anom_end]
 
             # Boundary blend
             if blend_n > 0 and anom_start > 0:
@@ -132,12 +145,23 @@ def inject_missing_event(
             t_new = np.linspace(0, 1, dur)
             fill = np.interp(t_new, t_orig, donor_seg)
 
-            # Mean-match: shift donor to continue from surrounding
+            # Level/scale-match the donor to the local original (S24-7-M8-R2:
+            # the replacement PATTERN stays from the wrong regime, but its
+            # level/scale is plausible locally; previously mean-only matching
+            # let shape/scale mismatch exceed the inherited strength gate at
+            # every severity since severity never entered the amplitude).
             target_mean = float(np.mean(x[c, anom_start:anom_end]))
             donor_mean = float(np.mean(fill))
-            fill = fill - donor_mean + target_mean
+            donor_std = float(np.std(fill)) + 1e-8
+            target_std = float(np.std(x[c, anom_start:anom_end])) + 1e-8
+            fill = (fill - donor_mean) / donor_std * target_std + target_mean
 
-            # Boundary blend
+            # Severity blend (S24-7-M8-R2): severity now controls the effect
+            # size monotonically (previously it set only the window length).
+            sev = float(np.clip(float(severity), 0.0, 1.0))
+            fill = sev * fill + (1.0 - sev) * x[c, anom_start:anom_end]
+
+            # Boundary blend (unchanged)
             if blend_n > 0 and anom_start > 0:
                 t = np.linspace(0, 1, blend_n)
                 ab = (1 - np.cos(np.pi * t)) / 2

@@ -63,8 +63,9 @@ def inject_freq_phase_mismatch(
     n_aff = int(rng.integers(1, C + 1))
     affected = sorted(rng.choice(C, size=n_aff, replace=False).tolist())
 
-    # Choose distortion type
+    # Distortion type (one draw per injection; phase_delta defaults to 0.0).
     mode = rng.choice(["phase", "freq"])
+    phase_delta: float = 0.0
     x_mod = x.copy()
 
     for c in affected:
@@ -96,14 +97,18 @@ def inject_freq_phase_mismatch(
             t_new = np.clip(t_orig / freq_delta, 0, n - 1)
             new_seg = np.interp(t_orig, t_new, seg)
 
-        # Blend back by severity (lower severity → more blend with original)
-        blend_alpha = severity * 0.8
-        blended = blend_alpha * new_seg + (1 - blend_alpha) * seg
+        # Blend by severity (S24-7-M8-R2): full severity weight so the effect
+        # size is monotone in severity (previously severity*0.8 diluted it).
+        blended = severity * new_seg + (1 - severity) * seg
 
-        # Preserve amplitude envelope
-        orig_env = np.abs(seg_demean) + 1e-8
-        new_env = np.abs(blended - seg_mean) + 1e-8
-        blended = seg_mean + (blended - seg_mean) * (orig_env / new_env)
+        # Plausibility rescale (S24-7-M8-R2): per-channel RMS match instead of
+        # the former pointwise envelope renormalization, which divided out the
+        # very phase/frequency displacement on oscillatory signals (it forced
+        # pointwise |amplitude| back to the original, cancelling small shifts
+        # below the inherited strength-gate floor on every attempt).
+        rms_orig = float(np.sqrt(np.mean(seg_demean**2))) + 1e-8
+        rms_new = float(np.sqrt(np.mean((blended - seg_mean) ** 2))) + 1e-8
+        blended = seg_mean + (blended - seg_mean) * (rms_orig / rms_new)
 
         # Boundary cosine blend
         blend_n = min(5, dur // 5)
