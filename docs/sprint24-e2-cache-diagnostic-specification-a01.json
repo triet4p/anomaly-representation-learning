@@ -1,0 +1,239 @@
+{
+  "artifact_id": "S24-E2-CACHE-DIAGNOSTIC-SPEC-A01",
+  "task": "S24-7-M12",
+  "attempt": "S24-7-M12-A01",
+  "agent": "S24M12GoldA01",
+  "created_utc": "2026-10-28T00:00:00Z",
+  "state": "FROZEN-BEFORE-ANY-M12-OUTCOME",
+  "role": "EXPLORATORY-POST-HOC-DIAGNOSTIC",
+  "not_a_revision_of": "S24-7-M11",
+  "no_new_outcome_computed": true,
+  "evidence_of_absence": [
+    "this specification was written before the M12 audit entry point was executed on the retrieved cache; no matched-size E2, baseline-baseline E2, K/seed robustness value or diagnostic-decomposition value existed when the choices below were fixed",
+    "the only real-data values available before this specification were the already published S24-7-M11 movement records (artifacts/sprint-24/evidence/s24-7-m11-a04/movement.json) and support/custody facts (pair arm sizes, dispositions, burden, period identities, metadata counts)",
+    "the retrieval of the S24-7-M11 cache to a separate local location copied bytes only; it read no E2 value and added no forward"
+  ],
+  "binding": {
+    "task_pointer": "docs/sprint-plans/sprint-24.md:222-229",
+    "inherited_execution_contract_sha256": "f4f92a60ee1782ccc0ec75587e9df5d1471e4045e201c43478893d294b5757f7",
+    "inherited_contract_envelope_sha256": "34031e8c1aca744258c2049659c54cff8417b98f1a889ebde52e48d31c9faa01",
+    "corpus_manifest_sha256": "9606648db17d64496e7268d81417e25b1806ca0ce2acdd99498a071d7a991ea3",
+    "corpus_audit_sha256": "5fddabc1059412a589e8811d84b67e1c41856f84201f506eb48f51cedfd8eaac",
+    "g2_preflight_sha256": "26f9e45d26af66fa17f37782278699d95ed61e24e674f5f9aed5432883e426df",
+    "execution_freeze_sha256": "be6e10589b2bfac7e6cdff5b7979aeebaf9f608c78c51532153906e9a40e8b69",
+    "execution_freeze_canonical_sha256": "91d4ce264c73f0dada20b4a5f1a7c460e5809bdb1daf67cc75823b9a1d98a3bd",
+    "inherited_conventions": "docs/sprint24-weekly-monthly-estimator-conventions-a01.json (E2-CLUSTER, E1-KERNEL, N1-NULL, SEED-COMBINATION, UNSUPPORTED)",
+    "encoder_seeds": [
+      181801,
+      181802,
+      181803
+    ],
+    "null_seed": 2407,
+    "min_period_files": 30,
+    "min_reference_files": 200,
+    "causal_reference_pool_files_per_history": 220,
+    "cluster_counts": [
+      4,
+      8,
+      16
+    ],
+    "inherited_primary_cluster_count": 8,
+    "histories": [
+      "S24C-ITER-0001-CONTROLLED-01",
+      "S24C-ITER-0001-CONTROLLED-02",
+      "S24C-ITER-0001-CONTROLLED-03",
+      "S24C-ITER-0001-CONTROLLED-04",
+      "S24C-ITER-0001-CONTROLLED-05",
+      "S24C-ITER-0001-CONTROLLED-06"
+    ],
+    "horizons": [
+      "week",
+      "month"
+    ]
+  },
+  "prior_exposure_disclosure": {
+    "statement": "The author read the already published S24-7-M11 movement report and the published support/custody facts before fixing these choices. This audit is therefore exploratory, never confirmatory, and can never be presented as independent confirmation of M11.",
+    "m11_values_available_before_this_specification": [
+      "E2_K8 full-arm per-pair values 0.0311-0.2969 (median 0.1234), E2_K4 0.000-0.2545, E2_K16 0.0798-0.3750",
+      "retained arm sizes 55-75 files for the controlled pairs (capped-n sensitivity records 52-289)",
+      "per-cell transition-vs-control seed-median E2_K8 table in docs/sprint24-controlled-inference-execution.md §3A"
+    ],
+    "consequence": "no M12 quantity is a fresh blind replication; every M12 statement is descriptive of the same fixed 24,840-vector cache and inherits the M11 exposure",
+    "new_outcomes_not_seen_before_freeze": [
+      "matched-size E2 distributions and transition-minus-control deltas",
+      "baseline-baseline cross-period and within-period-split E2 distributions",
+      "K/seed robustness contrast distributions",
+      "diagnostic-decomposition tables and occupancy-TV non-additivity gaps"
+    ]
+  },
+  "lineage_gate": {
+    "rule": "Before any statistic, the audit recomputes every pinned digest, the canonical execution freeze, the prospective-contract canonical digest and the live contract binding (census/plan/custody), then admits the retrieved cache through the accepted public admission path against the frozen 18-group identity plan.",
+    "refusals": [
+      "REFUSED-DIGEST-DRIFT on any pinned digest or canonical freeze mismatch",
+      "REFUSED-IDENTITY on contract binding drift, missing group, foreign capture provenance, wrong cache identity, missing file-ID row or support-universe shortfall",
+      "REFUSED-MISSING-CACHE when the retrieved cache root is absent or incomplete"
+    ],
+    "no_recapture_fallback": "a failed identity or support gate stops the audit; the corpus and cache are never regenerated, recaptured or substituted",
+    "expected_admission": "ADMITTED 24,840 / 24,840 rows over 18 (history, seed) groups, transfer provenance gpu-forward",
+    "byte_preservation": "the retrieved local copy is verified sha256-equal to the remote S24-7-M11 cache files; the remote bytes are re-checksummed read-only before and after the audit; no write reaches the remote host",
+    "forward_accounting": "0 new forwards in M12; cumulative observed forwards remain 77,653"
+  },
+  "conventions": [
+    {
+      "id": "M12-UNIT",
+      "choice": "The analysis unit is the history x horizon cell (6 histories x 2 horizons = 12 cells). Each cell carries five retained comparisons from the M9 corpus audit: four BASELINE-VS-ELEVATED transitions (BASELINE-A->ELEVATED-A, BASELINE-B->ELEVATED-A, BASELINE-A->ELEVATED-B, BASELINE-B->ELEVATED-B) plus the BASELINE-VS-BASELINE low-burden control. Every retained comparison enters; none is dropped, ranked or selected by outcome.",
+      "rationale": "Inherits the frozen M10 pair set and the M11 retained support unchanged, so no new pair definition is introduced."
+    },
+    {
+      "id": "M12-ARMS",
+      "choice": "Arms are exactly the per-pair retained file-identity lists recorded in the M9 corpus audit (retained_baseline_file_identities / retained_contrast_file_identities), which are the CAPPED-N-PER-STRATUM post-balancing arms. No file is added, dropped or re-weighted. The retained burden and robot/program context are copied from the audit row; the retained exposure is recomputed with the accepted readiness.retained_exposure construction over the retained arms, manifest end-times and NPY-header durations, while the audit row's exposure_ratio_after is the RAW pre-balancing arm ratio (the inherited audit sets after = before) and is reported separately as the inherited limitation, never as the retained exposure.",
+      "rationale": "The audit is a diagnostic of the existing M11 inputs, not a re-balancing."
+    },
+    {
+      "id": "M12-E2",
+      "choice": "E2 is the total-variation distance 0.5*sum_g|p_g-q_g| between prototype-occupancy vectors p (previous/baseline arm) and q (current/contrast arm), with occupancy = member counts over nearest prototypes / member count. Prototypes are KMeans(K, random_state=2407, n_init=10) fitted once per (history, encoder seed) on that history's causal reference pool (arm == REFERENCE, 220 files, all with end_time <= c1). K in {4,8,16}; K=8 is the inherited primary reporting level and K in {4,16} the inherited sensitivity; all three are reported for every cell and no K is selected by outcome.",
+      "rationale": "Byte-identical estimator convention to E2-CLUSTER in the frozen estimator conventions; the audit measures only sample-size and support sensitivity of this fixed endpoint."
+    },
+    {
+      "id": "M12-EXACT-QUANTA",
+      "choice": "Every equal-n E2 is computed and stored as the exact integer numerator m of E2 = m / s: with s rows per arm each occupancy entry is an integer count divided by s, the count differences sum to zero, so the absolute sum is even and half of it is an integer. All medians, quantiles, direction fractions and sign tests are derived from those integers, and a mathematically equal pair therefore contributes exactly zero. Stronger float comparison is never used to decide a direction.",
+      "rationale": "Occupancy TV on two equal-size empirical samples is a rational number with denominator s; carrying it as a float lets a mathematically equal pair appear as a tiny positive difference, which would corrupt direction counts and stability summaries."
+    },
+    {
+      "id": "M12-FIT-CUSTODY",
+      "choice": "One ReferenceFit per (history, encoder seed), fitted exactly once per run before any pair is evaluated, on the causal reference pool only. Evaluation-period rows, contrast rows and any label, family, severity or context field never enter the fit. The run records sigma, n_reference, the reference file-ID digest and the KMeans inertia per (history, seed, K), and the total number of fits (18) as the custody record.",
+      "rationale": "Inherits reference_fitting.fitted_once / forbidden / never_refitted from the M10 contract."
+    },
+    {
+      "id": "M12-SIZE-RULE",
+      "choice": "For each history x horizon cell, the matched per-arm size is s = min over the cell's five retained comparisons of min(n_baseline, n_contrast). The same s is used for every comparison in the cell and for every K and encoder seed. A cell whose s < 30 (the inherited MIN_PERIOD_FILES floor) abstains entirely with reason ABSTAIN-SHORTFALL-SIZE.",
+      "rationale": "Fixes identical per-arm sizes across transitions and their control, which is the only way the transition-minus-control E2 contrast is free of the unequal-n TV shrinkage; the rule uses support only and cannot track an outcome."
+    },
+    {
+      "id": "M12-SUBSAMPLING",
+      "choice": "Per comparison, R = 1000 independent draws. Each draw samples s file identities from each arm WITHOUT replacement within the draw, independently per arm, and with replacement ACROSS draws. Draw seeds are derived deterministically as int(sha256('S24-7-M12|{history}|{horizon}|{comparison_identity}|{repeat_index}|{arm}')[:16], 16) and used with numpy.random.default_rng (PCG64). The identical draw set is reused for every K and encoder seed, so K/seed comparisons are paired within a repeat.",
+      "rationale": "Deterministic repeated subsampling without replacement within a draw, as required; one sampling design shared across K and seeds, as required by the robustness term."
+    },
+    {
+      "id": "M12-DESIGNS",
+      "choice": "Every comparison is evaluated under three declared designs at the same support: FULL-ARM-UNSUBSAMPLED (the whole retained arm, one value per K and seed, used for the M11 cross-check and the size-effect baseline), SRS-UNSTRATIFIED (uniform draws of size s per arm, no stratum constraint) and STRATIFIED-ROBOT-PROGRAM (the label-blind proportional draw). The unstratified design is a declared design, not a fallback, so the pair (FULL-ARM, SRS) isolates the pure sample-size effect and the pair (SRS, STRATIFIED) isolates the effect of composition matching. The exact seed key is 'S24-7-M12|{history}|{horizon}|{comparison_identity}|{repeat_index}|{design}|{arm}' with design in {stratified, srs} and arm in {baseline, contrast}, plus the B2 suffixes {cross|within}|{baseline-A|baseline-B}.",
+      "rationale": "Separates the two mechanisms the audit is asked to diagnose — unequal per-arm size and composition matching — instead of confounding them in a single subsampled number."
+    },
+    {
+      "id": "M12-MATCHING",
+      "choice": "Draws are stratified proportionally on the label-blind robot|program context stratum (manifest predicted_robot_idx, predicted_program_idx) over the strata present in both arms. The allocation to s uses largest-remainder apportionment on the pooled two-arm stratum counts, capped by the smaller arm's count in each stratum; each arm then draws its allocated count without replacement within each stratum. When no proportional allocation is available in both arms the stratified design is reported unavailable for that comparison (sampling_mode = SRS-UNSTRATIFIED with the failing allocation recorded) while the comparison still resolves COMPUTED through the always-run unstratified design. Feasibility is decided from support alone, never from an outcome. Achieved robot-mix TV is recorded as a matching check.",
+      "rationale": "Preserves the label-blind robot/program matching of the inherited balancing where the retained support permits it, and discloses the fallback instead of silently replacing support. No anomaly label, family or severity enters the draw."
+    },
+    {
+      "id": "M12-CONTRAST",
+      "choice": "The transition-minus-control contrast is delta = E2_transition(repeat r) - E2_control(repeat r) for the four transitions of the same history x horizon cell, matched on the shared per-arm size s. Reported per transition (all four published, never only their aggregate) and per K and seed as the distribution over the R repeats: median, q05, q95, min, max, mean, and the direction-stability fraction of repeats with delta > 0. A per-cell summary reports the four transition medians together with their min-max range and the count of transitions whose median delta exceeds zero.",
+      "rationale": "The control draw index is not correlated with a transition draw index (different arms), so delta is the difference of independent draws from the same design; repeats are Monte Carlo integration, never independent histories."
+    },
+    {
+      "id": "M12-FULL-ARM-REFERENCE",
+      "choice": "For every comparison, K and seed the audit also recomputes the unsampled full-retained-arm E2 (no subsampling). That value must reproduce the published S24-7-M11 E2_K4/E2_K8/E2_K16 cell value within 1e-9 for the same retained arms and fit; the recomputation is the implementation cross-check and the baseline for the reported sample-size effect (full-arm E2 minus matched-size median E2).",
+      "rationale": "Bounds the audit's own implementation risk against the already accepted M11 record without changing M11."
+    },
+    {
+      "id": "M12-BASELINE-CROSS",
+      "choice": "B1 (A-compatible): for each history x horizon cell, the observed cross-period baseline control is the retained BASELINE-A arm versus the retained BASELINE-B arm at the same per-arm size s and the same draw design used in A. These are disjoint real low-burden period groups (three weekly/monthly baseline periods each) that retain their real low-burden files, including real low-burden faults; zero-fault purity is never required. B1 reuses the control comparison's draws, so its values are identical to the A control cell by construction and are reported once in both places with that identity stated.",
+      "rationale": "This is the only disjoint real-period baseline pair at the A size that the retained support provides; it separates observed cross-period baseline movement from resampling variability."
+    },
+    {
+      "id": "M12-BASELINE-WITHIN",
+      "choice": "B2 (size-matched variability decomposition): per cell, s_B = min(floor(n_A/2), floor(n_B/2)) over the two retained baseline arms. At s_B the audit reports (i) the cross-period BASELINE-A vs BASELINE-B distribution and (ii) two within-period split distributions, one per baseline arm, each drawing two disjoint halves of size s_B from that single arm. Every B2 member uses uniform unstratified draws, so the cross-period and within-period members differ only in period membership and not in composition matching. The descriptive 'temporal excess' is the cross-period median minus the within-period-split median, reported per arm, K and seed. B2 abstains with ABSTAIN-SHORTFALL-SIZE when s_B is below the inherited 30-file floor. A within-period split is never presented as evidence of temporal stability.",
+      "rationale": "Both members of the B2 contrast use the same per-arm size, so the cross-period-versus-within-period comparison is not confounded by n; the within-period split is a resampling-variability scale only."
+    },
+    {
+      "id": "M12-ROBUSTNESS",
+      "choice": "The identical support and sampling design is run for K in {4,8,16} and all three encoder seeds. Every history x horizon x K x seed cell is reported with seed-level values and the within-history seed-median; seed direction is compared with a three-way sign (negative/zero/positive), a unanimous-zero triple is reported as such and never as directional agreement; no best-K or best-seed selection, no cross-horizon pooling, and repeats/seeds/counts are never presented as additional independent evidence.",
+      "rationale": "Directly inherited from the task's robustness term and the frozen SEED-COMBINATION convention."
+    },
+    {
+      "id": "M12-DIAGNOSTICS",
+      "choice": "Post-hoc diagnostics join the corpus manifest by immutable file identity (file_id and waveform_sha256) only, and are computed on the retained arms. Categories: realized anomaly family with 'ordinary' (file_label == normal) as its own category; severity bins [0.25,0.45), [0.45,0.60), [0.60,0.75), [0.75,0.90] over realized annotation severity; within-file anomalous-fraction bins [0,0.05), [0.05,0.15), [0.15,0.35), [0.35,1.0] over annotation abnormal_step_fraction with exact duration_steps medians reported per bin; and robot|program context counts with the arm-to-arm robot/program mix TV. Every table reports exact denominators. A stratum with fewer than 5 files in an arm is flagged SPARSE, a family present in only one arm is flagged ONE-SIDED, and a severity or fraction bin whose files come from a single family is flagged CONFOUNDED; nothing is dropped.",
+      "rationale": "The task requires ordinary files and all supported families with exact denominators and explicit sparse/confounded/unsupported strata. Labels are post-hoc diagnostics only."
+    },
+    {
+      "id": "M12-TV-NONADDITIVITY",
+      "choice": "For each comparison, encoder seed and K the audit reports TV_total = TV(p, q) for the full contrast occupancy q, and TV_add = sum_f w_f * TV(p, q_f) over realized-family subsets q_f of the contrast arm with w_f = n_f / n_contrast, plus the gap TV_add - TV_total. The gap is non-negative by convexity of the total-variation norm and is reported as the measured non-additivity of occupancy TV, never as a partition of the total into additive family contributions.",
+      "rationale": "Occupancy TV does not decompose additively over member subgroups; the audit quantifies the discrepancy instead of implying an additive decomposition."
+    },
+    {
+      "id": "M12-SUMMARIES",
+      "choice": "Reported summaries: (a) seed-level per (history, horizon, comparison, K, seed) repeat distributions; (b) history-level per (history, horizon, K) seed-median per comparison with the four transition contrasts and their min-max; (c) per-horizon counting summaries only (counts of transitions whose matched-size median delta exceeds zero, per K and seed-median); (d) full-arm versus matched-size sample-size effect per comparison, K and seed; (e) per-horizon descriptive rank association between the seed-median matched-size E2 and the diagnostic composition features, reported with the explicit dependence statement and without any p-value or gate. No estimate is pooled across histories, seeds or horizons and no horizon-aggregate estimate is produced.",
+      "rationale": "Weekly and monthly results remain separate; seeds are run replicates; comparisons sharing an arm are dependent by construction."
+    },
+    {
+      "id": "M12-ABSTENTION",
+      "choice": "Every planned cell resolves to COMPUTED or to an explicit ABSTAIN with a closed reason code (ABSTAIN-SHORTFALL-SIZE, ABSTAIN-NO-COMMON-STRATA, ABSTAIN-IDENTITY). Abstentions stay in the denominator. Planned denominators: A = 60 comparisons x 3 K x 3 seeds = 540 full-arm cells plus 2 designs x 540 = 1,080 repeat-distribution cells; B1 = 12 cells x 3 K x 3 seeds = 108; B2 = 12 cells x 3 members (cross-period plus two within-period splits) x 3 K x 3 seeds = 324; D = 60 comparisons x 2 arms composition records plus 60 comparisons x 3 K x 3 seeds = 540 occupancy-TV decompositions. An unfilled planned cell is a defect, never a silent omission.",
+      "rationale": "Inherited UNSUPPORTED reporting convention: undefined quantities abstain and never become zero."
+    },
+    {
+      "id": "M12-NO-INFERENCE",
+      "choice": "No p-value, significance test, confidence interval, success gate, performance/detection-accuracy claim, business-density scale, causal attribution or favourable-subgroup selection is produced. Repeats are Monte Carlo integration of the sampling distribution of one fixed finite support; their quantiles are resampling variability, not confidence limits.",
+      "rationale": "Explicitly excluded by the task scope; the frozen Holm policy stays NOT-COMPUTED-NO-PVALUES."
+    },
+    {
+      "id": "M12-FORBIDDEN",
+      "choice": "Forbidden in M12: data generation, any encoder forward pass or model load, training, anomaly-bank refit, prototype refit on evaluation periods or labels, recapture or corpus substitution, business-density scale, Phase C release, p-value/success-gate retrofit, production validation, edits to S24-7-M11 product files, results, cache sidecars or remote state.",
+      "rationale": "Task scope; the audit is cache-only and read-only."
+    },
+    {
+      "id": "M12-REPRODUCIBILITY",
+      "choice": "Two consecutive runs on the same inputs must produce byte-identical machine-readable tables (equal sha256) and the same admission card; the audit records the table digests in its run record and the CLI refuses a non-empty --out directory.",
+      "rationale": "Repeatability is an acceptance criterion and must be demonstrated, not asserted."
+    }
+  ],
+  "conflict_check": {
+    "contradicts_inherited_contract": false,
+    "statement": "No M12 choice redefines E2, the kernel, the prototype fit custody, the endpoint hierarchy, the seed-combination rule or the abstention policy. The audit adds only a frozen sample-size rule, a draw design, a baseline-variability decomposition, a K/seed robustness sweep on the inherited design and post-hoc diagnostics. The inherited primary reporting level K=8 and the reported sensitivity levels K=4/16 are preserved and never selected by outcome.",
+    "stop_rule": "If the audit finds a concrete contradiction with the frozen contract or the estimator conventions, the path stops and is reported rather than redefined."
+  },
+  "amendments": {
+    "applied_after_first_complete_run": true,
+    "applied_after_r1_assessment": true,
+    "disclosure": "These amendments are recorded here rather than silently folded in, and they separate two different histories. (a) A01, A02 and A04 correct descriptive text so the specification matches the design that was executed; they change no rule and no number. (b) A03 records a real execution deviation: the pre-outcome specification below said B2 abstains when s_B is below the inherited 30-file floor, the first two executed runs used an implementation constant of 10, and the constant was set to the pre-registered 30 after the first complete run. That constant change is a post-outcome change to the executed code, disclosed as such; it changed no reported number because s_B is 37-144 in every cell and the regenerated statistical tables are byte-identical, but it must not be read as a pre-registered choice. (c) A05 records the R2 corrections made after the independent reviewer's R1 assessment (exact occupancy quanta, complete abstention accounting, retained-exposure reporting); those are post-assessment corrections, not pre-registered choices, and the R1 outcomes they supersede remain in the record. The exact pre-amendment bytes of this file are not recoverable from disk (the file is untracked in Git and has no version-control copy); the pre-outcome wording is preserved in this block and in the recorded R1 assessment history.",
+    "items": [
+      {
+        "id": "A01-DENOMINATORS",
+        "change": "The M12-ABSTENTION planned denominators were restated as 540 full-arm + 1,080 repeat-distribution A cells, 108 B1 cells, 324 B2 cells (3 members per cell) and 540 TV decompositions.",
+        "reason": "the earlier text compressed A and B into two combined figures and mis-stated the B2 total as 108; the arithmetic is corrected, the cells are unchanged"
+      },
+      {
+        "id": "A02-DESIGNS",
+        "change": "The M12-DESIGNS convention was added: FULL-ARM-UNSUBSAMPLED, SRS-UNSTRATIFIED and STRATIFIED-ROBOT-PROGRAM are three declared designs, and the unstratified design is not a fallback.",
+        "reason": "the implementation always runs both subsampled designs so the sample-size and composition-matching mechanisms can be separated; M12-MATCHING said 'fallback', which described the intent of the stratified design rather than the executed design set"
+      },
+      {
+        "id": "A03-B2-MODE",
+        "change": "M12-BASELINE-WITHIN now states that every B2 member uses uniform unstratified draws and that B2 abstains below the inherited 30-file floor.",
+        "reason": "the implemented B2 uses uniform draws so the cross-period and within-period members differ only in period membership; the sampling mode was previously unstated",
+        "pre_outcome_rule": "M12-BASELINE-WITHIN as first written, before any M12 outcome, said B2 abstains with ABSTAIN-SHORTFALL-SIZE when s_B < 30",
+        "execution_deviation": "the first two executed runs used an implementation constant of 10 for that floor; after the first complete run the constant was set to the pre-registered 30",
+        "effect_on_results": "none: s_B is 37-144 in every cell, so both constants resolve COMPUTED with identical values and the regenerated statistical tables are byte-identical; the deviation is disclosed because the executed rule differed from the pre-registered rule",
+        "recoverability": "the exact pre-amendment bytes of this file are not recoverable from disk (untracked file, no version-control copy); the pre-outcome wording is preserved in this entry and in the recorded assessment history"
+      },
+      {
+        "id": "A04-SEED-KEY",
+        "change": "The exact draw-seed key suffix is documented as '{design}|{arm}' (and '{cross|within}|{baseline-A|baseline-B}' for B2).",
+        "reason": "the earlier text named the trailing token only as '{arm}'; the join and the token order are unchanged from the first executed run"
+      },
+      {
+        "id": "A05-R2-CORRECTIONS",
+        "change": "Three corrections were made after the independent reviewer's R1 assessment: (i) M12-EXACT-QUANTA was added and every equal-n quantity is now carried as the exact integer numerator of E2 = m/s, so exact zeros are counted as zeros; (ii) M12-ARMS now states that retained exposure is recomputed with the accepted construction and that the audit row's exposure_ratio_after is the RAW pre-balancing ratio reported separately, never as retained exposure; (iii) the abstention convention M12-ABSTENTION, which already required every planned cell to resolve or abstain inside the denominator, is now implemented for all sections with planned/computed/abstained accounting and a reason tally.",
+        "reason": "the R1 candidate reported direction statistics from floating-point differences, copied the raw exposure ratio without recomputing the retained exposure, and did not complete the abstention accounting it had declared; all three are reviewer findings",
+        "status": "POST-ASSESSMENT CORRECTION: these are not pre-registered choices. The sampling design, the per-arm size rule, the estimator definition, the baseline construction, the diagnostic bins and the summary structure are unchanged from the pre-outcome specification and from R1.",
+        "effect_on_results": "direction counts and fractions change (22 of 48 transitions positive at K=8 instead of 24, with exact zeros counted separately); retained exposure is reported for the first time (all 60 comparisons at or above the 0.8 floor, matching the accepted census ranges to 1e-12); no E2 level changes because the numerator/size representation is the same rational value"
+      },
+      {
+        "id": "A06-R3-CORRECTIONS",
+        "change": "Two correctness items from the R2 assessment were corrected: (i) the per-comparison matched-size assembly and the descriptive-association summary are now module-level functions that abstain explicitly when a design is unavailable and exclude such transitions from the association input with an `excluded_transitions` record, instead of indexing a per-seed record that does not exist; (ii) seed direction is three-way (negative/zero/positive) with explicit `seed_signs_by_transition` and `n_all_seeds_zero`, so a unanimous-zero triple is never counted as directional agreement.",
+        "reason": "the R2 candidate still raised on an infeasible stratified allocation in the integrated association path, and its seed-agreement test conflated zero with negative",
+        "status": "POST-ASSESSMENT CORRECTION (R3): not a pre-registered choice. The estimator, the sampling design, the per-arm size rule, the summarisation structure, the diagnostic bins and the abstention convention are unchanged; the declared M12-ABSTENTION convention is now honoured on the integrated path.",
+        "effect_on_results": "none on this support: every one of the 60 real comparisons has a feasible stratified design, so no comparison abstains and no reported value changes; the sign correction leaves 17 of 48 transitions with a consistent non-zero sign and 0 of 36 rows with all-seed agreement unchanged, while the fields now distinguish zero from negative"
+      }
+    ]
+  },
+  "post_outcome_policy": "No alternative is permitted after any M12 outcome is read. This artifact's canonical JSON digest is recorded in the M12 run record and cited by the M12 report and worker evidence."
+}
