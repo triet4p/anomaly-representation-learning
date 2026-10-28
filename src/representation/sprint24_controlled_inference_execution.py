@@ -352,17 +352,40 @@ def run_movement_on_groups(
     _require(isinstance(pair_rows, list) and bool(pair_rows), "REFUSED-IDENTITY: audit has no pair rows")
     rows = [row for row in pair_rows if isinstance(row, Mapping)]  # type: ignore[union-attr]
 
-    manifest_files = corpus_manifest.get("files")
-    _require(isinstance(manifest_files, list), "REFUSED-IDENTITY: corpus manifest has no file table")
-    end_time_of: dict[str, float] = {}
-    for entry in manifest_files:  # type: ignore[union-attr]
+    file_entries = corpus_manifest.get("files")
+    _require(isinstance(file_entries, list), "REFUSED-IDENTITY: corpus manifest has no file table")
+    # Label-blind member observation intervals for the frozen exposure-weighted
+    # sensitivity: per-file [end_time - duration, end_time] in seconds, with
+    # end-times from the manifest table and durations from NPZ ``x.npy`` NPY
+    # headers only (shape bytes; no array element is read, no label is used).
+    # Same mechanism as the readiness census (``_manifest_file_maps``). Fail
+    # closed when metadata is missing — never silently fall back to uniform
+    # weights, which would collapse the sensitivity toward the biased plug-in.
+    manifest_path = corpus_manifest.get("__manifest_path__")
+    _require(isinstance(manifest_path, str), "REFUSED-IDENTITY: corpus manifest path is not bound")
+    corpus_root = Path(str(manifest_path)).parent
+    manifest_end_of: dict[str, float] = {}
+    manifest_relpath_of: dict[str, str] = {}
+    for entry in file_entries:  # type: ignore[union-attr]
         if not isinstance(entry, Mapping):
             continue
         fid = entry.get("file_id")
         end = entry.get("end_time_rel_s")
-        if isinstance(fid, str) and isinstance(end, (int, float)):
-            end_time_of[fid] = float(end)
-
+        rel = entry.get("relpath")
+        if isinstance(fid, str):
+            if isinstance(end, (int, float)):
+                manifest_end_of[fid] = float(end)
+            if isinstance(rel, str):
+                manifest_relpath_of[fid] = str(rel)
+    manifest_durations: dict[str, float] = {}
+    for fid, rel in manifest_relpath_of.items():
+        if fid not in manifest_end_of:
+            continue
+        try:
+            shape = readiness.read_npy_shape_header(corpus_root / rel)
+            manifest_durations[fid] = float(int(shape[1]))
+        except (OSError, KeyError, ValueError, IndexError):
+            continue
     fits: dict[str, dict[str, object]] = {}
     live_fits: dict[str, Any] = {}
     records: list[dict[str, object]] = []
@@ -397,17 +420,37 @@ def run_movement_on_groups(
         cur_ids = [str(fid) for fid in row.get("retained_contrast_file_identities", [])]  # type: ignore[union-attr]
 
         def _period_of(fids: list[str]) -> object:
-            # Unit-spacing exposure geometry: member file-days are consecutive
-            # unit intervals [i, i+1) and the enclosing period is [0, n).
-            # Manifest end-times select membership only (label-blind file-day
-            # overlaps); durations come from NPZ headers in the readiness
-            # census, never here. Coordinates MUST share one system, else
-            # _exposure_weights sees no overlap and E1_weighted is None.
-            n = len(fids)
+            # Frozen exposure-weighted sensitivity geometry: member observation
+            # intervals are the actual per-file [end_time - duration, end_time]
+            # in seconds, in the EXACT retained file-ID order used by
+            # ``group_rows`` (``_exposure_weights`` aligns weights to kernel
+            # rows positionally, so order must match ``previous_ids`` /
+            # ``current_ids``). The enclosing period is the arm span
+            # [min end_time, max end_time], the same construction as the
+            # readiness ``retained_exposure`` census (``_arm_exposure``).
+            # End-times come from the manifest table, durations from NPZ
+            # ``x.npy`` NPY headers only (shape bytes; no array element is
+            # read, no label is used). Missing metadata fails closed with a
+            # hard error — never silently uniform, which would collapse the
+            # sensitivity toward the biased plug-in.
+            _require(bool(fids), "REFUSED-IDENTITY: exposure geometry needs member file IDs")
+            ends: list[float] = []
+            starts: list[float] = []
+            for fid in fids:
+                raw_end = manifest_end_of.get(fid)
+                raw_duration = manifest_durations.get(fid)
+                _require(
+                    isinstance(raw_end, float) and isinstance(raw_duration, float),
+                    f"REFUSED-IDENTITY: missing label-blind interval metadata for {fid}",
+                )
+                end_value = float(raw_end)  # type: ignore[arg-type]
+                duration_value = float(raw_duration)  # type: ignore[arg-type]
+                ends.append(end_value)
+                starts.append(end_value - duration_value)
             return _NS(
-                member_starts=_np.array([float(i) for i in range(n)]),
-                member_ends=_np.array([float(i + 1) for i in range(n)]),
-                period=_NS(start=0.0, end=float(n)),
+                member_starts=_np.array(starts),
+                member_ends=_np.array(ends),
+                period=_NS(start=min(ends), end=max(ends)),
             )
 
         base_identity = str(row.get("comparison_identity"))
@@ -554,34 +597,43 @@ def summarize_movement(
             }
 
     per_horizon_rhos: dict[str, list[float]] = {horizon: [] for horizon in horizons}
+    estimable_histories: dict[str, list[str]] = {horizon: [] for horizon in horizons}
     for cell in c1.values():
         rho_value = cell.get("rho_burden_median")
         horizon_name = cell.get("horizon")
         if rho_value is not None and isinstance(horizon_name, str):
             per_horizon_rhos[horizon_name].append(float(rho_value))  # type: ignore[arg-type]
+            estimable_histories[horizon_name].append(str(cell["history_id"]))
     uncertainty = {
         horizon: endpoints.bootstrap_uncertainty(rhos)
         for horizon, rhos in per_horizon_rhos.items()
     }
 
+    # Per-horizon per-triple summaries: the frozen contract forbids pooling
+    # across horizons ("no pooling across histories, seeds or horizons"),
+    # so each triple reports one median per horizon (3 cells each), never a
+    # single median over the 6 week+month cells. Legacy pooled keys are
+    # intentionally NOT produced.
     primary = list(readiness.PRIMARY_TRIPLE)
     replication = list(readiness.REPLICATION_TRIPLE)
     splits: dict[str, dict[str, object]] = {}
     for name, triple in (("primary", primary), ("replication", replication)):
-        triple_cells = [c1.get(f"{hid}|{horizon}") for hid in triple for horizon in horizons]
-        estimable: list[float] = []
-        for cell in triple_cells:
-            if cell is None:
-                continue
-            median = cell.get("rho_burden_median")
-            if median is not None and isinstance(median, (int, float)):
-                estimable.append(float(median))
-        splits[name] = {
-            "histories": triple,
-            "n_cells": len([cell for cell in triple_cells if cell]),
-            "n_estimable_cells": len(estimable),
-            "median_rho": _median(estimable),
-        }
+        for horizon in horizons:
+            triple_cells = [c1.get(f"{hid}|{horizon}") for hid in triple]
+            estimable: list[float] = []
+            for cell in triple_cells:
+                if cell is None:
+                    continue
+                median = cell.get("rho_burden_median")
+                if median is not None and isinstance(median, (int, float)):
+                    estimable.append(float(median))
+            splits[f"{name}|{horizon}"] = {
+                "histories": triple,
+                "horizon": horizon,
+                "n_cells": len([cell for cell in triple_cells if cell]),
+                "n_estimable_cells": len(estimable),
+                "median_rho": _median(estimable),
+            }
 
     n_computed = 0
     for record in records:
@@ -592,15 +644,84 @@ def summarize_movement(
             candidate = endpoints_map.get(str(seed))
             if isinstance(candidate, Mapping) and candidate.get("status") == "COMPUTED":
                 n_computed += 1
+    # The committed ``bootstrap_uncertainty`` hardcodes a stale "n = 4
+    # histories" note; the numeric bootstrap draws over the supplied rhos.
+    # Annotate the ACTUAL resampling support per horizon: only histories
+    # whose C1 seed-median association is estimable are drawn (the same
+    # list fed to ``bootstrap_uncertainty`` above), so a history with
+    # missing/non-COMPUTED cells or too few distinct burdens is excluded
+    # and reported as excluded instead of being counted merely because it
+    # has a record. Output-side only; the committed function is untouched.
+    annotated_uncertainty: dict[str, object] = {}
+    for horizon in horizons:
+        block = uncertainty.get(horizon)
+        included = sorted(estimable_histories[horizon])
+        recorded = sorted(
+            {str(record.get("history_id")) for record in records if str(record.get("horizon")) == horizon}
+        )
+        excluded = sorted(set(recorded) - set(included))
+        if isinstance(block, Mapping):
+            entry = dict(block)
+            entry["n_histories"] = len(included)
+            entry["histories_estimable"] = included
+            entry["n_histories_with_records"] = len(recorded)
+            entry["n_nonestimable_histories"] = len(excluded)
+            entry["nonestimable_histories"] = excluded
+            entry["note"] = (
+                f"n = {len(included)} estimable histories of {len(recorded)} with records"
+                + (f"; {len(excluded)} non-estimable excluded from the bootstrap" if excluded else "")
+                + "; descriptive only, never a precise standard error (committed note string is stale)"
+            )
+            annotated_uncertainty[horizon] = entry
+        else:
+            annotated_uncertainty[horizon] = block  # type: ignore[assignment]
+    # Holm: no p-values exist anywhere in the movement output, so there is no
+    # computable input ("where computable" is empty); the disposition never
+    # depends on a p-value. Record the vacuous policy explicitly instead of
+    # pretending a test ran.
+    holm_policy = {
+        "status": "NOT-COMPUTED-NO-PVALUES",
+        "family": "declared primary contrasts at alpha=0.05 where computable",
+        "n_pvalues": 0,
+        "adjusted": [],
+        "note": "no inferential claim depends on a p-value; see contract multiplicity",
+    }
+    # Transition-vs-control reporting + dependence: per-horizon counts of the
+    # retained-eligible analysis set, and the frozen dependence declaration.
+    horizons_seen = sorted({str(record.get("horizon")) for record in records})
+    transition_vs_control: dict[str, object] = {}
+    for horizon in horizons_seen:
+        members = [record for record in records if str(record.get("horizon")) == horizon]
+        transitions = [
+            record for record in members if str(record.get("comparison_type")) == "BASELINE-VS-ELEVATED"
+        ]
+        controls = [
+            record for record in members if str(record.get("comparison_type")) == "BASELINE-VS-BASELINE"
+        ]
+        transition_vs_control[horizon] = {
+            "n_pairs": len(members),
+            "n_transitions": len(transitions),
+            "n_controls": len(controls),
+            "transition_dispositions": sorted({str(record.get("disposition")) for record in transitions}),
+            "control_dispositions": sorted({str(record.get("disposition")) for record in controls}),
+        }
     return {
         "c1": c1,
-        "uncertainty": uncertainty,
+        "uncertainty": annotated_uncertainty,
         "splits": splits,
         "c2": "ABSTAIN-CORPUS-WIDE",
         "n_records": len(records),
         "n_computed_endpoints": n_computed,
         "n_expected_endpoints": len(records) * len(seeds),
         "five_pair_rank_reference": readiness.FIVE_PAIR_MIN_TWO_SIDED_TAIL,
+        "transition_vs_control": transition_vs_control,
+        "dependence": "NONADJACENT-SHARED-SUPPORT: comparisons sharing an arm are dependent by construction; pair counts are support accounting, never independent samples",
+        "holm": holm_policy,
+        "n1_reference_null_identity": (
+            "N1 is the reference split-half null from fit_reference "
+            "(null_values/null_median/null_q95 per history/seed fit); "
+            "pair cells carry the N2 within-period half-split band only"
+        ),
     }
 
 
