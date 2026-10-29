@@ -1,0 +1,173 @@
+{
+  "artifact_id": "S24-CONTROLLED-DOSE-RESPONSE-SPEC-A01",
+  "task": "S24-7-M13",
+  "attempt": "S24-7-M13-A01",
+  "agent": "S24M13GoldA01",
+  "created_utc": "2026-10-28T08:43:31Z",
+  "state": "FROZEN-BEFORE-ANY-M13-OUTCOME",
+  "title": "Controlled dose-response and sample-size diagnostic on the existing S24-7-M11 embedding cache",
+  "scope": "Exploratory, label-informed constructed-mixture diagnostic on the already admitted 24,840-vector S24-7-M11 cache. Not a revision of S24-7-M11 or S24-7-M12, not independent confirmation of either, and not a temporal, business, performance or detection claim.",
+  "no_outcome_computed": true,
+  "evidence_of_absence": [
+    "this specification was written after the metadata-only census at artifacts/sprint-24/evidence/s24-7-m13-a01/census/census.json, which reads only the corpus manifest and the accepted M9 audit and records metadata_only=true, embeddings_read=false and outcomes_computed=false",
+    "no embedding array, prototype fit, E1 value or E2 value was computed before this file was written; the audit stage that reads the cache had not been implemented or executed"
+  ],
+  "prior_exposure": "The author had read the published S24-7-M11 and S24-7-M12 results before freezing this design, so no M13 quantity is a blind replication and none is independent confirmation.",
+  "bindings": {
+    "corpus_manifest_sha256": "9606648db17d64496e7268d81417e25b1806ca0ce2acdd99498a071d7a991ea3",
+    "corpus_audit_sha256": "5fddabc1059412a589e8811d84b67e1c41856f84201f506eb48f51cedfd8eaac",
+    "g2_preflight_sha256": "26f9e45d26af66fa17f37782278699d95ed61e24e674f5f9aed5432883e426df",
+    "execution_freeze_file_sha256": "be6e10589b2bfac7e6cdff5b7979aeebaf9f608c78c51532153906e9a40e8b69",
+    "canonical_execution_freeze_sha256": "91d4ce264c73f0dada20b4a5f1a7c460e5809bdb1daf67cc75823b9a1d98a3bd",
+    "prospective_contract_envelope_sha256": "34031e8c1aca744258c2049659c54cff8417b98f1a889ebde52e48d31c9faa01",
+    "prospective_contract_canonical_sha256": "f4f92a60ee1782ccc0ec75587e9df5d1471e4045e201c43478893d294b5757f7",
+    "admitted_cache_digest_of_digests": "ae7aa42d7661d95d9d292400f53f4ec76128fd9618acc75cc6c6fcf581aa02b3",
+    "admitted_cache_path": "artifacts/sprint-24/evidence/s24-7-m12-a01/cache-full",
+    "admitted_cache_files": 36,
+    "admitted_cache_rows": 24840,
+    "admitted_cache_groups": 18,
+    "m12_specification_sha256": "cde6021ff086398cf690d76a7eb78d656274721dc55621c8e8012fae5c2d47fc",
+    "m12_audit_doc_sha256": "423932b36052760b96000fc19d883bca9b81b3676f32909cbf40704e0c7bcad9",
+    "m12_module_sha256": "ae7706f0eb0369d920c5d5adfdd144f2938007df0dfb9a9043e7dd12d906a128",
+    "m12_cli_sha256": "9655727019f63ac702feb5fbc9ee4bf70039139fada8eb79f29c115f8357b01b",
+    "m12_tests_sha256": "12b06aec5f8ad68d2d5f1ca9250ef5729c32d942be68b14fab9bd18947eed56f",
+    "m11_movement_sha256": "d84747449f809eccd498806493ec570608f1b3689931395468b486e1e29515e3",
+    "m11_run_sha256": "87a71f8cff50daedded969d2f50930a646efdda95953f8750baafe8010636f84",
+    "m11_execution_doc_sha256": "53795c0634019d4c750ce0426bdab73fb3739ee0691497899a23161774d960c2",
+    "estimator_conventions_sha256": "e9aa2c27d16139f82a1bc98ba95bdc2dafc313645fe6daaf455ce498c2fc59cf",
+    "census_sha256": "a7a0c7553d3ed38f5a0cecc6c5915121160be7a3becdbc803328483b4329f574",
+    "census_path": "artifacts/sprint-24/evidence/s24-7-m13-a01/census/census.json"
+  },
+  "census": {
+    "metadata_only": true,
+    "embeddings_read": false,
+    "outcomes_computed": false,
+    "n_cells": 12,
+    "n_units": 48,
+    "unit_status_counts": {
+      "COMPUTED": 40,
+      "ABSTAIN-ABNORMAL-HEADROOM": 2,
+      "ABSTAIN-INSUFFICIENT-ABNORMAL": 6
+    },
+    "designs": {
+      "POOLED-CELL-PERIODS": "union of the cell's audit low-burden and audit elevated periods; mixtures span periods and are not calendar windows",
+      "LOW-PERIOD-SOURCE": "audit low-burden periods only; retains the corpus's real low-burden faults and is the period-composition-controlled sensitivity"
+    },
+    "cells": {
+      "week": {
+        "low_periods": [5, 6, 7, 18, 19, 20],
+        "elevated_periods": [13, 14, 26, 27]
+      },
+      "month": {
+        "low_periods": [2, 3, 5, 6],
+        "elevated_periods": [4, 7]
+      }
+    },
+    "unit_support": [
+      {"horizon": "week", "size": 40, "design": "POOLED-CELL-PERIODS", "status": "COMPUTED", "n_abnormal_pool": 56, "n_ordinary_pool": 344, "n_max_abnormal": 16},
+      {"horizon": "week", "size": 60, "design": "POOLED-CELL-PERIODS", "status": "COMPUTED", "n_abnormal_pool": 56, "n_ordinary_pool": 344, "n_max_abnormal": 24},
+      {"horizon": "week", "size": 40, "design": "LOW-PERIOD-SOURCE", "status": "COMPUTED", "n_abnormal_pool": 12, "n_ordinary_pool": 228, "n_max_abnormal": 6},
+      {"horizon": "week", "size": 60, "design": "LOW-PERIOD-SOURCE", "status": "COMPUTED", "n_abnormal_pool": 12, "n_ordinary_pool": 228, "n_max_abnormal": 9},
+      {"horizon": "month", "size": 160, "design": "POOLED-CELL-PERIODS", "status": "COMPUTED", "n_abnormal_pool": 123, "n_ordinary_pool": 900, "n_max_abnormal": 64},
+      {"horizon": "month", "size": 250, "design": "POOLED-CELL-PERIODS", "status": "COMPUTED", "n_abnormal_pool": 123, "n_ordinary_pool": 900, "n_max_abnormal": 100},
+      {"horizon": "month", "size": 160, "design": "LOW-PERIOD-SOURCE", "status": "COMPUTED", "n_abnormal_pool": 34, "n_ordinary_pool": 658, "n_max_abnormal": 24},
+      {"horizon": "month", "size": 250, "design": "LOW-PERIOD-SOURCE", "status": "ABSTAIN-INSUFFICIENT-ABNORMAL", "n_abnormal_pool": 34, "n_ordinary_pool": 658, "n_max_abnormal": 38}
+    ],
+    "per_cell_exceptions": [
+      {"cell": "S24C-ITER-0001-CONTROLLED-04", "horizon": "week", "size": 60, "design": "LOW-PERIOD-SOURCE", "status": "ABSTAIN-ABNORMAL-HEADROOM", "reason": "9 abnormal files cannot be placed inside the context headroom"},
+      {"cell": "S24C-ITER-0001-CONTROLLED-05", "horizon": "week", "size": 40, "design": "LOW-PERIOD-SOURCE", "status": "ABSTAIN-ABNORMAL-HEADROOM", "reason": "6 abnormal files cannot be placed inside the context headroom"}
+    ]
+  },
+  "parameters": {
+    "cells": "the 12 accepted history x horizon cells of the accepted M9 audit pair rows; periods are read from that audit only",
+    "designs": ["POOLED-CELL-PERIODS", "LOW-PERIOD-SOURCE"],
+    "sizes": {"week": [40, 60], "month": [160, 250]},
+    "dose_grid": {
+      "POOLED-CELL-PERIODS": [0.0, 0.05, 0.1, 0.2, 0.3, 0.4],
+      "LOW-PERIOD-SOURCE": [0.0, 0.05, 0.1, 0.15]
+    },
+    "count_rounding": "n_abnormal = floor(p * N + 0.5); n_ordinary = N - n_abnormal; realized n/N is reported at every dose",
+    "context_quota": {
+      "stratum": "robot|program from predicted_robot_idx and predicted_program_idx (label-blind, inherited M12 definition)",
+      "capacity": "floor(ordinary_count_in_pool / 2) per stratum",
+      "allocation": "capped largest-remainder apportionment of N over the capacities with caps equal to the capacities; deterministic sorted-key residual distribution by descending fractional remainder",
+      "effect": "every arm carries exactly the same robot|program counts; the fixed baseline arm and the zero-abnormal draw are disjoint by construction"
+    },
+    "abnormal_sequence": {
+      "scope": "one sequence per cell x design, independent of size and seed, length equal to the maximum planned n_abnormal of the design's grid at the largest supported size",
+      "ordering": "family-deficit proportional order: at each step the family with the largest (availability_share * step - used) receives the next file; ties broken by family name; files inside a family are ordered by sha256('S24-7-M13|sequence|' + file_id)",
+      "headroom": "a file is only accepted while its stratum has fewer selected abnormal files than min(quota_stratum, abnormal_availability_stratum); a blocked file is skipped permanently",
+      "nesting": "the abnormal files of dose p are the first n_abnormal(p) entries, so the abnormal sets are nested across doses and no family is silently dropped",
+      "failure": "if the sequence cannot reach n_max the whole unit abstains with ABSTAIN-ABNORMAL-HEADROOM"
+    },
+    "baseline": {
+      "definition": "one fixed all-ordinary arm of exactly N files carrying the frame context quota",
+      "selection": "inside each stratum, ordinary files ordered by sha256('S24-7-M13|baseline|' + cell + '|' + design + '|' + N + '|' + stratum + '|' + file_id); the first quota_stratum files are the baseline",
+      "role": "the fixed baseline distribution every dose is compared with; the baseline arm is disjoint from every dose draw"
+    },
+    "sampling": {
+      "without_replacement": "per repeat, files are drawn without replacement inside each (stratum, family) abnormal group and each ordinary stratum group",
+      "exclusion": "ordinary candidate pools exclude the fixed baseline identities; abnormal files are never baseline files",
+      "rng": "numpy.random.default_rng seeded with the first 16 hex digits of sha256 of the token 'S24-7-M13|draw|' + cell + '|' + N + '|' + design + '|' + format(dose, '.4f') + '|' + group descriptor",
+      "draw_construction": "one random((repeats, group_size)) matrix per group, stable argsort, first k columns; identical draws are shared by all three encoder seeds and all K",
+      "invariants": "exactly N identities per arm, no duplicate identity inside a draw, baseline and comparison arms disjoint, exact context counts"
+    },
+    "repeats": 400,
+    "encoder_seeds": [181801, 181802, 181803],
+    "cluster_counts": [4, 8, 16],
+    "reference_fit": "one fit per (history, encoder seed) on the accepted causal REFERENCE pool only, using the accepted fit_reference construction (median pairwise bandwidth, KMeans random_state 2407, n_init 10); no label, family, severity, context or evaluation mixture enters the fit",
+    "estimators": {
+      "E1": "accepted unbiased squared MMD at the reference bandwidth, computed with representation.sprint24_weekly_monthly_endpoints.mmd2_unbiased",
+      "E2_K4": "occupancy total-variation distance at K=4 reference prototypes in exact equal-n quanta E2 = m / N",
+      "E2_K8": "occupancy total-variation distance at K=8 reference prototypes in exact equal-n quanta E2 = m / N",
+      "E2_K16": "occupancy total-variation distance at K=16 reference prototypes in exact equal-n quanta E2 = m / N"
+    },
+    "summaries": "median, mean, q05, q95, min, max and the strictly-positive / exact-zero / strictly-negative repeat fractions; E2 additionally keeps its integer numerator",
+    "movement": "each dose is described against the dose-0 baseline-vs-baseline band of the same unit and seed: null median, null q95, median excess, fraction of dose repeats above the null q95, and whether the dose median is above the null q95; dose 0 has no movement block",
+    "trends": "tie-aware Spearman rank correlation between resolved dose and the per-dose median, plus counts of increasing / equal / decreasing steps, monotone-nondecreasing flag, the number of doses above the null q95 and the full dose curve",
+    "aggregates": "per horizon x size x design x estimator only; per-seed rho counts, seed-median rho counts and all-three-seeds-agree counts; horizons, sizes and designs are never pooled and no seed or cell is selected as best",
+    "abstention": {
+      "ABSTAIN-EMPTY-POOL": "the design pool is empty",
+      "ABSTAIN-ORDINARY-CAPACITY": "the ordinary support cannot supply two disjoint arms of size N",
+      "ABSTAIN-CONTEXT-QUOTA": "no capped largest-remainder context quota exists",
+      "ABSTAIN-INSUFFICIENT-ABNORMAL": "the maximum planned abnormal count exceeds the abnormal pool",
+      "ABSTAIN-ABNORMAL-HEADROOM": "the abnormal pool cannot fill the maximum planned count inside the context headroom",
+      "policy": "a refused unit keeps every planned dose x seed record with its reason and stays in the denominator; no replacement, reseeding or data generation is attempted"
+    },
+    "selection": "no best dose, K, seed or size is selected; all planned cells, doses, seeds and K are published; unsupported curves remain explicitly undefined"
+  },
+  "analysis_order": [
+    "verify the frozen specification digest, every pinned corpus/preflight/freeze/contract digest, the canonical contract binding and every accepted M11/M12 product digest",
+    "admit the retrieved cache through the accepted identity-strict public admission path and verify the cache digest-of-digests",
+    "fit one reference per (history, encoder seed) on the causal REFERENCE pool and assign prototypes to every admitted row",
+    "build the metadata census and refuse any drift from the recorded census statuses",
+    "build the frozen frame, abnormal sequence and fixed baseline arm per unit",
+    "draw the dose arms, verify count/composition/disjointness invariants",
+    "compute E1 and E2 repeat vectors for every unit x dose x seed",
+    "summarise doses, movement against the baseline-vs-baseline band, trends and aggregates; write the accounting"
+  ],
+  "labels_policy": {
+    "allowed": "file labels construct the delivered dose and diagnose the realized composition",
+    "forbidden": "labels, families, severities, anomalous fractions and context fields never enter a prototype fit, a bandwidth fit, a sampling rule, a context quota or any detector selection; no detector is fitted or selected"
+  },
+  "scope_exclusions": [
+    "no data generation, capture, forward pass, encoder inference, training, bank or prototype refit, business-density scale, Phase C release or remote edit",
+    "no recapture fallback: missing or identity-drifted cache support is refused, never repaired",
+    "no p-value, significance test, success gate, confidence interval, performance, detection-accuracy, business-density or causal claim",
+    "no M11 or M12 product, result, cache byte, Main plan or foreign memory edit"
+  ],
+  "outputs": [
+    "docs/sprint24-controlled-dose-response-audit.md",
+    "artifacts/sprint-24/task-7-m13-a01.md",
+    "artifacts/sprint-24/evidence/s24-7-m13-a01/census/census.json",
+    "artifacts/sprint-24/evidence/s24-7-m13-a01/audit/{lineage,census,support,curves,baseline,composition,trends,aggregates,accounting,repeats-keys,run}.json and repeats.npz",
+    "artifacts/sprint-24/evidence/s24-7-m13-a01/audit-repro/ (byte-identical statistical tables)",
+    "artifacts/sprint-24/evidence/s24-7-m13-a01/independent-verification.py and independent-verification.json",
+    "artifacts/sprint-24/evidence/s24-7-m13-a01/spec/ (preserved original specification bytes and digest record)",
+    "artifacts/sprint-24/evidence/s24-7-m13-a01/amendments/ (separate timestamped amendment records; empty when none)"
+  ],
+  "amendments": {
+    "policy": "the original specification bytes are never rewritten; any deviation discovered after outcomes are visible is a separate timestamped record declaring the frozen specification digest it amends, the stage of discovery, the reason and the sensitivity of the affected numbers",
+    "records": []
+  }
+}
