@@ -28,6 +28,8 @@ __all__ = [
     "DatasetBuilder",
     "iter_materialized",
     "OperationEvent",
+    "PairedTwin",
+    "derive_pair_seed",
     "OperatingContext",
     "RobotHealthState",
     "HealthEpisode",
@@ -91,6 +93,8 @@ _EXPORT_MODULES = {
     "SECONDS_PER_DAY": "synth.schema",
     "SECONDS_PER_WEEK": "synth.schema",
     "SessionGenerator": "synth.generator",
+    "PairedTwin": "synth.generator",
+    "derive_pair_seed": "synth.generator",
     "ScheduledSignalGenerator": "synth.scheduled",
     "FactoryScheduler": "synth.scheduler",
     "FactorySchedule": "synth.scheduler",
@@ -150,6 +154,7 @@ if TYPE_CHECKING:
     from synth.scheduler import FactorySchedule, FactoryScheduler
     from synth.health import FactoryHealth, RobotHealthProcess
     from synth.scheduled import ScheduledSignalGenerator
+    from synth.generator import PairedTwin, SessionGenerator, derive_pair_seed
     from synth.splits import ChronologicalSplitter, ChronologicalSplits
     from synth.chronicle import client_config, load_chronological
     from synth.chronicle import materialize_chronological, server_config
