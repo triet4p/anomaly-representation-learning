@@ -1,0 +1,214 @@
+{
+  "artifact_id": "S24-REPRESENTATION-ENDPOINT-DIAGNOSTIC-SPEC-A01",
+  "state": "FROZEN-BEFORE-M14-OUTCOMES",
+  "task": "S24-7-M14",
+  "created_utc": "2026-10-29T09:55:24Z",
+  "title": "Representation signal versus population-endpoint sensitivity on the existing S24-7-M11 embedding cache",
+  "purpose": "One integrated exploratory diagnostic with three predeclared branches: A whether admitted embeddings carry an abnormality-associated contrast inside a robot|program stratum, B whether occupancy E2 misses within-prototype movement that a bounded residual diagnostic can see, and C whether the accepted estimators resolve known, reference-derived embedding shifts at supported sample sizes. Not a replacement business endpoint, file-accuracy objective, revision of M11-M13 or independent confirmation.",
+  "custody": {
+    "pre_outcome_order": [
+      "1. metadata-only support census (artifacts/sprint-24/evidence/s24-7-m14-a01/census/census.json)",
+      "2. this immutable specification",
+      "3. first M14 outcome computation"
+    ],
+    "census_path": "artifacts/sprint-24/evidence/s24-7-m14-a01/census/census.json",
+    "census_sha256": "d3a0ce554692fd982ad383cf9154f65cea7ba6725655ca5ab821ff1bf4675bae",
+    "data_exposure_disclosure": "The corpus, the accepted M9 audit and the admitted M11 embeddings were available before this specification was written. The design is therefore exploratory, not pre-registered: no fresh confirmation, no temporal holdout and no stronger custody claim is made.",
+    "original_bytes_never_rewritten": true,
+    "amendments": "Any later deviation is recorded as a separate timestamped JSON amendment declaring amends_spec_sha256; the original specification bytes are never edited and deviations are measured, not back-filled."
+  },
+  "inputs": {
+    "corpus_manifest": {
+      "path": "data/generated/sprint24_controlled_v2/corpus-manifest.json",
+      "sha256": "9606648db17d64496e7268d81417e25b1806ca0ce2acdd99498a071d7a991ea3"
+    },
+    "corpus_audit": {
+      "path": "artifacts/sprint-24/evidence/s24-7-m9-a01/corpus-audit.json",
+      "sha256": "5fddabc1059412a589e8811d84b67e1c41856f84201f506eb48f51cedfd8eaac"
+    },
+    "prospective_contract_envelope": {
+      "path": "artifacts/sprint-24/evidence/s24-7-m10-a02/prospective-contract.json",
+      "canonical_envelope_sha256": "34031e8c1aca744258c2049659c54cff8417b98f1a889ebde52e48d31c9faa01"
+    },
+    "cache_root": "artifacts/sprint-24/evidence/s24-7-m12-a01/cache-full",
+    "cache_digest_of_digests": "ae7aa42d7661d95d9d292400f53f4ec76128fd9618acc75cc6c6fcf581aa02b3",
+    "admission": "identity-strict accepted public admission path; 24,840 required rows, 18 groups, no recapture",
+    "encoder_seeds": [
+      181801,
+      181802,
+      181803
+    ],
+    "reference_pool": "220 causal REFERENCE files per history, fixed before any evaluation period",
+    "cumulative_forwards_before": 77653,
+    "new_model_loads": 0,
+    "new_forward_passes": 0,
+    "new_data_generation_or_inference": "none"
+  },
+  "estimators": {
+    "E1": {
+      "definition": "accepted unbiased squared MMD (sprint24_weekly_monthly_endpoints.mmd2_unbiased)",
+      "kernel": "Gaussian, bandwidth sigma = median pairwise distance of the causal reference pool per (history, encoder seed)",
+      "units": "squared-MMD units; may be negative",
+      "fit_isolation": "bandwidth and prototypes are fitted on the causal REFERENCE pool only and never on labels, families, severities or evaluation arms"
+    },
+    "E2": {
+      "definition": "occupancy total-variation distance against the accepted causal-reference prototypes",
+      "levels": [
+        4,
+        8,
+        16
+      ],
+      "exact_quanta": "with s rows per arm E2 = m / s for an integer numerator m = half the absolute count difference, computed in integer arithmetic",
+      "blind_spot": "E2 reacts only to which prototype receives mass; movement inside one prototype is invisible to it"
+    },
+    "D_LOC": {
+      "definition": "sum over prototypes occupied in both arms of w_k * ||mean_A(r_k) - mean_B(r_k)||^2, divided by the reference residual scale",
+      "residuals": "r_i = x_i - c_{label(i)} with the fixed causal-reference centroid of the row's prototype",
+      "weights": "w_k = (n_A,k + n_B,k) / (2s), renormalised over the common prototypes",
+      "reference_scale": "mean squared residual norm over the causal-reference rows of the same (history, seed, K)",
+      "directionality": "a vector norm, so every direction of movement counts; radial and tangential components are published separately at K=8"
+    },
+    "D_SPREAD": {
+      "definition": "sum over common prototypes of w_k * |mean_A(||r_k||^2) - mean_B(||r_k||^2)|, divided by the reference residual scale"
+    },
+    "directional_decomposition": {
+      "levels": [
+        8
+      ],
+      "radial": "squared projection of the mean-residual difference on the unit centroid direction, weighted and normalised as D_LOC",
+      "tangential": "the remaining squared norm of the same difference; radial alone is never read as all directional movement"
+    },
+    "coverage": "sum of w_k over common prototypes before renormalisation; a repeat below d_min_coverage is abstained, never silently renormalised"
+  },
+  "branch_a": {
+    "unit": "one accepted history x horizon cell x robot|program stratum x supported per-arm size",
+    "cell_periods": "the accepted M9 pair-row low-burden and elevated period identities of the cell; no period added or dropped",
+    "sizes": {
+      "week": [
+        2,
+        3
+      ],
+      "month": [
+        3,
+        4
+      ]
+    },
+    "planned_units": 960,
+    "support_rule": "n_abnormal >= s and n_normal >= 3s inside the stratum and cell periods; otherwise a closed abstention code",
+    "arms_per_repeat": {
+      "abnormal": "s files drawn without replacement from the stratum's abnormal candidates",
+      "normal_1": "s files from a 3s normal draw without replacement and a permutation split",
+      "normal_2": "the second disjoint s-file third of the same normal draw; used as the null arm A",
+      "normal_3": "the third disjoint s-file third of the same normal draw; used as the null arm B",
+      "comparison": "abnormal versus normal_1",
+      "matched_null": "normal_2 versus normal_3 at the identical size, estimator and seed",
+      "disjointness": "labels separate the abnormal and normal pools; the three normal arms are disjoint by construction and every draw is without replacement"
+    },
+    "period_control_variant": {
+      "name": "PERIOD-MATCHED",
+      "rule": "per-period quota = capped largest-remainder apportionment of s with weights = abnormal availability and caps = min(n_abnormal_p, floor(n_normal_p / 3)), so the abnormal arm and all three normal arms carry the same per-period counts exactly",
+      "feasibility": "reported per unit; infeasible units carry ABSTAIN-PERIOD-MATCH-INFEASIBLE and stay in the denominator",
+      "support_census": "52 of 960 units computed, all other units explicitly abstained"
+    },
+    "pooled_variant": {
+      "name": "POOLED-PERIOD",
+      "caveat": "the stratum mixes source periods; the period-mix total-variation distance between the comparison arms is reported per repeat and the pooled contrast is not period-controlled"
+    },
+    "labels": "used only to construct and diagnose the abnormal/normal arms; never an input to a bandwidth, prototype, encoder, reference fit or detector selection",
+    "composition_reporting": "family counts, accepted severity and anomalous-fraction bins, duration quartile bins and median severity/fraction/duration of the abnormal candidates; period counts; exact candidate identities; distinct files used and possible draws",
+    "weak_result_rule": "a weak or absent measured contrast is not proof that the representation carries no abnormality signal"
+  },
+  "branch_b": {
+    "design": "the same valid branch-A arms and null bands are scored with E1, E2 at K in {4,8,16}, D_LOC and D_SPREAD; no endpoint is re-drawn or re-matched for its own result",
+    "within_prototype_only_flag": "a unit-seed is counted as within-prototype-only when the E2_K8 contrast median is exactly zero while D_LOC_K8 is above the matched normal-normal null q95",
+    "boundary_handling": {
+      "margins": "margin = (d_second - d_first) / 2 under the fixed K=8 prototypes",
+      "proximity_fraction": "share of each arm's rows with margin <= 0.25 * sqrt(reference residual scale), published descriptively",
+      "reassignment": "per-file prototype changes are measurable only for the paired positive-control arms (branch C), not for disjoint real-source arms; the report states this instead of inventing a pairing"
+    },
+    "empty_cluster_handling": "a prototype empty in either arm is excluded from D and the weights are renormalised over the common prototypes; coverage records the excluded mass and a repeat below 0.5 coverage is abstained"
+  },
+  "branch_c": {
+    "unit": "one accepted cell x supported size x encoder seed",
+    "sizes": {
+      "week": [
+        40,
+        60
+      ],
+      "month": [
+        160,
+        250
+      ]
+    },
+    "planned_unit_seeds": 72,
+    "normal_quota": "capped largest-remainder apportionment of s over robot|program strata with weights = normal availability and caps = floor(n_normal / 2), so two disjoint equal-quota arms fit; all 24 cell x size units are census-supported",
+    "arms": {
+      "unchanged": "s normal files drawn without replacement inside the quota",
+      "perturbed_base": "a second disjoint s-file normal draw inside the same quota"
+    },
+    "perturbation": {
+      "direction": "first right singular vector of the centred causal-reference embedding matrix per (history, seed), sign fixed so the largest absolute loading is positive",
+      "sigma_u": "root-mean-square projection of the centred reference rows on that direction",
+      "magnitudes": [
+        0.0,
+        0.1,
+        0.25,
+        0.5,
+        1.0,
+        2.0
+      ],
+      "magnitude_units": "reference directional standard deviations; the realised shift vector and its norm are published exactly",
+      "modes": {
+        "GLOBAL-SHIFT": "every row of the perturbed arm is shifted",
+        "WITHIN-PROTOTYPE-SAFE": "only rows whose K=8 boundary margin strictly exceeds the shift norm are shifted, so the nearest prototype cannot change by the triangle inequality; the perturbed count and fraction are published and a repeat with fraction < 0.5 is abstained"
+      },
+      "zero_shift": "delta = 0.0 is a single record that is also the unchanged-versus-unchanged null band",
+      "not_label_derived": "the direction and the grid use only the causal reference pool and no evaluation label or outcome"
+    },
+    "identity_check": "the unchanged arm compared with itself must give biased E1 exactly 0, E2 exactly 0 for every K, D_LOC and D_SPREAD exactly 0 and zero reassignment; the accepted unbiased E1 is not zero on identical samples by its own diagonal and its exact identity value is published instead of being claimed as zero",
+    "reassignment": "per-file prototype label change under the fixed K=8 prototypes for every perturbed record at every K, with the realised shift norm",
+    "responsiveness_statistic": "share of repeats above the delta=0 null q95 for every estimator, reported as measurement responsiveness only",
+    "no_business_claim": "artificial shifts verify measurement responsiveness only: not learned anomaly semantics, generalisation, significance/power guarantees or business success"
+  },
+  "reproducibility": {
+    "repeats_ab": 200,
+    "repeats_c": 50,
+    "seed_derivation": "numpy.random.default_rng(int(sha256('S24-7-M14|<branch>|<identities>')[0:16], 16))",
+    "deterministic": "identical inputs, sizes, repeats and seeds must reproduce every table byte-for-byte",
+    "no_pseudo_n": "no duplicate file identity inflates any arm; every draw is without replacement and every arm pair is disjoint"
+  },
+  "abstention_codes": [
+    "ABSTAIN-NO-ABNORMAL",
+    "ABSTAIN-INSUFFICIENT-ABNORMAL",
+    "ABSTAIN-INSUFFICIENT-NORMAL",
+    "ABSTAIN-PERIOD-MATCH-INFEASIBLE",
+    "ABSTAIN-NORMAL-QUOTA-INFEASIBLE",
+    "ABSTAIN-BOUNDARY-SAFE-MASS",
+    "ABSTAIN-INSUFFICIENT-COVERAGE"
+  ],
+  "accounting": {
+    "branch_a": "960 planned units x 3 seeds x 6 accounting estimators; every unit is COMPUTED or a closed abstention",
+    "branch_a_period_matched": "the same 960 planned units with their own census status",
+    "branch_c": "72 planned unit-seeds x 11 comparison records (delta=0 once, five positive deltas x two modes) and one identity record; eight estimators per comparison record",
+    "estimator_grid_note": "the six accounting estimators are E1, E2_K4, E2_K8, E2_K16, D_LOC and D_SPREAD; D_RADIAL and D_TANGENTIAL at K=8 are descriptive decomposition of D_LOC and are published but not counted as separate endpoints"
+  },
+  "verification": {
+    "independent_numeric": "a separate verifier recomputes E1, E2 and D from the persisted arm identities without importing the audit module",
+    "invariants": "arm size matching, disjointness, no duplicate identity, integer-even occupancy quanta, null-band construction, abstention accounting and deterministic reproduction",
+    "positive_controls": "zero-shift identity exact zeros, exact known shift norms, boundary-safe zero-reassignment behaviour and the realised reassignment counts",
+    "real_smoke": "the public cache-only command is exercised end to end on the admitted 24,840-row cache",
+    "no_gate": "no quantitative success gate; an honest negative or inconclusive result satisfies execution acceptance"
+  },
+  "limitations": [
+    "Exploratory and post-exposure; not pre-registered and not a fresh confirmation.",
+    "Branch A sizes are tiny because within-stratum abnormal support is 1-10 files; the matched null band is the only comparator.",
+    "Only 52 of 960 branch-A units support exact period matching; the rest report a measured period-mix confounder or abstain.",
+    "The accepted unbiased E1 has a non-zero identical-sample diagonal; the zero check uses the biased plug-in and exact E2/D zeros.",
+    "Positive controls show measurement responsiveness only; they do not establish anomaly semantics, power or business value.",
+    "Weekly and monthly cells, the six histories and the three seeds stay separate; no pooled representation claim is made."
+  ],
+  "amendments": {
+    "policy": "separate timestamped records only",
+    "records": []
+  }
+}
