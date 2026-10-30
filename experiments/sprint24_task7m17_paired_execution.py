@@ -621,14 +621,198 @@ def run_capture(out: Path, args: argparse.Namespace) -> dict[str, Any]:
     return result
 
 
+def run_official_contract(out: Path) -> dict[str, Any]:
+    """Build and verify the versioned C2 official contract; write evidence."""
+    from representation import sprint24_paired_official as official
+
+    started = time.time()
+    _require_fresh_out(out)
+    if not LOCAL_PREFLIGHT.is_file():
+        raise _refused("REFUSED-MISSING-PREREQUISITE", f"accepted preflight absent: {LOCAL_PREFLIGHT}")
+    preflight = json.loads(LOCAL_PREFLIGHT.read_text(encoding="utf-8"))
+    if not isinstance(preflight, dict):
+        raise _refused("REFUSED-IDENTITY", "accepted preflight is not a mapping")
+    anchors = {
+        "source": "artifacts/sprint-24/evidence/s24-7-m14-a01/audit/aggregates.json",
+        "branch_c_e1_zero_shift_median_detection_fraction": 0.06,
+        "note": "responsiveness only; M14 perturbations never measure anomaly effects",
+    }
+    provenance = {
+        "execution_module": "src/representation/sprint24_paired_official.py",
+        "supersedes_module": "src/representation/sprint24_paired_execution.py",
+        "criterion": official.CRITERION,
+        "review_cycle": official.REVIEW_CYCLE,
+        "source_commit": source_commit(),
+        "cumulative_forwards_before": official.CUMULATIVE_FORWARDS_BEFORE,
+        "preflight_copy": str(LOCAL_PREFLIGHT),
+        "generated_utc_note": "written by run record, not part of the contract digest",
+    }
+    contract = official.build_official_contract(preflight, provenance, anchors)
+    verification = official.verify_official_contract(contract)
+    counts = official.official_matrix_counts()
+    contract_file_digest = write_json(out / "official-contract.json", contract)
+    matrix_digest = write_json(out / "official-matrix.json", official.matrix_plan())
+    counts_digest = write_json(out / "official-matrix-counts.json", counts)
+    allocation_digest = write_json(out / "official-allocation.json", official.allocation_table())
+    arms = [
+        {
+            "horizon": arm.horizon,
+            "size": arm.size,
+            "burden": arm.burden,
+            "n_abnormal": arm.n_abnormal,
+            "n_ordinary": arm.n_ordinary,
+            "pair_indices": list(arm.pair_indices),
+        }
+        for arm in official.population_arms()
+    ]
+    arms_digest = write_json(out / "official-population-arms.json", {"arms": arms})
+    run_record = {
+        "task": official_base_task(),
+        "attempt": "S24-7-M17-A05",
+        "official_contract_id": official.OFFICIAL_CONTRACT_ID,
+        "supersedes": official.SUPERSEDED_CONTRACT_ID,
+        "source_commit": provenance["source_commit"],
+        "contract_sha256": str(verification["contract_sha256"]),
+        "verification": verification,
+        "digests": {
+            "official_contract": contract_file_digest,
+            "official_matrix": matrix_digest,
+            "official_matrix_counts": counts_digest,
+            "official_allocation": allocation_digest,
+            "official_population_arms": arms_digest,
+        },
+        "forwards_executed_this_run": 0,
+        "model_loads": 0,
+        "official_corpus_written": False,
+        "elapsed_s": round(time.time() - started, 2),
+    }
+    run_digest = write_json(out / "run.json", run_record)
+    return {
+        "out": str(out),
+        "contract_sha256": str(verification["contract_sha256"]),
+        "contract_file_sha256": contract_file_digest,
+        "run_sha256": run_digest,
+        "status": "OFFICIAL-CONTRACT-COMPLETE",
+    }
+
+
+def official_base_task() -> str:
+    """Task identifier shared by the A01 and C2 execution modules."""
+    return execution.TASK_ID
+
+
+def run_official_smoke(out: Path, args: argparse.Namespace) -> dict[str, Any]:
+    """Run the tiny official-engine fixture smoke on real accepted bytes."""
+    from representation import sprint24_paired_official as official
+
+    started = time.time()
+    _require_fresh_out(out)
+    if not args.b0_root or not args.bank_root:
+        raise _refused("REFUSED-PREREQUISITE", "official-smoke needs --b0-root/--bank-root (accepted bytes)")
+    if not args.preflight:
+        raise _refused("REFUSED-PREREQUISITE", "official-smoke needs --preflight (verified preflight.json)")
+    preflight_path = Path(args.preflight)
+    if not preflight_path.is_file():
+        raise _refused("REFUSED-MISSING-PREREQUISITE", f"preflight absent: {preflight_path}")
+    preflight = json.loads(preflight_path.read_text(encoding="utf-8"))
+    if not isinstance(preflight, dict):
+        raise _refused("REFUSED-IDENTITY", "preflight is not a mapping")
+    bundles = _restore_bundles(args, preflight)
+    device = _capture_device(args)
+    result = official.tiny_official_smoke(bundles, device=device)
+    cell = result.cell_summary
+    payload = {
+        "status": result.status,
+        "family": result.family,
+        "severity": result.severity,
+        "history_seed": result.history_seed,
+        "n_groups": result.n_groups,
+        "k_per_arm": execution.GROUP_SIZE_K,
+        "per_seed_e1": result.per_seed_e1,
+        "per_seed_null_q95": result.per_seed_q95,
+        "cell_summary": cell,
+        "stage2_arms": result.stage2_arms,
+        "forwards_executed_this_run": int(result.forwards_executed),
+        "model_loads": int(result.model_loads),
+        "device": device,
+        "cumulative_forwards_after_run": int(official.CUMULATIVE_FORWARDS_BEFORE) + int(result.forwards_executed),
+        "elapsed_s": round(time.time() - started, 2),
+    }
+    write_json(out / "tiny-official-smoke.json", payload)
+    write_json(out / "run.json", {
+        "task": official_base_task(),
+        "attempt": "S24-7-M17-A05",
+        "mode": "official-smoke",
+        "source_commit": source_commit(),
+        "status": result.status,
+        "forwards_executed_this_run": int(result.forwards_executed),
+        "model_loads": int(result.model_loads),
+        "device": device,
+        "cumulative_forwards_after_run": payload["cumulative_forwards_after_run"],
+    })
+    return payload
+
+
+def run_official_matrix_cli(out: Path, args: argparse.Namespace) -> dict[str, Any]:
+    """Execute the official matrix through the public orchestrator (gated)."""
+    from representation import sprint24_paired_official as official
+
+    started = time.time()
+    _require_fresh_out(out)
+    if not args.b0_root or not args.bank_root:
+        raise _refused("REFUSED-PREREQUISITE", "official-run needs --b0-root/--bank-root (accepted bytes)")
+    if not args.preflight:
+        raise _refused("REFUSED-PREREQUISITE", "official-run needs --preflight (verified preflight.json)")
+    preflight_path = Path(args.preflight)
+    if not preflight_path.is_file():
+        raise _refused("REFUSED-MISSING-PREREQUISITE", f"preflight absent: {preflight_path}")
+    preflight = json.loads(preflight_path.read_text(encoding="utf-8"))
+    if not isinstance(preflight, dict):
+        raise _refused("REFUSED-IDENTITY", "preflight is not a mapping")
+    bundles = _restore_bundles(args, preflight)
+    device = _capture_device(args)
+    permitted = bool(getattr(args, "permit_official", False))
+    result = official.run_official_matrix(
+        bundles,
+        permitted=permitted,
+        histories=[str(value) for value in (getattr(args, "histories", "") or "").split(",") if value] or None,
+        cells=None,
+        g_level=str(getattr(args, "g_level", None) or "g48"),
+        device=device,
+    )
+    payload = {
+        "status": result["status"],
+        "g_level": result["g_level"],
+        "n_stage1_keys": len(result["stage1"]),
+        "n_stage2_keys": len(result["stage2"]),
+        "n_holm_families": len(result["holm_by_family"]),
+        "forwards_executed_this_run": int(result["forwards_executed"]),
+        "model_loads": int(result["model_loads"]),
+        "device": device,
+        "elapsed_s": round(time.time() - started, 2),
+    }
+    write_json(out / "official-run.json", result)
+    write_json(out / "run.json", {
+        "task": official_base_task(),
+        "attempt": "S24-7-M17-A05",
+        "mode": "official-run",
+        "source_commit": source_commit(),
+        **payload,
+    })
+    return payload
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="S24-7-M17 paired-execution CLI")
-    parser.add_argument("--mode", choices=("contract", "smoke", "capture"), required=True)
+    parser.add_argument("--mode", choices=("contract", "smoke", "capture", "official-contract", "official-smoke", "official-run"), required=True)
     parser.add_argument("--out", required=False, default=None)
     parser.add_argument("--b0-root", required=False, default=None)
     parser.add_argument("--bank-root", required=False, default=None)
     parser.add_argument("--preflight", required=False, default=None)
     parser.add_argument("--device", required=False, default="cpu")
+    parser.add_argument("--permit-official", dest="permit_official", action="store_true", default=False)
+    parser.add_argument("--histories", required=False, default="")
+    parser.add_argument("--g-level", dest="g_level", required=False, default="g48")
     args = parser.parse_args(argv)
     if args.mode == "contract":
         if not args.out:
@@ -642,6 +826,24 @@ def main(argv: list[str] | None = None) -> int:
             result = run_smoke(None)
         print(json.dumps(result, indent=1))
         return 0 if result["status"] == "SMOKE-COMPLETE" else 2
+    if args.mode == "official-contract":
+        if not args.out:
+            raise _refused("REFUSED-UNKNOWN-DESIGN", "--mode official-contract requires --out")
+        result = run_official_contract(Path(args.out))
+        print(json.dumps(result, indent=1))
+        return 0 if result["status"] == "OFFICIAL-CONTRACT-COMPLETE" else 2
+    if args.mode == "official-smoke":
+        if not args.out:
+            raise _refused("REFUSED-UNKNOWN-DESIGN", "--mode official-smoke requires --out")
+        result = run_official_smoke(Path(args.out), args)
+        print(json.dumps(result, indent=1))
+        return 0 if result["status"] == "TINY-OFFICIAL-SMOKE-COMPLETE" else 2
+    if args.mode == "official-run":
+        if not args.out:
+            raise _refused("REFUSED-UNKNOWN-DESIGN", "--mode official-run requires --out")
+        result = run_official_matrix_cli(Path(args.out), args)
+        print(json.dumps(result, indent=1))
+        return 0 if result["status"] == "OFFICIAL-MATRIX-COMPLETE" else 2
     if not args.out:
         raise _refused("REFUSED-UNKNOWN-DESIGN", "--mode capture requires --out")
     result = run_capture(Path(args.out), args)
