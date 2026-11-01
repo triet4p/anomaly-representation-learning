@@ -609,7 +609,7 @@ def _aggregate_readout(
         rates_view = _macro_view(per_encoder_rates[str(seed)], horizons, burdens, cell_count)
         checks = gate_checks(rates_view)
         encoder_checks[str(seed)] = checks
-        core = [item for item in checks if item["check"].split(":")[0] in ("fpr", "detection", "non_duration")]
+        core = [item for item in checks if item["check"].split(":")[0] in ("fpr", "detection", "family", "non_duration")]
         encoder_pass[str(seed)] = all(item["pass"] for item in core)
     robustness = sum(1 for value in encoder_pass.values() if value) >= 2
 

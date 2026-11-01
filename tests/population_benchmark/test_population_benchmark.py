@@ -11,6 +11,7 @@ from __future__ import annotations
 import collections
 import hashlib
 import json
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 import numpy as np
@@ -548,6 +549,115 @@ def test_decision_table_covers_every_branch() -> None:
         assert result["action"] == action, name
     keep = evaluation.decision_from_fixture(fixtures["keep_pooled"][0])
     assert keep["learned_route_valid"] and not keep["raw_qualifies"]
+
+
+_DURATION_CELLS = tuple(
+    index
+    for index in range(len(spec.FAMILIES) * len(spec.SEVERITIES))
+    if spec.FAMILIES[index // len(spec.SEVERITIES)] == spec.DURATION_FAMILY
+)
+
+
+def _gate_records(
+    plan: spec.Plan,
+    duration_true_counts: Mapping[int, Sequence[int]] | None = None,
+) -> list[dict[str, object]]:
+    """Real per-window alarms at exactly the coverage floor in every cell.
+
+    Gated burdens are unanimous except the week/15% duration family, where
+    ``duration_true_counts[seed]`` gives the alarming windows in each of its
+    three severity cells. Every combined alarm remains the per-window majority
+    of the three encoder alarms.
+    """
+    durations = duration_true_counts or {}
+    records: list[dict[str, object]] = []
+    for horizon in plan.horizons:
+        for burden in spec.BURDEN_LABELS:
+            for cell in range(plan.cell_count):
+                severity_index = cell % len(spec.SEVERITIES)
+                for window in range(spec.MIN_REALIZED_EPISODES):
+                    per_seed: dict[str, bool] = {}
+                    for seed in SEEDS:
+                        if burden == spec.BURDEN_LABELS[0]:
+                            alarm = False
+                        elif burden == spec.BURDEN_LABELS[2] or horizon != "week" or cell not in _DURATION_CELLS:
+                            alarm = True
+                        else:
+                            counts = durations.get(seed, (45, 45, 45))
+                            alarm = window < int(counts[severity_index])
+                        per_seed[str(seed)] = alarm
+                    combined = sum(per_seed.values()) >= 2
+                    records.append({
+                        "window_id": f"fixture:{horizon}:{burden}:{cell}:{window}",
+                        "horizon": horizon,
+                        "burden": burden,
+                        "cell_index": cell,
+                        "family": spec.FAMILIES[cell // len(spec.SEVERITIES)],
+                        "severity": spec.SEVERITIES[severity_index],
+                        "coverage": "COVERED",
+                        "combined": {readout: combined for readout in spec.READOUTS},
+                        "alarms": {readout: dict(per_seed) for readout in spec.READOUTS},
+                        "stats": {},
+                    })
+    return records
+
+
+def test_per_encoder_family_floor_blocks_qualification() -> None:
+    """Two encoders below one family floor cannot meet 2-of-3 robustness."""
+    plan = spec.official_plan()
+    records = _gate_records(plan, {SEEDS[1]: (45, 0, 0), SEEDS[2]: (0, 45, 0)})
+    aggregate = evaluation.aggregate_test_records("POOLED", records, plan)
+    assert aggregate["coverage_ok"] is True
+    assert all(item["pass"] for item in aggregate["checks"])
+    duration_family = aggregate["family_rates"]["week"][spec.BURDEN_LABELS[1]][spec.DURATION_FAMILY]
+    assert duration_family["rate"] == pytest.approx(2.0 / 3.0)
+    assert duration_family["cells"] == 3
+    assert aggregate["encoder_pass"] == {str(SEEDS[0]): True, str(SEEDS[1]): False, str(SEEDS[2]): False}
+    assert aggregate["encoder_robustness_ok"] is False
+    assert aggregate["qualifies"] is False
+    for seed in SEEDS[1:]:
+        checks = aggregate["encoder_checks"][str(seed)]
+        failed = [item["check"] for item in checks if not item["pass"]]
+        assert failed == [f"family:week:{spec.BURDEN_LABELS[1]}:{spec.DURATION_FAMILY}"]
+        family_check = next(item for item in checks if item["check"] == failed[0])
+        assert family_check["value"] == pytest.approx(1.0 / 3.0)
+    aggregates = {readout: evaluation.aggregate_test_records(readout, records, plan) for readout in spec.READOUTS}
+    decision = evaluation.decide(aggregates, coverage_ok=True)
+    assert decision["statuses"] == {readout: spec.READOUT_FAILS for readout in spec.READOUTS}
+    assert decision["action"] == spec.ACTION_STOP_SCALE
+
+
+def test_two_of_three_encoders_with_family_floor_still_qualify() -> None:
+    """Exactly two encoders clearing every gate still satisfy robustness."""
+    plan = spec.official_plan()
+    records = _gate_records(plan, {SEEDS[2]: (45, 35, 0)})
+    aggregate = evaluation.aggregate_test_records("POOLED", records, plan)
+    assert aggregate["encoder_pass"] == {str(SEEDS[0]): True, str(SEEDS[1]): True, str(SEEDS[2]): False}
+    assert aggregate["encoder_robustness_ok"] is True
+    assert aggregate["qualifies"] is True
+    checks = aggregate["encoder_checks"][str(SEEDS[2])]
+    failing = [item for item in checks if not item["pass"]]
+    assert [item["check"] for item in failing] == [f"family:week:{spec.BURDEN_LABELS[1]}:{spec.DURATION_FAMILY}"]
+    assert failing[0]["value"] == pytest.approx((1.0 + 35.0 / 45.0) / 3.0)
+    core = [item for item in checks if item["check"].split(":")[0] in ("fpr", "detection", "non_duration")]
+    assert core and all(item["pass"] for item in core)
+    combined_cell = aggregate["cell_rates"]["week"][spec.BURDEN_LABELS[1]][str(_DURATION_CELLS[1])]
+    assert combined_cell["trials"] == 45 and combined_cell["successes"] == 45
+
+
+def test_encoder_family_floor_boundary_is_inclusive() -> None:
+    """A family rate of exactly 0.60 passes the frozen ``>=`` floor."""
+    plan = spec.official_plan()
+    records = _gate_records(plan, {SEEDS[1]: (45, 36, 0)})
+    aggregate = evaluation.aggregate_test_records("POOLED", records, plan)
+    family_check = next(
+        item for item in aggregate["encoder_checks"][str(SEEDS[1])]
+        if item["check"] == f"family:week:{spec.BURDEN_LABELS[1]}:{spec.DURATION_FAMILY}"
+    )
+    assert family_check["value"] == pytest.approx(0.6)
+    assert family_check["pass"] is True
+    assert aggregate["encoder_pass"][str(SEEDS[1])] is True
+    assert aggregate["qualifies"] is True
 
 
 def test_abstention_is_excluded_from_the_alarm_denominator() -> None:

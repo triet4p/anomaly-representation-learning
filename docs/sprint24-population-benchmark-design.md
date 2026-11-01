@@ -151,7 +151,7 @@ $$U=\frac{2}{nm}\sum_{i,j}k(w_i,r_j)-\frac{1}{n(n-1)}\sum_{i\ne j}k(w_i,w_j)-\fr
 
 **Calibration.** The calibration estimand is the 5%-burden window-versus-reference statistic: a control-distribution calibration, not a paired baseline-minus-baseline contrast. Thresholds are order statistics of **300 five-percent calibration windows** per horizon and encoder, from the calibration namespace, at the `0.975` quantile (nominal 2.5% false-alarm target, leaving finite-sample headroom under the 5% gate). Each calibration episode yields one weekly and one monthly 5% window sharing its sources; thresholds are per horizon and never pooled across horizons. The calibration tail's own uncertainty is reported from the order-statistic Beta law. No permutation cell matrix is run; 0 CPU permutations are forecast.
 
-**Encoder combination.** Each encoder has its own calibrated threshold; a window alarms when at least 2 of the 3 frozen encoders exceed theirs. The decision additionally requires at least 2 of 3 encoders to pass the same FPR/detection/non-duration gates individually. The encoders are run replicates, never independent data.
+**Encoder combination.** Each encoder has its own calibrated threshold; a window alarms when at least 2 of the 3 frozen encoders exceed theirs. The decision additionally requires at least 2 of 3 encoders to pass the same FPR/detection/family/non-duration gates individually. The encoders are run replicates, never independent data.
 
 ## 6. Gates, aggregation and the duration guard
 
@@ -166,7 +166,7 @@ A readout qualifies only if **all** of the following hold at **both horizons**:
 | Family floor (every one of nine families, 15% and 27.5%) | ≥ 0.60 |
 | Non-duration macro (eight families, 15% and 27.5%) | ≥ 0.80 |
 | Nested monotonicity, point estimates | `d(27.5%) ≥ d(15%) ≥ FPR` |
-| Encoder robustness | ≥ 2 of 3 encoders pass FPR, macro detection and non-duration |
+| Encoder robustness | ≥ 2 of 3 encoders individually pass the same FPR/detection/family/non-duration gates |
 | Coverage | ≥ 45 realized windows in every cell × horizon × burden |
 
 The duration guard forbids a duration-only pass: the duration family must clear the family floor like every other family, but the eight non-duration families must clear 0.80, so a high duration score cannot carry the readout. The `LENGTH` diagnostic is published beside the gates and is never used as a pass criterion or a tie-breaker.
