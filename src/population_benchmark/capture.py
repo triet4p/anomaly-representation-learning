@@ -206,6 +206,11 @@ class SourcePlan:
     block: int
     source_index: int
     source_seed: int
+    source_key: int
+    planned_seed: int
+    allocation_tier: int
+    group_id: str
+    source_id: str
     disposition: str
     admitted: bool
     reason: str
@@ -274,18 +279,30 @@ def build_episode(
     pairs: dict[int, Any] = {}
     for block in range(episode.n_blocks):
         for slot in episode.block_slots(block):
-            seed = episode.source_seed(slot)
+            source_index = int(episode.source_index(slot))
+            seed = int(plan.source_seed(episode, slot))
             pair = generator.generate_paired_twin(
                 seed, family, float(episode.severity), on_attempt=on_attempt
             )
+            if int(pair.pair_seed) != seed:
+                raise _refused(
+                    "REFUSED-IDENTITY",
+                    f"generator did not consume the frozen seed for {episode.episode_id} slot {slot}",
+                )
+            source_key = int(plan.source_key_for(episode.role, episode.history_index, source_index))
             pairs[int(slot)] = pair
             admitted, reason = admit_pair(pair, config_hash)
             sources.append(
                 SourcePlan(
                     slot=int(slot),
                     block=int(block),
-                    source_index=int(episode.source_index(slot)),
+                    source_index=source_index,
                     source_seed=int(seed),
+                    source_key=source_key,
+                    planned_seed=int(spec.planned_source_seed(episode.history_seed, source_index)),
+                    allocation_tier=int(plan.source_tier_for(episode.role, episode.history_index, source_index)),
+                    group_id=str(pair.group_id),
+                    source_id=str(pair.source_id),
                     disposition=str(pair.disposition),
                     admitted=bool(admitted),
                     reason=str(reason),
@@ -349,14 +366,20 @@ def build_episode(
             file_records.append({
                 "file_id": str(pair.twin.file_id), "role": "normal",
                 "slot": int(source.slot), "block": int(source.block),
-                "source_seed": int(source.source_seed), "rank": int(source.rank),
+                "source_index": int(source.source_index),
+                "source_seed": int(source.source_seed), "source_key": int(source.source_key),
+                "planned_seed": int(source.planned_seed), "allocation_tier": int(source.allocation_tier),
+                "rank": int(source.rank),
             })
         if abnormal:
             samples.append(pair.abnormal)
             file_records.append({
                 "file_id": str(pair.abnormal.file_id), "role": "abnormal",
                 "slot": int(source.slot), "block": int(source.block),
-                "source_seed": int(source.source_seed), "rank": int(source.rank),
+                "source_index": int(source.source_index),
+                "source_seed": int(source.source_seed), "source_key": int(source.source_key),
+                "planned_seed": int(source.planned_seed), "allocation_tier": int(source.allocation_tier),
+                "rank": int(source.rank),
             })
 
     windows = _window_records(episode, plan, sources, spec.block_fault_counts(plan.block_files), max_level)

@@ -26,24 +26,29 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
+from population_benchmark import allocation as allocation_module
 from population_benchmark import evaluation, spec, storage
 
 REPO = Path(__file__).resolve().parents[2]
 CLI = REPO / "experiments" / "sprint24_task7m20_population_benchmark.py"
-DOCS_CONTRACT = REPO / "docs" / "sprint24-population-benchmark-contract-a01.json"
+DOCS_CONTRACT = REPO / "docs" / "sprint24-population-benchmark-contract-a02.json"
 
-#: Provisional cumulative completed forwards before M20 (M18/PROVISIONAL record).
-CUMULATIVE_FORWARDS_BEFORE = 1_013_581
+#: Provisional cumulative completed forwards before this attempt: M18 1,013,581
+#: plus the M20 A01 accepted-asset smoke 408 = 1,013,989. The paused M21 partial
+#: capture has no persisted per-file forward count yet, so it is unknown here and
+#: is never counted as zero.
+CUMULATIVE_FORWARDS_BEFORE = 1_013_989
 
 #: Frozen sources whose working-tree hashes bind a run (no silent edits).
 SOURCE_PATHS: tuple[str, ...] = (
+    "src/population_benchmark/allocation.py",
     "src/population_benchmark/spec.py",
     "src/population_benchmark/evaluation.py",
     "src/population_benchmark/storage.py",
     "src/population_benchmark/capture.py",
     "src/population_benchmark/runner.py",
     "experiments/sprint24_task7m20_population_benchmark.py",
-    "docs/sprint24-population-benchmark-contract-a01.json",
+    "docs/sprint24-population-benchmark-contract-a02.json",
 )
 
 
@@ -116,6 +121,13 @@ def verify_contract_file(path: Path) -> dict[str, Any]:
 # --- capture orchestration ------------------------------------------------------
 
 
+#: Frozen identity fields copied from the planned file row into the captured row.
+_IDENTITY_FIELDS: tuple[str, ...] = (
+    "slot", "block", "source_index", "source_seed", "source_key", "planned_seed",
+    "allocation_tier", "rank",
+)
+
+
 def _merge_records(captured: Sequence[Mapping[str, Any]], planned: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
     by_id = {str(item["file_id"]): item for item in planned}
     merged: list[dict[str, Any]] = []
@@ -123,27 +135,50 @@ def _merge_records(captured: Sequence[Mapping[str, Any]], planned: Sequence[Mapp
         extra = by_id.get(str(record["file_id"]), {})
         merged.append({
             **dict(record),
-            **{key: extra[key] for key in ("slot", "block", "source_seed", "rank") if key in extra},
+            **{key: extra[key] for key in _IDENTITY_FIELDS if key in extra},
         })
     return merged
 
 
-def _normal_samples(generator: Any, history_seed: int, indices: Sequence[int]) -> tuple[list[Any], list[dict[str, Any]]]:
-    from synth.generator import derive_pair_seed
+def _normal_samples(
+    generator: Any,
+    plan: spec.Plan,
+    *,
+    role: str,
+    history_index: int,
+    indices: Sequence[int],
+) -> tuple[list[Any], list[dict[str, Any]], list[dict[str, Any]]]:
     from population_benchmark import capture as capture_module
 
     samples: list[Any] = []
+    records: list[dict[str, Any]] = []
     rejected: list[dict[str, Any]] = []
     config_hash = str(generator.cfg.hash())
+    allocation = spec.source_allocation(plan)
+    history_seed = int(plan.history_seeds[int(history_index)])
     for index in indices:
-        seed = int(derive_pair_seed(int(history_seed), int(index)))
+        source_index = int(index)
+        seed = int(allocation.seed_for(role, history_index, source_index))
+        identity = {
+            "source_index": source_index,
+            "source_seed": seed,
+            "source_key": int(allocation.key_for(role, history_index, source_index)),
+            "planned_seed": int(spec.planned_source_seed(history_seed, source_index)),
+            "allocation_tier": int(allocation.tier_for(role, history_index, source_index)),
+        }
         sample = generator.generate_normal(seed)
+        if int(sample.seed) != seed:
+            raise _refused(
+                "REFUSED-IDENTITY",
+                f"normal generator ignored the frozen seed {seed} for {role}/{source_index}",
+            )
         reason = capture_module.admit_file(sample, config_hash)
         if reason != "ADMITTED":
-            rejected.append({"index": int(index), "seed": int(seed), "reason": reason})
+            rejected.append({**identity, "reason": reason})
             continue
         samples.append(sample)
-    return samples, rejected
+        records.append({"file_id": str(sample.file_id), **identity})
+    return samples, records, rejected
 
 
 def _latent_dim(bundles: Mapping[int, Any]) -> int:
@@ -188,18 +223,39 @@ def _capture_normals(
     generator: Any,
     plan: spec.Plan,
     history_id: str,
+    history_index: int,
     history_seed: int,
-    kind: str,
+    role: str,
     chunk_id: str,
     indices: Sequence[int],
     maps: Mapping[int, Any] | None,
     device: str,
     counters: dict[str, int],
     fit_bandwidth: bool,
+    ledger: Any,
 ) -> dict[str, Any]:
     from population_benchmark import capture as capture_module
 
-    samples, rejected = _normal_samples(generator, history_seed, indices)
+    samples, records, rejected = _normal_samples(
+        generator, plan, role=role, history_index=history_index, indices=indices
+    )
+    for sample, record in zip(samples, records):
+        ledger.claim_source(
+            role=role,
+            history_index=history_index,
+            source_index=int(record["source_index"]),
+            seed=int(record["source_seed"]),
+            source_key=int(record["source_key"]),
+        )
+        ledger.claim_file(str(sample.file_id), sample.x)
+    for row in rejected:
+        ledger.claim_source(
+            role=role,
+            history_index=history_index,
+            source_index=int(row["source_index"]),
+            seed=int(row["source_seed"]),
+            source_key=int(row["source_key"]),
+        )
     captured = capture_module.capture_samples(
         bundles=bundles,
         samples=samples,
@@ -223,7 +279,8 @@ def _capture_normals(
         "family": None,
         "severity": None,
         "history_seed": int(history_seed),
-        "files": list(captured.file_records),
+        "source_role": str(role),
+        "files": _merge_records(captured.file_records, records),
         "windows": [],
         "requested": {},
         "realized": {"admitted": len(samples), "planned": len(indices)},
@@ -232,7 +289,7 @@ def _capture_normals(
     }
     record = store.write_chunk(
         history_id=history_id,
-        kind=kind,
+        kind=role,
         chunk_id=chunk_id,
         items=items,
         waveforms=[sample.x for sample in samples],
@@ -240,7 +297,7 @@ def _capture_normals(
     )
     counters["chunks"] += 1
     store.append_event("chunk_written", {
-        "kind": kind, "chunk_id": chunk_id, "history_id": history_id,
+        "kind": role, "chunk_id": chunk_id, "history_id": history_id,
         "files": len(samples), "forwards": len(samples) * len(spec.ENCODER_SEEDS),
         "items_sha256": record["sha256"]["items"],
     })
@@ -259,6 +316,7 @@ def _capture_episode(
     device: str,
     kind: str,
     counters: dict[str, int],
+    ledger: Any,
 ) -> dict[str, Any]:
     from population_benchmark import capture as capture_module
 
@@ -267,6 +325,18 @@ def _capture_episode(
     )
     if not build.samples:
         raise _refused("REFUSED-ERROR-BOUNDARY", f"episode {episode.episode_id} has no admitted files")
+    for source in build.sources:
+        ledger.claim_source(
+            role=episode.role,
+            history_index=int(episode.history_index),
+            source_index=int(source.source_index),
+            seed=int(source.source_seed),
+            source_key=int(source.source_key),
+            group_id=str(source.group_id),
+            source_id=str(source.source_id),
+        )
+    for sample in build.samples:
+        ledger.claim_file(str(sample.file_id), sample.x)
     captured = capture_module.capture_samples(
         bundles=bundles,
         samples=build.samples,
@@ -290,7 +360,10 @@ def _capture_episode(
         "sources": [
             {
                 "slot": source.slot, "block": source.block, "source_index": source.source_index,
-                "source_seed": source.source_seed, "disposition": source.disposition,
+                "source_seed": source.source_seed, "source_key": source.source_key,
+                "planned_seed": source.planned_seed, "allocation_tier": source.allocation_tier,
+                "group_id": source.group_id, "source_id": source.source_id,
+                "disposition": source.disposition,
                 "admitted": source.admitted, "reason": source.reason,
                 "strength": source.strength, "n_attempts": source.n_attempts,
                 "twin_file_id": source.twin_file_id, "abnormal_file_id": source.abnormal_file_id,
@@ -355,10 +428,16 @@ def run_plan_capture(
     from synth.generator import SessionGenerator
 
     generator = SessionGenerator(SynthConfig())
+    allocation = spec.source_allocation(plan)
+    if resume:
+        # A resumed run must belong to the same frozen allocation: persisted
+        # source rows are re-bound before any further generation.
+        store.verify_source_identity(allocation)
+    ledger = allocation_module.SourceIdentityLedger(allocation)
     counters = {"forwards": 0, "model_loads": len(bundles), "files": 0, "chunks": 0, "resumed": 0}
     maps_by_history: dict[str, dict[int, Any]] = {}
     bandwidth_base = spec.REFERENCE_INDEX_BASE + plan.reference_files
-    for history_id, history_seed in zip(plan.history_ids, plan.history_seeds):
+    for history_index, (history_id, history_seed) in enumerate(zip(plan.history_ids, plan.history_seeds)):
         # 1) independent bandwidth pool -> RFF sigma only (no item-space bandwidth yet).
         existing = _verify_or_none(store, history_id, "bandwidth", "bw") if resume else None
         if existing is not None:
@@ -367,9 +446,10 @@ def run_plan_capture(
         else:
             _capture_normals(
                 store=store, bundles=bundles, generator=generator, plan=plan,
-                history_id=history_id, history_seed=history_seed, kind="bandwidth", chunk_id="bw",
+                history_id=history_id, history_index=history_index, history_seed=history_seed,
+                role="bandwidth", chunk_id="bw",
                 indices=range(bandwidth_base, bandwidth_base + plan.bandwidth_files),
-                maps=None, device=device, counters=counters, fit_bandwidth=True,
+                maps=None, device=device, counters=counters, fit_bandwidth=True, ledger=ledger,
             )
             meta = store.read_meta(history_id, "bandwidth", "bw")
             maps = _maps_from_meta(meta, bundles)
@@ -381,9 +461,10 @@ def run_plan_capture(
         else:
             _capture_normals(
                 store=store, bundles=bundles, generator=generator, plan=plan,
-                history_id=history_id, history_seed=history_seed, kind="reference", chunk_id="ref",
+                history_id=history_id, history_index=history_index, history_seed=history_seed,
+                role="reference", chunk_id="ref",
                 indices=range(spec.REFERENCE_INDEX_BASE, spec.REFERENCE_INDEX_BASE + plan.reference_files),
-                maps=maps, device=device, counters=counters, fit_bandwidth=False,
+                maps=maps, device=device, counters=counters, fit_bandwidth=False, ledger=ledger,
             )
     for episode in plan.calibration_episode_list():
         if resume and _verify_or_none(store, episode.history_id, "calibration", episode.episode_id) is not None:
@@ -392,7 +473,7 @@ def run_plan_capture(
         _capture_episode(
             store=store, bundles=bundles, generator=generator, plan=plan, episode=episode,
             max_level=0, maps=maps_by_history[episode.history_id], device=device,
-            kind="calibration", counters=counters,
+            kind="calibration", counters=counters, ledger=ledger,
         )
     for episode in plan.test_episodes():
         if resume and _verify_or_none(store, episode.history_id, "test", episode.episode_id) is not None:
@@ -401,8 +482,10 @@ def run_plan_capture(
         _capture_episode(
             store=store, bundles=bundles, generator=generator, plan=plan, episode=episode,
             max_level=len(spec.BURDENS) - 1, maps=maps_by_history[episode.history_id],
-            device=device, kind="test", counters=counters,
+            device=device, kind="test", counters=counters, ledger=ledger,
         )
+    counters["identity"] = ledger.summary()
+    counters["source_allocation_digest"] = allocation.digest
     return counters
 
 
@@ -415,6 +498,9 @@ def evaluate_run(root: Path) -> dict[str, Any]:
     design = storage.read_json(root / "design.json")
     plan = _plan_from_design(design)
     store = storage.RunStore(root=root)
+    # No statistic or decision may be computed from rows that disagree with the
+    # frozen source allocation.
+    store.verify_source_identity(spec.source_allocation(plan))
     chunks = store.load_chunks()
     results = evaluation.evaluate_chunks(chunks, plan)
     aggregates = results["aggregates"]
@@ -425,9 +511,11 @@ def evaluate_run(root: Path) -> dict[str, Any]:
         "OFFICIAL-BENCHMARK" if plan.label == "official" else "SMOKE-NOT-PERFORMANCE-EVIDENCE"
     )
     decision["plan_digest"] = spec.enumeration_digest(plan)
+    decision["source_allocation_digest"] = spec.source_allocation_digest(plan)
     statistics = {
         "plan_label": plan.label,
         "plan_digest": spec.enumeration_digest(plan),
+        "source_allocation_digest": spec.source_allocation_digest(plan),
         "coverage_ok": coverage_ok,
         **results,
     }
@@ -487,6 +575,26 @@ def replay_run(root: Path, out: Path | None = None) -> dict[str, Any]:
                    "chunks": verification["checks"], "failures": verification["failures"]})
     if not verification["pass"]:
         raise _refused("REFUSED-HASH-MISMATCH", "chunk custody failed before replay")
+    allocation = spec.source_allocation(plan)
+    recorded_allocation = (design.get("source_identity") or {}).get("allocation") or {}
+    checks.append({
+        "check": "source_allocation",
+        "pass": str(recorded_allocation.get("digest")) == str(allocation.digest),
+        "recorded": recorded_allocation.get("digest"),
+        "recomputed": allocation.digest,
+    })
+    try:
+        source_verification = store.verify_source_identity(allocation)
+        checks.append({
+            "check": "source_identity",
+            "pass": True,
+            "chunks": source_verification["chunks"],
+            "source_rows": source_verification["source_rows"],
+            "expected_sources": source_verification["expected_sources"],
+            "complete_census": source_verification["complete_census"],
+        })
+    except ValueError as exc:
+        checks.append({"check": "source_identity", "pass": False, "error": str(exc)})
     chunks = store.load_chunks()
     results = evaluation.evaluate_chunks(chunks, plan)
     aggregates = results["aggregates"]
@@ -512,11 +620,13 @@ def replay_run(root: Path, out: Path | None = None) -> dict[str, Any]:
                 "thresholds": results["thresholds"],
                 "aggregates": results["aggregates"],
                 "plan_digest": results["plan_digest"],
+                "source_allocation_digest": spec.source_allocation_digest(plan),
             },
             {
                 "thresholds": persisted["thresholds"],
                 "aggregates": persisted["aggregates"],
                 "plan_digest": persisted["plan_digest"],
+                "source_allocation_digest": persisted.get("source_allocation_digest"),
             },
             path="statistics",
         )
@@ -768,6 +878,8 @@ def run_smoke(out: Path, args: argparse.Namespace) -> dict[str, Any]:
         "command": " ".join(sys.argv),
         "plan_label": plan.label,
         "plan_digest": spec.enumeration_digest(plan),
+        "source_allocation_digest": spec.source_allocation_digest(plan),
+        "identity": dict(counters.get("identity") or {}),
         "design": design,
         "contract_sha256": spec.contract_sha256(),
         "forwards_executed_this_process": int(counters["forwards"]),
@@ -807,6 +919,8 @@ def run_smoke(out: Path, args: argparse.Namespace) -> dict[str, Any]:
         "device": summary["device"], "forwards_executed_this_process": summary["forwards_executed_this_process"],
         "model_loads": summary["model_loads"], "chunks_written": summary["chunks_written"],
         "plan_digest": summary["plan_digest"], "contract_sha256": summary["contract_sha256"],
+        "source_allocation_digest": summary["source_allocation_digest"],
+        "identity": summary["identity"],
         "checkpoints": summary["checkpoints"], "banks": summary["banks"],
         "bank_envelopes": summary["bank_envelopes"],
         "elapsed_s": elapsed,
@@ -854,6 +968,12 @@ def run_official(out: Path, args: argparse.Namespace) -> dict[str, Any]:
         design = storage.read_json(out / "design.json")
         if spec.canonical_json(design["plan"]) != spec.canonical_json(spec.summary(plan)):
             raise _refused("REFUSED-IDENTITY", "resume plan differs from the frozen plan")
+        recorded_allocation = (design.get("source_identity") or {}).get("allocation") or {}
+        if str(recorded_allocation.get("digest")) != spec.source_allocation_digest(plan):
+            raise _refused(
+                "REFUSED-IDENTITY",
+                "resume source allocation differs from the frozen allocation",
+            )
         store = storage.RunStore.create(out, fresh=False)
     else:
         _fresh_root(out)
@@ -919,6 +1039,8 @@ def run_official(out: Path, args: argparse.Namespace) -> dict[str, Any]:
         "device": args.device or "cuda:0",
         "plan_digest": spec.enumeration_digest(plan),
         "contract_sha256": spec.contract_sha256(),
+        "source_allocation_digest": spec.source_allocation_digest(plan),
+        "identity": dict(counters.get("identity") or {}),
         "checkpoints": {str(seed): bundle.checkpoint.checkpoint_sha256 for seed, bundle in bundles.items()},
         "preprocessing": {str(seed): bundle.preprocessing_sha256 for seed, bundle in bundles.items()},
         "forwards_executed_this_process": int(counters["forwards"]),

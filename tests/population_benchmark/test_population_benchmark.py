@@ -8,6 +8,7 @@ an encoder; the real tiny smoke is an explicit CLI mode.
 
 from __future__ import annotations
 
+import collections
 import hashlib
 import json
 from pathlib import Path
@@ -15,7 +16,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from population_benchmark import evaluation, runner, spec, storage
+from population_benchmark import allocation, evaluation, runner, spec, storage
 
 SEEDS = spec.ENCODER_SEEDS
 
@@ -47,30 +48,43 @@ def _items(file_ids: list[str], abnormal: list[bool], magnitude: float = 0.0) ->
     return items
 
 
-def _files(count: int, prefix: str) -> list[dict[str, object]]:
-    return [
-        {"file_id": f"{prefix}-{index:03d}", "T": 64, "C": 6, "n_patches": 2, "n_valid_patches": 2}
-        for index in range(count)
-    ]
+def _normal_records(plan: spec.Plan, role: str, history_index: int = 0) -> list[dict[str, object]]:
+    """Reference/bandwidth file rows carrying the frozen source identity."""
+    frozen = spec.source_allocation(plan)
+    base = (
+        spec.REFERENCE_INDEX_BASE
+        if role == "reference"
+        else spec.REFERENCE_INDEX_BASE + plan.reference_files
+    )
+    count = plan.reference_files if role == "reference" else plan.bandwidth_files
+    rows: list[dict[str, object]] = []
+    for offset in range(count):
+        source_index = base + offset
+        rows.append({
+            "file_id": f"{role}-{offset:03d}", "T": 64, "C": 6, "n_patches": 2, "n_valid_patches": 2,
+            "source_index": source_index,
+            "source_seed": frozen.seed_for(role, history_index, source_index),
+            "source_key": frozen.key_for(role, history_index, source_index),
+        })
+    return rows
 
 
 def _write_synthetic_run(root: Path, plan: spec.Plan | None = None, magnitude: float = 1.5) -> tuple[Path, spec.Plan]:
     plan = plan or spec.smoke_plan()
+    frozen = spec.source_allocation(plan)
     store = storage.RunStore.create(root, fresh=True)
     design = spec.design_payload(plan)
     design["kind"] = "design"
     storage.write_json(root / "design.json", design)
     history_id = plan.history_ids[0]
-    for kind, chunk_id, count in (
-        ("reference", "ref", plan.reference_files),
-        ("bandwidth", "bw", plan.bandwidth_files),
-    ):
-        ids = [f"{kind}-{index:03d}" for index in range(count)]
+    for kind, chunk_id in (("reference", "ref"), ("bandwidth", "bw")):
+        records = _normal_records(plan, kind)
+        ids = [str(row["file_id"]) for row in records]
         store.write_chunk(
             history_id=history_id, kind=kind, chunk_id=chunk_id,
-            items=_items(ids, [False] * count),
-            waveforms=[np.zeros((6, 64), dtype=np.float32)] * count,
-            meta={"files": _files(count, kind), "windows": []},
+            items=_items(ids, [False] * len(ids)),
+            waveforms=[np.zeros((6, 64), dtype=np.float32)] * len(ids),
+            meta={"files": records, "windows": [], "source_role": kind},
         )
     counts = spec.block_fault_counts(plan.block_files)
 
@@ -88,23 +102,26 @@ def _write_synthetic_run(root: Path, plan: spec.Plan | None = None, magnitude: f
             abnormal_ids=abnormal, max_level=max_level,
         )
         limit = (counts[0], counts[1], counts[2])[max_level]
-        needed: list[tuple[str, bool]] = []
+        needed: list[tuple[str, bool, int]] = []
         for slot in sorted(ranks):
             if ranks[slot] >= counts[0]:
-                needed.append((twin[slot], False))
+                needed.append((twin[slot], False, slot))
             if ranks[slot] < limit:
-                needed.append((abnormal[slot], True))
-        ids = [file_id for file_id, _ in needed]
-        records = [
-            {
+                needed.append((abnormal[slot], True, slot))
+        ids = [file_id for file_id, _, _ in needed]
+        records = []
+        for index, (file_id, _, slot) in enumerate(needed):
+            source_index = episode.source_index(slot)
+            records.append({
                 "file_id": file_id, "T": 200 + 7 * index, "C": 6,
                 "n_patches": 2 + index % 3, "n_valid_patches": 2 + index % 3,
-            }
-            for index, file_id in enumerate(ids)
-        ]
+                "source_index": source_index,
+                "source_seed": frozen.seed_for(episode.role, episode.history_index, source_index),
+                "source_key": frozen.key_for(episode.role, episode.history_index, source_index),
+            })
         store.write_chunk(
             history_id=episode.history_id, kind=kind, chunk_id=episode.episode_id,
-            items=_items(ids, [flag for _, flag in needed], magnitude),
+            items=_items(ids, [flag for _, flag, _ in needed], magnitude),
             waveforms=[np.zeros((6, 64), dtype=np.float32)] * len(ids),
             meta={
                 "episode_id": episode.episode_id, "cell_index": episode.cell_index,
@@ -242,6 +259,183 @@ def test_degenerate_block_abstains_without_crashing() -> None:
     for window in windows:
         assert window["coverage"].startswith("ABSTAIN-COVERAGE-")
         assert window["coverage"] != "COVERED"
+
+
+# --- physical source identity / allocation ------------------------------------
+
+
+def _first_clean_key_collision(limit: int = 200_000) -> tuple[int, int, int]:
+    """First pair of real 31-bit pair seeds that resolve to one clean source."""
+    seen: dict[int, int] = {}
+    for seed in range(int(limit)):
+        key = allocation.paired_clean_key(seed)
+        if key in seen:
+            return seen[key], seed, key
+        seen[key] = seed
+    raise AssertionError("no physical-source collision in the seed scan; the identity model changed")
+
+
+def test_paired_clean_key_is_the_physical_source_not_the_pair_seed() -> None:
+    from synth.config import SynthConfig
+    from synth.generator import SessionGenerator
+    from synth.schema import AnomalyFamily
+
+    first, second, key = _first_clean_key_collision()
+    assert first != second
+    assert allocation.paired_clean_key(first) == allocation.paired_clean_key(second) == key
+    generator = SessionGenerator(SynthConfig())
+    # The allocator's key is the generator's own first derived normal seed.
+    assert int(generator._anomaly_source(first)["normal_seed"]) == key  # noqa: SLF001 - frozen identity binding
+    left = generator.generate_paired_twin(first, AnomalyFamily.SUBTLE_DRIFT, 0.6)
+    right = generator.generate_paired_twin(second, AnomalyFamily.SUBTLE_DRIFT, 0.6)
+    # Distinct metadata ids hide a repeated waveform: identity cannot be metadata.
+    assert left.group_id != right.group_id
+    assert left.source_id != right.source_id
+    assert left.twin.file_id != right.twin.file_id
+    assert np.array_equal(left.twin.x, right.twin.x)
+
+
+def test_allocator_separates_real_collision_inputs_and_is_deterministic() -> None:
+    first, second, key = _first_clean_key_collision()
+    sources = (
+        allocation.SourceKey("test", 0, "E1", 0, 101),
+        allocation.SourceKey("test", 0, "E2", 0, 202),
+    )
+
+    def derive(history_seed: int, pair_index: int) -> int:
+        del history_seed
+        return {101: first, 202: second}.get(int(pair_index), 7_000_000 + int(pair_index))
+
+    allocated = allocation.allocate(history_ids=("H",), history_seeds=(424242,), sources=sources, derive=derive)
+    assert allocated.legacy_keys == (key, key)
+    assert allocated.tiers == (0, 1)
+    assert allocated.seeds[1] != second
+    assert len(set(allocated.keys)) == 2
+    assert allocated.keys[0] == key
+    again = allocation.allocate(history_ids=("H",), history_seeds=(424242,), sources=sources, derive=derive)
+    assert again.digest == allocated.digest
+
+
+def test_allocator_fails_closed_when_no_probe_can_separate_sources() -> None:
+    sources = (
+        allocation.SourceKey("test", 0, "E1", 0, 1),
+        allocation.SourceKey("test", 0, "E2", 0, 2),
+    )
+    with pytest.raises(ValueError, match="REFUSED-SEED-COLLISION"):
+        allocation.allocate(
+            history_ids=("H",), history_seeds=(7,), sources=sources, derive=lambda history_seed, index: 5
+        )
+
+
+def test_smoke_allocation_is_deterministic_minimal_and_bound() -> None:
+    plan = spec.smoke_plan()
+    census = spec.source_census(plan)
+    first = allocation.allocate(history_ids=plan.history_ids, history_seeds=plan.history_seeds, sources=census)
+    second = allocation.allocate(history_ids=plan.history_ids, history_seeds=plan.history_seeds, sources=census)
+    assert first.digest == second.digest == spec.source_allocation_digest(plan)
+    assert len(set(first.keys)) == first.total
+    assert first.payload["assigned"]["unique_seeds_per_domain"]
+    reassigned = [index for index, tier in enumerate(first.tiers) if tier > 0]
+    assert len(reassigned) == first.payload["legacy"]["duplicate_occurrences"]
+    for index, (key, legacy) in enumerate(zip(first.keys, first.legacy_keys)):
+        if index in reassigned:
+            assert key != legacy
+            assert first.seeds[index] != first.legacy_seeds[index]
+        else:
+            assert key == legacy
+            assert first.seeds[index] == first.legacy_seeds[index]
+
+
+def test_official_census_binds_every_active_role_once() -> None:
+    plan = spec.official_plan()
+    census = spec.source_census(plan)
+    frozen = spec.source_allocation(plan)
+    assert len(census) == 2400 + 1320 + 48000 + 216000
+    assert len({(row.role, row.history_index, row.source_index) for row in census}) == len(census)
+    # One row per episode slot: the twin/variant pair and the weekly/monthly
+    # windows of one episode are one logical source, never independent rows.
+    per_episode = collections.Counter(
+        (row.role, row.history_index, row.episode_id) for row in census if row.episode_id is not None
+    )
+    assert set(per_episode.values()) == {plan.block_files * plan.max_blocks}
+    legacy = frozen.payload["legacy"]
+    assigned = frozen.payload["assigned"]
+    assert legacy["seed_collision_groups"] == 15
+    assert legacy["key_collision_groups"] == 25
+    assert legacy["duplicate_occurrences"] == 25
+    assert assigned["distinct_keys"] == frozen.total
+    assert assigned["reassigned_sources"] == 25
+    assert assigned["tier_histogram"] == {"0": 267_695, "1": 25}
+    # The reference population and the bandwidth pool keep their planned seeds.
+    assert all(
+        tier == 0
+        for tier, row in zip(frozen.tiers, census)
+        if row.role in allocation.NORMAL_ROLES
+    )
+
+
+def test_identity_ledger_refuses_mismatched_and_repeated_sources() -> None:
+    plan = spec.smoke_plan()
+    frozen = spec.source_allocation(plan)
+    ledger = allocation.SourceIdentityLedger(frozen)
+    episode = plan.test_episodes()[0]
+    first = episode.source_index(0)
+    second = episode.source_index(1)
+    ledger.claim_source(
+        role=episode.role, history_index=episode.history_index, source_index=first,
+        seed=frozen.seed_for(episode.role, episode.history_index, first),
+        source_key=frozen.key_for(episode.role, episode.history_index, first),
+        group_id="G1", source_id="S1",
+    )
+    with pytest.raises(ValueError, match="REFUSED-IDENTITY"):
+        ledger.claim_source(
+            role=episode.role, history_index=episode.history_index, source_index=first,
+            seed=frozen.seed_for(episode.role, episode.history_index, first),
+            source_key=frozen.key_for(episode.role, episode.history_index, first),
+        )
+    with pytest.raises(ValueError, match="REFUSED-IDENTITY"):
+        ledger.claim_source(
+            role=episode.role, history_index=episode.history_index, source_index=second,
+            seed=frozen.seed_for(episode.role, episode.history_index, first),
+            source_key=frozen.key_for(episode.role, episode.history_index, second),
+        )
+    ledger.claim_file("W1", np.zeros((6, 8), dtype=np.float32))
+    with pytest.raises(ValueError, match="REFUSED-IDENTITY"):
+        ledger.claim_file("W9", np.zeros((6, 8), dtype=np.float32))
+    with pytest.raises(ValueError, match="REFUSED-IDENTITY"):
+        ledger.claim_file("W1", np.ones((6, 8), dtype=np.float32))
+
+
+def test_persisted_rows_must_match_the_frozen_allocation(tmp_path: Path) -> None:
+    plan = spec.smoke_plan()
+    frozen = spec.source_allocation(plan)
+    store = storage.RunStore.create(tmp_path / "store", fresh=True)
+    records = _normal_records(plan, "reference")
+    ids = [str(row["file_id"]) for row in records]
+    store.write_chunk(
+        history_id=plan.history_ids[0], kind="reference", chunk_id="ref",
+        items=_items(ids, [False] * len(ids)),
+        waveforms=[np.zeros((6, 64), dtype=np.float32)] * len(ids),
+        meta={"files": records, "windows": []},
+    )
+    assert store.verify_source_identity(frozen)["pass"]
+
+    sidecar = tmp_path / "store/chunks" / plan.history_ids[0] / "reference" / "ref.json"
+    tampered = json.loads(sidecar.read_text())
+    tampered["files"][0]["source_seed"] = int(frozen.seed_for("reference", 0, spec.REFERENCE_INDEX_BASE)) + 1
+    sidecar.write_text(json.dumps(tampered), encoding="utf-8")
+    with pytest.raises(ValueError, match="REFUSED-IDENTITY"):
+        store.verify_source_identity(frozen)
+
+    anonymous = storage.RunStore.create(tmp_path / "anonymous", fresh=True)
+    anonymous.write_chunk(
+        history_id=plan.history_ids[0], kind="reference", chunk_id="ref",
+        items={"raw": np.zeros((1, 3), dtype=np.float32)},
+        waveforms=[np.zeros((6, 8), dtype=np.float32)],
+        meta={"files": [{"file_id": "X"}], "windows": []},
+    )
+    with pytest.raises(ValueError, match="REFUSED-IDENTITY"):
+        anonymous.verify_source_identity(frozen)
 
 
 # --- statistic / calibration ---------------------------------------------------

@@ -35,13 +35,20 @@ from typing import Any
 from synth.generator import derive_pair_seed
 from synth.schema import AnomalyFamily
 
+from population_benchmark import allocation as allocation_module
+from population_benchmark.allocation import Allocation, SourceKey
+
 # --- identity -----------------------------------------------------------------
 
-CONTRACT_ID = "S24-POPULATION-BENCHMARK-CONTRACT-A01"
+CONTRACT_ID = "S24-POPULATION-BENCHMARK-CONTRACT-A02"
+#: Immutable superseded contract; its bytes and review records are never rewritten.
+SUPERSEDES_CONTRACT_ID = "S24-POPULATION-BENCHMARK-CONTRACT-A01"
+SUPERSEDES_CONTRACT_SHA256 = "509705131c4775987db26f194ac4952ff8ee220e4a368b8a79d99e42df924b09"
 DESIGN_ID = "S24-POPULATION-BENCHMARK-DESIGN-A01"
 TASK_ID = "S24-7-M20"
-ATTEMPT_ID = "S24-7-M20-A01"
+ATTEMPT_ID = "S24-7-M20-A02"
 REVIEW_CYCLE = "S24-7-M20-C1"
+REVIEW_ROUND = "R2"
 CRITERION = "docs/sprint-plans/sprint-24.md:292-300"
 
 # --- frozen encoders and families --------------------------------------------
@@ -465,6 +472,7 @@ class Episode:
     base_index: int
     block_files: int
     n_blocks: int
+    role: str
 
     @property
     def history_id(self) -> str:
@@ -490,9 +498,6 @@ class Episode:
         if not 0 <= slot < self.n_sources:
             raise _refused("REFUSED-IDENTITY", "slot outside episode")
         return self.base_index + int(slot)
-
-    def source_seed(self, slot: int) -> int:
-        return int(derive_pair_seed(self.history_seed, self.source_index(slot)))
 
     def block_slots(self, block_index: int) -> range:
         if not 0 <= block_index < self.n_blocks:
@@ -549,6 +554,7 @@ class Plan:
                         base_index=self.test_index_base + cursor * self._episode_sources,
                         block_files=self.block_files,
                         n_blocks=self.max_blocks,
+                        role="test",
                     )
                 )
                 cursor += 1
@@ -571,11 +577,31 @@ class Plan:
                         base_index=self.calibration_index_base + cursor * self._episode_sources,
                         block_files=self.block_files,
                         n_blocks=self.max_blocks,
+                        role="calibration",
                     )
                 )
                 cursor += 1
         self._assert_disjoint(episodes)
         return episodes
+
+    # -- frozen physical-source allocation ------------------------------------
+
+    def source_seed(self, episode: Episode, slot: int) -> int:
+        """Generator seed of one episode source under the frozen allocation."""
+        return self.source_seed_for(episode.role, episode.history_index, episode.source_index(slot))
+
+    def source_seed_for(self, role: str, history_index: int, source_index: int) -> int:
+        """Generator seed of one reference/bandwidth/episode source row."""
+        return source_allocation(self).seed_for(role, history_index, source_index)
+
+    def source_key_for(self, role: str, history_index: int, source_index: int) -> int:
+        """Physical-source key of one census row (paired clean key or normal seed)."""
+        return source_allocation(self).key_for(role, history_index, source_index)
+
+    def source_tier_for(self, role: str, history_index: int, source_index: int) -> int:
+        """0 when the planned index was kept, k>0 for the k-th frozen probe."""
+        return source_allocation(self).tier_for(role, history_index, source_index)
+
 
     @property
     def _episode_sources(self) -> int:
@@ -646,6 +672,142 @@ def smoke_plan() -> Plan:
         calibration_index_base=5_000,
         test_index_base=50_000,
     )
+
+
+# --- exact active source census and frozen allocation -------------------------
+
+
+def plan_signature(plan: "Plan") -> str:
+    """Structural plan identity used to key the frozen allocation cache."""
+    return canonical_json({
+        "label": plan.label,
+        "history_ids": list(plan.history_ids),
+        "history_seeds": list(plan.history_seeds),
+        "cells": [[family, severity] for family, severity in plan.cells],
+        "horizons": {str(key): int(value) for key, value in plan.horizons.items()},
+        "block_files": int(plan.block_files),
+        "episodes_per_cell": int(plan.episodes_per_cell),
+        "calibration_episodes": int(plan.calibration_episodes),
+        "reference_files": int(plan.reference_files),
+        "bandwidth_files": int(plan.bandwidth_files),
+        "calibration_index_base": int(plan.calibration_index_base),
+        "test_index_base": int(plan.test_index_base),
+    })
+
+
+def planned_source_seed(history_seed: int, source_index: int) -> int:
+    """The superseded A01 seed of one planned index (lineage record only).
+
+    Capture generation always consumes :func:`source_allocation`; this value is
+    written beside every source row so a reviewer can see exactly which planned
+    seed an assignment replaced. It is the accepted generator derivation and is
+    never used to generate data.
+    """
+    return int(derive_pair_seed(int(history_seed), int(source_index)))
+
+
+def source_census(plan: "Plan") -> tuple[SourceKey, ...]:
+    """Exact ACTIVE logical-source census in the frozen canonical order.
+
+    One row per ``(role, history, episode, slot)``. An intended twin/variant
+    pair and the weekly/monthly windows of one episode are the same logical
+    source and appear once: source identity is the physical generation draw,
+    never the number of derived files or windows that reuse it.
+    """
+    reference_indices = range(REFERENCE_INDEX_BASE, REFERENCE_INDEX_BASE + plan.reference_files)
+    bandwidth_base = REFERENCE_INDEX_BASE + plan.reference_files
+    bandwidth_indices = range(bandwidth_base, bandwidth_base + plan.bandwidth_files)
+    episodes_by_role = {
+        "calibration": plan.calibration_episode_list(),
+        "test": plan.test_episodes(),
+    }
+    rows: list[SourceKey] = []
+    for role in allocation_module.ROLES:
+        for history_index in range(len(plan.history_ids)):
+            if role == "reference":
+                rows.extend(
+                    SourceKey(role, history_index, None, None, int(index))
+                    for index in reference_indices
+                )
+                continue
+            if role == "bandwidth":
+                rows.extend(
+                    SourceKey(role, history_index, None, None, int(index))
+                    for index in bandwidth_indices
+                )
+                continue
+            for episode in episodes_by_role[role]:
+                if int(episode.history_index) != history_index:
+                    continue
+                rows.extend(
+                    SourceKey(role, history_index, episode.episode_id, int(slot), episode.source_index(slot))
+                    for slot in range(episode.n_sources)
+                )
+    return tuple(rows)
+
+
+_ALLOCATION_CACHE: dict[str, Allocation] = {}
+
+
+def source_allocation(plan: "Plan") -> Allocation:
+    """Frozen physical-source allocation for one plan (memoised per plan)."""
+    signature = plan_signature(plan)
+    cached = _ALLOCATION_CACHE.get(signature)
+    if cached is None:
+        cached = allocation_module.allocate(
+            history_ids=plan.history_ids,
+            history_seeds=plan.history_seeds,
+            sources=source_census(plan),
+        )
+        _ALLOCATION_CACHE[signature] = cached
+    return cached
+
+
+def source_allocation_digest(plan: "Plan") -> str:
+    return source_allocation(plan).digest
+
+
+def source_identity_payload(plan: "Plan") -> dict[str, Any]:
+    return allocation_module.identity_payload(source_allocation(plan))
+
+
+def verify_source_allocation(plan: "Plan") -> dict[str, Any]:
+    """Fresh resolver pass plus every frozen source-allocation invariant."""
+    expected = source_allocation(plan)
+    fresh = allocation_module.allocate(
+        history_ids=plan.history_ids,
+        history_seeds=plan.history_seeds,
+        sources=source_census(plan),
+    )
+    episodes = len(plan.test_episodes()) + len(plan.calibration_episode_list())
+    expected_rows = (
+        (plan.reference_files + plan.bandwidth_files) * len(plan.history_ids)
+        + episodes * plan._episode_sources
+    )
+    checks = {
+        "deterministic": fresh.digest == expected.digest,
+        "census_size": fresh.total == expected_rows,
+        "census_rows_per_episode": fresh.total - (
+            (plan.reference_files + plan.bandwidth_files) * len(plan.history_ids)
+        ) == episodes * plan._episode_sources,
+        "unique_source_keys": len(set(fresh.keys)) == fresh.total,
+        "unique_seeds_per_domain": bool(fresh.payload["assigned"]["unique_seeds_per_domain"]),
+        "minimal_reassignment": (
+            sum(1 for tier in fresh.tiers if tier > 0)
+            == int(fresh.payload["legacy"]["duplicate_occurrences"])
+        ),
+    }
+    failed = [name for name, ok in checks.items() if not ok]
+    if failed:
+        raise _refused("REFUSED-IDENTITY", f"source allocation failed: {failed}")
+    return {
+        "status": "SOURCE-ALLOCATION-VERIFIED",
+        "checks": len(checks),
+        "digest": fresh.digest,
+        "census": fresh.payload["census"],
+        "legacy": fresh.payload["legacy"],
+        "assigned": fresh.payload["assigned"],
+    }
 
 
 def enumeration_digest(plan: Plan) -> str:
@@ -809,8 +971,15 @@ def limitations() -> dict[str, Any]:
         ),
         "dependence": (
             "weekly and monthly windows of one episode share sources and calendar context; "
-            "within-horizon windows across episodes have disjoint sources; six histories are "
+            "within-horizon windows across episodes have disjoint physical sources; six histories are "
             "clusters, not independent populations"
+        ),
+        "source_identity": (
+            "source identity is the physical generation key, not the planned index: reference and "
+            "bandwidth sources are keyed by their normal seed and calibration/test sources by the "
+            "first derived normal seed of their pair seed; the census covers every active role, "
+            "history and episode slot exactly once, so a repeated twin/variant or a repeated "
+            "weekly/monthly window is one logical source and is never counted as independent"
         ),
         "labels": (
             "labels are used only for planned membership accounting and post-hoc evaluation; "
@@ -836,8 +1005,10 @@ def design_payload(plan: Plan | None = None) -> dict[str, Any]:
         "task": TASK_ID,
         "attempt": ATTEMPT_ID,
         "review_cycle": REVIEW_CYCLE,
+        "review_round": REVIEW_ROUND,
         "criterion": CRITERION,
         "plan": summary(target),
+        "source_identity": source_identity_payload(target),
         "geometry": {
             "block_files": target.block_files,
             "horizon_blocks": dict(target.horizons),
@@ -858,7 +1029,12 @@ def design_payload(plan: Plan | None = None) -> dict[str, Any]:
             "bandwidth": "normal-only pool used only for kernel bandwidth",
             "calibration": "5%-burden windows used only for thresholds",
             "test": "held-out control and nested-episode windows used only for the gates",
-            "rule": "disjoint source-index bands per history; no same-source leakage across roles",
+            "rule": (
+                "disjoint source-index bands per history plus a frozen physical-source key "
+                "allocation over the exact active census; no file, physical source, episode or "
+                "window is shared by independent roles, and the twin/variant plus the weekly and "
+                "monthly windows of one episode remain one logical source"
+            ),
         },
         "membership": {
             "rule": (
@@ -922,8 +1098,21 @@ def design_payload(plan: Plan | None = None) -> dict[str, Any]:
 def contract_payload(plan: Plan | None = None) -> dict[str, Any]:
     """Immutable contract body; its digest is the contract identity."""
     body = design_payload(plan)
-    body["contract_version"] = 1
-    body["supersedes"] = None
+    body["contract_version"] = 2
+    body["supersedes"] = {
+        "contract_id": SUPERSEDES_CONTRACT_ID,
+        "contract_sha256": SUPERSEDES_CONTRACT_SHA256,
+        "reason": (
+            "the A01 allocation kept disjoint source indices but 25 logical sources shared a "
+            "physical generation key (13 planned indices derived the same 31-bit pair seed and 12 "
+            "distinct pair seeds resolved to the same clean source), including calibration-test "
+            "groups; A02 freezes a collision-free physical-source allocation over the same plan"
+        ),
+        "scientific_scope": (
+            "counts, windows, burdens, readouts, calibration, gates, decision rules and "
+            "non-claims are unchanged; only the source-identity assignment is corrected"
+        ),
+    }
     body["historical_records"] = "accepted M17/M18/M19 contracts, caches and reports remain immutable"
     body["status"] = "FROZEN-PENDING-INDEPENDENT-REVIEW"
     return body
@@ -997,10 +1186,27 @@ def validate_plan(plan: Plan) -> dict[str, Any]:
     bw = set(range(bw_base, bw_base + plan.bandwidth_files))
     checks.append({"check": "test_calibration_disjoint", "pass": not (test_indices & cal_indices)})
     checks.append({"check": "roles_disjoint", "pass": not (test_indices & (ref | bw)) and not (cal_indices & (ref | bw)) and not (ref & bw)})
+    try:
+        allocation_report = verify_source_allocation(plan)
+        checks.append({
+            "check": "source_allocation",
+            "pass": True,
+            "digest": allocation_report["digest"],
+            "legacy": allocation_report["legacy"],
+            "assigned": allocation_report["assigned"],
+        })
+    except ValueError as exc:
+        allocation_report = None
+        checks.append({"check": "source_allocation", "pass": False, "error": str(exc)})
     failed = [item["check"] for item in checks if not item["pass"]]
     if failed:
         raise _refused("REFUSED-IDENTITY", f"plan validation failed: {failed}")
-    return {"status": "PLAN-VALID", "checks": len(checks), "plan": summary(plan)}
+    return {
+        "status": "PLAN-VALID",
+        "checks": len(checks),
+        "plan": summary(plan),
+        "source_allocation": allocation_report,
+    }
 
 
 def anomaly_family(name: str) -> AnomalyFamily:
@@ -1065,6 +1271,7 @@ __all__ = [
     "REFERENCE_INDEX_BASE",
     "REFUSAL_REASONS",
     "REVIEW_CYCLE",
+    "REVIEW_ROUND",
     "RFF_BANDWIDTH_LATENTS",
     "RFF_DIM",
     "RFF_SEED",
@@ -1072,11 +1279,15 @@ __all__ = [
     "STATISTIC",
     "STATISTIC_FORMULA",
     "STORAGE_LAYOUT",
+    "SUPERSEDES_CONTRACT_ID",
+    "SUPERSEDES_CONTRACT_SHA256",
     "TASK_ID",
     "TEST_EPISODE_COUNT",
     "TEST_INDEX_BASE",
+    "Allocation",
     "Episode",
     "Plan",
+    "SourceKey",
     "anomaly_family",
     "block_fault_counts",
     "block_membership",
@@ -1090,14 +1301,21 @@ __all__ = [
     "forecast",
     "limitations",
     "official_plan",
+    "plan_signature",
+    "planned_source_seed",
     "rank_order",
     "readout_definitions",
     "required_variants",
     "sha256_json",
     "smoke_plan",
+    "source_allocation",
+    "source_allocation_digest",
+    "source_census",
+    "source_identity_payload",
     "summary",
     "validate_plan",
     "verify_contract",
+    "verify_source_allocation",
     "window_fault_counts",
     "window_size",
 ]

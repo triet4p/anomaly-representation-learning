@@ -24,6 +24,7 @@ from typing import Any
 import numpy as np
 
 from population_benchmark import spec
+from population_benchmark.allocation import PAIRED_ROLES
 from population_benchmark.evaluation import Chunk
 
 KINDS = ("reference", "bandwidth", "calibration", "test")
@@ -267,6 +268,82 @@ class RunStore:
             "failures": [item for item in checks if not item["pass"]],
             "pass": all(item["pass"] for item in checks),
         }
+
+    def verify_source_identity(self, allocation: Any, kinds: Sequence[str] = KINDS) -> dict[str, Any]:
+        """Bind every persisted source/file row to one frozen allocation.
+
+        Fails closed on a row whose recorded seed or physical-source key differs
+        from the frozen allocation, on one logical source persisted under two
+        chunks, on a physical key or generator seed shared by distinct logical
+        sources, and on a repeated file id.
+        """
+        history_index = {str(name): index for index, name in enumerate(allocation.history_ids)}
+        row_owner: dict[tuple[str, int, int], str] = {}
+        key_owner: dict[int, tuple[str, int, int]] = {}
+        seed_owner: dict[tuple[str, int], tuple[str, int, int]] = {}
+        file_owner: dict[str, str] = {}
+        failures: list[dict[str, Any]] = []
+        chunks = 0
+        for path in self.sidecars():
+            kind = str(path.parent.name)
+            if kind not in kinds:
+                continue
+            meta = read_json(path)
+            history_id = str(meta["history_id"])
+            label = f"{history_id}/{kind}/{meta['chunk_id']}"
+            chunks += 1
+            if history_id not in history_index:
+                failures.append({"chunk": label, "error": "history is not in the frozen allocation"})
+                continue
+            history = history_index[history_id]
+            for record in meta.get("files", []):
+                file_id = str(record.get("file_id"))
+                if "source_index" not in record:
+                    failures.append({"chunk": label, "file_id": file_id, "error": "file row carries no frozen source identity"})
+                    continue
+                source_index = int(record["source_index"])
+                try:
+                    expected_seed = int(allocation.seed_for(kind, history, source_index))
+                    expected_key = int(allocation.key_for(kind, history, source_index))
+                except ValueError as exc:
+                    failures.append({"chunk": label, "file_id": file_id, "error": str(exc)})
+                    continue
+                row = (kind, history, source_index)
+                if int(record.get("source_seed", -1)) != expected_seed:
+                    failures.append({
+                        "chunk": label, "file_id": file_id,
+                        "error": f"seed {record.get('source_seed')} != frozen {expected_seed}",
+                    })
+                if int(record.get("source_key", -1)) != expected_key:
+                    failures.append({
+                        "chunk": label, "file_id": file_id,
+                        "error": f"source key {record.get('source_key')} != frozen {expected_key}",
+                    })
+                previous_chunk = row_owner.setdefault(row, label)
+                if previous_chunk != label:
+                    failures.append({"chunk": label, "row": list(row), "error": f"logical source persisted in {previous_chunk} too"})
+                key_holder = key_owner.setdefault(expected_key, row)
+                if key_holder != row:
+                    failures.append({"chunk": label, "row": list(row), "error": f"physical source shared with {key_holder}"})
+                domain = "paired" if kind in PAIRED_ROLES else "normal"
+                seed_holder = seed_owner.setdefault((domain, expected_seed), row)
+                if seed_holder != row:
+                    failures.append({"chunk": label, "row": list(row), "error": f"generator seed shared with {seed_holder}"})
+                holder = file_owner.setdefault(file_id, label)
+                if holder != label:
+                    failures.append({"chunk": label, "file_id": file_id, "error": f"file id persisted in {holder} too"})
+        payload = {
+            "pass": not failures,
+            "chunks": int(chunks),
+            "source_rows": int(len(row_owner)),
+            "expected_sources": int(allocation.total),
+            "complete_census": bool(len(row_owner) == allocation.total),
+            "allocation_digest": str(allocation.digest),
+            "failures": failures[:20],
+        }
+        if failures:
+            raise _refused("REFUSED-IDENTITY", json.dumps(payload, sort_keys=True)[:1500])
+        return payload
 
     def require_disk(self, budget_bytes: int = spec.DISK_BUDGET_BYTES) -> dict[str, Any]:
         usage = shutil.disk_usage(self.root)
