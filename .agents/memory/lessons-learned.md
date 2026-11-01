@@ -222,3 +222,10 @@
 **Root cause:** The accepted A04 checkpoints/caches were produced on CUDA; local `torch 2.10.0+cpu` has no CUDA generators and its float32 layer-norm/mean rounding differs by ulps from the cache-producing runtime.
 **Fix / workaround:** For CPU-only verification use `restore_rng=False` (model/optimizer/EMA bytes still strict-validate) and, when exact recomputation is a documented environment limit, consume the cache's recorded residual target while recording the observed drift; never loosen the product's fail-closed equality check.
 **Watch out for:** Claiming bit-exact cache replay or a normative result from a CPU host; a normative run must use the accepted execution environment.
+
+## [2026-11-01] Matched sources and tiled references break ordinary MMD assumptions
+
+**Symptom:** The Sprint 24 paired driver treated matched twin/variant cross-pairs as independent and tiled 220 reference rows when a population had 250 observations.
+**Root cause:** Matched cross-diagonal kernel terms share a source, while tiled rows create off-diagonal self-pairs; neither is an independent product-marginal observation.
+**Fix / workaround:** For paired groups, use the off-diagonal paired U-statistic for all three kernel sums; for disjoint populations, use unequal-size unbiased MMD against the distinct reference pool. Keep historical outputs unchanged.
+**Watch out for:** Shared calibration, admission and source dependence still require a separately justified inferential null; corrected point-estimator arithmetic alone does not validate a detection claim.

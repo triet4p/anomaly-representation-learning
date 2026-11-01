@@ -52,6 +52,7 @@ from typing import Any
 from representation import sprint24_paired_decision_experiment as design
 from representation import sprint24_paired_execution as base
 from representation.sprint24_paired_execution import holm_over_families
+from representation.sprint24_paired_journal import CaptureJournal
 from representation.sprint24_context_audit import canonical_json
 
 #: Versioned C2 official contract identifier (successor of A01, never a silent edit).
@@ -82,6 +83,8 @@ STAGE2_INDEX_BASE = 10_000
 
 #: Null-calibration groups per cell per encoder seed (matched-size K=8 vs K=8).
 NULL_GROUPS_PER_CELL = 4
+BANDWIDTH_INDEX_BASE = NULL_INDEX_BASE + NULL_GROUPS_PER_CELL * 2 * base.GROUP_SIZE_K
+BANDWIDTH_SLOTS_PER_HISTORY = 220
 
 #: Stage-2 cluster-bootstrap frozen settings (M14 inheritance).
 CLUSTER_BOOTSTRAP_REPLICATES = 2000
@@ -290,6 +293,99 @@ def generate_cell_pairs(
     return records
 
 
+def _pair_lineage(pair: Any, pair_index: int) -> dict[str, Any]:
+    """Describe the actual selected draw, including rejected dispositions."""
+    return {
+        "pair_index": int(pair_index), "pair_seed": int(pair.pair_seed),
+        "source_id": str(pair.source_id), "group_id": str(pair.group_id),
+        "twin_file_id": str(pair.twin.file_id),
+        "abnormal_file_id": str(pair.abnormal.file_id),
+        "disposition": str(pair.disposition), "n_attempts": int(pair.n_attempts),
+        "strength": float(pair.strength),
+        "attempts": [{"attempt": value.attempt, "attempt_seed": value.attempt_seed,
+                      "status": value.status, "strength": value.strength, "reason": value.reason}
+                     for value in pair.attempts],
+        "normal_path_diverges": bool(pair.normal_path_diverges),
+        "config_hash": str(pair.twin.config_hash),
+        "generator_version": str(pair.twin.generator_version),
+    }
+
+
+def _generate_with_custody(
+    gen: Any, pair_seed: int, family: Any, severity: float, pair_index: int,
+    history_id: str, role: str, journal: CaptureJournal | None,
+) -> Any:
+    """Persist each actual attempt as it happens; no redraw or reconstruction."""
+    if journal is None:
+        return gen.generate_paired_twin(int(pair_seed), family, float(severity))
+
+    def record_attempt(attempt: dict[str, object]) -> None:
+        journal.record("injection_attempt", {
+            "history_id": history_id, "role": role, "pair_index": int(pair_index),
+            "family": str(family.value), "severity": float(severity), **attempt,
+        })
+
+    identity = {"history_id": history_id, "role": role, "pair_index": int(pair_index),
+                "pair_seed": int(pair_seed), "family": str(family.value), "severity": float(severity)}
+    journal.record("source_started", identity)
+    try:
+        return gen.generate_paired_twin(int(pair_seed), family, float(severity), on_attempt=record_attempt)
+    except Exception as exc:
+        journal.record("source_failed", {**identity, "exception": repr(exc)})
+        raise
+
+
+def _pre_c1_lineage(pair: Any, pair_index: int, role: str, c1: float) -> dict[str, Any]:
+    """Materialize the synthetic pre-c1 slot, separate from execution time."""
+    from representation.sprint24_business_horizon import DAY_S
+
+    spacing = 38.5 * DAY_S / REFERENCE_SLOTS_PER_HISTORY
+    if role == "reference":
+        slot, fraction = pair_index - REFERENCE_INDEX_BASE, 0.0
+    elif role == "bandwidth":
+        slot, fraction = pair_index - BANDWIDTH_INDEX_BASE, 0.5
+    elif role == "null":
+        slot, fraction = pair_index - NULL_INDEX_BASE, 0.25
+    else:
+        raise _refused("REFUSED-UNKNOWN-DESIGN", f"unknown pre-c1 role: {role}")
+    if not 0 <= slot < REFERENCE_SLOTS_PER_HISTORY:
+        raise _refused("REFUSED-IDENTITY", "pre-c1 schedule slot out of range")
+    steps = int(pair.twin.T)
+    duration_s = steps * 0.125  # synth InjectionContext and CausalSignalGenerator default dt
+    end = float(c1) - (REFERENCE_SLOTS_PER_HISTORY - slot - fraction) * spacing
+    start = end - duration_s
+    if steps <= 0 or duration_s >= spacing / 4 or end > c1:
+        raise _refused("REFUSED-ERROR-BOUNDARY", "synthetic pre-c1 waveform does not fit its slot")
+    return {**_pair_lineage(pair, pair_index), "time_basis": "planned synthetic calendar",
+            "role": role, "sample_interval_s": 0.125, "observed_waveform_steps": steps,
+            "window_start_rel_s": float(c1) - 38.5 * DAY_S, "window_end_rel_s": float(c1),
+            "planned_start_rel_s": start, "planned_end_rel_s": end, "c1_rel_s": float(c1)}
+
+
+def _evaluation_lineage(
+    pair: Any, pair_index: int, scenario_id: str, role: str,
+    window: Mapping[str, Any], slot: int, n_slots: int, c1: float,
+) -> dict[str, Any]:
+    """Bind a source pair to a non-overlapping slot in a synthetic scenario."""
+    window_start, window_end = float(window["start_rel_s"]), float(window["end_rel_s"])
+    if not 0 <= slot < n_slots or n_slots <= 0:
+        raise _refused("REFUSED-IDENTITY", "invalid scenario slot")
+    spacing = (window_end - window_start) / n_slots
+    end = window_start + (slot + 1) * spacing
+    twin_steps, variant_steps = int(pair.twin.T), int(pair.abnormal.T)
+    duration_s = max(twin_steps, variant_steps) * 0.125
+    start = end - duration_s
+    if (spacing <= 0 or duration_s <= 0 or duration_s >= spacing
+            or start < window_start or start <= c1 or end > window_end):
+        raise _refused("REFUSED-ERROR-BOUNDARY", "waveform does not fit its post-c1 scenario slot")
+    return {**_pair_lineage(pair, pair_index), "time_basis": "planned synthetic calendar",
+            "scenario_id": scenario_id, "role": role, "window_key": str(window["period_key"]),
+            "window_start_rel_s": window_start, "window_end_rel_s": window_end,
+            "planned_start_rel_s": start, "planned_end_rel_s": end, "c1_rel_s": c1,
+            "sample_interval_s": 0.125, "twin_waveform_steps": twin_steps,
+            "variant_waveform_steps": variant_steps, "slot": slot, "n_slots": n_slots}
+
+
 def generate_reference_pool(history_seed: int) -> list[int]:
     """Derive the frozen causal-reference pair-seed pool for one history."""
     from synth.generator import derive_pair_seed
@@ -308,6 +404,16 @@ def generate_null_pool(history_seed: int, n_files: int = NULL_GROUPS_PER_CELL * 
         int(derive_pair_seed(int(history_seed), NULL_INDEX_BASE + offset))
         for offset in range(int(n_files))
     ]
+
+def generate_bandwidth_pool(history_seed: int) -> list[int]:
+    """Derive a separate pre-evaluation source pool for bandwidth estimation."""
+    from synth.generator import derive_pair_seed
+
+    return [
+        int(derive_pair_seed(int(history_seed), BANDWIDTH_INDEX_BASE + offset))
+        for offset in range(BANDWIDTH_SLOTS_PER_HISTORY)
+    ]
+
 
 
 #: In-process capture counter (test/smoke isolation; honest forward custody).
@@ -337,6 +443,7 @@ def capture_files(
     samples: Sequence[Any],
     history_id: str,
     device: str | None = None,
+    journal: CaptureJournal | None = None,
 ) -> dict[int, Any]:
     """Capture frozen embeddings for one file batch on every encoder bundle.
 
@@ -374,6 +481,8 @@ def capture_files(
         after = s24_live_state_digests(bundle.model, bundle.bank)  # type: ignore[attr-defined]
         assert_s24_frozen_unchanged(before, after)
         _CAPTURE_COUNTER["files_captured"] += len(captured)
+        if journal is not None:
+            journal.capture(int(seed), str(history_id), list(captured))
         per_seed[int(seed)] = captured
     return per_seed
 
@@ -433,6 +542,23 @@ class GroupOutcome:
     response: bool
 
 
+def paired_mmd2_unbiased(twin: Any, abnormal: Any, sigma: float) -> float:
+    """Estimate marginal MMD² with independent source-pairs, excluding matched cross terms."""
+    import numpy as np
+    from representation.sprint24_weekly_monthly_endpoints import _kernel
+
+    x = np.asarray(twin, dtype=np.float64)
+    y = np.asarray(abnormal, dtype=np.float64)
+    if (x.ndim != 2 or y.shape != x.shape or x.shape[0] < 2
+            or not np.isfinite(x).all() or not np.isfinite(y).all()
+            or not math.isfinite(sigma) or sigma <= 0):
+        raise _refused("REFUSED-ERROR-BOUNDARY", "paired MMD requires finite matched matrices and positive bandwidth")
+    kxx, kyy, kxy = _kernel(x, x, sigma), _kernel(y, y, sigma), _kernel(x, y, sigma)
+    n = x.shape[0]
+    return float(((kxx.sum() - np.trace(kxx)) + (kyy.sum() - np.trace(kyy))
+                  - 2.0 * (kxy.sum() - np.trace(kxy))) / (n * (n - 1)))
+
+
 def score_cell_groups(
     matrices: Mapping[int, dict[str, Any]],
     pair_indices: Sequence[int],
@@ -462,7 +588,7 @@ def score_cell_groups(
         for seed in base.FROZEN_ENCODER_SEEDS:
             twin = np.asarray(matrices[int(seed)]["twin"])[sl]
             abnormal = np.asarray(matrices[int(seed)]["abnormal"])[sl]
-            per_seed_e1.append(float(base.score_scored_group(twin, abnormal, float(sigma_per_seed[int(seed)]))["e1"]))
+            per_seed_e1.append(paired_mmd2_unbiased(twin, abnormal, float(sigma_per_seed[int(seed)])))
         median_e1 = float(np.median(per_seed_e1))
         outcomes.append(
             GroupOutcome(
@@ -481,14 +607,10 @@ def capture_reference_pool(
     history_seed: int,
     history_id: str,
     device: str | None = None,
+    journal: CaptureJournal | None = None,
+    source_role: str = "reference",
 ) -> dict[int, dict[str, Any]]:
-    """Capture frozen embeddings for the causal-reference pool (one history).
-
-    Reference twins derive from the reserved reference index band
-    (``generate_reference_pool``), disjoint from pair/null/stage-2 bands, so
-    the bandwidth and prototypes never see test, null-calibration, or
-    population-arm files.
-    """
+    """Capture the original reference or separate bandwidth source pool."""
     import numpy as np
 
     from synth.config import SynthConfig
@@ -496,9 +618,30 @@ def capture_reference_pool(
     from synth.schema import AnomalyFamily
 
     gen = SessionGenerator(SynthConfig())
-    seeds = generate_reference_pool(int(history_seed))
-    twins = [gen.generate_paired_twin(int(value), AnomalyFamily.SUBTLE_DRIFT, 0.6).twin for value in seeds]
-    per_seed = capture_files(bundles, twins, str(history_id), device=device)
+    if source_role == "reference":
+        seeds, index_base = generate_reference_pool(int(history_seed)), REFERENCE_INDEX_BASE
+    elif source_role == "bandwidth":
+        seeds, index_base = generate_bandwidth_pool(int(history_seed)), BANDWIDTH_INDEX_BASE
+    else:
+        raise _refused("REFUSED-UNKNOWN-DESIGN", f"unknown source role: {source_role}")
+    if len(set(seeds)) != len(seeds):
+        raise _refused("REFUSED-SEED-COLLISION", f"{source_role} source seeds are not distinct")
+    if set(generate_reference_pool(int(history_seed))) & set(generate_bandwidth_pool(int(history_seed))):
+        raise _refused("REFUSED-SEED-COLLISION", "reference and bandwidth source seeds overlap")
+    pairs = [_generate_with_custody(gen, value, AnomalyFamily.SUBTLE_DRIFT, 0.6,
+                                    index_base + index, history_id, source_role, journal)
+             for index, value in enumerate(seeds)]
+    from representation.sprint24_controlled_data_execution import build_history_calendar
+    calendar = build_history_calendar(history_id)
+    planned = [{**_pre_c1_lineage(pair, index_base + index, source_role, float(calendar["c1_rel_s"])),
+                "scenario_id": f"{history_id}|{source_role}"}
+               for index, pair in enumerate(pairs)]
+    if journal is not None:
+        journal.record(f"{source_role}_pairs", {"history_id": history_id, "history_seed": history_seed,
+                       "scenario_id": f"{history_id}|{source_role}", "calendar": calendar,
+                       "pairs": planned})
+    twins = [pair.twin for pair in pairs]
+    per_seed = capture_files(bundles, twins, str(history_id), device=device, journal=journal)
     reference: dict[int, dict[str, Any]] = {}
     for seed in base.FROZEN_ENCODER_SEEDS:
         captured = list(per_seed[int(seed)])
@@ -530,6 +673,7 @@ def fit_null_q95(
     history_id: str,
     sigma_per_seed: Mapping[int, float] | None = None,
     device: str | None = None,
+    journal: CaptureJournal | None = None,
 ) -> dict[int, float]:
     """Fit the frozen matched-size null q95 per encoder seed (twin-vs-twin).
 
@@ -544,8 +688,22 @@ def fit_null_q95(
 
     gen = SessionGenerator(SynthConfig())
     seeds = generate_null_pool(int(history_seed))
-    twins = [gen.generate_paired_twin(int(value), AnomalyFamily.SUBTLE_DRIFT, 0.6).twin for value in seeds]
-    per_seed = capture_files(bundles, twins, str(history_id), device=device)
+    reserved = set(generate_reference_pool(int(history_seed))) | set(generate_bandwidth_pool(int(history_seed)))
+    if len(set(seeds)) != len(seeds) or set(seeds) & reserved:
+        raise _refused("REFUSED-SEED-COLLISION", "null source seeds collide with reserved sources")
+    pairs = [_generate_with_custody(gen, value, AnomalyFamily.SUBTLE_DRIFT, 0.6,
+                                    NULL_INDEX_BASE + index, history_id, "null", journal)
+             for index, value in enumerate(seeds)]
+    from representation.sprint24_controlled_data_execution import build_history_calendar
+    calendar = build_history_calendar(history_id)
+    planned = [{**_pre_c1_lineage(pair, NULL_INDEX_BASE + index, "null", float(calendar["c1_rel_s"])),
+                "scenario_id": f"{history_id}|null"}
+               for index, pair in enumerate(pairs)]
+    if journal is not None:
+        journal.record("null_pairs", {"history_id": history_id, "history_seed": history_seed,
+                       "scenario_id": f"{history_id}|null", "calendar": calendar, "pairs": planned})
+    twins = [pair.twin for pair in pairs]
+    per_seed = capture_files(bundles, twins, str(history_id), device=device, journal=journal)
     thresholds: dict[int, float] = {}
     for seed in base.FROZEN_ENCODER_SEEDS:
         captured = list(per_seed[int(seed)])
@@ -564,51 +722,13 @@ def fit_null_q95(
                 (group + NULL_GROUPS_PER_CELL) * base.GROUP_SIZE_K,
                 (group + NULL_GROUPS_PER_CELL + 1) * base.GROUP_SIZE_K,
             )
-            values.append(float(base.score_scored_group(matrix[first], matrix[second], sigma)["e1"]))
+            values.append(paired_mmd2_unbiased(matrix[first], matrix[second], sigma))
         thresholds[int(seed)] = float(np.quantile(values, 0.95))
+        if journal is not None:
+            journal.record("null_scores", {"history_id": history_id, "model_seed": int(seed),
+                           "sigma": sigma, "scores": values, "q95": thresholds[int(seed)]})
     return thresholds
 
-
-def summarize_stage1_cell(
-    outcomes_g24: Sequence[GroupOutcome],
-    outcomes_g48: Sequence[GroupOutcome],
-) -> dict[str, Any]:
-    """Summarize the interim (G24) and release (G48) looks of one cell."""
-    g24 = list(outcomes_g24)
-    g48 = list(outcomes_g48)
-    if [value.group_index for value in g48[: len(g24)]] != [value.group_index for value in g24]:
-        raise _refused("REFUSED-IDENTITY", "G48 release must extend the G24 prefix")
-    responses_g24 = sum(1 for value in g24 if value.response)
-    responses_g48 = sum(1 for value in g48 if value.response)
-    cell_g24 = base.summarize_cell([value.median_e1 for value in g24], float(g24[0].null_q95_median))
-    cell_g48 = base.summarize_cell([value.median_e1 for value in g48], float(g48[0].null_q95_median))
-    futility_stop = bool(
-        (responses_g24 / len(g24)) <= base.APPROVED_FUTILITY_CAP if g24 else False
-    )
-    return {
-        "g24": {"n_groups": len(g24), "n_responses": int(responses_g24), "summary": cell_g24},
-        "g48": {"n_groups": len(g48), "n_responses": int(responses_g48), "summary": cell_g48},
-        "futility_stop_at_g24": bool(futility_stop),
-        "expansion": {"from_G": 24, "to_G": 48, "planned": True, "beyond_48": "NOT AUTHORIZED"},
-    }
-
-def summarize_stage1_family(cell_summaries: Mapping[str, dict[str, Any]]) -> dict[str, Any]:
-    """Family-level summary across cells with Holm step-down (frozen)."""
-    import math as _math
-
-    per_cell: dict[str, Any] = {}
-    p_values: list[float] = []
-    keys: list[str] = []
-    for key in sorted(cell_summaries):
-        summary = dict(cell_summaries[str(key)])
-        n = int(summary["g48"]["summary"]["n_groups"])
-        r = int(summary["g48"]["summary"]["n_responses"])
-        total = 2**n
-        p_value = sum(_math.comb(n, i) for i in range(n + 1) if abs(i - n / 2) >= abs(r - n / 2)) / total
-        per_cell[str(key)] = {"n_groups": n, "n_responses": r, "p_two_sided": float(p_value)}
-        p_values.append(float(p_value))
-        keys.append(str(key))
-    return {"per_cell": per_cell, "cell_order": keys, "holm": holm_over_families(p_values, alpha=base.ALPHA_TWO_SIDED)}
 
 
 # --- sensitivity estimators ---------------------------------------------------
@@ -873,6 +993,7 @@ class TinySmokeResult:
     per_seed_e1: dict[str, list[float]]
     per_seed_q95: dict[str, float]
     cell_summary: dict[str, Any]
+    disjoint_test: dict[str, Any]
     stage2_arms: list[dict[str, Any]]
     forwards_executed: int
     model_loads: int
@@ -890,6 +1011,7 @@ def collect_stage1_cell(
     sigma_per_seed: Mapping[int, float],
     null_q95_per_seed: Mapping[int, float],
     device: str | None = None,
+    journal: CaptureJournal | None = None,
 ) -> dict[str, Any]:
     """Execute one cell slice through the official stage-1 engine (shared path).
 
@@ -907,7 +1029,25 @@ def collect_stage1_cell(
     gen = SessionGenerator(SynthConfig())
     indices = [int(value) for value in pair_indices]
     pair_seeds = [int(derive_pair_seed(int(history_seed), index)) for index in indices]
-    pairs = [gen.generate_paired_twin(int(value), target, float(severity)) for value in pair_seeds]
+    if (len(set(pair_seeds)) != len(pair_seeds)
+            or set(pair_seeds) & (set(generate_reference_pool(int(history_seed))) | set(generate_null_pool(int(history_seed))) | set(generate_bandwidth_pool(int(history_seed))))):
+        raise _refused("REFUSED-SEED-COLLISION", "scored sources collide with each other or reference/null")
+    pairs = [_generate_with_custody(gen, value, target, severity, index, history_id, "stage1", journal)
+             for index, value in zip(indices, pair_seeds)]
+    from representation.sprint24_controlled_data_execution import build_history_calendar
+    calendar = build_history_calendar(history_id)
+    weeks = calendar["weeks"]
+    scenario_id = f"{history_id}|stage1|{family}|{severity:.9g}"
+    lineage = [
+        _evaluation_lineage(pair, index, scenario_id, "scored-pair",
+                            weeks[1 + index // 40], index % 40, 40, float(calendar["c1_rel_s"]))
+        for index, pair in zip(indices, pairs)
+    ]
+    paired_indices = [index for index, pair in zip(indices, pairs) if pair.disposition == "PAIRED"]
+    if journal is not None:
+        journal.record("stage1_pairs", {"history_id": history_id, "history_seed": history_seed,
+                       "scenario_id": scenario_id, "family": family, "severity": severity,
+                       "calendar": calendar, "pairs": lineage})
     dispositions: dict[str, int] = {}
     for pair in pairs:
         dispositions[str(pair.disposition)] = int(dispositions.get(str(pair.disposition), 0)) + 1
@@ -920,12 +1060,31 @@ def collect_stage1_cell(
     per_seed_capture: dict[int, Any] = {}
     matrices: dict[int, dict[str, Any]] = {}
     outcomes: list[GroupOutcome] = []
-    if usable >= base.GROUP_SIZE_K:
-        per_seed_capture = capture_files(bundles, twin_samples[:usable] + abnormal_samples[:usable], str(history_id), device=device)
-        twin_ids = [sample.file_id for sample in twin_samples[:usable]]
-        abnormal_ids = [sample.file_id for sample in abnormal_samples[:usable]]
+    if n_paired:
+        per_seed_capture = capture_files(bundles, twin_samples + abnormal_samples, str(history_id), device=device, journal=journal)
+        twin_ids = [sample.file_id for sample in twin_samples]
+        abnormal_ids = [sample.file_id for sample in abnormal_samples]
         matrices = embedding_matrices(per_seed_capture, twin_ids, abnormal_ids)
-        outcomes = score_cell_groups(matrices, list(range(usable)), null_q95_per_seed, sigma_per_seed)
+        if usable >= base.GROUP_SIZE_K:
+            outcomes = score_cell_groups(matrices, paired_indices[:usable], null_q95_per_seed, sigma_per_seed)
+    from representation.sprint24_paired_disjoint import source_disjoint_test
+    disjoint_test = source_disjoint_test(
+        indices, paired_indices, matrices, sigma_per_seed, int(history_seed), family, severity,
+    )
+    if journal is not None:
+        journal.record("stage1_disjoint_test", {
+            "history_id": history_id, "history_seed": history_seed, "family": family,
+            "severity": severity, "result": disjoint_test,
+        })
+    if journal is not None:
+        journal.record("stage1_groups", {
+            "history_id": history_id, "family": family, "severity": severity,
+            "paired_unscored_indices": paired_indices[usable:],
+            "outcomes": [{"group_index": value.group_index, "pair_indices": list(value.pair_indices),
+                          "e1_per_seed": list(value.e1_per_seed), "median_e1": value.median_e1,
+                          "null_q95_median": value.null_q95_median, "response": value.response}
+                         for value in outcomes],
+        })
     # Sensitivity diagnostics on the first complete group (frozen reference prototypes).
     sensitivity: dict[str, Any] = {"status": "UNAVAILABLE", "reason": "no complete group"}
     if usable >= base.GROUP_SIZE_K:
@@ -936,14 +1095,26 @@ def collect_stage1_cell(
             "e2": e2_occupancy(twin, abnormal, reference_matrix),
             "d": within_prototype_diagnostics(twin, abnormal, reference_matrix),
         }
+    if journal is not None:
+        clean_sensitivity = dict(sensitivity)
+        if "d" in clean_sensitivity and not math.isfinite(float(clean_sensitivity["d"]["d_loc"])):
+            clean_sensitivity["d"] = {**clean_sensitivity["d"], "d_loc": None}
+        journal.record("stage1_sensitivity", {"history_id": history_id, "family": family,
+                       "severity": severity, "sensitivity": clean_sensitivity})
     return {
         "n_planned_pairs": len(indices),
         "dispositions": dispositions,
         "n_paired": int(n_paired),
         "n_groups": int(n_groups_complete),
+        "pairs": lineage,
+        "disjoint_test": disjoint_test,
+        "paired_unscored_indices": paired_indices[usable:],
         "outcomes": [
             {
                 "group_index": value.group_index,
+                "pair_indices": list(value.pair_indices),
+                "e1_per_seed": dict(zip(map(str, base.FROZEN_ENCODER_SEEDS), value.e1_per_seed)),
+                "null_q95_median": value.null_q95_median,
                 "median_e1": value.median_e1,
                 "response": value.response,
             }
@@ -964,6 +1135,7 @@ def evaluate_stage2_arm(
     reference: Mapping[int, dict[str, Any]],
     sigma_per_seed: Mapping[int, float],
     device: str | None = None,
+    journal: CaptureJournal | None = None,
 ) -> dict[str, Any]:
     """Execute one stage-2 population arm through the official engine.
 
@@ -991,26 +1163,72 @@ def evaluate_stage2_arm(
     abnormal_seeds = [int(derive_pair_seed(int(history_seed), STAGE2_INDEX_BASE + index)) for index in abnormal_indices]
     ordinary_seeds = [int(derive_pair_seed(int(history_seed), STAGE2_INDEX_BASE + index)) for index in ordinary_indices]
     control_seeds = [int(derive_pair_seed(int(history_seed), STAGE2_INDEX_BASE + index)) for index in control_indices]
-    if set(abnormal_seeds) & set(ordinary_seeds) or set(abnormal_seeds) & set(control_seeds) or set(ordinary_seeds) & set(control_seeds):
-        raise _refused("REFUSED-IDENTITY", "stage-2 abnormal/ordinary/control seeds overlap")
-    abnormal_pairs = [gen.generate_paired_twin(int(value), target, float(severity)) for value in abnormal_seeds]
-    ordinary_pairs = [gen.generate_paired_twin(int(value), target, float(severity)) for value in ordinary_seeds]
-    control_pairs = [gen.generate_paired_twin(int(value), target, float(severity)) for value in control_seeds]
+    population_seeds = abnormal_seeds + ordinary_seeds + control_seeds
+    reserved = set(generate_reference_pool(int(history_seed))) | set(generate_null_pool(int(history_seed))) | set(generate_bandwidth_pool(int(history_seed)))
+    reserved.update(int(derive_pair_seed(int(history_seed), index)) for index in range(PAIR_SLOTS_PER_HISTORY))
+    if len(set(population_seeds)) != len(population_seeds) or set(population_seeds) & reserved:
+        raise _refused("REFUSED-SEED-COLLISION", "population source seeds collide internally or with reserved sources")
+    abnormal_pairs = [_generate_with_custody(gen, value, target, severity, STAGE2_INDEX_BASE + index,
+                                              history_id, "mixture-abnormal", journal)
+                      for index, value in zip(abnormal_indices, abnormal_seeds)]
+    ordinary_pairs = [_generate_with_custody(gen, value, target, severity, STAGE2_INDEX_BASE + index,
+                                              history_id, "mixture-ordinary", journal)
+                      for index, value in zip(ordinary_indices, ordinary_seeds)]
+    control_pairs = [_generate_with_custody(gen, value, target, severity, STAGE2_INDEX_BASE + index,
+                                             history_id, "control", journal)
+                     for index, value in zip(control_indices, control_seeds)]
+    from representation.sprint24_controlled_data_execution import build_history_calendar
+    calendar = build_history_calendar(history_id)
+    window = calendar["weeks"][1] if arm.horizon == "week" else calendar["months"][1]
+    stem = f"{history_id}|stage2|{arm.horizon}|{arm.size}|{arm.burden}"
+    mixture_scenario, control_scenario = stem + "|mixture", stem + "|control"
+    abnormal_lineage = [
+        _evaluation_lineage(pair, STAGE2_INDEX_BASE + index, mixture_scenario, "mixture-abnormal",
+                            window, slot, size, float(calendar["c1_rel_s"]))
+        for slot, (pair, index) in enumerate(zip(abnormal_pairs, abnormal_indices))
+    ]
+    ordinary_lineage = [
+        _evaluation_lineage(pair, STAGE2_INDEX_BASE + index, mixture_scenario, "mixture-ordinary",
+                            window, len(abnormal_pairs) + slot, size, float(calendar["c1_rel_s"]))
+        for slot, (pair, index) in enumerate(zip(ordinary_pairs, ordinary_indices))
+    ]
+    control_lineage = [
+        _evaluation_lineage(pair, STAGE2_INDEX_BASE + index, control_scenario, "control",
+                            window, slot, size, float(calendar["c1_rel_s"]))
+        for slot, (pair, index) in enumerate(zip(control_pairs, control_indices))
+    ]
+    if journal is not None:
+        journal.record("stage2_pairs", {
+            "history_id": history_id, "history_seed": history_seed, "family": family,
+            "severity": severity, "horizon": arm.horizon, "size": arm.size, "burden": arm.burden,
+            "mixture_scenario_id": mixture_scenario, "control_scenario_id": control_scenario,
+            "calendar": calendar, "abnormal": abnormal_lineage,
+            "ordinary": ordinary_lineage, "control": control_lineage,
+        })
     dispositions: dict[str, int] = {}
     for pair in abnormal_pairs + ordinary_pairs + control_pairs:
         dispositions[str(pair.disposition)] = int(dispositions.get(str(pair.disposition), 0)) + 1
     abnormal_samples = [pair.abnormal for pair in abnormal_pairs if pair.disposition == "PAIRED"]
     ordinary_samples = [pair.twin for pair in ordinary_pairs if pair.disposition == "PAIRED"]
     control_samples = [pair.twin for pair in control_pairs if pair.disposition == "PAIRED"]
-    if not abnormal_samples or not ordinary_samples or not control_samples:
+    if (len(abnormal_samples) == 1 or len(ordinary_samples) == 1
+            or len(abnormal_samples) + len(ordinary_samples) < 2 or len(control_samples) < 2):
+        if journal is not None:
+            journal.record("stage2_abstention", {
+                "history_id": history_id, "horizon": arm.horizon, "size": arm.size,
+                "burden": arm.burden, "n_mixture": len(abnormal_samples) + len(ordinary_samples),
+                "n_control": len(control_samples), "reason": "singleton nonzero component or insufficient observations",
+            })
         return {
             "horizon": arm.horizon, "size": arm.size, "burden": arm.burden,
             "n_abnormal": int(arm.n_abnormal), "n_ordinary": int(arm.n_ordinary),
+            "n_abnormal_paired": len(abnormal_samples), "n_ordinary_paired": len(ordinary_samples),
+            "n_control_paired": len(control_samples),
             "dispositions": dispositions, "status": "ABSTAIN-COVERAGE",
-            "reason": "no PAIRED files on one arm",
+            "reason": "singleton nonzero component or insufficient observations",
         }
     mixture_samples = abnormal_samples + ordinary_samples
-    captured = capture_files(bundles, mixture_samples + control_samples, str(history_id), device=device)
+    captured = capture_files(bundles, mixture_samples + control_samples, str(history_id), device=device, journal=journal)
     mixture_ids = [sample.file_id for sample in mixture_samples]
     control_ids = [sample.file_id for sample in control_samples]
     matrices = embedding_matrices(captured, mixture_ids, control_ids)
@@ -1024,18 +1242,37 @@ def evaluate_stage2_arm(
         n_ctl = int(control.shape[0])
         n_ref = int(reference_matrix.shape[0])
         from representation.sprint24_weekly_monthly_endpoints import mmd2_unbiased as _full_n_mmd2
-        if n_mix < 2 or n_ctl < 2 or n_ref < 2:
-            e1_transition, e1_control = float("nan"), float("nan")
-        else:
-            ref_for_mix = reference_matrix[:n_mix] if n_ref >= n_mix else np.tile(reference_matrix, (int(np.ceil(n_mix / max(n_ref, 1))), 1))[:n_mix]
-            ref_for_ctl = reference_matrix[:n_ctl] if n_ref >= n_ctl else np.tile(reference_matrix, (int(np.ceil(n_ctl / max(n_ref, 1))), 1))[:n_ctl]
-            e1_transition = float(_full_n_mmd2(mixture, ref_for_mix, sigma))
-            e1_control = float(_full_n_mmd2(control, ref_for_ctl, sigma))
-        per_seed[str(seed)] = {"e1_transition": e1_transition, "e1_control": e1_control, "n_mixture": n_mix, "n_control": n_ctl}
+        if n_ref < 2:
+            raise _refused("REFUSED-ERROR-BOUNDARY", "unbiased MMD requires at least two reference observations")
+        reference_ids = list(dict(reference[int(seed)])["file_ids"])
+        if len(reference_ids) != n_ref or len(set(reference_ids)) != n_ref:
+            raise _refused("REFUSED-IDENTITY", "reference observations must have distinct file IDs")
+        if set(reference_ids) & (set(mixture_ids) | set(control_ids)):
+            raise _refused("REFUSED-IDENTITY", "reference and population file IDs overlap")
+        from representation.sprint24_paired_estimators import stratified_mmd2_unbiased
+        n_abnormal = len(abnormal_samples)
+        e1_transition = stratified_mmd2_unbiased(
+            mixture[:n_abnormal], mixture[n_abnormal:], reference_matrix, sigma,
+        )
+        e1_control = float(_full_n_mmd2(control, reference_matrix, sigma))
+        per_seed[str(seed)] = {
+            "e1_transition": e1_transition, "e1_control": e1_control,
+            "n_mixture": n_mix, "n_control": n_ctl, "n_reference": n_ref,
+        }
+    if journal is not None:
+        journal.record("stage2_scores", {
+            "history_id": history_id, "horizon": arm.horizon, "size": arm.size,
+            "burden": arm.burden, "mixture_ids": mixture_ids, "control_ids": control_ids,
+            "estimator": "stratified-realized-mixture-mmd2-v1",
+            "n_abnormal_paired": len(abnormal_samples), "n_ordinary_paired": len(ordinary_samples),
+            "realized_abnormal_fraction": len(abnormal_samples) / len(mixture_samples),
+            "per_seed": per_seed,
+        })
     return {
         "horizon": arm.horizon, "size": arm.size, "burden": arm.burden,
         "n_abnormal": int(arm.n_abnormal), "n_ordinary": int(arm.n_ordinary),
         "n_abnormal_paired": len(abnormal_samples), "n_ordinary_paired": len(ordinary_samples),
+        "realized_abnormal_fraction": len(abnormal_samples) / len(mixture_samples),
         "n_control_paired": len(control_samples),
         "mixture_ids": [sample.file_id for sample in mixture_samples],
         "control_ids": [sample.file_id for sample in control_samples],
@@ -1043,10 +1280,23 @@ def evaluate_stage2_arm(
     }
 
 
+def descriptive_cell_summary(values: Sequence[float], null_median: float) -> dict[str, Any]:
+    """Describe responses without asserting unvalidated calibrated detection."""
+    if not values:
+        return {"n_groups": 0, "n_responses": 0, "status": "ABSTAIN-COVERAGE",
+                "reason": "no complete scored group"}
+    summary = base.summarize_cell(values, null_median)
+    summary["bar_met"] = None
+    summary["reading"] = ("DESCRIPTIVE ONLY: calibration and conditional independence "
+                          "are not established; this interval is not a detection claim.")
+    return summary
+
+
 def tiny_official_smoke(
     bundles: Mapping[int, Any],
     device: str | None = None,
     fixture: Mapping[str, Any] | None = None,
+    journal: CaptureJournal | None = None,
 ) -> TinySmokeResult:
     """Exercise the official engine on tiny real-checkpoint/bank inputs (shared path)."""
     import numpy as np
@@ -1060,27 +1310,29 @@ def tiny_official_smoke(
     history_seed = int(options["history_seed"])
     n_groups = int(options["n_groups"])
     history_id = "S24P-TINY-OFFICIAL"
-    reference = capture_reference_pool(bundles, history_seed, history_id + "-REF", device=device)
-    sigma_per_seed = frozen_reference_bandwidth(reference)
-    null_q95 = fit_null_q95(bundles, history_seed, history_id + "-NULL", sigma_per_seed, device=device)
+    reference = capture_reference_pool(bundles, history_seed, history_id + "-REF", device=device, journal=journal)
+    bandwidth = capture_reference_pool(bundles, history_seed, history_id + "-BANDWIDTH",
+                                       device=device, journal=journal, source_role="bandwidth")
+    sigma_per_seed = frozen_reference_bandwidth(bandwidth)
+    null_q95 = fit_null_q95(bundles, history_seed, history_id + "-NULL", sigma_per_seed, device=device, journal=journal)
     cell = collect_stage1_cell(
         bundles, history_seed, history_id, family, severity,
-        list(range(n_groups * base.GROUP_SIZE_K)), reference, sigma_per_seed, null_q95, device=device,
+        list(range(n_groups * base.GROUP_SIZE_K)), reference, sigma_per_seed, null_q95, device=device, journal=journal,
     )
     outcomes_median = [float(entry["median_e1"]) for entry in cell["outcomes"]]
     null_median = float(np.median([float(null_q95[int(seed)]) for seed in base.FROZEN_ENCODER_SEEDS]))
-    cell_summary = base.summarize_cell(outcomes_median, null_median) if outcomes_median else base.summarize_cell([0.0, 0.0], null_median)
+    cell_summary = descriptive_cell_summary(outcomes_median, null_median)
     horizon, size, burden = options["stage2_arms"][0]
     ladder = base.dilution_ladder()[str(horizon)][str(int(size))][str(burden)]
     arm = PopulationArm(horizon=str(horizon), size=int(size), burden=str(burden), n_abnormal=int(ladder["n_abnormal"]), n_ordinary=int(ladder["n_ordinary"]), pair_indices=tuple(range(int(size))))
-    stage2 = evaluate_stage2_arm(bundles, history_seed, history_id + "-STAGE2", family, severity, arm, 0, reference, sigma_per_seed, device=device)
+    stage2 = evaluate_stage2_arm(bundles, history_seed, history_id + "-STAGE2", family, severity, arm, 0, reference, sigma_per_seed, device=device, journal=journal)
     stage2_arms = [
         {"model_seed": int(seed), "e1_transition": float(stage2["per_seed"][str(seed)]["e1_transition"]), "e1_control": float(stage2["per_seed"][str(seed)]["e1_control"])}
         for seed in base.FROZEN_ENCODER_SEEDS
     ] if stage2.get("status") == "COMPUTED" else []
     per_seed_e1: dict[str, list[float]] = {}
     for seed in base.FROZEN_ENCODER_SEEDS:
-        per_seed_e1[str(seed)] = [round(float(entry["median_e1"]), 6) for entry in cell["outcomes"]]
+        per_seed_e1[str(seed)] = [round(float(entry["e1_per_seed"][str(seed)]), 6) for entry in cell["outcomes"]]
     counted = capture_files_count_holder()
     forwards = int(counted["files_captured"])
     return TinySmokeResult(
@@ -1088,10 +1340,11 @@ def tiny_official_smoke(
         family=family,
         severity=severity,
         history_seed=history_seed,
-        n_groups=n_groups,
+        n_groups=int(cell["n_groups"]),
         per_seed_e1={key: [round(float(value), 6) for value in values] for key, values in per_seed_e1.items()},
         per_seed_q95={str(seed): round(float(value), 6) for seed, value in null_q95.items()},
         cell_summary=cell_summary,
+        disjoint_test=cell["disjoint_test"],
         stage2_arms=stage2_arms,
         forwards_executed=int(forwards),
         model_loads=len(bundles),
@@ -1108,6 +1361,7 @@ def run_official_matrix(
     g_level: str = "g48",
     stage2_burdens: Sequence[str] | None = None,
     device: str | None = None,
+    journal: CaptureJournal | None = None,
 ) -> dict[str, Any]:
     """Execute the official matrix through the shared engine (gated).
 
@@ -1120,6 +1374,8 @@ def run_official_matrix(
     the smoke path.
     """
     _require_official_release(bool(permitted))
+    if journal is None:
+        raise _refused("REFUSED-PREREQUISITE", "official capture requires a durable journal")
     import numpy as np
 
     started = time.time()
@@ -1128,27 +1384,30 @@ def run_official_matrix(
     wanted_cells = [(str(family), float(severity)) for family, severity in (cells if cells is not None else CELL_GRID)]
     wanted_burdens = [str(value) for value in (stage2_burdens if stage2_burdens is not None else ("LOW", "MID", "ELEVATED"))]
     plans = {f"{family}|{severity}": plan for plan in cell_plans() for family, severity in [(plan.family, plan.severity)]}
+    reference_cache: dict[str, tuple[dict[int, dict[str, Any]], dict[int, float]]] = {}
     stage1: dict[str, Any] = {}
     for history_id, history_seed in zip(base.PAIRED_HISTORY_IDS, base.PROPOSED_HISTORY_SEEDS):
         if history_id not in wanted_histories:
             continue
-        reference = capture_reference_pool(bundles, int(history_seed), f"{history_id}-REF", device=device)
-        sigma_per_seed = frozen_reference_bandwidth(reference)
-        null_q95 = fit_null_q95(bundles, int(history_seed), f"{history_id}-NULL", sigma_per_seed, device=device)
+        reference = capture_reference_pool(bundles, int(history_seed), f"{history_id}-REF", device=device, journal=journal)
+        bandwidth = capture_reference_pool(bundles, int(history_seed), f"{history_id}-BANDWIDTH",
+                                           device=device, journal=journal, source_role="bandwidth")
+        sigma_per_seed = frozen_reference_bandwidth(bandwidth)
+        reference_cache[history_id] = (reference, sigma_per_seed)
+        null_q95 = fit_null_q95(bundles, int(history_seed), f"{history_id}-NULL", sigma_per_seed, device=device, journal=journal)
         for family, severity in wanted_cells:
             plan = plans[f"{family}|{severity}"]
             indices = list(plan.pair_index_g48) if g_level == "g48" else list(plan.pair_index_g24)
             result = collect_stage1_cell(
                 bundles, int(history_seed), history_id, family, severity,
-                indices, reference, sigma_per_seed, null_q95, device=device,
+                indices, reference, sigma_per_seed, null_q95, device=device, journal=journal,
             )
             medians = [float(entry["median_e1"]) for entry in result["outcomes"]]
             null_median = float(np.median([float(null_q95[int(seed)]) for seed in base.FROZEN_ENCODER_SEEDS]))
-            summary = base.summarize_cell(medians, null_median) if medians else base.summarize_cell([0.0, 0.0], null_median)
+            summary = descriptive_cell_summary(medians, null_median)
             stage1[f"{history_id}|{family}|{severity}"] = {
                 "history_id": history_id, "family": family, "severity": severity,
-                "n_groups": result["n_groups"], "dispositions": result["dispositions"],
-                "summary": summary, "sensitivity": result["sensitivity"],
+                **result, "summary": summary,
             }
     stage2: dict[str, Any] = {}
     cursor = 0
@@ -1169,13 +1428,12 @@ def run_official_matrix(
         for history_id, history_seed in zip(base.PAIRED_HISTORY_IDS, base.PROPOSED_HISTORY_SEEDS):
             if history_id not in histories_for_arm:
                 continue
-            reference = capture_reference_pool(bundles, int(history_seed), f"{history_id}-REF", device=device)
-            sigma_per_seed = frozen_reference_bandwidth(reference)
+            reference, sigma_per_seed = reference_cache[history_id]
             family0, severity0 = wanted_cells[0]
             arm_results.append(
                 evaluate_stage2_arm(
                     bundles, int(history_seed), f"{history_id}-STAGE2", family0, severity0,
-                    arm, cursor, reference, sigma_per_seed, device=device,
+                    arm, cursor, reference, sigma_per_seed, device=device, journal=journal,
                 )
             )
         medians = [float(np.median([float(entry["e1_transition"]) for entry in result["per_seed"].values() if np.isfinite(float(entry["e1_transition"]))])) for result in arm_results if result.get("status") == "COMPUTED"]
@@ -1185,10 +1443,24 @@ def run_official_matrix(
             "bootstrap": cluster_bootstrap_median(medians),
         }
         cursor += cursor_step
-    by_family: dict[str, dict[str, Any]] = {}
-    for key, entry in stage1.items():
-        by_family.setdefault(str(entry["family"]), {})[key] = {"g48": {"summary": entry["summary"]}}
-    holm = {family: summarize_stage1_family(cells_map) for family, cells_map in by_family.items()}
+    # Global family is exactly 6 histories x 27 cells; partial runs do not
+    # acquire a smaller, easier multiplicity family.
+    expected_keys = {
+        f"{history}|{family}|{severity}"
+        for history in base.PAIRED_HISTORY_IDS for family, severity in CELL_GRID
+    }
+    if set(stage1) == expected_keys and g_level == "g48":
+        keys = sorted(expected_keys)
+        holm = {
+            "status": "CONDITIONAL-ON-EXCHANGEABILITY",
+            "family": "162 history-by-family-by-severity cells",
+            "alpha": 0.05, "cell_order": keys,
+            "adjustments": holm_over_families(
+                [float(stage1[key]["disjoint_test"]["p_value"]) for key in keys], alpha=0.05,
+            ),
+        }
+    else:
+        holm = {"status": "UNSUPPORTED-SUBSET", "reason": "global 162-cell family incomplete"}
     return {
         "status": "OFFICIAL-MATRIX-COMPLETE",
         "g_level": str(g_level),
@@ -1262,8 +1534,6 @@ __all__ = [
     "reset_capture_counter",
     "run_official_matrix",
     "score_cell_groups",
-    "summarize_stage1_cell",
-    "summarize_stage1_family",
     "tiny_official_smoke",
     "verify_official_contract",
     "within_prototype_diagnostics",

@@ -62,6 +62,22 @@ def source_commit() -> str:
     ).strip()
 
 
+def correction_source_hashes() -> dict[str, str]:
+    """Bind the actual working-tree implementation, not only the base commit."""
+    paths = (
+        "experiments/sprint24_task7m17_paired_execution.py",
+        "src/representation/sprint24_paired_official.py",
+        "src/representation/sprint24_paired_disjoint.py",
+        "src/representation/sprint24_paired_estimators.py",
+        "src/representation/sprint24_paired_journal.py",
+        "src/representation/sprint24_paired_replay.py",
+        "src/synth/generator.py",
+        "src/synth/strength.py",
+        "docs/sprint24-paired-execution-contract-c03.json",
+    )
+    return {path: hashlib.sha256((REPO / path).read_bytes()).hexdigest() for path in paths}
+
+
 def _refused(reason: str, detail: str) -> ValueError:
     return ValueError(f"{reason}: {detail}")
 
@@ -704,6 +720,8 @@ def official_base_task() -> str:
 def run_official_smoke(out: Path, args: argparse.Namespace) -> dict[str, Any]:
     """Run the tiny official-engine fixture smoke on real accepted bytes."""
     from representation import sprint24_paired_official as official
+    from representation.sprint24_paired_journal import CaptureJournal
+    from representation.sprint24_paired_replay import replay_journal
 
     started = time.time()
     _require_fresh_out(out)
@@ -717,9 +735,44 @@ def run_official_smoke(out: Path, args: argparse.Namespace) -> dict[str, Any]:
     preflight = json.loads(preflight_path.read_text(encoding="utf-8"))
     if not isinstance(preflight, dict):
         raise _refused("REFUSED-IDENTITY", "preflight is not a mapping")
-    bundles = _restore_bundles(args, preflight)
-    device = _capture_device(args)
-    result = official.tiny_official_smoke(bundles, device=device)
+    journal = CaptureJournal(out / "capture")
+    journal.record("run_start", {
+        "task": "S24-7-M17", "attempt": str(args.attempt_id), "mode": "official-smoke",
+        "command": list(sys.argv), "started_unix": started, "device": str(args.device),
+        "source_commit": source_commit(), "preflight_sha256": hashlib.sha256(preflight_path.read_bytes()).hexdigest(),
+        "working_tree_source_sha256": correction_source_hashes(),
+        "checkpoint_sha256": preflight["checkpoints"], "bank_file_sha256": preflight["bank_files"],
+        "cumulative_forwards_before_provisional": int(args.cumulative_before),
+        "historical_partial_forwards": "unknown",
+    })
+    official.reset_capture_counter()
+    try:
+        bundles = _restore_bundles(args, preflight)
+        device = _capture_device(args)
+        fixture = {"family": args.smoke_family, "severity": args.smoke_severity}
+        if args.smoke_n250:
+            fixture["stage2_arms"] = [("month", 250, "LOW")]
+        result = official.tiny_official_smoke(bundles, device=device, fixture=fixture, journal=journal)
+    except BaseException as exc:
+        journal.record("run_failure", {"exception": repr(exc), "ended_unix": time.time(),
+                       "completed_batch_forwards": official.capture_files_count_holder()["files_captured"],
+                       "partial_batch_forwards": "unknown", "exit_status": "exception"})
+        raise
+    journal.record("capture_complete", {"ended_unix": time.time(), "forwards": result.forwards_executed,
+                   "model_loads": result.model_loads, "capture_status": "complete"})
+    replay = replay_journal(out / "capture")
+    if len(replay["stage1"]) != 1 or replay["stage1"][0]["summary"] != result.cell_summary:
+        raise _refused("REFUSED-IDENTITY", "offline stage-1 summary differs from capture")
+    if replay["stage1"][0]["disjoint_test"] != result.disjoint_test:
+        raise _refused("REFUSED-IDENTITY", "offline source-disjoint test differs from capture")
+    if len(replay["stage2"]) != 1:
+        raise _refused("REFUSED-IDENTITY", "offline stage-2 arm missing")
+    for row in result.stage2_arms:
+        recovered = replay["stage2"][0]["per_seed"][str(row["model_seed"])]
+        for key in ("e1_transition", "e1_control"):
+            if not np.isclose(recovered[key], row[key], rtol=1e-12, atol=1e-12):
+                raise _refused("REFUSED-IDENTITY", "offline stage-2 summary differs from capture")
+    write_json(out / "replay.json", replay)
     cell = result.cell_summary
     payload = {
         "status": result.status,
@@ -731,24 +784,26 @@ def run_official_smoke(out: Path, args: argparse.Namespace) -> dict[str, Any]:
         "per_seed_e1": result.per_seed_e1,
         "per_seed_null_q95": result.per_seed_q95,
         "cell_summary": cell,
+        "disjoint_test": result.disjoint_test,
         "stage2_arms": result.stage2_arms,
         "forwards_executed_this_run": int(result.forwards_executed),
         "model_loads": int(result.model_loads),
         "device": device,
-        "cumulative_forwards_after_run": int(official.CUMULATIVE_FORWARDS_BEFORE) + int(result.forwards_executed),
+        "capture_journal_sha256": hashlib.sha256((out / "capture" / "events.jsonl").read_bytes()).hexdigest(),
+        "cumulative_forwards_after_run_provisional": int(args.cumulative_before) + int(result.forwards_executed),
         "elapsed_s": round(time.time() - started, 2),
     }
     write_json(out / "tiny-official-smoke.json", payload)
     write_json(out / "run.json", {
         "task": official_base_task(),
-        "attempt": "S24-7-M17-A05",
+        "attempt": str(args.attempt_id),
         "mode": "official-smoke",
         "source_commit": source_commit(),
         "status": result.status,
         "forwards_executed_this_run": int(result.forwards_executed),
         "model_loads": int(result.model_loads),
         "device": device,
-        "cumulative_forwards_after_run": payload["cumulative_forwards_after_run"],
+        "cumulative_forwards_after_run_provisional": payload["cumulative_forwards_after_run_provisional"],
     })
     return payload
 
@@ -756,6 +811,8 @@ def run_official_smoke(out: Path, args: argparse.Namespace) -> dict[str, Any]:
 def run_official_matrix_cli(out: Path, args: argparse.Namespace) -> dict[str, Any]:
     """Execute the official matrix through the public orchestrator (gated)."""
     from representation import sprint24_paired_official as official
+    from representation.sprint24_paired_journal import CaptureJournal
+    from representation.sprint24_paired_replay import replay_journal
 
     started = time.time()
     _require_fresh_out(out)
@@ -769,23 +826,54 @@ def run_official_matrix_cli(out: Path, args: argparse.Namespace) -> dict[str, An
     preflight = json.loads(preflight_path.read_text(encoding="utf-8"))
     if not isinstance(preflight, dict):
         raise _refused("REFUSED-IDENTITY", "preflight is not a mapping")
-    bundles = _restore_bundles(args, preflight)
-    device = _capture_device(args)
     permitted = bool(getattr(args, "permit_official", False))
-    result = official.run_official_matrix(
-        bundles,
-        permitted=permitted,
-        histories=[str(value) for value in (getattr(args, "histories", "") or "").split(",") if value] or None,
-        cells=None,
-        g_level=str(getattr(args, "g_level", None) or "g48"),
-        device=device,
-    )
+    official._require_official_release(permitted)
+    journal = CaptureJournal(out / "capture")
+    journal.record("run_start", {
+        "task": "S24-7-M17", "attempt": str(args.attempt_id), "mode": "official-run",
+        "command": list(sys.argv), "started_unix": started, "device": str(args.device),
+        "source_commit": source_commit(), "preflight_sha256": hashlib.sha256(preflight_path.read_bytes()).hexdigest(),
+        "working_tree_source_sha256": correction_source_hashes(),
+        "checkpoint_sha256": preflight["checkpoints"], "bank_file_sha256": preflight["bank_files"],
+        "cumulative_forwards_before_provisional": int(args.cumulative_before), "historical_partial_forwards": "unknown",
+    })
+    official.reset_capture_counter()
+    try:
+        bundles = _restore_bundles(args, preflight)
+        device = _capture_device(args)
+        result = official.run_official_matrix(
+            bundles, permitted=permitted,
+            histories=[str(value) for value in (getattr(args, "histories", "") or "").split(",") if value] or None,
+            cells=None, g_level=str(getattr(args, "g_level", None) or "g48"),
+            device=device, journal=journal,
+        )
+    except BaseException as exc:
+        journal.record("run_failure", {"exception": repr(exc), "ended_unix": time.time(),
+                       "completed_batch_forwards": official.capture_files_count_holder()["files_captured"],
+                       "partial_batch_forwards": "unknown", "exit_status": "exception"})
+        raise
+    journal.record("capture_complete", {"ended_unix": time.time(), "forwards": result["forwards_executed"],
+                   "model_loads": result["model_loads"], "capture_status": "complete"})
+    replay = replay_journal(out / "capture")
+    replay_cells = {f"{row['history_id']}|{row['family']}|{row['severity']}": row for row in replay["stage1"]}
+    if set(replay_cells) != set(result["stage1"]):
+        raise _refused("REFUSED-IDENTITY", "offline stage-1 cell set differs")
+    for key, row in result["stage1"].items():
+        if replay_cells[key]["summary"] != row["summary"] or replay_cells[key]["disjoint_test"] != row["disjoint_test"]:
+            raise _refused("REFUSED-IDENTITY", f"offline stage-1 result differs for {key}")
+    if replay["holm_by_family"] != result["holm_by_family"]:
+        raise _refused("REFUSED-IDENTITY", "offline multiplicity summary differs")
+    for key, arm in result["stage2"].items():
+        reconstructed = replay["stage2_bootstraps"].get(key, official.cluster_bootstrap_median([]))
+        if reconstructed != arm["bootstrap"]:
+            raise _refused("REFUSED-IDENTITY", f"offline stage-2 bootstrap differs for {key}")
+    write_json(out / "replay.json", replay)
     payload = {
         "status": result["status"],
         "g_level": result["g_level"],
         "n_stage1_keys": len(result["stage1"]),
         "n_stage2_keys": len(result["stage2"]),
-        "n_holm_families": len(result["holm_by_family"]),
+        "multiplicity_status": result["holm_by_family"]["status"],
         "forwards_executed_this_run": int(result["forwards_executed"]),
         "model_loads": int(result["model_loads"]),
         "device": device,
@@ -794,7 +882,7 @@ def run_official_matrix_cli(out: Path, args: argparse.Namespace) -> dict[str, An
     write_json(out / "official-run.json", result)
     write_json(out / "run.json", {
         "task": official_base_task(),
-        "attempt": "S24-7-M17-A05",
+        "attempt": str(args.attempt_id),
         "mode": "official-run",
         "source_commit": source_commit(),
         **payload,
@@ -802,9 +890,22 @@ def run_official_matrix_cli(out: Path, args: argparse.Namespace) -> dict[str, An
     return payload
 
 
+def run_with_terminal_custody(fn: Any, out: Path, args: argparse.Namespace) -> dict[str, Any]:
+    """Record post-capture Python failures, including reload and summary failures."""
+    existed_before = (out / "capture").exists()
+    try:
+        return fn(out, args)
+    except BaseException as exc:
+        from representation import sprint24_paired_official as official
+        from representation.sprint24_paired_journal import record_terminal_failure
+        if not existed_before:
+            record_terminal_failure(out / "capture", exc, official.capture_files_count_holder()["files_captured"])
+        raise
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="S24-7-M17 paired-execution CLI")
-    parser.add_argument("--mode", choices=("contract", "smoke", "capture", "official-contract", "official-smoke", "official-run"), required=True)
+    parser.add_argument("--mode", choices=("contract", "smoke", "capture", "official-contract", "official-smoke", "official-run", "offline-replay"), required=True)
     parser.add_argument("--out", required=False, default=None)
     parser.add_argument("--b0-root", required=False, default=None)
     parser.add_argument("--bank-root", required=False, default=None)
@@ -813,7 +914,23 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--permit-official", dest="permit_official", action="store_true", default=False)
     parser.add_argument("--histories", required=False, default="")
     parser.add_argument("--g-level", dest="g_level", required=False, default="g48")
+    parser.add_argument("--attempt-id", required=False, default=None)
+    parser.add_argument("--capture-root", required=False, default=None)
+    parser.add_argument("--smoke-n250", action="store_true", default=False)
+    parser.add_argument("--smoke-family", default="subtle_drift")
+    parser.add_argument("--smoke-severity", type=float, default=0.6)
+    parser.add_argument("--cumulative-before", type=int, default=None)
     args = parser.parse_args(argv)
+    if args.mode in ("official-smoke", "official-run") and not args.attempt_id:
+        raise _refused("REFUSED-IDENTITY", "capture requires the actual --attempt-id")
+    if args.mode in ("official-smoke", "official-run") and (args.cumulative_before is None or args.cumulative_before < 0):
+        raise _refused("REFUSED-IDENTITY", "capture requires the provisional --cumulative-before ledger")
+    if args.mode == "offline-replay":
+        if not args.capture_root:
+            raise _refused("REFUSED-MISSING-PREREQUISITE", "offline replay requires --capture-root")
+        from representation.sprint24_paired_replay import replay_journal
+        print(json.dumps(replay_journal(Path(args.capture_root)), indent=1))
+        return 0
     if args.mode == "contract":
         if not args.out:
             raise _refused("REFUSED-UNKNOWN-DESIGN", "--mode contract requires --out")
@@ -835,13 +952,13 @@ def main(argv: list[str] | None = None) -> int:
     if args.mode == "official-smoke":
         if not args.out:
             raise _refused("REFUSED-UNKNOWN-DESIGN", "--mode official-smoke requires --out")
-        result = run_official_smoke(Path(args.out), args)
+        result = run_with_terminal_custody(run_official_smoke, Path(args.out), args)
         print(json.dumps(result, indent=1))
         return 0 if result["status"] == "TINY-OFFICIAL-SMOKE-COMPLETE" else 2
     if args.mode == "official-run":
         if not args.out:
             raise _refused("REFUSED-UNKNOWN-DESIGN", "--mode official-run requires --out")
-        result = run_official_matrix_cli(Path(args.out), args)
+        result = run_with_terminal_custody(run_official_matrix_cli, Path(args.out), args)
         print(json.dumps(result, indent=1))
         return 0 if result["status"] == "OFFICIAL-MATRIX-COMPLETE" else 2
     if not args.out:

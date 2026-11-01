@@ -23,6 +23,7 @@ variance are correctly measured, and that pure variance-reduction anomalies
 
 from __future__ import annotations
 
+from collections.abc import Callable
 import numpy as np
 import numpy.typing as npt
 
@@ -124,6 +125,7 @@ def generate_with_strength_gate(
     cfg: AnomalyConfig,
     weak_min: float | None = None,
     strong_max: float | None = None,
+    on_attempt: Callable[[int, str, float | None, str], None] | None = None,
 ) -> tuple[AnomalyResult, float, int]:
     """
     Repeatedly call ``generate_fn()`` until the strength gate accepts,
@@ -139,13 +141,33 @@ def generate_with_strength_gate(
     last_result = None
     last_strength = 0.0
     for attempt in range(1, cfg.max_rejection_attempts + 1):
-        result = generate_fn()
+        if on_attempt is not None:
+            on_attempt(attempt, "STARTED", None, "attempt_started")
+        try:
+            result = generate_fn()
+        except Exception as exc:
+            if on_attempt is not None:
+                on_attempt(attempt, "ERROR", None, repr(exc))
+            raise
         if not result.accepted:
             # Injector itself declared rejection (e.g. degenerate session)
             last_result = result
+            if on_attempt is not None:
+                on_attempt(attempt, "REJECTED", None, "injector_rejected")
             last_strength = 0.0
             continue
         accepted, strength = gate.evaluate(x_orig, result, wmin, smax)
+        if on_attempt is not None:
+            if accepted:
+                reason = "accepted"
+            elif not np.isfinite(strength):
+                reason = "nonfinite_strength"
+            elif strength < wmin:
+                reason = "strength_below_min"
+            else:
+                reason = "strength_above_max"
+            on_attempt(attempt, "ACCEPTED" if accepted else "REJECTED",
+                       float(strength) if np.isfinite(strength) else None, reason)
         last_result = result
         last_strength = strength
         if accepted:

@@ -1,3 +1,43 @@
+> **C3 correction in progress; not released.** The C2 account below is historical.
+> The later M18 audit identified missing reconstructable capture, repeated
+> reference rows for N=250, and non-directional historical p-values. C3 also
+> corrects the paired-source MMD cross term: paired rows are not independent.
+> The [proposed C03 contract](sprint24-paired-execution-contract-c03.json)
+> records the conditional estimands, unresolved null and review boundary.
+> No official recapture or new calibration is released by this document.
+
+## C3 correction boundary
+
+The owner selected a source-disjoint confirmatory test while retaining all
+48 paired groups as diagnostics. The [C03 contract](sprint24-paired-execution-contract-c03.json)
+specifies common admission, deterministic source assignment, the joint
+three-encoder permutation statistic, all 162 tests and Holm adjustment.
+It remains subject to independent review of the source-exchangeability
+assumptions and implementation. An incomplete subset is not a smaller
+multiplicity family. Stage 2 and its history bootstrap remain descriptive.
+No absence, response-bar, sequential-look or business-scale inference follows.
+
+Bandwidth is estimated from 220 additional pre-c1 normal sources per history,
+separate from the preserved 220 reference sources. Stage 2 uses a stratified
+U-statistic at the realized admitted abnormal weight, with explicit singleton
+abstention; the requested burden remains a separate field. The synthetic
+calendar assigns distinct scenario timelines within six existing history
+contexts, rather than packing all experimental arms into one 40-file week.
+These are planned synthetic times, not observed real-world timestamps.
+
+The journal contains the vectors actually returned by the encoders, identity
+and disposition events, selected group membership, calibration inputs and
+reference-bandwidth provenance. Every attempted injection is journaled as
+started and then accepted, rejected or errored, with its actual attempt seed
+and source/group identity; the selected pair also carries its completed attempt
+list. The generator's RNG consumption and selection behavior are unchanged.
+
+Raw waveforms are not retained: rebuilding them would require the exact
+generator code, configuration and dependencies and has not been demonstrated.
+Replay operates on saved embeddings, not live models. The public capture path
+only counts batches returned successfully; partial failed batches remain
+explicitly unknown rather than being assigned zero.
+
 # Sprint 24 paired-experiment execution readiness (Task 7-M17, C2 correction)
 
 - Task / attempt / agent: `S24-7-M17` / `S24-7-M17-A05` / `S24M17GoldA05` (role Gold).

@@ -97,6 +97,20 @@ def test_retry_pairs_selected_source(gen: SessionGenerator) -> None:
     assert (pair.abnormal.x == legacy.x).all()
 
 
+def test_retry_observer_retains_actual_attempts_without_changing_outputs(gen: SessionGenerator) -> None:
+    events: list[dict[str, object]] = []
+    observed = gen.generate_paired_twin(42447, AnomalyFamily.SUBTLE_DRIFT, 0.6, on_attempt=events.append)
+    baseline = gen.generate_paired_twin(42447, AnomalyFamily.SUBTLE_DRIFT, 0.6)
+    assert observed.n_attempts == len(observed.attempts) == 2
+    assert [event["status"] for event in events] == ["STARTED", "REJECTED", "STARTED", "ACCEPTED"]
+    assert [event["attempt_seed"] for event in events[1::2]] == [entry.attempt_seed for entry in observed.attempts]
+    assert all(event["source_id"] == observed.source_id and event["group_id"] == observed.group_id for event in events)
+    assert observed.attempts == baseline.attempts
+    assert observed.source_id == baseline.source_id and observed.disposition == baseline.disposition
+    assert (observed.twin.x == baseline.twin.x).all()
+    assert (observed.abnormal.x == baseline.abnormal.x).all()
+
+
 def test_duration_pair_is_within_family_only(gen: SessionGenerator) -> None:
     pair = gen.generate_paired_twin(42401, AnomalyFamily.DURATION_ANOMALY, 0.6)
     assert pair.disposition == "PAIRED"

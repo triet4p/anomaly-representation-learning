@@ -110,10 +110,6 @@ def test_official_numerics_reuse_frozen_math() -> None:
     assert bootstrap["replicates"] == 2000
     arms = official.population_arms()
     assert len(arms) == 12
-    family = official.summarize_stage1_family(
-        {"a|0.6": {"g48": {"summary": base.summarize_cell([0.9] * 30 + [0.01] * 18, 0.1)}}}
-    )
-    assert "holm" in family and len(family["holm"]) == 1
     sensitivity = official.e2_occupancy(rng.normal(size=(16, 4)), rng.normal(size=(16, 4)) + 0.3, rng.normal(size=(40, 4)))
     assert np.isfinite(sensitivity["e2"])
     within = official.within_prototype_diagnostics(rng.normal(size=(16, 4)), rng.normal(size=(16, 4)) + 0.3, rng.normal(size=(40, 4)))
@@ -133,27 +129,111 @@ def test_official_error_boundaries_fail_closed() -> None:
         official.frozen_reference_bandwidth({int(seed): {"matrix": [[float("nan")]]} for seed in base.FROZEN_ENCODER_SEEDS})
 
 
-def test_official_run_orchestrator_gate_and_callgraph() -> None:
-    import inspect
-
-    assert "run_official_matrix" in official.__all__
-    assert "official-run" in open(CLI, encoding="utf-8").read()
-    source = inspect.getsource(official.run_official_matrix)
-    assert "_require_official_release" in source
-    assert "collect_stage1_cell" in source
-    assert "evaluate_stage2_arm" in source
-    assert "summarize_stage1_family" in source
-    assert "cluster_bootstrap_median" in source
-    smoke_source = inspect.getsource(official.tiny_official_smoke)
-    assert "collect_stage1_cell" in smoke_source
-    assert "evaluate_stage2_arm" in smoke_source
-    assert "capture_reference_pool" in smoke_source
-    assert "frozen_reference_bandwidth" in smoke_source
-    stage_source = inspect.getsource(official.evaluate_stage2_arm)
-    assert "ordinary" in stage_source and "abnormal" in stage_source
-    assert "score_scored_group(twin[" not in stage_source
+def test_official_run_requires_release_permission() -> None:
     with pytest.raises(ValueError, match="REFUSED-OFFICIAL-RELEASE"):
         official.run_official_matrix({}, permitted=False)
+
+
+def test_group_summary_does_not_claim_detection_without_calibration() -> None:
+    result = official.descriptive_cell_summary([1.0, 2.0], 0.5)
+    assert result["n_responses"] == 2
+    assert result["bar_met"] is None
+    assert "DESCRIPTIVE ONLY" in result["reading"]
+    assert official.descriptive_cell_summary([], 0.5)["status"] == "ABSTAIN-COVERAGE"
+
+
+def test_paired_mmd_excludes_matched_cross_terms() -> None:
+    x = np.arange(8, dtype=np.float64).reshape(-1, 1) / 5
+    y = x + np.arange(8, dtype=np.float64).reshape(-1, 1) / 20
+    kernel = lambda a, b: np.exp(-((a - b) ** 2) / 2)
+    expected = sum(
+        kernel(x[i, 0], x[j, 0]) + kernel(y[i, 0], y[j, 0])
+        - 2 * kernel(x[i, 0], y[j, 0])
+        for i in range(8) for j in range(8) if i != j
+    ) / 56
+    assert official.paired_mmd2_unbiased(x, y, 1.0) == pytest.approx(expected, abs=1e-12)
+    assert official.paired_mmd2_unbiased(x, x, 1.0) == pytest.approx(0.0, abs=1e-12)
+    with pytest.raises(ValueError, match="REFUSED-ERROR-BOUNDARY"):
+        official.paired_mmd2_unbiased(x[:1], y[:1], 1.0)
+
+
+def test_unequal_n_mmd_uses_all_220_distinct_references() -> None:
+    from representation.sprint24_weekly_monthly_endpoints import mmd2_unbiased
+
+    x = np.arange(250, dtype=np.float64).reshape(-1, 1) / 100
+    reference = np.arange(220, dtype=np.float64).reshape(-1, 1) / 100
+    expected = (
+        sum(np.exp(-((x[i, 0] - x[j, 0]) ** 2) / 2) for i in range(250) for j in range(250) if i != j) / (250 * 249)
+        + sum(np.exp(-((reference[i, 0] - reference[j, 0]) ** 2) / 2) for i in range(220) for j in range(220) if i != j) / (220 * 219)
+        - 2 * sum(np.exp(-((a - b) ** 2) / 2) for a in x[:, 0] for b in reference[:, 0]) / (250 * 220)
+    )
+    assert mmd2_unbiased(x, reference, 1.0) == pytest.approx(expected, abs=1e-12)
+    assert expected == pytest.approx(0.008184635147189034)
+
+
+def test_disjoint_test_uses_each_source_once_and_unequal_mmd() -> None:
+    from representation.sprint24_paired_disjoint import source_disjoint_test
+    from representation.sprint24_weekly_monthly_endpoints import mmd2_unbiased
+
+    planned = list(range(16))
+    admitted = list(range(1, 16))
+    x = np.arange(15, dtype=np.float64).reshape(-1, 1) / 10
+    features = {s: {"twin": x + s, "abnormal": x + s + 0.2} for s in (1, 2, 3)}
+    result = source_disjoint_test(planned, admitted, features, {1: 1., 2: 1., 3: 1.}, 53101, "test", 0.5)
+    left, right = result["twin_pair_indices"], result["variant_pair_indices"]
+    assert set(left).isdisjoint(right)
+    assert set(left) | set(right) == set(admitted)
+    index = {value: i for i, value in enumerate(admitted)}
+    expected = np.mean([
+        mmd2_unbiased(features[s]["twin"][[index[i] for i in left]],
+                      features[s]["abnormal"][[index[i] for i in right]], 1.)
+        for s in (1, 2, 3)
+    ])
+    assert result["statistic"] == pytest.approx(expected, abs=1e-12)
+    assert result["p_value"] == (1 + result["exceedances"]) / 10000
+    abstained = source_disjoint_test(planned, [], {}, {1: 1.}, 53101, "test", 0.5)
+    assert abstained["status"] == "ABSTAIN-COVERAGE" and abstained["p_value"] == 1.0
+
+
+def test_stratified_mmd_uses_component_weights_and_refuses_singletons() -> None:
+    from representation.sprint24_paired_estimators import stratified_mmd2_unbiased
+    from representation.sprint24_weekly_monthly_endpoints import mmd2_unbiased
+
+    a = np.array([[0.0], [0.7], [1.4]])
+    o = np.array([[0.1], [0.4], [0.9], [1.2]])
+    r = np.array([[0.2], [0.5], [0.8], [1.1], [1.5]])
+    def k(x: float, y: float) -> float:
+        return float(np.exp(-0.5 * (x - y) ** 2))
+    def off(x: np.ndarray) -> float:
+        return sum(k(u[0], v[0]) for i, u in enumerate(x) for j, v in enumerate(x) if i != j) / (len(x) * (len(x) - 1))
+    def cross(x: np.ndarray, y: np.ndarray) -> float:
+        return sum(k(u[0], v[0]) for u in x for v in y) / (len(x) * len(y))
+    w = len(a) / (len(a) + len(o))
+    expected = w*w*off(a) + (1-w)**2*off(o) + 2*w*(1-w)*cross(a, o) + off(r) - 2*(w*cross(a, r) + (1-w)*cross(o, r))
+    assert stratified_mmd2_unbiased(a, o, r, 1.0) == pytest.approx(expected, abs=1e-12)
+    assert stratified_mmd2_unbiased(a[:0], o, r, 1.0) == pytest.approx(mmd2_unbiased(o, r, 1.0), abs=1e-12)
+    with pytest.raises(ValueError, match="REFUSED-ERROR-BOUNDARY"):
+        stratified_mmd2_unbiased(a[:1], o, r, 1.0)
+
+
+def test_synthetic_calendar_refuses_missing_scenario_and_timing_drift() -> None:
+    from representation.sprint24_controlled_data_execution import build_history_calendar
+    from representation.sprint24_paired_replay import _validate_calendar
+    from synth.config import SynthConfig
+    from synth.generator import SessionGenerator, derive_pair_seed
+
+    history = "TEST-HISTORY"
+    calendar = build_history_calendar(history)
+    pair = SessionGenerator(SynthConfig()).generate_paired_twin(derive_pair_seed(53101, 0), "subtle_drift", 0.6)
+    scenario = f"{history}|stage1|subtle_drift|0.6"
+    row = official._evaluation_lineage(pair, 0, scenario, "scored-pair", calendar["weeks"][1], 0, 40, 0.0)
+    event = {"kind": "stage1_pairs", "history_id": history, "history_seed": 53101,
+             "scenario_id": scenario, "calendar": calendar, "pairs": [row]}
+    _validate_calendar(event)
+    with pytest.raises(ValueError, match="scenario or role"):
+        _validate_calendar({**event, "pairs": [{**row, "scenario_id": ""}]})
+    with pytest.raises(ValueError, match="outside evaluation window"):
+        _validate_calendar({**event, "pairs": [{**row, "planned_start_rel_s": -1.0}]})
 
 
 def test_official_matrix_counts_fully_enumerated_without_outcomes() -> None:

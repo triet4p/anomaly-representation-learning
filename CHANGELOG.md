@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Added source-disjoint paired-experiment testing and an embedding journal with offline replay; inferential results remain conditional on the declared source-exchangeability assumptions.
 - Added the Sprint 24 Task 7-M17-C2 official-driver correction (`representation.sprint24_paired_official`, versioned contract `docs/sprint24-paired-execution-contract-c02.json`, CLI `--mode official-contract|official-smoke`, focused tests `tests/representation/test_sprint24_paired_official.py`, shared readiness `docs/sprint24-paired-execution-readiness.md`): complete official matrix/generation/capture/two-stage evaluation path superseding historical A01 for official runs, reusing the frozen option-A mathematics unchanged.
 - Added the Sprint 24 Task 7-M17 paired-experiment execution freeze (`representation.sprint24_paired_execution`, CLI `experiments/sprint24_task7m17_paired_execution.py`, report `docs/sprint24-paired-execution-readiness.md`, versioned contract `docs/sprint24-paired-execution-contract-a01.json`, focused tests `tests/representation/test_sprint24_paired_execution.py`): owner-approved option A with unbiased E1 scored on independent K=8 groups (24->48 scored groups/cell, no 96 branch), group-level operating characteristics, matched-size normal-normal calibration, Holm multiplicity, and a reusable generator/capture/evaluation entry with isolated smoke accounting from 77,653 forwards.
 
@@ -119,6 +120,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Configured `.gitignore` to ignore `checkpoints/` and `*.pt` binary artifacts.
 
 ### Fixed
+
+- Corrected paired-source E1 to exclude matched cross-pairs and population E1 to use the distinct causal-reference rows without duplicating them for N=250. Historical two-sided response tests are no longer presented as directional detection in the official matrix.
 
 - Fixed Sprint 18 Task 32 supplementary custody: B0/K3/K7/N2/N3 and N4 `S_pop` now reconstruct only the accepted Fit bank from the frozen complete Fit roster/order and sole public recipe, require the exact historical bank SHA before any score/artifact output, persist matching bank bytes with immutable provenance, and abort mismatch without retry or alternate bank. K9 downstream and N4 final scale remain restore-as-is; N4 strict scoring, paired-B0 `S_pop`/q95 parity, corrected K9 timestep mapping, accepted Development-support binding, and three-seed metrics with INVALID/null missing-baseline behavior are wired end-to-end.
 - Fixed Sprint 18 Task 32's N4 paired-authority split: supplementary manifests, score restores, metrics, and immutable bank provenance now bind the accepted v9 scientific lock/config separately from the same-seed v1 B0 lock/config/record. Both raw lock hashes and config digests are checked without fallback, and misbound/tampered pairs fail before output. Closed input-manifest/scores/result/bank-provenance contracts are prospectively v3/v3/v2/v3; consumers require each applicable lock and accepted-record digest in immutable custody maps. Accepted lock and record bytes remain unchanged.

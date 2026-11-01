@@ -12,7 +12,7 @@ seed, and optionally anomaly family; the generator handles:
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 import hashlib
 import numpy as np
@@ -70,6 +70,16 @@ def _require_twin_severity(severity: float) -> float:
 
 
 @dataclass(frozen=True)
+class PairedAttempt:
+    """Actual injection attempt observed while constructing one paired source."""
+    attempt: int
+    attempt_seed: int
+    status: str
+    strength: float | None
+    reason: str
+
+
+@dataclass(frozen=True)
 class PairedTwin:
     """One public paired-twin draw: an unmodified twin plus one variant."""
     pair_seed: int
@@ -83,6 +93,7 @@ class PairedTwin:
     n_attempts: int
     strength: float
     normal_path_diverges: bool
+    attempts: tuple[PairedAttempt, ...]
 
 
 class SessionGenerator:
@@ -336,6 +347,7 @@ class SessionGenerator:
         family: AnomalyFamily | str,
         severity: float,
         split: str = "test",
+        on_attempt: Callable[[dict[str, object]], None] | None = None,
     ) -> PairedTwin:
         """Build the unmodified twin and requested anomaly from one source."""
         seed = _require_pair_seed(pair_seed)
@@ -361,6 +373,23 @@ class SessionGenerator:
         anom_seed = int(source["anom_seed"])  # type: ignore[arg-type]
         noise_seed = int(source["noise_seed"])  # type: ignore[arg-type]
         counter = 0
+        source_id = hashlib.sha256(
+            f"{PAIRED_TWIN_DOMAIN}:{seed}:{self._config_hash}:"
+            f"{x_clean.shape[1]}:{(int(source['robot_idx']), int(source['program_idx']))}".encode()
+        ).hexdigest()[:16]
+        group_id = f"{PAIRED_TWIN_DOMAIN}:{seed:010d}"
+        attempts: list[PairedAttempt] = []
+
+        def record_attempt(number: int, status: str, attempt_strength: float | None, reason: str) -> None:
+            record = PairedAttempt(number, anom_seed + number - 1, status, attempt_strength, reason)
+            if status != "STARTED":
+                attempts.append(record)
+            if on_attempt is not None:
+                on_attempt({
+                    "pair_seed": seed, "source_id": source_id, "group_id": group_id,
+                    "attempt": number, "attempt_seed": record.attempt_seed,
+                    "status": status, "strength": attempt_strength, "reason": reason,
+                })
 
         def make_attempt() -> object:
             nonlocal counter
@@ -375,7 +404,7 @@ class SessionGenerator:
             return inject_anomaly(family, ctx, value, acfg)
 
         result, strength, n_attempts = generate_with_strength_gate(
-            make_attempt, x_clean, acfg
+            make_attempt, x_clean, acfg, on_attempt=record_attempt
         )
         twin_regimes: list[RegimeMeta] = list(regime_meta)
         abnormal_regimes = result.regimes_modified if result.regimes_modified is not None else list(regime_meta)
@@ -400,11 +429,6 @@ class SessionGenerator:
         twin_sample.validate()
         abnormal_noisy = self._noise_copy(result.x_modified, noise_seed, self.cfg)
         abnormal_noisy = smooth_regime_boundaries(abnormal_noisy, abnormal_regimes)
-        source_id = hashlib.sha256(
-            f"{PAIRED_TWIN_DOMAIN}:{seed}:{self._config_hash}:"
-            f"{twin_sample.T}:{(twin_sample.robot_idx, twin_sample.program_idx)}".encode()
-        ).hexdigest()[:16]
-        group_id = f"{PAIRED_TWIN_DOMAIN}:{seed:010d}"
         if not result.accepted:
             meta = result.meta
             meta.extra["strength"] = float(strength)
@@ -437,6 +461,7 @@ class SessionGenerator:
                 disposition="NORMAL_RETURN", family=family, severity=value,
                 group_id=group_id, source_id=source_id, n_attempts=n_attempts,
                 strength=float(strength),
+                attempts=tuple(attempts),
                 normal_path_diverges=self._normal_path_diverges(
                     self.generate_normal(seed=seed, split=split), source
                 ),
@@ -478,6 +503,7 @@ class SessionGenerator:
             disposition="PAIRED", family=family, severity=value,
             group_id=group_id, source_id=source_id, n_attempts=n_attempts,
             strength=float(strength),
+            attempts=tuple(attempts),
             normal_path_diverges=self._normal_path_diverges(
                 self.generate_normal(seed=seed, split=split), source
             ),
